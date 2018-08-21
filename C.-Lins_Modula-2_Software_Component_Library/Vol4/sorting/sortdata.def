@@ -1,0 +1,7 @@
+DEFINITION MODULE SortData;
+
+CONST  kMaxArraySize = 10000;
+TYPE   DataArray     = ARRAY [0..kMaxArraySize] OF INTEGER;
+VAR    theRandomData : POINTER TO DataArray;
+
+END SortData.

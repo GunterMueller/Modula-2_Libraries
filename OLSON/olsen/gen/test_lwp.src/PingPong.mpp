@@ -1,0 +1,111 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE PingPong;
+IMPORT
+    Tasks,	TaskConsts, 	ProgErrOutput, 	ProgArgs,
+    SYSTEM,	ProgErr;
+
+VAR
+    numPings : CARDINAL;
+
+PROCEDURE Ping( numPingsAdr : SYSTEM.ADDRESS );
+    VAR
+	numPingsPtr : POINTER TO CARDINAL;
+    BEGIN (* Ping *)
+
+	numPingsPtr := numPingsAdr;
+
+	ProgErrOutput.WriteString( "Ping Running" );
+	ProgErrOutput.WriteLn;
+	WHILE numPingsPtr^ # 0 DO
+	    @IF NOT SpeedMode THEN
+		ProgErrOutput.WriteString( "Ping" );
+	    @END (* NOT SpeedMode *)
+	    Tasks.Suspend;
+	    DEC( numPingsPtr^ );
+	END;
+
+    END Ping;
+
+VAR
+    setPriority : BOOLEAN;
+PROCEDURE Pong( numPingsAdr : SYSTEM.ADDRESS );
+    VAR
+	ping : Tasks.Object;
+	me   : Tasks.Object;
+	numPingsPtr : POINTER TO CARDINAL;
+    BEGIN (* Pong *)
+	
+	numPingsPtr := numPingsAdr;
+	ProgErrOutput.WriteString( "Pong Running" );
+	ProgErrOutput.WriteLn;
+	me := Tasks.GetCurrent();
+	Tasks.Create( ping, " Ping", Ping, numPingsAdr,
+		      Tasks.GetPriority( me ) + 1, 
+		      TaskConsts.GetDefaultStackSize() );
+	WHILE numPingsPtr^ # 0 DO
+	    @IF NOT SpeedMode THEN
+		ProgErrOutput.WriteString( "Pong" );
+		ProgErrOutput.WriteLn;
+	    @END (* NOT SpeedMode *)
+	    Tasks.Ready( ping );
+	END;
+
+	IF setPriority THEN
+	    (* Allow parent to die first... *)
+	    Tasks.SetPriority( me, Tasks.GetPriority( me ) - 3 );
+	END;
+
+    END Pong;
+
+VAR
+    pong : Tasks.Object;
+BEGIN (* PingPong *)
+
+    setPriority := FALSE;
+    ProgArgs.RegisterBoolHandler( 's', ProgArgs.DefaultBoolHandler,
+				  SYSTEM.ADR( setPriority ) );
+    numPings := 1;
+    ProgArgs.RegisterCardHandler( 'n', ProgArgs.DefaultCardHandler,
+				  SYSTEM.ADR( numPings ) );
+    IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	ProgErr.Terminate( "Usage: PingPong /n=#pings /s" );
+    END;
+
+    @IF SpeedMode THEN
+	ProgErrOutput.WriteString( "Running in SpeedMode" );
+	ProgErrOutput.WriteLn;
+    @END (* SpeedMode *)
+
+    Tasks.Create( pong, "Pong", Pong, SYSTEM.ADR( numPings ),
+		  Tasks.GetPriority( Tasks.GetCurrent() ) + 1, 
+		  TaskConsts.GetDefaultStackSize() );
+	
+    IF numPings # 0 THEN
+	ProgErr.Terminate( "Didn't use correct importerObject." );
+    END;
+    
+    ProgErrOutput.WriteString( "Exiting" );
+    ProgErrOutput.WriteLn;
+
+END PingPong.

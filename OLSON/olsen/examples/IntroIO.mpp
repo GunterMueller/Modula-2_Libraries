@@ -1,0 +1,337 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE IntroIO;
+(*
+ * Sorry about for formatting, but this was taking directly from
+ * the chapter: Introduction to I/O.
+ *)
+IMPORT
+    CardConvert,
+    DirIO,
+    ErrorFIO,
+    GenConsts,
+    IOErrors,
+    ProgErr,
+    ProgErrOutput,
+    SimpleFIO,
+    SimpleIO,
+    Strings,
+    SysTypes,
+    TextIO;
+
+VAR
+    ch : CHAR;
+    name : GenConsts.Identifier;
+    r, r2 : REAL;
+CONST
+    fileName = "fileWithError";
+    lineNumberOfOpen = 37;
+    lineNumber = 12;
+
+    PROCEDURE ErrorMsg(
+        msg : ARRAY OF CHAR
+        );
+        BEGIN (* ErrorMsg *)
+        
+            SimpleIO.WriteChar( '"' );
+            SimpleIO.WriteString( fileName );
+            SimpleIO.WriteString( '", line ' );
+            SimpleIO.WriteCard( lineNumber, 0 );
+            SimpleIO.WriteString( ': ' );
+            SimpleIO.WriteString( msg );
+            SimpleIO.WriteLn;
+        
+        END ErrorMsg;
+    CONST
+        prefix = '"[String]", line [Card]: ';   (* name and line *)
+    PROCEDURE Error1(
+        format : ARRAY OF CHAR;
+        arg1   : ARRAY OF SysTypes.ANY
+        );
+        BEGIN (* Error1 *)
+            
+            ErrorFIO.Write2( prefix, fileName, lineNumber );
+            ErrorFIO.Write1( format, arg1 );
+            ErrorFIO.Write( "[NL]" );
+            
+        END Error1;
+    CONST
+        format = "[Float,w5,p1,f0]  [Sci,p4,e3][NL]";
+
+    CONST
+        format2 = "[Float,w5,p1,f0][Sci,w12,p4,e3][NL]";
+	
+PROCEDURE Plot(
+    x : INTEGER;
+    y : INTEGER
+    );
+    BEGIN (* Plot *)
+	SimpleFIO.Write2( "x = [Int]; y = [Int];[NL]", x, y );
+    END Plot;
+VAR
+    msg : GenConsts.Line;
+
+    DONTCARE : CHAR;
+PROCEDURE f1(): BOOLEAN;
+BEGIN
+    LOOP
+        SimpleIO.WriteString( "Continue? " );
+        SimpleIO.ReadChar( ch );
+        SimpleIO.ReadLn;        (* flush rest of line *)
+        IF SimpleIO.EOF() THEN
+            RETURN FALSE;
+        END;
+        CASE ch OF
+            'y', 'Y':
+                RETURN TRUE;
+            |
+            'n', 'N':
+                RETURN FALSE;
+            ELSE
+                SimpleIO.WriteString( "Wrong key, try again" );
+                SimpleIO.WriteLn;
+                (* fall through *)
+        END;
+    END;
+
+END f1;    
+
+VAR
+    entry : REAL;
+    sum : REAL;
+    count : REAL;
+    
+VAR
+    continue : BOOLEAN;
+
+    VAR
+	text : TextIO.Object;
+	VAR x,y : INTEGER;
+    BEGIN (* ex *)
+
+    SimpleFIO.Write( "Gruezi Mitenand[NL]" );
+
+    SimpleIO.WriteString( "Gruezi Mitenand" );
+    SimpleIO.WriteLn;
+
+    ProgErrOutput.WriteString( "Gruezi Mitenand" );
+    ProgErrOutput.WriteLn;
+
+    SimpleFIO.Write1( "The number is [Card].[NL]", 35 );
+    
+    SimpleIO.WriteString( "The number is " );
+    SimpleIO.WriteCard( 35, 0 );
+    SimpleIO.WriteChar( "." );
+    SimpleIO.WriteLn;
+
+    SimpleFIO.Write(  "Index     Value[NL]" );
+    r := 12.34;
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 1, r );
+    r := 3.14;
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 10, r );
+    r := 1001.14;
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 101, r );
+    
+    SimpleIO.WriteString( "Index     Value" );
+    SimpleIO.WriteLn;
+    SimpleIO.WriteCard( 1, 5 );
+    SimpleIO.WriteChar( " " );
+    SimpleIO.WriteFloating( 12.34, 9, 2 );
+    SimpleIO.WriteLn;
+
+    SimpleFIO.Write1( "My height is [Card] centimeters.[NL]", 185 );
+
+    CardConvert.DONTCARE := CardConvert.ToString( lineNumberOfOpen, 10, 0, msg );
+    Strings.Insert( msg, Strings.BOS, 
+                    "open comment at EOF. Comment start line " );
+    Strings.Insert( msg, Strings.EOS, "." );
+    ErrorMsg( msg );
+
+    Error1( "open comment at EOF.  Comments starts line [Card].", 
+            lineNumberOfOpen );
+    
+
+    r := 12.34;
+    SimpleFIO.Write1( "$[Float,w10,jl,fX,p2][NL]", r );
+
+    SimpleFIO.Write1( "a`[[Card]] = 3.2[NL]", 1 );
+
+    SimpleFIO.Write1( "[String,jc,f`,,w9][NL]", "abc" );
+
+    SimpleFIO.Write1( "![String,jc,f=,w9]!", "abc" );
+
+    SimpleFIO.Write1( "The answer is [Bool,yyes,nno].[NL]", TRUE );
+
+    SimpleFIO.Write1( "Sex: [Bool,ymale,nfemale]", FALSE );
+
+    r := 1.1E3;
+    r2 := 1.1;
+    SimpleFIO.Write2( format, r2, r );
+    r := 123.45E10;
+    r2 := 13.1;
+    SimpleFIO.Write2( format, r2, r );
+    r := 0.000999999;
+    r2 := 143.1;
+    SimpleFIO.Write2( format, r2, r );
+    r := 0.000999999;
+    r2 := 143.1;
+    SimpleFIO.Write2( format2, r2, r );
+    
+SimpleFIO.PromptedRead1( "[Int,mWhich: ,l0,u6][NL]", x );
+CASE x OF
+0:
+SimpleFIO.Write( "Lit read[NL]" );
+    IF NOT SimpleFIO.Read( "This is some text.[NL]" ) THEN
+        ProgErr.Terminate( "Expected: This is some text." );
+    END;
+
+    IF SimpleFIO.Read2( "x = [Int,l-100,u+100]; y = [Int,l0];[NL]", x, y ) THEN	
+    END;
+
+    SimpleFIO.PromptedRead1( "[Bool,mContinue? ,yy,nn][NL]", 
+                             continue );
+    SimpleFIO.PromptedRead2( "[Int,u100,l-100][NL][Card,mHello: ][NL]", 
+			     x, y );
+    SimpleFIO.PromptedRead1( 
+       "[String,mMy name is Bond`, James Bond.[NL]And yours: ][NL]", name );
+|
+1:
+    sum := 0.0;
+    count := 0.0;
+    LOOP
+        IF SimpleIO.ReadReal( entry ) THEN
+            sum := entry + sum;
+            count := 1.0 + count;
+        ELSIF SimpleIO.EOL() THEN
+            (* Do nothing, because we are allowing free format *)
+        ELSIF SimpleIO.EOF() THEN
+            EXIT;
+        ELSE
+            ProgErr.Terminate( "Bad data in file" );
+        END;
+    END; (* LOOP *)
+    
+    SimpleIO.WriteString( "The average is " );
+    SimpleIO.WriteFloating( sum / count, 0, 5 );
+    SimpleIO.WriteLn;
+
+|
+2:
+    LOOP
+        IF NOT SimpleIO.ReadInt( x ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Blank line or bad data in file" );
+        END;
+        
+        IF NOT SimpleIO.ReadInt( y ) THEN
+            ProgErr.Terminate( "x and y must be on the same line" );
+        END;
+        
+        Plot( x, y );
+        
+        SimpleIO.ReadLn;
+        IF SimpleIO.EOF() THEN
+            EXIT;   (* Line terminated without a new-line *)
+        END;
+    END; (* LOOP *)
+
+|
+3:
+    LOOP
+        IF NOT SimpleIO.ReadInt( x ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Blank line or bad data in file" );
+        END;
+        
+        IF NOT SimpleIO.ReadInt( y ) THEN
+            ProgErr.Terminate( "x and y must be on the same line" );
+        END;
+        
+        Plot( x, y );
+        
+	SimpleIO.ReadChar( DONTCARE );
+	IF NOT SimpleIO.EOL() THEN
+	    IF SimpleIO.EOF() THEN
+            EXIT;   (* Line terminated without a new-line *)
+	    END;
+	    ProgErr.Terminate( "Extra data before end of line" );
+	END;
+    END; (* LOOP *)
+
+|
+4:
+    LOOP
+        IF NOT SimpleFIO.Read2( "[Int][Int][NL]", x, y ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Bad data in file" );
+        END;
+        
+        Plot( x, y );
+
+    END; (* LOOP *)
+
+
+|
+5:
+    LOOP
+	IF NOT SimpleFIO.Read2( "[Int,l-100,u+100][Int,l0][NL]", x, y ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Bad data in file" );
+        END;
+        
+        Plot( x, y );
+
+    END; (* LOOP *)
+    
+|
+6:
+
+    IF ( DirIO.CreateEntry( "somefile", DirIO.createTextFile,
+		      DirIO.overwritePath ) # IOErrors.ok ) OR
+       ( TextIO.Open( text, "somefile", TextIO.appendOnly, 
+		      TextIO.defaultOptions ) # IOErrors.ok ) OR
+	   ( TextIO.SetOutput( text ) = TextIO.error ) THEN
+	    ProgErr.Terminate( "Couldn't open somefile" );
+	END;
+
+	IF ( TextIO.Open( text, "somefile", TextIO.readOnly, 
+			  TextIO.defaultOptions ) # IOErrors.ok ) OR
+	   ( TextIO.SetInput( text ) = TextIO.error ) THEN
+	    ProgErr.Terminate( "Couldn't open somefile" );
+	END;
+	IF ( TextIO.Open( text, "somefile", TextIO.appendOnly, 
+			  TextIO.defaultOptions ) # IOErrors.ok ) OR
+	   ( TextIO.SetOutput( text ) = TextIO.error ) THEN
+	    ProgErr.Terminate( "Couldn't open somefile" );
+	END;
+END;
+
+END IntroIO.

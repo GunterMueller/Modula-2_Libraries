@@ -1,0 +1,373 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE StringIO;
+(* 
+ * Implementation uses TextIO.XXXChars for all of its I/O.
+ *
+ * ASSUMES: bitsPerCHAR = bitsPerSAU -- See SysTypesCheck
+ *)
+IMPORT 
+    ASCII,
+    GenConsts,
+    IOErrors,	
+    Strings,      
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END
+
+CONST
+    badFillChar   = '*';
+VAR
+    badFillString : GenConsts.Identifier;
+       (* 
+	* Must be a variable because it is passed to WriteFill.
+	* Should the '*' character be exported?
+	*)
+
+
+PROCEDURE Read( 
+	file   : TextIO.Object;
+    VAR toRead : ARRAY OF CHAR )
+	       : TextIO.States;
+    (*
+     *)
+    VAR
+	readChars : SysTypes.Card;
+	state     : TextIO.States;
+    BEGIN (* Read *)
+
+	state := TextIO.ReadChars( file, SYSTEM.ADR( toRead ),
+				   HIGH( toRead ) + 1, readChars );
+	(* Null terminate? *)
+	IF readChars <= HIGH( toRead ) THEN
+	    toRead[ readChars ] := 0C;
+	END;
+
+	CASE state OF
+	    TextIO.ok,
+	    TextIO.error:
+		(* Nothin' to do *)
+	    |
+	    TextIO.endOfLine,
+	    TextIO.endOfFile:
+		IF readChars > 0 THEN
+		    state := TextIO.UndoRead( file );
+		END;
+	END; (* CASE *)
+
+	RETURN state;
+
+    END Read;
+
+
+PROCEDURE Write( file    : TextIO.Object;
+		 toWrite : ARRAY OF CHAR )
+			 : TextIO.States;
+    BEGIN (* Write *)
+
+	RETURN TextIO.WriteChars( file, SYSTEM.ADR( toWrite ), 
+		  Strings.LengthAdr( SYSTEM.ADR( toWrite ), HIGH( toWrite ) ) );
+
+    END Write;
+
+
+PROCEDURE WriteFill(     file          : TextIO.Object;
+	  (* HACK *) VAR fillPattern   : ARRAY OF CHAR;	
+		         highPattern   : SysTypes.Card;
+		         patternIndex  : SysTypes.Card;
+		         finalLength   : SysTypes.Card )
+				       : BOOLEAN;
+    (*
+     * Repeat the fillPattern starting at the index specified in firstIndex
+     * till the number of characters is equal to finalLength.
+     *
+     * ASSUMES:
+     * 	  finalLength is greater than 0.
+     *
+     * INPUT:
+     *    file,          where to write the stuff.
+     *    fillPattern,   the pattern to repeat.
+     *    highPattern,   length of pattern minus 1.
+     *    patternIndex,  set to the first index to be used from the pattern.
+     *    finalLength,   amount of characters to write out in total.
+     *
+     * OUTPUT:
+     *    <RETURN>,     TRUE,  ok dokay.
+     *                  FALSE, Write returned "not ok".
+     *)
+    VAR
+	tmp  : GenConsts.Identifier;
+	i    : SysTypes.Card;
+	high : SysTypes.Card;
+    BEGIN (* WriteFill *)
+
+	REPEAT
+	    (* Is finalLength wider than tmp? *)
+	    high := finalLength - 1;
+	    IF high <= HIGH( tmp ) THEN
+		finalLength := 0;
+	    ELSE
+		DEC( finalLength, HIGH( tmp ) + 1 );
+		high := HIGH( tmp );
+	    END;
+
+	    FOR i := 0 TO high DO
+		(* Do the fill *)
+		tmp[ i ] := fillPattern[ patternIndex ];
+		IF patternIndex < highPattern THEN
+		    INC( patternIndex );
+		ELSE
+		    patternIndex := 0;	(* wrap the pattern around *)
+		END;
+	    END;
+
+	    IF TextIO.WriteChars( file, SYSTEM.ADR( tmp ), high + 1 ) 
+	      # TextIO.ok THEN
+		RETURN FALSE;
+	    END;
+
+	UNTIL finalLength = 0;
+
+	RETURN TRUE;
+
+    END WriteFill;
+
+
+PROCEDURE WriteJustified( file          : TextIO.Object;
+                          toWrite       : ARRAY OF CHAR;
+                          justification : Strings.Justifications;
+                          finalLength   : SysTypes.Card;
+                          fillPattern   : ARRAY OF CHAR )
+                                        : TextIO.States;
+    BEGIN (* WriteJustified *)
+
+	RETURN WriteJustifiedAdr( file, SYSTEM.ADR( toWrite ),
+		  Strings.LengthAdr( SYSTEM.ADR( toWrite ), HIGH( toWrite ) ),
+		  justification, finalLength, fillPattern );
+
+    END WriteJustified;
+
+
+PROCEDURE WriteJustifiedAdr(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : SYSTEM.ADDRESS;          (* String to be written *)
+    toWriteLen	  : SysTypes.Card;                (* Length of the string *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    finalLength   : SysTypes.Card;                (* Width of field *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* Success => "TextIO.ok" *)
+    (* 
+     * Immitates Strings.Justify exactly, but we obviously have
+     * Modula-2 string limitation problems.   There are several
+     * paths which are treated:
+     *    1) If "toWrite" is empty, then it is a special case handled
+     *       first.  CardIO, IntIO, etc. all use this case and no others.
+     *    2) The finalLength is less than or equal to Length( source ),
+     *       the number of chars to write is adjusted to finalLength and
+     * 	     toWrite is adjusted if centered or right justified.
+     *    3) The string is shorter than finalLength so we must go through
+     *       the justification process locally.
+     *)
+    VAR
+	tmp	      : SysTypes.Card;
+	highPattern   : SysTypes.Card;
+	needOnLeft    : SysTypes.Card;  (* characters to be filled on left *)
+	needOnRight   : SysTypes.Card;
+    BEGIN (* WriteJustifiedAdr *)
+
+	LOOP (* for forward exits only *)
+
+	    highPattern := Strings.Length( fillPattern ) - 1;
+
+	    (* Check for a very common case (just padding) *)
+	    IF toWriteLen = 0 THEN
+		IF finalLength = 0 THEN
+		    RETURN Write( file, "" );	(* Need to check write mode *)
+		END;
+	        IF WriteFill( file, fillPattern, highPattern, 0, finalLength )
+		  THEN RETURN TextIO.ok;
+		END;
+		EXIT; (* Failure *)
+	    END;
+
+
+	    (* 
+	     * Dump off the weird this weird case onto Strings.Justify,
+	     * so don't have to duplicate too much of its code.
+	     *)
+	    IF finalLength <= toWriteLen THEN
+		CASE justification OF
+		    Strings.justifyRight:
+			INC( toWrite, toWriteLen - finalLength );
+		    |
+		    Strings.justifyLeft:
+			(* Just don't write the rest of the right *)
+		    |
+		    Strings.justifyCenter:
+			INC( toWrite, ( toWriteLen - finalLength ) DIV 2 );
+		END;
+		RETURN TextIO.WriteChars( file, toWrite, finalLength );
+	    END;
+
+	    (* 
+	     * The toWrite is shorter than the finalLength, so
+	     * we will need to figure out how many characters
+	     * go on the left and how many characters go on the right.
+	     *)
+	    needOnRight := finalLength - toWriteLen;
+	    CASE justification OF
+		Strings.justifyRight:
+		    needOnLeft  := needOnRight;
+		    needOnRight := 0;
+		|
+		Strings.justifyLeft:
+		    needOnLeft := 0;
+		|
+		Strings.justifyCenter:
+		    needOnLeft := needOnRight DIV 2;
+		    DEC( needOnRight, needOnLeft );
+	    END; (* CASE *)
+
+	    (* 
+	     * Repeat the pattern on the left first.
+	     *)
+	    IF ( needOnLeft > 0 ) AND 
+	      NOT WriteFill( file, fillPattern, highPattern, 0, needOnLeft )
+	        THEN EXIT;	(* Failure *)
+	    END;
+
+	    (* 
+	     * Write the string in the middle.
+	     *)
+	    IF TextIO.WriteChars( file, toWrite, toWriteLen ) # TextIO.ok THEN
+		EXIT;	(* Failure *)
+	    END;
+
+	    (*
+	     * Now we have to fill the right side, but we have to match
+	     * the requirements in the def mod.  The pattern is to be
+	     * laid first, then the source put on top of it.  This means
+	     * we have to compute the modulus of the pattern length to
+	     * figure out which foot to start on.
+	     *)
+	    IF needOnRight > 0 THEN
+		tmp := ( toWriteLen + needOnLeft ) MOD ( highPattern + 1 );
+		IF NOT WriteFill( file, fillPattern, highPattern,
+				  tmp, needOnRight ) THEN
+		    EXIT;   (* Failure *)
+		END;
+	    END;
+
+	    RETURN TextIO.ok;	(* All went out ok. *)
+
+	END; (* LOOP for forward exits only *)
+
+	(* Failure *)
+	RETURN TextIO.GetState( file );
+
+    END WriteJustifiedAdr;
+
+
+PROCEDURE WriteJustifiedField( file          : TextIO.Object;
+                               toWrite       : ARRAY OF CHAR;
+                               justification : Strings.Justifications;
+                               width         : SysTypes.Card;
+                               fillPattern   : ARRAY OF CHAR )
+                                             : TextIO.States;
+    BEGIN (* WriteJustifiedField *)
+
+	RETURN WriteJustifiedFieldAdr( file, SYSTEM.ADR( toWrite ),
+		  Strings.LengthAdr( SYSTEM.ADR( toWrite ), HIGH( toWrite ) ),
+		  justification, width, fillPattern );
+
+    END WriteJustifiedField;
+
+
+PROCEDURE WriteJustifiedFieldAdr(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : SYSTEM.ADDRESS;          (* String to be written *)
+    toWriteLen    : SysTypes.Card;                (* Length of the string *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    width         : SysTypes.Card;                (* Width of field, can be zero *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* Success => "TextIO.ok" *)
+    (* 
+     * The only difference is when width <= toWriteLen.  Therefore,
+     * we do this check and then call WriteJustifiedAdr if it succeeds.
+     * Otherwise, we must make sure the toWriteLen fits in the width
+     * or width must be 0 (special case).
+     *)
+    VAR
+	highPattern   : SysTypes.Card;
+	tmp           : SysTypes.Card;  (* Gets smashed in IF needOnRight  *)
+	needOnLeft    : SysTypes.Card;  (* characters to be filled on left *)
+	needOnRight   : SysTypes.Card;
+    BEGIN (* WriteJustifiedFieldAdr *)
+
+	(* 
+	 * This is the only difference between this and WriteJustified.
+	 *)
+	IF width > toWriteLen THEN
+	    (* The shared case *)
+	    RETURN WriteJustifiedAdr( file, toWrite, toWriteLen, 
+				      justification, width, fillPattern );
+	END;
+
+	(* Should we just "write" the string? *)
+	IF ( width = 0 ) OR ( toWriteLen = width ) THEN
+	    RETURN TextIO.WriteChars( file, toWrite, toWriteLen );
+	END;
+
+	(* 
+	 * Failure has occurred.  If we don't get an error writing
+	 * the string, do a SetError with badParameter.
+	 *)
+	IF WriteFill( file, badFillString, HIGH( badFillString ), 0, width ) 
+	  THEN RETURN TextIO.SetError( file, IOErrors.badParameter );
+	END;
+	RETURN TextIO.GetState( file );
+
+    END WriteJustifiedFieldAdr;
+
+BEGIN (* StringIO *)
+
+    @IF SysTypesCheck THEN
+	(*
+	 * This module assumes that it can INC an address to get the
+	 * next character.  Please check over the code if this test fails.
+	 * Specifically, those places where "toWrite" is used/assigned to.
+	 *)
+	IF SysTypes.bitsPerArrayCHAR # SysTypes.bitsPerSAU THEN
+	    ProgErr.Terminate( "StringIO: SysTypesCheck failed." );
+	END;
+    @END
+
+    badFillString := '';
+    Strings.Justify( badFillString, Strings.justifyLeft, 
+		     HIGH( badFillString ) + 1, badFillChar );
+END StringIO.

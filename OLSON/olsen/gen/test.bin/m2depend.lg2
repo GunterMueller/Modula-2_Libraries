@@ -1,0 +1,112 @@
+gentesti.sym: 
+gentesti.lnk: ..\bin\dos.sym gentesti.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\safestor.sym  \
+              ..\bin\strings.sym 
+stringli.sym: gentesti.sym testio.sym 
+stringli.lnk: gentesti.sym stringli.sym testio.sym 
+tbytes.lnk: ..\bin\bytes.sym ..\bin\intrinsi.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\bin\systypes.sym 
+tbytes.exe: ..\bin\bytes.lnk ..\bin\dos.lnk ..\bin\i8086.lnk  \
+            ..\bin\intrinsi.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+            ..\bin\systypes.lnk tbytes.lnk 
+tcrash.lnk: ..\bin\i8086.sym ..\bin\notices.sym ..\bin\progerr.sym \
+	    ..\bin\progerro.sym 
+tcrash.exe: ..\bin\dos.lnk ..\bin\i8086.lnk ..\bin\progerr.lnk  \
+            ..\bin\notices.lnk ..\bin\objects.lnk \
+	    ..\bin\progerro.lnk ..\bin\systypes.lnk tcrash.lnk 
+tdebugfl.lnk: ..\bin\debugfla.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tdebugfl.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\debugfla.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\bin\notices.lnk ..\bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              tdebugfl.lnk 
+testcard.lnk: ..\bin\cardconv.sym ..\bin\chars.sym gentesti.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testcard.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk gentesti.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\bin\notices.lnk ..\bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk testio.lnk testsyst.lnk testcard.lnk 
+testcrc1.lnk: ..\bin\crc16.sym ..\bin\cardconv.sym ..\bin\progerro.sym 
+testcrc1.exe: ..\bin\crc16.lnk ..\bin\card32.lnk ..\bin\cardconv.lnk  \
+              ..\bin\chars.lnk ..\bin\dos.lnk ..\bin\i8086.lnk  \
+              ..\bin\intrinsi.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk testcrc1.lnk 
+testintc.lnk: gentesti.sym ..\bin\intconve.sym ..\bin\objects.sym  \
+              stringli.sym testio.sym testsyst.sym 
+testintc.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk gentesti.lnk  \
+              ..\bin\i8086.lnk ..\bin\intconve.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\bin\notices.lnk  \
+              ..\bin\objects.lnk ..\bin\progargs.lnk ..\bin\progerr.lnk  \
+              ..\bin\progerro.lnk ..\bin\safestor.lnk stringli.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk testio.lnk testsyst.lnk  \
+              testintc.lnk 
+testio.sym: gentesti.sym 
+testio.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\progerr.sym  \
+            ..\bin\safestor.sym ..\bin\strings.sym testio.sym 
+testname.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testname.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk gentesti.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\bin\notices.lnk ..\bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk testio.lnk testsyst.lnk testname.lnk 
+testreal.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\objects.sym  \
+              ..\bin\realconv.sym stringli.sym ..\bin\systypes.sym testio.sym  \
+              testsyst.sym 
+testreal.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk gentesti.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\bin\notices.lnk ..\bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\realconv.lnk ..\bin\safestor.lnk stringli.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk testio.lnk testsyst.lnk  \
+              testreal.lnk 
+teststri.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\intrinsi.sym  \
+              ..\bin\objects.sym stringli.sym ..\bin\strings.sym testio.sym  \
+              testsyst.sym 
+teststri.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk gentesti.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\bin\notices.lnk ..\bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk testio.lnk testsyst.lnk teststri.lnk 
+testsyst.sym: testio.sym 
+testsyst.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\notices.sym ..\bin\objects.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\strings.sym testio.sym testsyst.sym 
+thello.lnk: ..\bin\progerro.sym 
+thello.exe: ..\bin\dos.lnk ..\bin\progerro.lnk ..\bin\systypes.lnk thello.lnk 
+tprogarg.lnk: ..\bin\cardconv.sym ..\bin\namelist.sym ..\bin\progargs.sym  \
+              ..\bin\progerro.sym 
+tprogarg.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk ..\bin\i8086.lnk  \
+              ..\bin\intrinsi.lnk ..\bin\lists.lnk ..\bin\namelist.lnk  \
+              ..\bin\notices.lnk ..\bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\bin\progerr.lnk ..\bin\progerro.lnk ..\bin\safestor.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk tprogarg.lnk 
+tprogenv.lnk: ..\bin\namelist.sym ..\bin\progargs.sym ..\bin\progenvi.sym  \
+              ..\bin\progerro.sym 
+tprogenv.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk ..\bin\i8086.lnk  \
+              ..\bin\intrinsi.lnk ..\bin\lists.lnk ..\bin\namelist.lnk  \
+              ..\bin\notices.lnk ..\bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\bin\progenvi.lnk ..\bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              tprogenv.lnk 
+tqstring.lnk: ..\bin\progerro.sym ..\bin\qstrings.sym ..\bin\strings.sym 
+tqstring.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\genconst.lnk ..\bin\i8086.lnk  \
+              ..\bin\intrinsi.lnk ..\bin\objects.lnk ..\bin\progerr.lnk  \
+              ..\bin\progerro.lnk ..\bin\qstrings.lnk ..\bin\safestor.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk tqstring.lnk 
+tsystype.lnk: ..\bin\systypes.sym 
+tsystype.exe: ..\bin\systypes.lnk tsystype.lnk 

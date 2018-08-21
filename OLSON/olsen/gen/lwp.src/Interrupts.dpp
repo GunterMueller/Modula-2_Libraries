@@ -1,0 +1,241 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Interrupts;
+(*
+ * Manages interrupts in the light weight process environment.  This module
+ * allows a caller to install an arbitrary interrupt handler at an arbitrary
+ * vector (i.e. both hardware and software interrupts can be handled by this
+ * module).  A interrupt handler is passed an importer supplied object which
+ * serves as its state area.  This state area should be used to communicate
+ * between the interrupt handler and the rest of the system.   For example,
+ * it might contain a buffer or a task to wake up when an interrupt occurs.
+ *
+ * Given the wide variety of uses of interrupt handlers, this module
+ * has a fair number of parameters associated with the call to Create.  Note
+ * that it doesn't have an "name" as in the Tasks module, because interrupt
+ * handlers are normally not "idle" and a name provides little utility.  All
+ * parameters associated with the handler are supplied at Create time and
+ * there is no possibility of modification (except by destroying and creating
+ * a new handler).
+ *
+ * This module manages nested interrupts properly so that tasks are not
+ * switched until the last interrupt (in a nested sequence) has been handled.
+ * The thread procedure operates in a Disallow section, thus it may turn
+ * on interrupts if there isn't mutual exclusion problems.
+ *
+ * WARNING:
+ *    Interrupt handlers should not call other procedures unless they are 
+ *    tightly integrated with the interrupt handler.  The only external
+ *    procedure in the Tasks module which can be called is Tasks.Ready.
+ *    Calling other procedures in the tasking system will cause unexpected
+ *    and probably unwanted results.
+ *
+ * Sun: 
+ *    Interrupt handlers are called with all signals blocked as specified
+ *    by the blockAll constant.
+ *
+ * PC:
+ *    Hardware interrupts do not need to run in SYSTEM.DISABLEd sections.
+ *)
+IMPORT
+    SysTypes;
+@IF SunOS THEN
+    IMPORT
+	UnixCsignal;
+@END
+
+EXPORT QUALIFIED
+    Object,		HandlerProc, 	ReturnTypes,	EmptyHandler,
+    DONTCARE, 		Create,		Destroy,	SetInvalid,
+@IF IbmPcArch THEN
+    SavedRegisters,	GetSavedRegister,	SetSavedRegister;
+@END
+@IF SunOS THEN
+    blockAll, 		GetCode;
+@END
+   
+TYPE
+    Object;
+
+    HandlerProc = PROCEDURE ( 
+	SysTypes.ANYPTR (* importerObject passed to Create *)
+    );	
+
+    (* What should this module do after the handler has been called *)
+    ReturnTypes = ( 
+	callPrevious,	(* chain with the previous handler *)
+	doNotChain 	(* sole handler, just return *)
+    );	
+
+PROCEDURE EmptyHandler( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (*
+     * Pass this to Create when you don't have an interrupt handler
+     * to call.  Is most commonly used when you want to protect
+     * the tasking system from a non-Modula-2 interrupt handler.
+     *)
+CONST
+    DONTCARE	= NIL;		(* Value to be used when the value of the
+				   importerObject doesn't matter.  Note
+				   that garbage will be passed on the stack! *)
+
+PROCEDURE Create( 
+    VAR handler        : Object;
+	thread         : HandlerProc;
+	importerObject : SysTypes.ANYPTR;
+	vectorNumber   : SysTypes.Card;
+	afterReturn    : ReturnTypes 
+    );
+    (*
+     * Instantiates and "readies" an interrupt handler as specified.
+     * Each time an interrupt occurs on "vectorNumber", "thread" will be called
+     * with "importerObject" as the parameter.  
+     *
+     * If the afterReturn value is callPrevious, then after the thread
+     * returns, the predecessor interrupt will be called (via an INT).
+     * If afterReturn is doNotChain (normally the case), then the 
+     * predecessor interrupt is not called.  Note task switching occurs
+     * after the chained interrupt returns.  
+     *
+     * Note that DONTCARE (= NIL) may be passed for the importerObject.
+     * If this is the case, then garbage will be passed on the stack to
+     * thread.  EmptyHandler may be passed to thread (see the description
+     * of EmptyHandler).
+     *
+     * INPUT:
+     *    thread,         the procedure to be called on interrupts.
+     *    importerObject, parameter to be passed to thread (or DONTCARE).
+     *	  vectorNumber,   the number of the interrupt (not its address!).
+     *	  afterReturn,    whether to chain interrupts with previous or not.
+     *
+     * OUTPUT:
+     *    handler,	  a valid interrupt handler (to be passed to Destroy).
+     *)
+
+
+PROCEDURE Destroy( 
+    VAR handler : Object 
+    );
+    (*
+     * Disposes of the handler passed in and replaces its predecessor in
+     * the interrupt vector.
+     *
+     * INPUT:
+     *    handler, may be in any state.
+     *
+     * OUTPUT:
+     *    handler, an invalid object.
+     *)
+
+PROCEDURE SetInvalid( 
+    VAR handler : Object 
+    );
+    (*   
+     * Initializes the handler variable to an invalid object.
+     *   
+     * OUTPUT:   
+     *    handler, an invalid object.
+     *)  
+
+@IF IbmPcArch THEN
+    (*
+     * The rest of this module is IMPLEMENTATION SPECIFIC.
+     *
+     * The following procedures are designed to support software interrupts.
+     * They allow the caller to get and set values of the "save" registers
+     * for the current interrupt by the currently active interrupt handler.  
+     * Do not misuse these calls.
+     *)
+
+
+    TYPE
+	SavedRegisters = ( AX, BX, CX, DX, DI, SI, BP, 
+			   SP, IP, DS, ES, SS, CS, flags );
+	    (*
+	     * The above are the 8088 registers which can be passed to 
+	     * GetSavedRegister.  Note that SetSavedRegister only takes 
+	     * a subset of these values.  Note that the "flags" register 
+	     * may be requested and can be deciphered with the use of the 
+	     * I8086 module.
+	     *)
+
+    PROCEDURE GetSavedRegister( 
+	toGet : SavedRegisters 
+	)     : SysTypes.CARDINAL16;
+	(*
+	 * Get the currently saved value of the specified register.  The
+	 * value is retrieved from the register save area of the interrupted
+	 * stack (process or interrupt thread). This routine may only be 
+	 * called by the interrupt procedure.  If this is not the case, 
+	 * the results are unpredictable.
+	 *
+	 * INPUT:
+	 *    toGet,    register which is to be retrieved from register save area.
+	 * 
+	 * OUTPUT:
+	 *    <RETURN>, value of the specified register.
+	 *)
+
+    PROCEDURE SetSavedRegister( 
+	toSet    : SavedRegisters;
+	newValue : SysTypes.CARDINAL16 
+	);
+	(*
+	 * This procedure modifies the register save area of an interrupt
+	 * stack.  The stack is the same as for Get.  All the same restrictions
+	 * apply.  This facility should only be used by software interrupt 
+	 * handlers.  
+	 *
+	 * WARNING:
+	 *     It is not allowed to modify CS, IP, SS, SP, and/or BP.  Attempt
+	 * 	   to do so will cause a Tasks.PanicSystem.
+	 *
+	 * INPUT:
+	 *    toSet,    register which is to be modified in register save area.
+	 *    newValue, what the register will be set to upon return from the 
+	 * 		    interrupt.
+	 *)
+
+@END (* IbmPcArch *)
+
+@IF SunOS THEN
+    CONST
+	blockAll = { 0 .. UnixCsignal.NSIG - 1 }
+		   - { UnixCsignal.SIGSEGV - 1 };
+	    (*
+	     * We don't block SEGV, because Sun M2 uses the kernel's
+	     * segment checking for its NIL pointer check.  Hence, we
+	     * don't want to disallow NIL pointer checks in critical
+	     * sections by default.
+	     *)
+
+    PROCEDURE GetCode(
+	) : INTEGER	(* dependent on signal type *)
+	(*
+	 * This procedure may only be called by an interrupt thread.
+	 * It returns the "code" value passed to the interrupt handler.
+	 *)
+@END (* SunOS *)
+
+END Interrupts.

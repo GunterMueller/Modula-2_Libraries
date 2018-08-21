@@ -1,0 +1,477 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Implementation Notes}
+
+\xquote{Plato}{Apology}{
+    Nor do I converse only with those who pay;
+    but anyone, whether he be rich or poor, may ask and answer
+    me and listen to my words; and whether he turns out to be a
+    bad man or a good one, neither result can be justly imputed to
+    me; for I never taught or professed to teach him anything.
+    And if anyone says that he has ever learned or heard anything
+    from me in private which all the world has not heard,
+    let me tell you that he is lying.
+}    
+
+This post haste collection of thoughts is designed to aid the
+gentle programmer in the task of using the \library.  Naturally,
+any such collection is incomplete.  At times you might find 
+difficulty in understanding why a particular feature\footnote{
+    Known in some circles as a bug} 
+is implemented the way it is.  There is an order to figuring
+out the rhymes and reasons:
+\begin{enumerate}
+\item
+    Look in the other chapters in this manual for a discussion
+    of the feature.
+\item
+    Look in this chapter for some nitty gritty discussion.
+\item
+    Look in the definition module(s) which export the feature.
+    If this fails,
+\item
+    Look in the implementation module(s) which implements the feature.
+\item
+    If all of the above fail to explain the unexpected behavior, 
+    the feature may actually be an unwanted anomoly.  
+    Fix it and look in the \codeterm{BUGS} file for information
+    about how to transmit this knowledge to us.
+    Keep in mind that the feature you fix may not appear in
+    the next release of the library.
+\end{enumerate}
+
+
+\section{General}
+\begin{itemize}
+\item
+    \module{ProgArgs} upcalls command line arguments multiple times.
+    be careful to declare all registered flags in global memory. 
+\end{itemize}
+
+
+\section{I/O}
+\begin{itemize}
+\item
+    \module{TextIO} is built upon \module{BinaryIO}.  Hopefully,
+    most implementations will be able to keep this structure, but
+    don't depend upon it too heavily.
+\item
+    \module{ScreenIO} is new and probably buggy.  We have not used it
+    in many applications.  
+\end{itemize}
+
+\section{Formatted I/O}
+
+\begin{itemize}
+\item	
+    \module{FIOBase} is inefficient and it may change drastically in
+    the future.  If you define your own formats, please be aware of
+    this possibility.
+\item
+    \module{DataFIO} and \module{ConvertFIO} depend upon \term{string files}
+    supported by \module{String\-BinaryIO}.  This may not be available on
+    all implementations.
+\item
+    \module{FIOScreen} is not in the default set of formats, because it
+    is not necessary for most programs.  You must import it into your
+    program somewhere in order to ``activate'' this format.
+\end{itemize}
+
+
+\section{Sun Implementation}
+
+\xquote{Jonathan Swift}{Gulliver's Travels}{
+    ``These civil wars were constantly enouraged by the kings of Blefuscu; 
+    and when they were quelled, the exiles always fled for refuge to that 
+    empire.
+    It is computed that eleven thousand persons have at several times suffered 
+    death rather than submit to break their eggs at the smaller end.  Now, the
+    Big Endian exiles have found so much credit in the Emperor of Blefuscu's
+    court, and so much private assistance and encouragement from their private
+    party here at home, that a bloody war has been carried on between the two
+    empires for six-and-thirty moons, with varied success.''
+    }
+
+\subsection{General}
+\begin{itemize}
+\item
+    \module{SafeStorage} uses \proc{malloc} instead of going through
+    \module{Storage} (which just calls \proc{malloc}).
+\item
+    \module{ProgErr} does the core dumps not Sun Modula-2.
+    Since \codeterm{core} is dumped by Unix and cannot be done
+    by a program which continues executing, the termination code
+    is run by \proc{fork}ed process.  There are two advantages:
+    the dump cannot be corrupted by termination code and
+    the termination code itself can have a bug.  The latter dump
+    causes \codeterm{core2} to be written so that you can debug
+    both bugs.
+\item
+    \module{ProgErr} registers with \code{on\_exit}\index{on\_exit}.  If the
+    exit status is non-zero, a core dump is generated (unless
+    core dumping is turned off via \proc{Set\-Memory\-Save\-Mode}).
+\item
+    String constants for program arguments and environment variables
+    are on the ``short'' side for performance reasons. 
+\end{itemize}
+
+\subsection{I/O}
+\begin{itemize}
+\item
+    You should declare your strings of an even size so that 
+    \proc{FormatIO} works well.  All strings are rounded up to
+    even boundaries, so \proc{FormatIO} may occasionally
+    output an odd character or read one character more than
+    the number characters in the string
+    declaration. 
+\item
+    The \module{IOVersions} separator is \verb!#! (sharp).
+\item
+    The \module{IONames} default directory is \code{/tmp}.
+    It does not use \proc{mktmp}, because this doesn't provide
+    the option of creating temporary files in the current directory.
+    
+\item
+    There are no non-resettable I/O errors unless the internal file
+    is not open (\codeterm{IOErrors.\-not\-Open}).
+    
+\item
+    \module{ScreenIO} uses \proc{TextIO.\-Get\-Input} and 
+    \proc{TextIO.\-Get\-Output} if they are tty's.  Otherwise,
+    the file \code{/dev/\-tty} is used. 
+
+\item
+    \module{IOConsts} declares its own values for \code{MAXNAMLEN} and
+    \codeterm{MAXPATH}, because these values are too large for Modula-2
+    (i.e. using 1024 really degrades the performance of a program if
+    it uses file names extensively).
+\item
+    \proc{UnixBinaryIO.Flush} does a \proc{fsync}, therefore you shouldn't
+    call this procedure on disk files unless you really want atomic
+    transactions.  If you just want to make sure the data is not buffered
+    in \module{TextIO}, use the option \codeterm{TextIO.\-do\-Not\-Buffer}.
+\end{itemize}
+
+\subsection{Lightweight Processes}
+
+\begin{itemize}
+\item
+    \term{Floating point registers} {\em are not saved}; therefore, problems
+    may occur.  Putting the code in isn't too complicated if you
+    know which chip is to be used.  There are several alternatives
+    to modifying the process switching code: use software floating
+    point, do all floating point operations in one task, or 
+    make the lightweight process system non-preemptable 
+    (see \module{TaskConsts}).
+\item
+    \codeterm{errno} is saved on a per task basis like any other
+    register.  Interrupt handlers must save the value of errno if
+    doing an operation which might affect \codeterm{errno}.   See
+    \module{Interrupts} for more details.
+\item
+    The implementation of LWP hasn't had much use before this
+    release.  Therefore, be wary of subtle errors in the low
+    level code.  All of the code in \codeterm{lwp.\-src}
+    has been in use for a while.
+\item
+    \codeterm{SIGSEGV} is never blocked by the LWP system, because
+    bad pointer checking is done via this signal.  This doesn't
+    prevent you from catching this signal, but be aware that it
+    may be in a critical section.  To change this behavior (not
+    recommended) modify the values in \module{Tasks\-PRIV\-ATE}
+    and \module{Inter\-rupts}.  
+\item
+    \module{Interrupts} only catches signals if someone is
+    registered for them.
+\item
+    \module{Task\-Time} uses the real time interval timer
+    (\codeterm{ITREAL}).
+    Use \module{Task\-Time} for timing; don't register for the
+    signal.
+\item
+    \module{Inter\-rupts} catches signals on one stack which
+    is its own.  This was done because Unix eats up stack
+    space to such a degree that the \codeterm{min\-Stack\-Size} would
+    have to have been 1000 bytes or so.
+\item    
+    \module{UnixAsynchIO} is a little flaky.  All files are
+    treated as asynchronous by \module{Unix\-Bin\-aryIO} which
+    also means stdin, stdout, and stderr.   If the program
+    crashes hard (e.g. segmentation fault), the tty will be
+    left in the no-delay state (\codeterm{FNDELAY}).  If a
+    process doesn't expect this (e.g. \codeterm{dbx}),
+    it will have problems.  The program \codeterm{tty\-reset}
+    has been supplied to reset the terminal after hard crashes
+    when debugging.  Note also that to catch \codeterm{SIGIO}
+    one must be the registered owner of the tty.  This can have
+    strange effects if you redirect the output or input of an
+    LWP program to another window.
+
+\item
+    Stack checking is performed only during task switches, hence the
+    amount of maximum stack space used is not as good as it could be.
+    
+    \finepoint{
+	If you are in desperate need of better stack utilization
+	statistics, you could run a high priority task that sleeps
+	for a short period of time.  This would, in effect, cause
+	stack checking to occur more often at the expense of slower
+	program execution.
+    }
+\item
+    See the file \code{misc/\-dbx.\-shr} for a description of how to
+    debug with Tasks and dbx.
+\end{itemize}
+
+\newpage
+\section{IBM-PC/MS-DOS Implementation}
+
+\xquote{Jonathan Swift}{Gulliver's Travels}{
+    ``These two mighty powers have been engaged in a most obstinate war for
+    six-and-thirty moons past.  It began upon the following occasion: 
+    it is allowed on all hands that the primitive way of breaking eggs, 
+    before we eat them, was upon the larger end;  but his present
+    majesty's grandfather, while he was a boy, going to eat an egg and
+    breaking it according to ancient practice, happened to cut one
+    of his fingers; whereupon the emperor, his father, published an
+    edict command all his subjects, upon great penalties, to break
+    the smaller end of the eggs.''
+    }
+
+As a general rule, you should not access the modules System,
+RTSMain, Storage, etc.
+
+\subsection{General}
+\begin{itemize}
+\item
+    \proc{Lists.Adr\-Compare} gets around the Logitech bug that
+    you can compare addresses with different segments.  The 
+    algorithm is 100\% ugly, but it appears to work.
+\item
+    \codeterm{Sys\-Types.\-CARD\-INAL32} has been thoroughly
+    used and is tightly 
+    integrated with the library: that is, \module{FIOCard},
+    \module{CardConvert}, and \module{CardIO} all support
+    32 bit cardinal reads.
+    
+\item
+    \codeterm{Sys\-Types.\-INT\-EGER32} is not tightly integrated
+    because we have \code{CARD\-INAL32}.
+    
+\item
+    \module{ProgArgs} accepts double quote characters when parsing
+    the command line.  There is no escape.
+
+\item
+    \module{SafeStorage} normally uses the module \module{Storage}
+    for all of its allocates.  
+    However, if the preprocessor
+    variable \codeterm{No\-Stor\-age} is true, the module will
+    be compiled to use \term{DOS}.
+    
+\end{itemize}
+\subsection{I/O}
+\begin{itemize}
+\item
+    \module{ProgErrOutput} default output is to {\em stdout} and
+    not {\em stderr}.  This is because you can't redirect stderr
+    from the command line.  The same goes for 
+    \proc{Get\-Error\-Out\-put}.  If you want other semantics, 
+    modify the module \module{Dos\-Binary\-IO}.
+    
+\item
+    \proc{Dos\-BinaryIO.\-Flush} closes and re-opens
+    the files to make sure the directory information gets updated.
+    DOS doesn't have any problems with getting data to the disk.
+    However, if the directory isn't updated and the program crashes,
+    the data will have to be recovered with one of those magic
+    disk utilies.  This implementation of flush causes a bit of
+    overhead, because \module{Dos\-BinaryIO}
+    must save the absolute file name in the the object record.
+    Given that file I/O is so horrendously slow on the PC, this 
+    really doesn't make a great deal of difference except that
+    the {\em initial default files cannot be flushed}.
+    (The default files are input, output, and error output.)
+\item
+    \module{ScreenIO} does not support edit or echo modes.
+    To implement these features, one would need to write a
+    buffered character reader for the console device.  Note
+    that this would not work if standard input was redirected.
+    
+    If the standard input or output is redirected, \module{ScreenIO}
+    opens the device \codeterm{con:} to make sure the program gets
+    to the screen.
+    
+    The module is designed to work with the ANSI terminal emulator,
+    so you must have \codeterm{ansi.sys} installed as a device.  For
+    higher performance I/O, you can steal some of the code from the
+    \codeterm{demo} directory.
+    
+\item
+    \module{TextIO} interprets a new-line to be:
+    \begin{itemize}
+    \item
+	The sequence \codeterm{ASCII.\-cr}
+	followed by an \codeterm{ASCII.\-lf} (DOS standard).
+    \item
+	An \codeterm{ASCII.\-cr} which is not followed by an
+	\codeterm{ASCII.\-lf} (Raw input).
+    \item
+	An \codeterm{ASCII.\-lf} which is not preceded by an
+	\codeterm{ASCII.\-cr} (Unix standard).
+    \end{itemize}
+\item
+    The \module{IOVersions} separator is \verb!#! (sharp).
+    
+\item
+    The \module{IONames} default directory is the current directory.
+    It does not use the DOS call for making temporary files since
+    it is not available in DOS 2.0 or later.
+
+\item
+    \module{ScreenIO} uses \proc{TextIO.\-Get\-Input} and 
+    \proc{TextIO.\-Get\-Output} if they are the console device.
+    Otherwise, the file \code{con:} is used. 
+\item
+    \module{Keyboard} uses the \term{BIOS}, so 
+    \proc{ScreenIO.\-Get\-Input} may not be the same source 
+    (i.e. if the console has been redirected).
+\item
+    There are two non-resettable I/O error which occurs when \proc{Flush}
+    fails in its attempt to reopen the file or when the internal file
+    is not open (\codeterm{IOErrors.\-not\-Open}).
+    
+\end{itemize}
+
+\subsection{Lightweight Processes}
+\begin{itemize}
+\item
+    Don't look at the module \module{Interrupts} unless you have
+    a strong stomach.  This implementation works with minimal
+    differences between Logitech 2.0 and 3.0 so we kept it.  Perhaps
+    if we had Logitech 3.0 to start with\ldots
+    
+\item	
+    The module \module{Interrupts} catches the: 
+    \begin{itemize}
+    \item
+	\term{keyboard interrupt} (\code{09H}),
+    \item
+	\term{BIOS control-break interrupt} (\code{1BH}),
+    \item
+	\term{DOS control-break exit interrupt} (\code{23H}), and
+    \item
+	\term{DOS critical interrupt} (\code{24H}).
+    \end{itemize}
+    The BIOS turns on interrupts {\em before} it has reset the
+    8259 mask which causes deadlock.  The keyboard interrupt
+    is caught to put a protective envelope around the BIOS.
+    
+    The DOS critical error interrupt is caught for similar reasons.
+    The normal I/O modules will receive the error and pass it on up.
+    The disadvantage is that the user doesn't get the message
+    \code{Abort, Retry, or Ignore?}, so the program must handle
+    floppy or network drive timeouts.
+\item
+    \module{TaskTime} catches the hardware clock interrupt (\code{08H})
+    and calls the previous handler.
+\item
+    \term{Floating point registers} {\em are not saved}, therefore problems
+    may occur.  Putting in the code is a bit hairy if you want to
+    maintain debuggability, therefore applications which do floating
+    point and use the 8087 or 8287 should restrict the operations
+    to a single task {\em or} make the LWP system non-preemptable
+    (see \module{Task\-Consts}).
+\end{itemize}
+
+\subsubsection{Logitech 3.X}
+\begin{itemize}
+\item
+    The LWP environment under 3.X runs with both the \term{PMD} and 
+    \term{RTD}.  Be careful in the RTD, because it may
+    swap out the code of a running task.  You may want to compile
+    the program so that it runs in non-preemptable mode when
+    you need to debug a LWP application.  See the module 
+    \module{Task\-Consts} for information on how to do this.
+\item
+    To look at a task's call frame, you should {\em E}xamine the 
+    field \code{task}\verb*!^!\code{.\-stack\-Base.\-logi\-tech}.  
+    Note the
+    first task object is located in \codeterm{Tasks\-PRIV\-ATE.\-main\-Task}.
+\item
+    The value of the lowest stack pointer (\codeterm{lowestSP})
+    is not checked unless you assemble your own version of the
+    \module{RTSMain} with \codeterm{StackStatistic} turned on.
+\end{itemize}
+
+\subsubsection{Logitech 2.X}
+\index{Logitech 2.X}
+    
+    
+\begin{itemize}
+\item
+    The supplied run-time system \codeterm{m2.exe} doesn't work
+    with LWP; you will need to use \codeterm{m2lwp.exe}.  The
+    same goes for the supplied \codeterm{l2erts.l2e} which is
+    replaced by \codeterm{l2erts.lwp}.  For more information
+    look in the directory \code{gen}\verb*!\!\-\code{lg2.\-src}.  Note
+    also that the implementation of the module
+    \module{System} supplied by Logitech is also replaced.
+\item
+    The \term{RTD} doesn't work with LWP.
+\item
+    The \term{PMD} does work and you can even get the call frames
+    of any \codeterm{Tasks.\-Object}.  To look at a task's call
+    chain, you must have access to the task's pointer.  The
+    main task's object is: \codeterm{Tasks\-PRIV\-ATE.\-main\-Task}.
+    To access its call frame, display the data for the module
+    \module{Tasks\-PRIV\-ATE} and look at the field: \codeterm{logitech}.
+    This displays a list of saved registers.  Then type:
+    \codeterm{=RE}.  This switches to the {\em raw} window
+    and then to the {\em call} window of the task.
+
+    {\em IMPORTANT: The library must have been compiled with the
+    preprocessor variable \codeterm{Debug} set to true.}
+    
+\item
+    If there is an error in one of the termination procedures
+    and \codeterm{memory.pmd} has already been written, a 
+    second dump is taken using the name \codeterm{memory.pm2}.
+    
+\item
+    \module{SafeStorage} uses \term{DOS} with LWP under 2.0.
+
+\end{itemize}
+
+\subsection{Debugging}
+\begin{itemize}
+\item
+    All library directories generate three batch files: 
+    \codeterm{m2pmd.bat}, \codeterm{m2rtd.bat}, and
+    \codeterm{m2env.bat}.   The first two set up the environment
+    for the \term{PMD} and \term{RTD} (respectively) and then
+    call the programs.  The last script merely sets up the environment
+    variables so you can compile and use \codeterm{m2pp}.
+\end{itemize}
+

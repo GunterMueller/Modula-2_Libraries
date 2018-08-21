@@ -1,0 +1,219 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE DirTest;
+   
+@IF LOGITECH THEN
+   IMPORT DOS; 
+@END (* LOGITECH *)
+    IMPORT
+   DirIO, IOErrors, SimpleIO, ProgErr;
+   FROM IOErrors IMPORT ok;
+   
+   CONST
+      entryPath  = 'dirtest1.xxx';
+      renamePath = 'dirtest2.xxx';
+      dirPath    = 'xxxxxxx';
+      newDirPath = 'yyyyyyy';
+      
+   VAR
+      info : DirIO.EntryInfo;
+      options : DirIO.Options;
+      
+   PROCEDURE Error(msg : ARRAY OF CHAR);
+      BEGIN
+      SimpleIO.WriteString(msg);
+      ProgErr.Terminate('');
+      END Error;
+      
+   PROCEDURE Message(msg : ARRAY OF CHAR);
+      BEGIN
+      SimpleIO.WriteString(msg);
+      SimpleIO.WriteLn;
+      END Message;
+   
+   BEGIN
+   (* make sure our entry is absent to start with *)
+   CASE DirIO.DeleteEntry(entryPath) OF
+      ok, IOErrors.notFound :   (* if was found, nor not, OK: otherwise... *)
+      ELSE Error('Unable to delete entry initially');
+      END;
+   
+   (* see whether we can still "see" the deleted entry *)
+   IF (DirIO.EntryExists(entryPath) = ok) THEN 
+      Error('Entry exists after it was deleted.');
+      END;
+   Message('EntryExists fails [correctly] when file has been deleted.');
+   
+   (* create an entry *)
+   IF (DirIO.CreateEntry(entryPath, DirIO.createDirectory, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create entry (time 1).');
+      END;
+   
+   (* make sure we can now "see" the new entry *)
+   IF (DirIO.EntryExists(entryPath) <> ok) THEN
+      Error('Entry does not exist after it was created.');
+      END;
+   Message('Created entry is seen by EntryExists.');
+   
+   (* make sure creation attempt fails if entry already exists *)
+   IF (DirIO.CreateEntry(entryPath, DirIO.createTextFile, DirIO.mustBeNewPath) = ok) THEN
+      Error('Creation succeeded despite previous existence of entry.');
+      END;
+   Message('Attempt to Create existing file fails [correctly].');
+   
+   (* rename entry and make sure it no longer "exists" *)
+   IF (DirIO.RenameEntry(entryPath, renamePath, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to do initial rename');
+      END;
+   
+   (* if old name still exists, error *)
+   IF (DirIO.EntryExists(entryPath) = ok) THEN
+      Error('Entry exists after it was renamed.');
+      END;
+   Message('Rename does alter name of file');
+   
+   (* create original file again and try to rename again: test overwrite mode *)
+   IF (DirIO.CreateEntry(entryPath, DirIO.createDirectory, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create entry (time 2).');
+      END;
+   
+   (* try to rename entry and hope it fails this time *)
+   IF (DirIO.RenameEntry(entryPath, renamePath, DirIO.mustBeNewPath) = ok) THEN
+      Error('Rename succeeded despite existence of destination entry');
+      END;
+   Message('Rename fails [correctly] if second name already exists.');
+   
+@IF LOGITECH THEN
+   (***** THE FOLLOWING SECTION IS MS-DOS DEPENDENT ******)
+   
+   (* create entries and verify their attributes (one at a time) *)
+   
+   DirIO.MakeOptions( { DOS.readOnlyFileAttributeBit }, options );
+   IF (DirIO.CreateEntry(entryPath, options, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create read-only entry');
+      END;
+   IF (DirIO.GetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to get read-only entry info');
+      END;
+   IF NOT ( DOS.readOnlyFileAttributeBit IN info.attributes ) THEN 
+      Error('Unable to set read-only');
+      END;
+   (* make it non-read-only, so we can delete it *)
+   WITH info DO
+      EXCL( attributes, DOS.readOnlyFileAttributeBit );
+      END;
+   IF (DirIO.SetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to re-set read-only');
+      END;
+   Message('Creation of read-only file succeeded.');
+      
+   DirIO.MakeOptions( { DOS.hiddenFileAttributeBit }, options );
+   IF (DirIO.CreateEntry(entryPath, options, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create hidden entry');
+      END;
+   IF (DirIO.GetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to get hidden entry info');
+      END;
+   IF NOT ( DOS.hiddenFileAttributeBit IN info.attributes ) THEN 
+      Error('Unable to set hidden');
+      END;
+   (* make it non-hidden, so we can delete it *)
+   WITH info DO
+      EXCL( attributes, DOS.hiddenFileAttributeBit );
+      END;
+   IF (DirIO.SetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to re-set hidden');
+      END;
+   Message('Creation of hidden file succeeded.');
+   
+   DirIO.MakeOptions( { DOS.systemFileAttributeBit }, options );
+   IF (DirIO.CreateEntry(entryPath, options, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create system entry');
+      END;
+   IF (DirIO.GetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to get system entry info');
+      END;
+   IF NOT ( DOS.systemFileAttributeBit IN info.attributes ) THEN
+      Error('Unable to set system');
+      END;
+   (* make it non-system, so we can delete it *)
+   WITH info DO 
+      EXCL( attributes, DOS.systemFileAttributeBit );
+      END;
+   IF (DirIO.SetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to re-set system');
+      END;
+   Message('Creation of system file succeeded.');
+   
+   DirIO.MakeOptions( { DOS.archiveAttributeBit }, options );
+   IF (DirIO.CreateEntry(entryPath, options, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create archive entry');
+      END;
+   IF (DirIO.GetEntryInfo(entryPath, info) <> ok) THEN
+      Error('Unable to get archive entry info');
+      END;
+   IF NOT ( DOS.archiveAttributeBit IN info.attributes ) THEN
+      Error('Unable to set archive');
+      END;
+   Message('Creation of archive file succeeded.');
+@END (* LOGITECH *)
+   
+   IF (DirIO.CreateEntry(dirPath, DirIO.createDirectory, DirIO.overwritePath) <> ok) THEN
+      Error('Unable to create directory entry');
+      END;
+   IF (DirIO.GetEntryInfo(dirPath, info) <> ok) THEN
+      Error('Unable to get directory entry info');
+      END;
+@IF LOGITECH THEN
+   IF NOT ( DOS.directoryAttributeBit IN info.attributes ) THEN
+      Error('Unable to set sub-dir');
+      END;
+@END (* LOGITECH *)
+@IF SUN THEN
+    IF info.type # DirIO.directory THEN
+      Error('Unable to set sub-dir');
+      END;
+@END (* SUN *)
+   Message('Creation of sub-dir file succeeded.');
+   
+   (* verify that directory rename also works *)
+   IF (DirIO.RenameEntry(dirPath, newDirPath, DirIO.mustBeNewPath) <> ok) THEN
+      Error('Unable to rename directory');
+      END;
+      
+   (* make sure our entry is removed when we leave*)
+   IF (DirIO.DeleteEntry(entryPath) <> ok) THEN
+      Error('Unable to delete entry finally');
+      END;
+   (* make sure our secondary entry is removed when we leave*)
+   IF (DirIO.DeleteEntry(renamePath) <> ok) THEN
+      Error('Unable to delete entry finally');
+      END;
+   (* make sure our directory entry is removed when we leave*)
+   IF (DirIO.DeleteEntry(newDirPath) <> ok) THEN
+      Error('Unable to delete entry finally');
+      END;
+   
+   Message('DirIO test succeeded completely.');
+   
+   END DirTest.

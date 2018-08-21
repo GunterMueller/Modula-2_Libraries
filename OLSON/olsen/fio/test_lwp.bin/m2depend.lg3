@@ -1,0 +1,253 @@
+fiotest.obj: ..\bin\formatio.sym ..\..\io\bin\simpleio.sym  \
+             ..\..\io\bin\textio.sym 
+fiotest.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+             ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+             ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+             ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+             ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+             ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+             ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+             ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+             ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+             ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+             ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+             ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+             ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+             ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+             ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+             ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+             ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+             ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+             ..\..\gen\lwp.bin\safestor.obj ..\..\io\lwp.bin\simpleio.obj  \
+             ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+             ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+             ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+             ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+             ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+             ..\..\io\lwp.bin\textiopr.obj fiotest.obj 
+tbool.obj: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+           ..\..\io\bin\simpleio.sym ..\..\io\bin\textio.sym 
+tbool.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+           ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+           ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+           ..\..\io\bin\confbina.obj ..\bin\conffio.obj ..\..\gen\bin\dos.obj  \
+           ..\..\io\lwp.bin\dosbinar.obj ..\..\io\bin\dosioerr.obj  \
+           ..\..\gen\lwp.bin\dosmonit.obj ..\bin\fiobase.obj  \
+           ..\bin\fiobool.obj ..\bin\fiocard.obj ..\bin\fioint.obj  \
+           ..\bin\fiopriva.obj ..\bin\fioreal.obj ..\bin\fiostrin.obj  \
+           ..\bin\formatio.obj ..\..\gen\bin\genconst.obj  \
+           ..\..\gen\bin\i8086.obj ..\..\io\bin\ioconsts.obj  \
+           ..\..\io\bin\ioerrors.obj ..\..\io\lwp.bin\iomonito.obj  \
+           ..\..\gen\bin\intconve.obj ..\..\io\bin\intio.obj  \
+           ..\..\gen\lwp.bin\interrup.obj ..\..\gen\bin\intrinsi.obj  \
+           ..\..\gen\bin\lists.obj ..\..\gen\bin\modinit.obj  \
+           ..\..\gen\bin\namelist.obj ..\..\gen\lwp.bin\notices.obj  \
+           ..\..\gen\lwp.bin\objects.obj ..\..\gen\bin\progerr.obj  \
+           ..\..\gen\bin\progerro.obj ..\..\gen\bin\realconv.obj  \
+           ..\..\io\bin\realio.obj ..\..\gen\lwp.bin\safestor.obj  \
+           ..\..\io\lwp.bin\simpleio.obj ..\..\io\bin\stringio.obj  \
+           ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+           ..\..\gen\lwp.bin\taskcons.obj ..\..\gen\lwp.bin\taskinfo.obj  \
+           ..\..\gen\lwp.bin\taskmoni.obj ..\..\gen\lwp.bin\tasktime.obj  \
+           ..\..\gen\lwp.bin\tasks.obj ..\..\gen\lwp.bin\taskspri.obj  \
+           ..\..\io\lwp.bin\textio.obj ..\..\io\lwp.bin\textiopr.obj  \
+           tbool.obj 
+tdatafio.obj: ..\bin\datafio.sym ..\..\io\bin\ioconsts.sym  \
+              ..\..\io\bin\ioversio.sym ..\..\gen\bin\intrinsi.sym  \
+              ..\bin\simplefi.sym ..\..\io\bin\simpleio.sym  \
+              ..\..\gen\bin\strings.sym 
+tdatafio.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\..\io\bin\cardio.obj ..\..\io\bin\catbinar.obj  \
+              ..\..\gen\bin\chars.obj ..\..\io\bin\confbina.obj  \
+              ..\bin\conffio.obj ..\..\gen\bin\dos.obj ..\bin\datafio.obj  \
+              ..\..\io\lwp.bin\dirio.obj ..\..\io\lwp.bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\io\bin\dosionam.obj  \
+              ..\..\gen\lwp.bin\dosmonit.obj ..\bin\fiobase.obj  \
+              ..\bin\fiobool.obj ..\bin\fiocard.obj ..\bin\fioint.obj  \
+              ..\bin\fiopriva.obj ..\bin\fioreal.obj ..\bin\fiostrin.obj  \
+              ..\bin\formatio.obj ..\..\gen\bin\genconst.obj  \
+              ..\..\gen\bin\i8086.obj ..\..\io\bin\ioconsts.obj  \
+              ..\..\io\bin\ioerrors.obj ..\..\io\lwp.bin\iomonito.obj  \
+              ..\..\io\lwp.bin\ionames.obj ..\..\io\bin\ioversio.obj  \
+              ..\..\gen\bin\intconve.obj ..\..\io\bin\intio.obj  \
+              ..\..\gen\lwp.bin\interrup.obj ..\..\gen\bin\intrinsi.obj  \
+              ..\..\gen\bin\lists.obj ..\..\gen\bin\modinit.obj  \
+              ..\..\gen\bin\namelist.obj ..\..\gen\lwp.bin\notices.obj  \
+              ..\..\gen\lwp.bin\objects.obj ..\..\gen\bin\progargs.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+              ..\..\gen\lwp.bin\safestor.obj ..\lwp.bin\simplefi.obj  \
+              ..\..\io\lwp.bin\simpleio.obj ..\..\io\bin\stringbi.obj  \
+              ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+              ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+              ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+              ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+              ..\..\io\lwp.bin\textiopr.obj tdatafio.obj 
+tfioscre.obj: ..\..\io\bin\cardio.sym ..\bin\fioscree.sym ..\bin\formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\bin\screenio.sym  \
+              ..\..\io\bin\stringio.sym ..\..\io\bin\textio.sym 
+tfioscre.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+              ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+              ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+              ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+              ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+              ..\lwp.bin\fioscree.obj ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+              ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+              ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+              ..\..\gen\lwp.bin\safestor.obj ..\..\io\bin\screenio.obj  \
+              ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+              ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+              ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+              ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+              ..\..\io\lwp.bin\textiopr.obj tfioscre.obj 
+tintcard.obj: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+tintcard.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+              ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+              ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+              ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+              ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+              ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+              ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+              ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+              ..\..\gen\lwp.bin\safestor.obj ..\..\io\lwp.bin\simpleio.obj  \
+              ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+              ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+              ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+              ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+              ..\..\io\lwp.bin\textiopr.obj tintcard.obj 
+tisvalid.obj: ..\..\gen\bin\objects.sym ..\bin\simplefi.sym 
+tisvalid.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+              ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+              ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+              ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+              ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+              ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+              ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+              ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+              ..\..\gen\lwp.bin\safestor.obj ..\lwp.bin\simplefi.obj  \
+              ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+              ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+              ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+              ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+              ..\..\io\lwp.bin\textiopr.obj tisvalid.obj 
+treal.obj: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+           ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+           ..\..\io\bin\textio.sym 
+treal.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+           ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+           ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+           ..\..\io\bin\confbina.obj ..\bin\conffio.obj ..\..\gen\bin\dos.obj  \
+           ..\..\io\lwp.bin\dosbinar.obj ..\..\io\bin\dosioerr.obj  \
+           ..\..\gen\lwp.bin\dosmonit.obj ..\bin\fiobase.obj  \
+           ..\bin\fiobool.obj ..\bin\fiocard.obj ..\bin\fioint.obj  \
+           ..\bin\fiopriva.obj ..\bin\fioreal.obj ..\bin\fiostrin.obj  \
+           ..\bin\formatio.obj ..\..\gen\bin\genconst.obj  \
+           ..\..\gen\bin\i8086.obj ..\..\io\bin\ioconsts.obj  \
+           ..\..\io\bin\ioerrors.obj ..\..\io\lwp.bin\iomonito.obj  \
+           ..\..\gen\bin\intconve.obj ..\..\io\bin\intio.obj  \
+           ..\..\gen\lwp.bin\interrup.obj ..\..\gen\bin\intrinsi.obj  \
+           ..\..\gen\bin\lists.obj ..\..\gen\bin\modinit.obj  \
+           ..\..\gen\bin\namelist.obj ..\..\gen\lwp.bin\notices.obj  \
+           ..\..\gen\lwp.bin\objects.obj ..\..\gen\bin\progerr.obj  \
+           ..\..\gen\bin\progerro.obj ..\..\gen\bin\realconv.obj  \
+           ..\..\io\bin\realio.obj ..\..\gen\lwp.bin\safestor.obj  \
+           ..\..\io\lwp.bin\simpleio.obj ..\..\io\bin\stringio.obj  \
+           ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+           ..\..\gen\lwp.bin\taskcons.obj ..\..\gen\lwp.bin\taskinfo.obj  \
+           ..\..\gen\lwp.bin\taskmoni.obj ..\..\gen\lwp.bin\tasktime.obj  \
+           ..\..\gen\lwp.bin\tasks.obj ..\..\gen\lwp.bin\taskspri.obj  \
+           ..\..\io\lwp.bin\textio.obj ..\..\io\lwp.bin\textiopr.obj  \
+           treal.obj 
+tsimplef.obj: ..\..\io\bin\ioerrors.sym ..\bin\simplefi.sym  \
+              ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+tsimplef.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+              ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+              ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+              ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+              ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+              ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+              ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+              ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+              ..\..\gen\lwp.bin\safestor.obj ..\lwp.bin\simplefi.obj  \
+              ..\..\io\lwp.bin\simpleio.obj ..\..\io\bin\stringio.obj  \
+              ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+              ..\..\gen\lwp.bin\taskcons.obj ..\..\gen\lwp.bin\taskinfo.obj  \
+              ..\..\gen\lwp.bin\taskmoni.obj ..\..\gen\lwp.bin\tasktime.obj  \
+              ..\..\gen\lwp.bin\tasks.obj ..\..\gen\lwp.bin\taskspri.obj  \
+              ..\..\io\lwp.bin\textio.obj ..\..\io\lwp.bin\textiopr.obj  \
+              tsimplef.obj 
+tstring.obj: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+             ..\..\io\bin\simpleio.sym ..\..\io\bin\textio.sym 
+tstring.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+             ..\..\gen\bin\cardconv.obj ..\..\io\bin\cardio.obj  \
+             ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+             ..\..\io\bin\confbina.obj ..\bin\conffio.obj  \
+             ..\..\gen\bin\dos.obj ..\..\io\lwp.bin\dosbinar.obj  \
+             ..\..\io\bin\dosioerr.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+             ..\bin\fiobase.obj ..\bin\fiobool.obj ..\bin\fiocard.obj  \
+             ..\bin\fioint.obj ..\bin\fiopriva.obj ..\bin\fioreal.obj  \
+             ..\bin\fiostrin.obj ..\bin\formatio.obj  \
+             ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+             ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+             ..\..\io\lwp.bin\iomonito.obj ..\..\gen\bin\intconve.obj  \
+             ..\..\io\bin\intio.obj ..\..\gen\lwp.bin\interrup.obj  \
+             ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+             ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+             ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+             ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+             ..\..\gen\bin\realconv.obj ..\..\io\bin\realio.obj  \
+             ..\..\gen\lwp.bin\safestor.obj ..\..\io\lwp.bin\simpleio.obj  \
+             ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+             ..\..\gen\bin\systypes.obj ..\..\gen\lwp.bin\taskcons.obj  \
+             ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmoni.obj  \
+             ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+             ..\..\gen\lwp.bin\taskspri.obj ..\..\io\lwp.bin\textio.obj  \
+             ..\..\io\lwp.bin\textiopr.obj tstring.obj 

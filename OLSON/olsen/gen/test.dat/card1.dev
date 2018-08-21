@@ -1,0 +1,9 @@
+$ The static length of the result string is too short
+$
+#test1
+FFFF
+hex
+65535
+decimal
+short
+10

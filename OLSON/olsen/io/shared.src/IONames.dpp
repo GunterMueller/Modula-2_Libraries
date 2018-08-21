@@ -1,0 +1,160 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE IONames;
+(*
+ * Provides implementation-dependent operations on names in the
+ * I/O name space.  
+ *
+ * While DirIO operates on directories and files which actually exist,
+ * some of the IONames operations (Validate, Separate, and Make) perform
+ * only syntactic manipulations. Thus, the use of these operations does
+ * not imply that the names being manipulated actually exist.
+ *
+ * Separate and Make assume that they are passed syntactically valid names.
+ * Using them with invalid names may produce unexpected results.
+ *)
+IMPORT 
+    IOConsts;
+
+EXPORT QUALIFIED
+    Path,              Entry,            Suffix,        Base,           
+    ValidateResults,   Validate,         Separate,      Make,           
+    MakeAbsolute,      defaultTempPath,  CreateTemp;
+
+TYPE
+    Path   = IOConsts.Path;
+    Entry  = IOConsts.Entry;
+    Suffix = IOConsts.Suffix;
+    Base   = IOConsts.Base;
+    (*
+     * These are exported for importer convenience.
+     *)
+    
+TYPE
+    ValidateResults = ( 
+        pathIsRelative,  (* Valid and relative to DirIO.GetDefault *)
+        pathIsAbsolute,  (* Valid, not always relative to DirIO.GetDefault *)
+        pathIsIllegal    (* Syntax error *)
+    );
+
+PROCEDURE Validate(
+    path : ARRAY OF CHAR     (* Directory, file, or other to be validated *)
+    )    : ValidateResults;  (* See description at declaration *)
+    (*
+     * Attempt to syntactically validate I/O path (name) supplied.
+     * Note that validity does not imply existence.
+     * 
+     * DOS IMPLEMENTATION SPECIFIC NOTE:
+     *     If the path contains a drive specification, then it will
+     *     be considered to be an "absolutePath".
+     *
+     *     If the path is "XXXX:", it is assumed to be a device,
+     *     and "absolutePath" will be returned.
+     *     The value of "XXXX" is not checked to be valid for this
+     *     particular version of DOS.
+     *)
+
+PROCEDURE Separate(
+        path      : ARRAY OF CHAR;   (* IO name to be parsed *)
+    VAR directory : IOConsts.Path;   (* Directory part of the path *)
+    VAR base      : IOConsts.Base;   (* Base part of last entry in path *)
+    VAR suffix    : IOConsts.Suffix  (* Suffix part of last entry *)
+    );
+    (*
+     * Separates the "path" into its component parts.
+     *
+     * The returned parameters will not have terminating separators.
+     *
+     * The path need not represent an existing IO object. This operation
+     * is purely a parsing algorithm, If "path" is not valid, the results
+     * are implementation dependent. If the "path" contains a device name,
+     * e.g. "con:", it will be returned in the "directory" parameter.
+     *)
+
+PROCEDURE Make(
+        directory : ARRAY OF CHAR;  (* Directory part to be used *)
+        base      : ARRAY OF CHAR;  (* Base part to be used to build path *)
+        suffix    : ARRAY OF CHAR;  (* Suffix part to be used to build path *)
+    VAR path      : IOConsts.Path   (* Concatenation of all, OP specific *)
+    );
+    (* 
+     * Creates a path name from its component parts, inserting the
+     * appropriate separators where necessary. 
+     *
+     * If the names are not syntactically correct, the results are
+     * implementation specific. If the parts come from a valid path,
+     * the resulting path will be syntactically correct.
+     *)
+ 
+PROCEDURE MakeAbsolute(
+        relativePath : ARRAY OF CHAR;  (* Any path name (need not exist) *)
+    VAR absolutePath : IOConsts.Path   (* Unambiguous path name *)
+    );
+    (*
+     * Replaces relative path name components by a single absolute name.
+     *
+     * If the "relativePath" is not syntactically correct, the result
+     * is implementation specific. If the "relativePath" comes from a
+     * valid path, the resulting path will be syntactically correct.
+     *)
+
+CONST
+    defaultTempPath = "";
+
+PROCEDURE CreateTemp(
+        startPath  : ARRAY OF CHAR;  (* Path from which to build entry name *)
+        options    : ARRAY OF CHAR;  (* DirIO.CreateEntry options, not empty *)
+    VAR uniquePath : IOConsts.Path   (* Result path created, if no errors *)
+    );
+    (*
+     * Will create a (unique) new path containing if possible
+     * the "startPath" by calling DirIO.CreateEntry.
+     *
+     * "startPath" may be "defaultTempPath", a directory, or a
+     * file-name with or without a suffix (that is, any path).
+     * Create will modify or add to the "startPath" to make it
+     * unique. The rules are:
+     *
+     *     If "startPath" is "defaultTempPath", the program
+     *     name will be used to create an entry in the current
+     *     directory on the PC and in /tmp in UNIX (IMPLEMENTATION SPECIFIC).
+     *
+     *     If "startPath" is a directory, the program name
+     *     will be used to create an entry in the specified
+     *     directory. Note that on the PC, the directory
+     *     must be correctly terminated (e.g. "D:\P\BIN\").
+     *
+     *     If "startPath" is already a complete name the procedure
+     *     will verify that it is unique; if the name is not unique,
+     *     the procedure will modify the name to make it unique before 
+     *     creating it.
+     *
+     * Errors from DirIO.CreateEntry are not returned. It is up
+     * to the calling procedure to verify during the TextIO or
+     * BinaryIO.Open that the entry was actually created (otherwise
+     * the Open will fail). If the Open fails, you're probably
+     * out of disk space.
+     *)
+
+END IONames.
+

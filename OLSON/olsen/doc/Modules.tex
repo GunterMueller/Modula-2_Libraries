@@ -1,0 +1,348 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Modules}
+\label{IOModuleSummary}
+
+\sloppy
+%\newcommand{\code}[1]{{\tt #1}}
+
+\begin{description}
+\item[\code{ASCII}] -- 
+    Constants for non-printing ASCII characters.
+
+\item[\code{BinaryIO}] -- 
+    Low level file I/O implemented with multiple classes.
+
+\item[\code{BinarySupportIO}] -- 
+    File copying operations by name and by \code{BinaryIO.Object}.
+
+\item[\code{Bytes}] --
+    Memory copying, comparison, and search operations. 
+
+\item[\code{Card32}] -- 
+    32 bit cardinal number operations. (PC only)
+
+\item[\code{CardConvert}]
+    Conversions between string (human readable) form and
+    machine readable \code{CARDINAL} numbers.
+
+\item[\code{CardIO}] --
+    Text I/O of \code{CARDINAL} numbers.
+
+\item[\code{CatBinaryIO}] --
+    Implements class registration mechanism for \code{BinaryIO}.
+
+\item[\code{Chars}] --
+    Character classification tests.  Conversions to upper-case, lower-case,
+    and to/from \code{CARDINAL} digits.
+
+\item[\code{ConfBinaryIO}] --
+    Configuration module for default \code{BinaryIO} classes.
+    (Customizable per program)
+    
+\item[\code{ConfFIO}] --
+    Configuration module for default \code{FormatIO} format types.
+    Controls level of debugging output.  (Customizable per program)
+
+\item[\code{ConvertFIO}] --
+    Uses \code{FormatIO} types to convert between machine representation
+    and string (human readable) form.
+
+\item[\code{CRC16}] --
+    CCITT 16 bit cyclic redundancy check computation.
+
+\item[\code{DataFIO}] --
+    Weakly typed configuration file I/O with version management and 
+    simple editing facilities.  Each item is a tuple of its type, name,
+    and value.  The types are \code{FormatIO} formats.
+
+\item[\code{DebugFlags}] --
+    Defines a centralized database for debugging flags by ``module name''.
+    Provides command-line control of internal debugging flags.
+
+\item[\code{DirIO}] --
+    Directory I/O operations including create, delete, rename, get/set
+    parameters, and listing directories.  The concept of a default (current)
+    directory is supported.
+
+\item[\code{DOS}] --
+    Interface to MS-DOS types and constants.  Including constants for
+    all the function calls and software interrupts. (PC only)
+
+\item[\code{DosBinaryIO}] --
+    MS-DOS low level I/O class belonging to the \code{BinaryIO} category.
+    (PC only)
+
+\item[\code{DosIOErrors}] --
+    Conversions from MS-DOS I/O errors and \code{IOErrors.Errors}.
+
+\item[\code{DosIONames}] --
+    Copy operation to ensure ASCIIZ format when passing file names to MS-DOS.
+    (PC only)
+
+\item[\code{DosMonitor}] --
+    Voluntary mutual exclusion for MS-DOS calls.
+    (PC only)
+
+\item[\code{ErrorFIO}] --
+    \code{FormatIO} calls with \code{TextIO.ErrorOutput} as the default file
+    parameter.
+
+\item[\code{FIOBase}] --
+    Registration of and support routines for \code{FormatIO} types.
+
+\item[\code{FIOBool}] --
+    Implements the \code{FormatIO} type \code{BOOLEAN}.
+
+\item[\code{FIOCard}] --
+    Implements the \code{FormatIO} type \code{CARDINAL} and its subranges.
+
+\item[\code{FIOInt}] --
+    Implements the \code{FormatIO} type \code{INTEGER} and its subranges.
+
+\item[\code{FIOPRIVATE}] --
+    Module used internally by \code{FormatIO} and \code{FIOBase}.
+
+\item[\code{FIOReal}] --
+    Implements the \code{FormatIO} type for all \code{REAL} types.
+
+\item[\code{FIOScreen}] --
+    Supports \code{ScreenIO} operations as a \code{FormatIO} type.
+
+\item[\code{FIOString}] --
+    Implements the \code{FormatIO} type for \code{CHAR} and 
+    \code{ARRAY OF CHAR},
+
+\item[\code{FormatIO}] --
+    Generic formatted I/O via \code{TextIO}.  String formats are parsed
+    for registered types.  The types are completely user defined.
+
+\item[\code{GenConsts}] --
+    The types \code{Line} and \code{Identifier} are defined centrally
+    to avoid the proliferation of hardwired constant values.
+
+\item[\code{I8086}] --
+    Instruction set for the 8086 encoded as constants to be used in
+    \code{SYS\-TEM.\-CODE} statements. (PC only)
+
+\item[\code{IntConvert}] --
+    Conversions between string (human readable) form and
+    machine readable \code{INTEGER} numbers.
+
+\item[\code{Interrupts}] --
+    Hardware/\-software interrupt management.  Each interrupt causes
+    an upcall to occur.  The upcall procedure is associated with
+    an \code{Inter\-rupts.\-Object} which is created by an importer.
+
+\item[\code{IntIO}] --
+    Text I/O of \code{INTEGER} numbers.
+
+\item[\code{Intrinsics}] --
+    Defines types and procedures ``missing'' from Modula-2.
+    Min and max of two values for all the generic types
+    and \code{Compare\-Results} are defined.
+
+\item[\code{IOConsts}] --
+    Operating system dependent constants and their types for I/O.
+
+\item[\code{IOErrors}] --
+    Portable specification of I/O errors, conversion to string values,
+    and error output.
+
+\item[\code{IOMonitors}] --
+    Mutual exclusion of the default \code{TextIO} and \code{BinaryIO}
+    options. (Tasks only)
+
+\item[\code{IONames}] --
+    Decomposition and construction of names in the I/O space.  
+    Temporary names, absolute names, base, suffix, directory are
+    supported.
+
+\item[\code{IOSearchPaths}] --
+    Traverses a list of directories for a specified I/O entity.
+    Parses the {\em path} environment variable if defined.
+
+\item[\code{IOVersions}] --
+    Decomposition and construction of version numbered names.
+    
+\item[\code{Keyboard}] --
+    Read directly from main console keyboard. (PC only)
+    
+\item[\code{Lists}] --
+    Generic queues, stacks, and sorted lists.  User defined types
+    may be registered.
+    
+\item[\code{MC68881}] --
+    Defines procedures to access Motorola 68881 floating point control
+    registers. (Sun only)
+
+\item[\code{ModInit}] --
+    Ensures initialization in the event of circular imports.
+    
+\item[\code{NameLists}] --
+    Queues, stacks, and sorted unlimited length string lists.
+    
+\item[\code{Notices}] --
+    User defined out of context exceptions.  Handlers are registered
+    procedures.  Defines out of memory and termination exceptions.
+
+\item[\code{Objects}] --
+    De/Allocation and simple list management of uniform dynamic
+    data structures.
+
+\item[\code{ProgArgs}] --
+    Interface to command line program arguments.
+    
+\item[\code{ProgEnviron}] --
+    Interface to external environment variables.
+
+\item[\code{ProgErr}] --
+    Abnormal termination management including memory dump control.
+    
+\item[\code{ProgErrOutput}] --
+    Central error output procedures and registration for calls
+    to these procedures.
+
+\item[\code{QStrings}] --
+    Dynamic length strings.
+
+\item[\code{RandomNumbers}] --
+    Pseudo-random numbers in cardinal, integer, and real formats.
+    
+\item[\code{RealConvert}] --
+    Conversions between string (human readable) form and
+    machine readable \code{REAL} numbers.
+
+\item[\code{RealIO}] --
+    Text I/O of \code{REAL} numbers.
+    
+\item[\code{SafeStorage}] --
+    Storage allocation/deallocation with out of memory exception.
+    
+\item[\code{ScreenIO}] --
+    Control of terminal screen and input modes.  Services include
+    cursor positioning, bold, blinking, echo control, etc.
+    
+\item[\code{SimpleFIO}] --
+    \code{FormatIO} to default \code{TextIO} input and output.
+    Errors states are simplified.
+
+\item[\code{SimpleIO}] --
+    Basic \code{TextIO}, \code{CardIO}, \code{RealIO}, \code{StringIO}, and
+    \code{IntIO} to standard input and output files.
+    Errors states are simplified.
+
+\item[\code{StringBinaryIO}] --
+    \code{BinaryIO} class to
+    support files which are stored entirely in program memory.
+
+\item[\code{StringIO}] --
+    \code{TextIO} for \code{ARRAY OF CHAR} values.  
+    
+\item[\code{Strings}] --
+    Manipulation of \code{ARRAY OF CHAR} values.  Services include
+    concatenation, deletion, extraction, justification, comparisons,
+    and searches.
+    
+\item[\code{SysTypes}] --
+    System dependent types and constants for generic types (e.g. \code{REAL}
+    and \code{CARDINAL}).  Using the types in this module will greatly
+    enhance program portability.
+
+\item[\code{TaskConsts}] --
+    System dependent types and constants for \code{Tasks} environment.
+    (Customizable per program)
+    
+\item[\code{TaskDebug}] --
+    Aids debugging with \code{Tasks}.  Controls user interrupts and
+    tasking state displays.
+
+\item[\code{TaskInfo}] --
+    Extensible building block for \code{Task} primitives 
+    
+\item[\code{TaskMessages}] --
+    Bi-directional synchronized data communication between \code{Tasks}.
+
+\item[\code{TaskMonitors}] --
+    Concurrency control of code entered by multiple \code{Tasks}.
+
+\item[\code{TaskNotices}] --
+    Clean termination request, task birth, and task death \code{Notices}.
+
+\item[\code{Tasks}] --
+    Supports multiple preemtable prioritized execution threads
+    for a single program invocation.  Also known as light-weight processes.
+
+\item[\code{TasksAsm}] --
+    Low-level assembly language required for Sun \code{Tasks} implementation.
+    (Sun only)
+
+\item[\code{TaskSemaphores}] --
+    Counting semaphores between \code{Tasks}. 
+
+\item[\code{TasksPRIVATE}] --
+    Internal structure of a \code{Task} and implementation dependent
+    procedures.
+    
+\item[\code{TaskTime}] --
+    Suspension (sleep) of \code{Tasks} on a relative time basis.
+    
+\item[\code{TextIO}] --
+    Structured I/O where a file is seen as a sequence of lines and
+    a line is composed of a sequence of characters.
+
+\item[\code{TextIOPRIVATE}] --
+    Internal support for \code{TextIO}.
+
+\item[\code{TextSupportIO}] --
+    Supports copying of \code{TextIO} files by name and object.
+    
+\item[\code{UnixBinaryIO}] --
+    Unix low level I/O class belonging to the \code{BinaryIO} category.
+
+\item[\code{UnixC}{\em XXX} ] -- Modula-2 definitions of Sun/Unix C operating
+    system interfaces.  These modules retain (wherever possible) the
+    naming scheme as defined by Sun/Unix to enhance compatibility with
+    existing manuals and know-how.  Each module is named after a man
+    page, C include file, or some reasonable entity.  The header
+    comments indicate relevant Sun/Unix documentation.
+    (Sun only)
+    
+\item[\code{UnixError}] --
+    Access to \code{errno} and output of Unix dependent error messages
+    to \code{ProgErrOutput} (use in place of \code{perror}).  (Sun only)
+
+\item[\code{UnixIOErrors}] --
+    Conversions from Unix I/O errors and \code{IOErrors.Errors}.
+
+\item[\code{UnixIONames}]
+    Copy operation to ensure null-terminated strings when passing file
+    names to Unix. (Sun only)
+
+\item[\code{UnixMonitor}]
+    Voluntary mutual exclusion for Unix operating system calls.
+    (Sun only)
+
+\end{description}
+

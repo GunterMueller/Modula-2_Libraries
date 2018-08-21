@@ -1,0 +1,93 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE FIOTest;
+
+   IMPORT FormatIO, SimpleIO, TextIO;
+   
+   VAR
+      c        : CARDINAL;
+      i        : INTEGER;
+      r        : REAL;
+      b        : BOOLEAN;
+      s        : ARRAY [0..20] OF CHAR;
+      ch       : CHAR;
+      DONTCARE : TextIO.States;
+      input    : TextIO.Object;
+      output   : TextIO.Object;
+      
+   BEGIN
+   output := TextIO.GetOutput();
+   input  := TextIO.GetInput();
+   
+   DONTCARE := FormatIO.Write(output, 'This is a text lit.[NL]');
+   
+   c := 999;
+   DONTCARE := FormatIO.Write1(output, 'Should be 999: [Card][NL]', c);
+   DONTCARE := 
+      FormatIO.Write1(output, '<w6,f#,jl,b16> [Card,w6,f#,jl,b16][NL]', c);
+   DONTCARE := 
+      FormatIO.Write1(output, '<w7,f*,jr,b10> [Card,w7,f*,jr,b10][NL]', c);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Card][NL]', c, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Card][NL]', c);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Card][NL]', c, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Card][NL]', c);
+   
+   i := 1234;
+   DONTCARE := FormatIO.Write1(output, 'Should be 1234: [Int][NL]', i);
+   DONTCARE := FormatIO.Write1(output, '<w6,f#,jl> [Int,w6,f#,jl][NL]', i);
+   DONTCARE := FormatIO.Write1(output, '<w7,f*,jr> [Int,w7,f*,jr][NL]', i);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Int][NL]', i, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Int][NL]', i);
+   
+   r := 102.3456789;
+   DONTCARE := FormatIO.Write1(output, 'Should be 102.3: [Float,w5,p1][NL]', r);
+   DONTCARE := FormatIO.Write1(output, '<Float,w8,p4> [Float,w8,p4][NL]', r);
+   DONTCARE := FormatIO.Write1(output, '<Float,w9,p5> [Float,w9,p5][NL]', r);
+   DONTCARE := FormatIO.Write1(output, '<Sci,w12,p5,e2> [Sci,w12,p5,e2][NL]', r);
+   DONTCARE := FormatIO.Write1(output, '<Eng,w13,p5,e3> [Eng,w13,p5,e3][NL]', r);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Real][NL]', r, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Sci,w12,p5,e2][NL]', r);
+   
+   b := TRUE;
+   DONTCARE := FormatIO.Write1(output, 'Should be TRUE: [Bool][NL]', b);
+   DONTCARE := FormatIO.Write1(output, '<w6,jl,yYes,nNo> [Bool,w6,jl,yYes,nNo][NL]', b);
+   DONTCARE := FormatIO.Write1(output, '<w7,jr,yJa,nNein> [Bool,w7,jr,yJa,nNein][NL]', b);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Bool,yDa,nNyet][NL]', b, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Bool][NL]', b);
+   
+   s := "farkle-farkle";
+   DONTCARE := 
+      FormatIO.Write1(output, 'Should be "farkle-farkle": [String][NL]', s);
+   DONTCARE := FormatIO.Write1(output, '<w15,f#,jl> [String,w15,f#,jl][NL]', s);
+   DONTCARE := FormatIO.Write1(output, '<w16,f!,jr> [String,w16,f!,jr][NL]', s);
+   DONTCARE := FormatIO.Write1(output, '<w17,f*,jc> [String,w17,f*,jc][NL]', s);
+   DONTCARE := FormatIO.PromptedRead1(input, '[String][NL]', s, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [String][NL]', s);
+   
+   ch := '*';
+   DONTCARE := FormatIO.Write1(output, 'Should be "*": [Char][NL]', ch);
+   DONTCARE := FormatIO.PromptedRead1(input, '[Char][NL]', ch, output);
+   DONTCARE := FormatIO.Write1(output, 'Should be new: [Char][NL]', ch);
+   
+   END FIOTest.
+

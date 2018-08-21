@@ -1,0 +1,24 @@
+#
+# Main makefile for Sun directories.
+#
+TargetDirs= gen/bin gen/lwp.bin io/bin io/lwp.bin fio/bin fio/lwp.bin \
+	    tools/bin demo/lwp.bin
+
+all: ${TargetDirs}
+
+# We use this style for normal make to allow make to see the
+# errors on sub-directories.  The "all" specification gets by
+# a bug in "make".
+${TargetDirs}: FRC
+	cd $@; $(MAKE) all
+
+FRC:
+	
+clean:
+	set -e; for d in ${TargetDirs}; do ( cd $$d; exec $(MAKE) clean ) done
+
+install:
+	set -e; for d in ${TargetDirs}; do ( cd $$d; exec $(MAKE) install ) done
+
+depend:
+	set -e; for d in ${TargetDirs}; do ( cd $$d; exec $(MAKE) depend ) done

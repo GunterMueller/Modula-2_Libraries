@@ -1,0 +1,50 @@
+DEFINITION MODULE ByteItems;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Generic Item Structure Utility - BYTE Items
+
+    INTRODUCTION
+    This module provides support for generic data items, restricted
+    to types compatible with BYTE.  Assignment, equality testing, and
+    relational operations are all provided by the language.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved. 
+====================================================================*)
+
+FROM SYSTEM IMPORT
+    (*--Type*) BYTE;
+
+
+TYPE  Item	= BYTE; 	    (*-- The BYTE item data type *)
+CONST NullItem	= VAL(BYTE, 0C);    (*-- The ‘null’ value *)
+
+
+TYPE  AssignProc  = PROCEDURE (    Item    (*-- in    *))
+				 : Item    (*-- out   *);
+
+TYPE  EqualProc   = PROCEDURE (    Item    (*-- in    *),
+				   Item    (*-- in    *))
+				 : BOOLEAN (*-- out   *);
+
+
+    (*---------------------------------*)
+    (*--	 ITERATORS	     --*)
+
+TYPE  AccessProc     = PROCEDURE (    Item     (*-- in	  *));
+TYPE  ChangeProc     = PROCEDURE (VAR Item     (*-- inout *));
+
+
+TYPE  Continue	     = BOOLEAN;
+TYPE  LoopAccessProc = PROCEDURE (    Item     (*-- in	  *))
+				    : Continue (*-- out   *);
+
+TYPE  LoopChangeProc = PROCEDURE (VAR Item     (*-- inout *))
+				    : Continue (*-- out   *);
+
+END ByteItems.

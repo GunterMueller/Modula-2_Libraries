@@ -1,0 +1,122 @@
+(*
+11.5 Balking Unbounded Queue
+*)
+
+DEFINITION MODULE QNBSUMN;
+(*===========================================================
+    Version  : 1.00  04 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Queue (Opaque version)
+      Non-Priority Balking Sequential Unbounded Managed Non-Iterator
+
+    REVISION HISTORY
+    v1.00  04 May 1989  C. Lins:
+      Initial TopSpeed Modula-2 implementation.
+
+    (C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM QEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*--------------------*)
+
+(*
+11.5.1 Type Declarations
+
+A queue is declared as the abstract data type, Queue.
+*)
+
+TYPE  Queue;
+CONST NullQueue = Queue(NIL);
+
+
+(*
+11.5.2 Exceptions
+
+The ModuleID uniquely identifies this module from all others.
+
+QueueError returns the most recent queue exception, or noerr if the
+last operation was successful.  While SetHandler and GetHandler allow
+assignment and retrieval of exception handling routines for specific
+exceptions.
+*)
+
+CONST ModuleID = 4;
+
+PROCEDURE QueueError () : Exceptions (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+                          theHandler : HandlerProc (*-- in    *));
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+
+(*
+11.5.3 Constructors
+
+Leave removes theItem from the Queue regardless of its position.
+Complexity: O(n).
+*)
+
+PROCEDURE Create  (    theType  : TypeID    (*-- in    *))
+                                : Queue     (*-- out   *);
+
+PROCEDURE Destroy (VAR theQueue : Queue     (*-- inout *));
+
+PROCEDURE Clear   (VAR theQueue : Queue     (*-- inout *));
+
+PROCEDURE Assign  (    theQueue : Queue     (*-- in    *);
+                   VAR toQueue  : Queue     (*-- inout *));
+
+PROCEDURE Arrive  (VAR theQueue : Queue     (*-- inout *);
+                       theItem  : Item      (*-- in    *));
+
+PROCEDURE Depart  (VAR theQueue : Queue     (*-- inout *));
+
+PROCEDURE Leave   (VAR theQueue : Queue     (*-- inout *);
+                       theItem  : Item      (*-- in    *));
+
+
+(*
+11.5.4 Selectors
+
+PositionOf returns the number of positions from the given item to the
+front of the queue. If theItem is not present in theQueue then zero
+is returned. Complexity O(n).
+*)
+
+PROCEDURE IsDefined (    theQueue : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty   (    theQueue : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    left     : Queue    (*-- in    *);
+                         right    : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    theQueue : Queue    (*-- in    *))
+                                  : CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf    (    theQueue : Queue    (*-- in    *))
+                                  : TypeID   (*-- out   *);
+
+PROCEDURE FrontOf   (    theQueue : Queue    (*-- in    *))
+                                  : Item     (*-- out   *);
+
+PROCEDURE PositionOf (    theQueue: Queue    (*-- in    *);
+                          theItem : Item     (*-- in    *))
+                                  : CARDINAL (*-- out   *);
+
+END QNBSUMN.

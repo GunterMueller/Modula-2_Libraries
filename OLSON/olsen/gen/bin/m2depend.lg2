@@ -1,0 +1,63 @@
+bytes.sym: intrinsi.sym systypes.sym 
+bytes.lnk: bytes.sym intrinsi.sym systypes.sym 
+card32.sym: intrinsi.sym systypes.sym 
+card32.lnk: card32.sym i8086.sym intrinsi.sym progerr.sym systypes.sym 
+cardconv.sym: chars.sym systypes.sym 
+cardconv.lnk: card32.sym cardconv.sym chars.sym intrinsi.sym progerr.sym  \
+              strings.sym systypes.sym 
+chars.sym: systypes.sym 
+chars.lnk: chars.sym systypes.sym 
+crc16.sym: systypes.sym 
+crc16.lnk: crc16.sym progerr.sym systypes.sym 
+debugfla.sym: 
+debugfla.lnk: debugfla.sym genconst.sym namelist.sym progargs.sym progerr.sym  \
+              progerro.sym strings.sym systypes.sym 
+dos.sym: systypes.sym 
+dos.lnk: dos.sym 
+genconst.sym: 
+genconst.lnk: genconst.sym 
+i8086.sym: 
+i8086.lnk: i8086.sym 
+intconve.sym: systypes.sym 
+intconve.lnk: cardconv.sym chars.sym intconve.sym progerr.sym strings.sym  \
+              systypes.sym 
+intrinsi.sym: systypes.sym 
+intrinsi.lnk: intrinsi.sym systypes.sym 
+lists.sym: intrinsi.sym objects.sym systypes.sym 
+lists.lnk: intrinsi.sym lists.sym namelist.sym objects.sym progerr.sym  \
+           systypes.sym 
+modinit.sym: 
+modinit.lnk: modinit.sym namelist.sym 
+namelist.sym: lists.sym systypes.sym 
+namelist.lnk: chars.sym intrinsi.sym lists.sym namelist.sym objects.sym  \
+              progerr.sym safestor.sym strings.sym systypes.sym 
+notices.sym: systypes.sym 
+notices.lnk: notices.sym objects.sym progerr.sym progerro.sym safestor.sym  \
+             systypes.sym 
+objects.sym: systypes.sym 
+objects.lnk: cardconv.sym genconst.sym objects.sym progerr.sym progerro.sym  \
+             safestor.sym strings.sym systypes.sym 
+progargs.sym: systypes.sym 
+progargs.lnk: cardconv.sym dos.sym intrinsi.sym namelist.sym notices.sym  \
+              objects.sym progargs.sym progerr.sym progerro.sym strings.sym  \
+              systypes.sym 
+progenvi.sym: namelist.sym 
+progenvi.lnk: dos.sym namelist.sym progenvi.sym systypes.sym 
+progerr.sym: 
+progerr.lnk: i8086.sym progerr.sym progerro.sym systypes.sym 
+progerro.sym: 
+progerro.lnk: dos.sym progerro.sym systypes.sym 
+qstrings.sym: systypes.sym 
+qstrings.lnk: objects.sym progerr.sym qstrings.sym safestor.sym strings.sym  \
+              systypes.sym 
+randomnu.sym: systypes.sym 
+randomnu.lnk: dos.sym progerr.sym randomnu.sym systypes.sym 
+realconv.sym: systypes.sym 
+realconv.lnk: cardconv.sym chars.sym progerr.sym realconv.sym strings.sym  \
+              systypes.sym 
+safestor.sym: systypes.sym 
+safestor.lnk: progerr.sym safestor.sym systypes.sym 
+strings.sym: intrinsi.sym systypes.sym 
+strings.lnk: intrinsi.sym progerr.sym strings.sym systypes.sym 
+systypes.sym: 
+systypes.lnk: systypes.sym 

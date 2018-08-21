@@ -1,0 +1,12 @@
+DEFINITION MODULE Plotter;
+
+(* VGA plotting *)
+
+(* J. Andrea, Jul.11/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED Plot;
+
+  PROCEDURE Plot( title :ARRAY OF CHAR; x, y :ARRAY OF REAL; n :CARDINAL );
+
+END Plotter.

@@ -1,0 +1,198 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ConvertFIO;
+(*
+ * Very simple implementation.  Could be made to use FIOPRIVATE, but 
+ * then this probably wouldn't save all that much time...
+ * 
+ * We use a shared file to avoid the overhead of creating one each time.
+ *)
+IMPORT
+    BinaryIO,
+    FormatIO,
+    IOErrors,
+    StringBinaryIO,
+    StringIO,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+    
+@IF Tasks THEN
+    IMPORT
+	TaskMonitors;
+    CONST
+	moduleName = "ConvertFIO";
+    VAR
+	mutex : TaskMonitors.Object;
+@END 
+    VAR
+	text : TextIO.Object;	(* Always rewound and truncated *)
+
+PROCEDURE Read1(
+        toConvert : ARRAY OF CHAR;
+	format    : ARRAY OF CHAR;
+    VAR arg1      : ARRAY OF SysTypes.ANY
+    )             : BOOLEAN;
+    VAR
+	DONTCARE : CHAR;
+	return   : BOOLEAN;
+    BEGIN (* Read1 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END
+
+	(* Convert and verify that the string was read fully *)
+	return := ( StringIO.Write( text, toConvert ) = TextIO.ok )
+	    AND ( TextIO.Rewind( text ) = TextIO.ok )
+	    AND ( FormatIO.Read1( text, format, arg1 ) = TextIO.ok ) 
+	    AND ( TextIO.Read( text, DONTCARE ) = TextIO.endOfFile );
+
+	TextIO.DONTCARE := TextIO.SetError( text, IOErrors.ok );
+	TextIO.DONTCARE := TextIO.RewindAndTruncate( text );
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END
+
+	RETURN return;
+
+    END Read1;
+
+
+PROCEDURE Read2(
+        toConvert : ARRAY OF CHAR;
+	format    : ARRAY OF CHAR;
+    VAR arg1      : ARRAY OF SysTypes.ANY;
+    VAR arg2      : ARRAY OF SysTypes.ANY
+    )             : BOOLEAN;
+    VAR
+	DONTCARE : CHAR;
+	return   : BOOLEAN;
+    BEGIN (* Read2 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END
+
+	(* Convert and verify that the string was read fully *)
+	return := ( StringIO.Write( text, toConvert ) = TextIO.ok )
+	    AND ( TextIO.Rewind( text ) = TextIO.ok )
+	    AND ( FormatIO.Read2( text, format, arg1, arg2 ) = TextIO.ok ) 
+	    AND ( TextIO.Read( text, DONTCARE ) = TextIO.endOfFile );
+
+	TextIO.DONTCARE := TextIO.SetError( text, IOErrors.ok );
+	TextIO.DONTCARE := TextIO.RewindAndTruncate( text );
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END
+
+	RETURN return;
+
+    END Read2;
+
+
+PROCEDURE Write1(
+    VAR result : ARRAY OF CHAR;
+	format : ARRAY OF CHAR;
+	arg1   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	DONTCARE : CHAR;
+	return   : BOOLEAN;
+    BEGIN (* Write1 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END
+
+	(* Convert and verify that the string was read fully *)
+	return := ( FormatIO.Write1( text, format, arg1 ) = TextIO.ok ) 
+	    AND ( TextIO.Rewind( text ) = TextIO.ok ) 
+	    AND ( StringIO.Read( text, result ) = TextIO.ok ) 
+	    AND ( TextIO.Read( text, DONTCARE ) = TextIO.endOfFile );
+	TextIO.DONTCARE := TextIO.SetError( text, IOErrors.ok );
+	TextIO.DONTCARE := TextIO.RewindAndTruncate( text );
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END
+
+	RETURN return;
+    END Write1;
+
+
+PROCEDURE Write2(
+    VAR result : ARRAY OF CHAR;
+	format : ARRAY OF CHAR;
+	arg1   : ARRAY OF SysTypes.ANY;
+	arg2   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	DONTCARE : CHAR;
+	return   : BOOLEAN;
+    BEGIN (* Write2 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END
+
+	(* Convert and verify that the string was read fully *)
+	return := ( FormatIO.Write2( text, format, arg1, arg2 ) = TextIO.ok ) 
+	    AND ( TextIO.Rewind( text ) = TextIO.ok ) 
+	    AND ( StringIO.Read( text, result ) = TextIO.ok ) 
+	    AND ( TextIO.Read( text, DONTCARE ) = TextIO.endOfFile );
+
+	TextIO.DONTCARE := TextIO.SetError( text, IOErrors.ok );
+	TextIO.DONTCARE := TextIO.RewindAndTruncate( text );
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END
+
+	RETURN return;
+
+    END Write2;
+
+
+PROCEDURE Initialize;
+    VAR
+	options : ARRAY [ 0 .. BinaryIO.maxOptionsLength
+			       + TextIO.maxOptionsLength ] OF CHAR;
+    BEGIN (* Initialize *)
+
+	BinaryIO.MakeOptions( StringBinaryIO.className, '', options );
+	TextIO.MakeOptions( TextIO.doNotBuffer, options, options );
+	(* Allocate once to ``speed'' things up (must be writable) *)
+	IOErrors.DONTCARE := TextIO.Open( text, '', TextIO.appendOnly, 
+					  options );
+	@IF Tasks THEN
+	    TaskMonitors.Create( mutex, moduleName );
+	@END
+	
+    END Initialize;
+
+BEGIN (* ConvertFIO *)
+    Initialize;
+END ConvertFIO.

@@ -1,0 +1,26 @@
+DEFINITION MODULE VeryScreen;
+
+(* John Andrea, Mar.27/92 *)
+(* This code may NOT be sold, it may be freely used and distributed *)
+
+PROCEDURE Home;
+  (* move the cursor to top of screen *)
+
+PROCEDURE EraseScreen;
+  (* erase the screen from the cursor down *)
+
+PROCEDURE EraseLine;
+  (* erase from the cursor to then end of the current line *)
+
+PROCEDURE PutString( text :ARRAY OF CHAR; row, col :CARDINAL );
+  (* put some text at the given location *)
+
+PROCEDURE PutCursor( row, col :CARDINAL );
+  (* move the cursor to the given location *)
+
+PROCEDURE CursorOn( turn_on :BOOLEAN );
+  (* turn cursor on or off, true=on, false=off *)
+  (* if you forget to turn it back on at the end of your program *)
+  (* use the editor, it will force the cursor back on *)
+
+END VeryScreen.

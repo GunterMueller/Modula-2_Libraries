@@ -1,0 +1,30 @@
+DEFINITION MODULE ExtendStrings;
+
+(* Some string functions *)
+(* V1.0, J. Andrea, Jun.17/93 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED CaseCompare, WildcardMatch;
+
+
+PROCEDURE CaseCompare( a, b :ARRAY OF CHAR; case_specific :BOOLEAN ) :CHAR;
+(*
+ Compare the two string 'a' and 'b' and return one of the three
+ characters '=' '>' or '<'.
+ '=' means that the strings are equal,
+ '>' means that 'a' is lexigraphically greater than 'b', and
+ '<' means that 'a' is less than 'b'
+
+ Set 'case_specific' to TRUE if the comparison requires that
+ the characters be of the same case.
+*)
+
+
+PROCEDURE WildcardMatch( string, pattern :ARRAY OF CHAR ) :BOOLEAN;
+(*
+ Determine if the wildcard string 'pattern' matches 'string'
+ Wildcard characters are "*" and "%".
+*)
+
+END ExtendStrings.

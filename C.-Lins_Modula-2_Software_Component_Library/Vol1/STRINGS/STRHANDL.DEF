@@ -1,0 +1,30 @@
+(*
+This module provides a simple exception handler for the
+various String abstractions. Given an error code, it reports
+the exception to standard output in the following format:
+### Error "<error text>" raised in Routine "<routine name>" in Module <module #>
+
+*)
+
+DEFINITION MODULE StrHandlers;
+(*==============================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: String Exception Handlers Utility
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins:
+        Initial implementation
+
+    (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM StrEnum IMPORT
+	(*--type*) Exceptions, Operations;
+
+
+PROCEDURE WriteHandler (    theModule    : CARDINAL   (*--in   *);
+                            theOperation : Operations (*--in   *);
+                            theException : Exceptions (*--in   *));
+
+END StrHandlers.

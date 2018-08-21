@@ -1,0 +1,107 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE SafeStorage;
+(*
+ * A simple to use, robust storage allocator.
+ *
+ * This module replaces Storage. It may or may not use the same storage
+ * allocation facilities as Storage, thus programs must use either this
+ * module or Storage. The choice is yours! The purpose is to allow
+ * programs to be more robust against memory shortages.
+ *
+ * PORTABILITY NOTE: 
+ *    The procedures in this module are declared with SysTypes.Card.
+ *    On some systems, this may not be compatible with CARDINAL and
+ *    therefore NEW and DISPOSE will not work.  On these systems, the
+ *    type of these procedures should either be set to CARDINAL or
+ *    NEW and DISPOSE should not be used.
+ *)
+IMPORT 
+    SysTypes;
+
+EXPORT QUALIFIED
+    ALLOCATE,
+    AllocateOK,
+    DEALLOCATE,
+    InstallOutOfMemoryHandler;
+
+PROCEDURE ALLOCATE(
+    VAR anyPointer : SysTypes.SAUPTR; (* Will point to storage area *)
+        size       : SysTypes.Card    (* Number of storage units to alloc. *)
+    );
+    (*
+     * Allocates a block of size storage units and assigns
+     * the first address to anyPointer.
+     *
+     * If size storage units are not available, call the registered
+     * OutOfMemoryHandler and try again. If the second attempt fails,
+     * the caller is terminated. This assumes that the application
+     * has a good handle on what needs to be freed when this notice
+     * is called. The safest approach is to free all spare memory
+     * when this event occurs.
+     *)
+
+PROCEDURE AllocateOK(
+    VAR anyPointer : SysTypes.SAUPTR; (* Will point to storage area *)
+	size       : SysTypes.Card    (* Number of storage units to alloc. *)
+    )              : BOOLEAN;         (* TRUE => anyPointer is valid *)
+    (*
+     * Allocates a block of size storage units and assigns
+     * the first address to anyPointer.  If the storage allocation
+     * fails, then the call fails and no storage is allocated.
+     *)
+
+PROCEDURE DEALLOCATE(
+    VAR anyPointer : SysTypes.SAUPTR; (* Pointer to storage, will be NIL *)
+        size       : SysTypes.Card    (* Number of storage units dealloc. *)
+    );
+    (*
+     * Deallocates size storage units which must have been
+     * allocated by a call to ALLOCATE (in this module).  
+     *)
+
+PROCEDURE InstallOutOfMemoryHandler(
+        newHandler : PROC;  (* Procedure to be called when alloc. fails *)
+    VAR oldHandler : PROC   (* Previous handler, should also be called *)
+    );
+    (* 
+     * Allows an external module to install a handler to be called
+     * when there is no more memory available. See Notices module
+     * for generalized access to the out-of-memory condition.
+     *
+     * Normally, it is the only module in the system which installs
+     * an outOfMemoryHandler. You should always call the previous
+     * handler so that everyone gets a chance to free memory.
+     * The default handler does nothing.
+     * 
+     * WARNING:
+     *     It is the responsibility of the "newHandler" to prevent
+     *     concurrent access: in a shared memory multi-process
+     *     environment "newHandler" may be called concurrently.
+     *
+     *     Normally, the module Notices handles this condition.
+     *     Please see this module for further details.
+     *)
+
+END SafeStorage.
+

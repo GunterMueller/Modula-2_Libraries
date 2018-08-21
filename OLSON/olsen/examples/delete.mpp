@@ -1,0 +1,437 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE delete;
+(*
+ * Deletes files and directories passed on the command line.  
+ * Flags:
+ *    "recursive" - try to go into sub-directories.
+ *    "verbose"   - make a printout.
+ *
+ * In verbose mode, the output should look something like:
+yaml -> directory (recursing)
+    LIB -> deleted
+    COPYING -> deleted
+    README -> deleted
+    CONF -> directory (recursing)
+        DISTRIB -> directory (recursing)
+            PC_XFER.BAT -> deleted
+            SUN_ONLY.SH -> deleted
+        DISTRIB -> deleted
+        README -> deleted
+    CONF -> deleted
+yaml -> deleted
+ *
+ *
+ * Includes comments about the usage of the library in critical places.
+ *)
+IMPORT
+    DirIO,
+    IOConsts,
+    IOErrors,
+    NameLists,
+    ProgArgs,
+    ProgErr,
+    ProgErrOutput,
+    SYSTEM,
+    SysTypes;
+
+
+CONST
+    recurseFlag = "recurse";	(* Bool program argument *)
+    verboseFlag = "verbose";	(* Ditto *)
+	(* NOTE: Usage assumes that the values of these flags. *)
+    
+VAR
+    recurse : BOOLEAN;		(* Default is false *)
+    verbose : BOOLEAN;	        (* Ditto *)
+    
+
+(*
+ * Verbose mode pretty printing.
+ *)
+CONST
+    indent  = 4;		    (* How many spaces per directory level *)
+VAR 
+    prefix  : IOConsts.Path;	    (* Shows directory level *)
+
+
+PROCEDURE VerbosePrefix(
+    (*IN*)VAR entry : ARRAY OF CHAR
+    );
+    BEGIN (* VerbosePrefix *)
+
+	ProgErrOutput.WriteString( prefix );
+	ProgErrOutput.WriteString( entry );
+
+    END VerbosePrefix;
+
+
+PROCEDURE VerboseDone;
+    BEGIN (* VerboseDone *)
+
+	ProgErrOutput.WriteString( " -> deleted" );
+	ProgErrOutput.WriteLn;
+
+    END VerboseDone;
+    
+    
+PROCEDURE VerboseDirectory;
+    BEGIN (* VerboseDirectory *)
+
+	ProgErrOutput.WriteString( " -> directory (recursing)" );
+	ProgErrOutput.WriteLn;
+
+    END VerboseDirectory;
+
+(*
+ * Errors are not normally fatal.  In the event of a fatal error, however,
+ * this procedure will be called.
+ *)
+PROCEDURE TerminateWithError;
+    BEGIN (* TerminateWithError *)
+	(*
+	 * IMPORTANT: don't want a core dump here, so change mem save mode.
+	 *)
+	ProgErr.SetMemorySaveMode( ProgErr.doNotSaveMemoryOnTermination );
+	ProgErr.Terminate( "" );    (* message already output *)
+
+    END TerminateWithError;
+
+VAR 
+    gotError : BOOLEAN;		    (* Did we get any type of error *)
+    
+PROCEDURE Error(	    (* If verbose, we assume entry already output *)
+    (*IN*)VAR entry : ARRAY OF CHAR;
+	      error : IOErrors.Errors
+    );
+    BEGIN (* Error *)
+
+	IF verbose THEN
+	    (* File name was already printed *)
+	    IOErrors.PrintMessage( error, "" );
+	ELSE
+	    IOErrors.PrintMessage( error, entry );
+	END;
+
+	gotError := TRUE;
+
+    END Error;
+
+(*
+ * We keep an external directory stack when recursing so that we don't 
+ * eat up program stack space.
+ *)
+VAR
+    dirs  : NameLists.Object;    (* Directory stack (only when recursing) *)
+    level : SysTypes.Card;	 (* 0 is top recursion level *)
+PROCEDURE PushDir;
+    (*
+     * Go down one level.   If top of stack is already current directory,
+     * then don't bother getting current again (saves time).
+     *)
+    VAR
+	dir   : IOConsts.Path;
+	error : IOErrors.Errors;
+	i     : SysTypes.Card;
+    BEGIN (* PushDir *)
+    
+	INC( level );
+
+	IF verbose THEN
+	    FOR i := ( level - 1 ) * indent TO level * indent - 1 DO
+		prefix[ i ] := ' ';
+	    END;
+	    prefix[ level * indent ] := 0C;
+	END;
+
+	IF NameLists.GetCount( dirs ) = level THEN
+	    RETURN;	    (* Current directory already saved *)
+	END;
+	
+	error := DirIO.GetDefault( dir );
+	IF error # IOErrors.ok THEN
+	    IOErrors.PrintMessage( error, "DirIO.GetDefault" );
+	    TerminateWithError;	(* Can't continue *)
+	END;
+	
+	NameLists.Insert( dirs, dir, NameLists.DONTCARE );  (* Push *)
+	
+    END PushDir;
+
+
+PROCEDURE PopDir;	    (* SetTopDir and pop *)
+    (*
+     * If level < count, pop the stack (top item no longer needed).
+     * Decrement level and set directory to top of stack.
+     *)
+    VAR
+	dir      : IOConsts.Path;
+	error    : IOErrors.Errors;
+	DONTCARE : BOOLEAN;
+    BEGIN (* PopDir *)
+
+	(* Do we not need top directory? *)
+	IF NameLists.GetCount( dirs ) > level THEN
+	    NameLists.MakeFirstNext( dirs );
+	    DONTCARE := NameLists.Next( dirs, dir, NameLists.DONTCARE );
+	    NameLists.DeleteCurrent( dirs );		    (* Pop *)
+	END;
+
+	(* Go up a level *)
+	DEC( level ); 
+	IF verbose THEN
+	    prefix[ level * indent ] := 0C;
+	END;
+
+	(* Set directory to top of stack *)
+	NameLists.MakeFirstNext( dirs );
+	DONTCARE := NameLists.Next( dirs, dir, NameLists.DONTCARE );
+	error := DirIO.SetDefault( dir );
+	IF error # IOErrors.ok THEN
+	    IOErrors.PrintMessage( error, "DirIO.SetDefault" );
+	    TerminateWithError;
+	END;
+	
+    END PopDir;   
+
+    
+(*
+ * The work horse
+ *)
+PROCEDURE Delete(	    (* Delete the entry and if necessary recurse *)
+    DONTCARE : SysTypes.ANYPTR;
+    entry    : ARRAY OF CHAR
+    )        : BOOLEAN;	    (* Always TRUE *)
+    (*
+     * Try delete.  If fails and not recurse
+     *)
+    VAR
+	delError : IOErrors.Errors;
+	dirError : IOErrors.Errors;
+    BEGIN (* Delete *)
+    
+	IF verbose THEN
+	    VerbosePrefix( entry );
+	END;
+	
+	(* First plain delete *)
+	delError := DirIO.DeleteEntry( entry );
+	IF delError = IOErrors.ok THEN
+	    IF verbose THEN
+		VerboseDone;
+	    END;
+	    RETURN TRUE;
+	END;
+	
+	IF NOT recurse THEN
+	    Error( entry, delError );
+	    RETURN TRUE;
+	END;
+	
+	(*
+	 * Try to recurse 
+	 *)
+	PushDir;
+	
+	dirError := DirIO.SetDefault( entry );
+	IF dirError # IOErrors.ok THEN
+	    (* 
+	     * Not a directory or some other problem, restore current,
+	     * print message about delete failure, and keep going.
+	     *)
+	    PopDir;
+	    Error( entry, delError );
+	    RETURN TRUE;    (* Just keep going *)
+	END;
+
+	IF verbose THEN
+	    VerboseDirectory;
+	END;
+
+	(*
+	 * One interesting point about the library in general.  Everything
+	 * is re-entrant unless it explicitly states that it is not. 
+	 * Therefore, we can call DirIO.List as many times as we like
+	 * without worring about whether DirIO allows for recursion.
+	 * This is particularly important when upcalls are involved as
+	 * is the case here.
+	 *)
+	IOErrors.DONTCARE := DirIO.List( "", Delete, DirIO.DONTCARE );
+
+	PopDir;
+
+	(* Now try to delete after deleting children *)
+	IF verbose THEN
+	    VerbosePrefix( entry );	
+	END;
+	delError := DirIO.DeleteEntry( entry );
+	IF delError = IOErrors.ok THEN
+	    IF verbose THEN
+		VerboseDone;
+	    END;
+	ELSE
+	    Error( entry, delError );
+	END;
+	
+	RETURN TRUE;
+
+    END Delete;
+
+
+VAR
+    args : NameLists.Object;	    (* Unflagged command line arguments *)
+
+PROCEDURE Usage(	(* Print out a message to the user and terminate *)
+    msg : ARRAY OF CHAR
+    );
+    (*
+     * Note that we use ProgErr here so we don't have to import
+     * the entire textio system for an error message.
+     *)
+    VAR
+	prog : ProgArgs.String;
+    BEGIN (* Usage *)
+    
+	IF msg[ 0 ] # 0C THEN
+	    IF NOT ProgArgs.GetProgramName( prog ) THEN
+		prog := "delete";
+	    END;
+	    ProgErrOutput.WriteString( prog );
+	    ProgErrOutput.WriteString( ": " );
+	    ProgErrOutput.WriteString( msg );
+	    ProgErrOutput.WriteLn;
+	END;
+	
+	ProgErrOutput.WriteString( "Usage: delete file1 .. fileN" );
+	ProgErrOutput.WriteLn;
+	
+	ProgErrOutput.WriteString( "       removes named I/O entities." );
+	ProgErrOutput.WriteLn;
+	
+	ProgErrOutput.WriteString( "Options:" );
+	ProgErrOutput.WriteLn;
+
+	ProgErrOutput.WriteString( 
+	    "    recurse: delete files in sub-directories." );
+	ProgErrOutput.WriteLn;
+	
+	ProgErrOutput.WriteString( 
+	    "    verbose: display the files being deleted." );
+	ProgErrOutput.WriteLn;
+
+	TerminateWithError;
+	
+    END Usage;
+
+
+VAR
+    DONTCARE : BOOLEAN;
+    entry    : IOConsts.Path;
+BEGIN (* delete *)
+
+    @IF NOT Debug THEN
+	(* 
+	 * This program is simple enough that we shouldn't have to debug it
+	 * in the field, so we don't generate dumps when debug flag is off.
+	 * A bug in the initialization code will cause a dump and this
+	 * could be cured by linking with a different version of ProgErr.
+	 * However, this is not obvious.
+	 *)
+	ProgErr.SetMemorySaveMode( ProgErr.doNotSaveMemoryOnTermination );
+    @END
+
+
+    (*
+     * In most cases, the library provides default procedures for managing
+     * what you need to get done.  This is the case with ProgArgs.  Although,
+     * we have the ability to pass our own upcall procedure here, the default
+     * does exactly what we want.
+     *
+     * We parse the command line arguments *first* before taking any actions.
+     * This is a file deletion program.  If the user has specified something
+     * incorrect, we should tell the user about it right away.
+     *)
+    recurse := FALSE;	(* Set default before registering *)
+    ProgArgs.RegisterBoolHandler( recurseFlag, ProgArgs.DefaultBoolHandler,
+				  SYSTEM.ADR( recurse ) );
+				  
+    verbose := FALSE;
+    ProgArgs.RegisterBoolHandler( verboseFlag, ProgArgs.DefaultBoolHandler,
+				  SYSTEM.ADR( verbose ) );
+				  
+    NameLists.Create( args, NameLists.forwardSorted,
+		      NameLists.caseSensitive );
+    (* 
+     * In the other cases, we pass the address, but this handler takes 
+     * an address and *coerces* it into a namelist.  The reason 
+     * DefaultStringListHandler doesn't take an address of the namelist
+     * is that we avoid confusion over who is responsible for creating
+     * list.  If we pass the object by value, obviously the caller must
+     * have created it!
+     *)
+    ProgArgs.RegisterUnflaggedHandler( ProgArgs.DefaultStringListHandler,
+				       SysTypes.ANYPTR( args ) );
+    
+    IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	(* ProgArgs has already printed a message *)
+	Usage( "" );
+    END;
+    
+    IF NameLists.GetCount( args ) = 0 THEN
+	Usage( "You must supply at least one file to be deleted" );
+    END;
+    
+    
+    (* 
+     * Arguments are ok.  Initialize levels and such.
+     *)
+    level := 0;		(* Top level of recursion (if any) *)
+    prefix := "";
+    gotError := FALSE;
+    IF recurse THEN
+	NameLists.Create( dirs, NameLists.stack, NameLists.caseSensitive );
+    END;
+
+    (* Simulate DirIO.List *)
+    NameLists.MakeFirstNext( args );
+    WHILE NameLists.Next( args, entry, NameLists.DONTCARE ) DO
+	DONTCARE := Delete( DirIO.DONTCARE, entry );
+    END;
+    
+    (* Indicate that we got an error, by exiting with a non-zero status *)
+    IF gotError THEN
+	TerminateWithError;
+    END;
+    
+    (* 
+     * Clean up is not essential, but polite in the event someone 
+     * executes this program as a sub-program.  In general, clean up
+     * is not necessary.
+     *)
+    NameLists.Destroy( args );
+    IF recurse THEN
+	NameLists.Destroy( dirs );
+    END;
+
+END delete.
+

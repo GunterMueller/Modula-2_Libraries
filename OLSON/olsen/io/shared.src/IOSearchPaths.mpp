@@ -1,0 +1,152 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE IOSearchPaths;
+(*
+ * Very straight forward implementation.
+ *)
+IMPORT
+    DirIO,
+    IOConsts,
+    IOErrors,
+    IONames,
+    NameLists,
+    ProgEnviron,
+    Strings,
+    SysTypes;
+
+PROCEDURE GetFromEnviron(
+    environName : ARRAY OF CHAR;
+    separator   : CHAR;
+    paths       : NameLists.Object
+    )           : BOOLEAN;
+    (*
+     * Look up the variable.  Check its length.  If it exists and is
+     * non-zero, then start parsing.  We pull out paths by hand probably
+     * better to do it with Strings, but I didn't see why?  An "Explode"
+     * function would be great.
+     *)
+    VAR
+	value      : ProgEnviron.Value;
+	valueIndex : SysTypes.Card;
+	path       : ProgEnviron.Value;	(* prevents crashes by bad user data *)
+	pathIndex  : SysTypes.Card;
+	gotOne     : BOOLEAN;
+	isControl  : BOOLEAN;
+	length     : SysTypes.Card;
+    BEGIN (* GetFromEnviron *)
+
+	(* Is it there? *)
+	IF NOT ProgEnviron.GetValue( environName, value ) THEN
+	    RETURN FALSE;
+	END;
+
+	(* Is it empty? *)
+	IF value[ 0 ] = 0C THEN
+	    RETURN FALSE;	(* Nothing to parse *)
+	END;
+
+	pathIndex  := 0;
+	gotOne     := FALSE;
+	length     := Strings.Length( value );
+	valueIndex := 0;
+	LOOP
+	    @IF SunOS THEN
+		(* Skip all control characters *)
+		isControl := FALSE;
+		WHILE ( valueIndex < length ) AND ( value[ valueIndex ] < ' ' )
+		  DO 
+		    INC( valueIndex );
+		    isControl := TRUE;
+		END; (* WHILE *)
+
+		(* If the separator is a space, then we must count as ' ' *)
+		IF isControl AND ( separator = ' ' ) THEN
+		    DEC( valueIndex );
+		    value[ valueIndex ] := ' ';	(* to be seen below *)
+		END;
+	    @END (* SunOS *)
+
+	    (* Did we find a separator or the end of the string? *)
+	    IF ( valueIndex >= length ) OR ( value[ valueIndex ] = separator ) 
+	      THEN
+		(* Only accept non-null entries *)
+		IF pathIndex # 0 THEN
+		    path[ pathIndex ] := 0C;	(* null terminate *)
+		    NameLists.Insert( paths, path, NameLists.DONTCARE );
+		    pathIndex := 0;
+		    gotOne := TRUE;
+		END;
+		IF valueIndex >= length THEN
+		    EXIT;
+		END;
+	    ELSE
+		(* Keep on concatenating *)
+		path[ pathIndex ] := value[ valueIndex ];
+		INC( pathIndex );
+	    END;
+	    INC( valueIndex );
+	END; (* LOOP *)
+	
+	RETURN gotOne;
+    END GetFromEnviron;
+
+
+PROCEDURE FindInPath(
+        toFind     : ARRAY OF CHAR;
+	paths      : NameLists.Object;
+    VAR foundEntry : IOConsts.Path
+    )              : BOOLEAN;
+    (*
+     * The isAbsolute check is system dependent.  Maybe there should be 
+     * service in IONames....  If the path isn't absolute, then just
+     * go truckin' through the paths list.
+     *)
+    BEGIN (* FindInPath *)
+	
+	CASE IONames.Validate( toFind ) OF
+	    IONames.pathIsRelative:
+		(* Search for it in the paths *)
+		NameLists.MakeFirstNext( paths );
+		WHILE NameLists.Next( paths, foundEntry, NameLists.DONTCARE ) DO
+		    IONames.Make( foundEntry, toFind, "", foundEntry );
+		    IF DirIO.EntryExists( foundEntry ) = IOErrors.ok THEN
+			(* Make sure this pup is absolute! *)
+			IONames.MakeAbsolute( foundEntry, foundEntry );
+			RETURN TRUE;	(* We got one! *)
+		    END;
+		END;
+	    |
+	    IONames.pathIsAbsolute:
+		IF DirIO.EntryExists( toFind ) = IOErrors.ok THEN
+		    Strings.Assign( toFind, foundEntry );
+		    RETURN TRUE;
+		END;
+	    |
+	    IONames.pathIsIllegal:
+		(* Could not exist. *)
+	END; (* CASE *)
+
+	RETURN FALSE;
+    END FindInPath;
+			
+END IOSearchPaths.

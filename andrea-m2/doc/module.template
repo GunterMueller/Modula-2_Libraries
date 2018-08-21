@@ -1,0 +1,14 @@
+MODULE Template;
+
+FROM InOut      IMPORT OpenInput, OpenOutput, CloseInput, CloseOutput,
+                       Read, ReadString, ReadLn,
+                       Write, WriteString, WriteLn, WriteCard,
+                       EOL, Done, in, out;
+
+FROM FileSystem IMPORT Eof;
+
+FROM Storage    IMPORT ALLOCATE, DEALLOCATE;
+
+BEGIN (* Template *)
+
+END Template.

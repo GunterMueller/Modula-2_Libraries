@@ -1,0 +1,123 @@
+(*
+12.1 Unbounded Map Interface
+*)
+
+DEFINITION MODULE MapSUMN;
+(*====================================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Monolithic Structures - Map (Opaque version)
+               Sequential Unbounded Managed Iterator
+
+    INTRODUCTION
+    This module provides operations for the unbounded map abstract
+   data type.
+
+    REVISION HISTORY
+       8/26/89     CL      Initial version
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+=====================================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM MapTypes IMPORT
+    (*--Type*) Exceptions;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+
+    (*-----------------------*)
+
+(*
+12.1.1 Type Declarations
+*)
+
+TYPE  Domain = Item;
+TYPE  Range  = Item;
+
+TYPE  Map;
+VAR   NullMap : Map;
+
+
+(*
+12.1.2 Exceptions
+*)
+
+CONST ModuleID = 16;
+
+PROCEDURE MapError   ()              : Exceptions  (*--out  *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*--in   *);
+                          theHandler : HandlerProc (*--in   *));
+
+
+(*
+12.1.3 Constructors
+*)
+
+PROCEDURE Create  (    theDomain : TypeID  (*--in   *);
+                       theRange  : TypeID  (*--in   *))
+                                 : Map     (*--out  *);
+
+PROCEDURE Destroy (VAR theMap    : Map     (*--inout*));
+
+PROCEDURE Clear   (    theMap    : Map     (*--inout*));
+
+PROCEDURE Assign  (    theMap    : Map     (*--in   *);
+                   VAR toMap     : Map     (*--inout *));
+
+PROCEDURE Bind    (    theMap    : Map     (*--inout*);
+                       theItemIn : Domain  (*--in   *);
+                       toItemIn  : Range   (*--in   *));
+
+PROCEDURE Unbind  (    theMap    : Map     (*--inout*);
+                       theItemIn : Domain  (*--in   *));
+
+
+(*
+12.1.4 Selectors
+*)
+
+PROCEDURE IsDefined (    theMap    : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE IsEmpty   (    theMap    : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE IsEqual   (    left      : Map        (*--in   *);
+                         right     : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE ExtentOf  (    theMap    : Map        (*--in   *))
+                                   : CARDINAL   (*--out  *);
+
+PROCEDURE DomainOf  (    theMap    : Map        (*--in   *))
+                                   : TypeID     (*--out  *);
+
+PROCEDURE RangeOf   (    theMap    : Map        (*--in   *))
+                                   : TypeID     (*--out  *);
+
+PROCEDURE IsBound   (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE BoundTo   (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *))
+                                   : Range      (*--out  *);
+
+PROCEDURE IsBoundTo (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *);
+                     VAR toItem    : Range      (*--out  *))
+                                   : BOOLEAN    (*--out  *);
+
+END MapSUMN.

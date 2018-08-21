@@ -1,0 +1,58 @@
+This is the directory of my library modules.
+
+I have access to several Modula-2 compilers, each one
+of which has a directory here. Though I've really only
+had time to explore and build modules for the VMS version
+at work and my Multiscope version for DOS at home.
+
+I've broken the library up into subdirectories named for
+particular Modula-2 compilers.
+  The code contained in 'generic' is what i've tried to make
+generic enough that it should be compiler independant.
+But what i've also done is build generic definition modules as
+much as possible, and then use compiler specific implementation
+modules. Those compiler specific modules will be in their
+respective subdirectories. An example of this is my Randomly
+module. I want have my own standard interface for the random
+number things that i do, so i use the same definition module
+for as many compilers as possible. But the implementations are
+quite different depending on how the specific operating system
+or compiler package presents the basic random number generator.
+In fact the FST version simply lacks the floating point code for
+random numbers so i've created a very simple implementation there.
+Another good example is CmdLine. The command line operations vary
+considerably from operating system to operating system, but i've
+tried to make the definition module generic enough that i can use
+the same calls for VMS and DOS.
+  To take copies of this code you should take the generic code
+and then add to it the code which is closest to the compiler
+that you plan to use. For instance, if you use the Multiscope
+compiler for DOS you would copy the generic code, then also
+copy the code from the multiscope directory. But don't rule out
+looking at all the code.
+
+The subdirectories are:
+
+eth-hamburg
+   This represents the compiler for the VAX/VMS system at work.
+   It is the Univ. of Hamburg DBIS groups conversion of the ETH
+   compiler.
+
+dec-wrl
+   This represents the Modula-2+ compiler for Ultrix from the
+   Western Research Labs at DEC.
+
+fst
+   This represents the DOS shareware compiler called FST.
+
+generic
+   This contains library code which should run in any implementation.
+
+macmeth
+   This represents the freeware Macintosh compiler from ETHZ.
+
+metrowerks
+   This represents the metroWerks compiler for Macintosh from UQAM.
+
+multiscope
+   This represents the Multiscope (was Logitech) compiler for DOS.

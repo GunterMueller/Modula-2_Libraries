@@ -1,0 +1,139 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskSemaphores;
+(* 
+ * Provides counting semaphores for asynchronous communication
+ * between tasks.
+ *
+ * A Signal is a non-blocking increment of the counter.
+ * Wait decrements the counter, blocks only if count goes negative.  
+ * Tasks which are waiting for signals are served in FIFO order.
+ *)
+IMPORT
+    TaskTime,
+    SysTypes;
+
+EXPORT QUALIFIED
+    Object,       noSignalsPending,   maxSignalsPending,
+    Count,        Create,             Destroy,
+    Signal,       TestAndSignal,      Wait,
+    TimedWait,    SetInvalid,         IsValid;
+
+TYPE
+    Object;  (* Counting semaphore *)
+
+CONST
+    noSignalsPending  = 0;
+    maxSignalsPending = SysTypes.MAXInt;
+TYPE
+    Count = [ noSignalsPending .. maxSignalsPending ];
+    (* 
+     * Number of signals that are pending on the semaphore.
+     *
+     * A signal pends if there are no tasks waiting on the semaphore
+     * at the time of the signal. "noSignalsPending" means that a
+     * subsequent call to Wait will block. Calling Signal when a
+     * semaphore has "maxSignalsPending" will terminate the caller.
+     *)
+
+PROCEDURE Create( 
+    VAR semaphore    : Object;        (* In any state, will be valid *)
+        initialCount : Count;         (* Num of initial pending signals *)
+        anyName      : ARRAY OF CHAR  (* For debugging purposes *)
+    );
+    (*
+     * Initializes a semaphore with the specified count and name.
+     *
+     * The initial count is similar to calling Signal intialCount times
+     * just after creation. Normally, semaphores are initialized with 0.
+     *)
+
+PROCEDURE Destroy(
+    VAR semaphore : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Dispose of the semaphore.
+     *
+     * Any task may destroy a semaphore if it is not being waited
+     * upon at the time Destroy is called. If there are tasks
+     * waiting on the semaphore at the time of this call, the
+     * caller will be terminated.
+     *)
+     
+PROCEDURE Signal(
+    semaphore : Object  (* Increment counter *)
+    );
+
+PROCEDURE TestAndSignal(
+    semaphore : Object;   (* Increment counter only if count < maxCount *)
+    maxCount  : Count     (* Maximum number of Signals pending *)
+    )         : BOOLEAN;  (* Semaphore count is >= maxCount => FALSE *)
+    (*
+     * TestAndSignal will execute a Signal if the count is not
+     * greater than or equal to maxCount.
+     *
+     * A Signal causes the semaphore's value to be incremented. If the
+     * new count is "noSignalsPending" or less, the oldest task in the
+     * wait queue will be readied. If the new count is greater than
+     * "noSignalsPending", then there were no tasks waiting on the
+     * semaphore and the signal will be remembered (in the count)
+     * for the next call to Wait.
+     *)
+
+PROCEDURE Wait( 
+    semaphore : Object  (* If count is 0 or less, caller blocks *)
+    );
+
+PROCEDURE TimedWait( 
+    semaphore : Object;         (* If count is 0 or less, then caller sleeps *)
+    timeout   : TaskTime.Units  (* Amount to pass to TaskTime.Sleep *)
+    )         : BOOLEAN;        (* FALSE => sleep ended and count < 0 *)
+    (*
+     * Both calls check the semaphore's value.
+     *
+     * If the value is "noSignalsPending" or less, the caller is put
+     * at the end of the queue of tasks waiting for signals. If the
+     * count is greater than "noSignalsPending", the count is
+     * decremented and the call returns. 
+     *
+     * TimedWait behaves identically to Wait, but a time limit is placed
+     * on how long the task should be blocked if no signals are pending.
+     * If the time limit expires before the task is released (in FIFO order)
+     * from the semaphore queue, TimedWait fails and the task is unblocked.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR semaphore : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Initializes semaphore to an invalid state.
+     *)
+
+PROCEDURE IsValid(
+    semaphore : Object    (* In any state *)
+    )         : BOOLEAN;  (* FALSE => object is invalid *)
+    (*
+     * Determines whether the semaphore has been Created or not.
+     *)
+
+END TaskSemaphores.

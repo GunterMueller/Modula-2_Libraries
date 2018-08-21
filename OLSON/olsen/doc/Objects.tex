@@ -1,0 +1,578 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%                   All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Objects}
+\label{ObjectsChapter}
+
+
+The \library\ was designed with object oriented
+concepts.  Each module operates on an abstract entity or object.  Some
+modules define the entities while others merely add new operations
+for existing objects.  Given that Modula-2 is not an object-oriented
+programming language, the methods
+by which the objects and their operations are defined varies with 
+intended use.  All modules share the same goal of providing access
+to new facilities and to operating system features in a portable manner
+while retaining the ability to be efficiently implemented.  
+
+This chapter is a guide to the object oriented facilities in the 
+library and in Modula-2.  The terms used here may or may not match
+the reader's concept of object-oriented programming, therefore 
+a definitions section has been included.  The following sections
+discuss the problem of object-oriented programming in Modula-2
+in general.  Finally, we discuss the module \module{Objects} which
+provides support for object-oriented modules.
+
+The realm of object-oriented programming is too large for discussion
+here.  If you are unfamiliar with the meaning of object-oriented
+design and programming, consult the references.
+
+\section{Terminology}
+The following terms are based on the names used in other languages
+(particularly SmallTalk), but the definitions have been modified to
+better suit Modula-2.  We apologize for the difference in terminology.
+After a time, the gentle reader may appreciate the need for these
+definitions.
+
+\begin{description}
+\item[Object] \index{Object}
+    is a type and defines the allowable operations on instances of
+    that type.  For example,
+    a hammer is an object.  Objects need not be opaque.  The types
+    \code{TextIO.Object}, \code{REAL}, and \code{BinaryIO.Index} are objects.
+\item[Instance] \index{Instance}
+    is a particular incarnation of a type.  An instance is described
+    by its state (private memory) and its operations.
+    For example, the claw hammer on the table can be used for inserting
+    and extracting nails.  The \code{TextIO.Object} just opened is
+    read-only and is associated with the file ``fred''.
+    The word instance and object are used interchangeablely
+    throughout this manual.
+\item[Operation] \index{Operation} \index{Method} \index{Message}
+    is a procedure which takes an object (sometimes implicitly) and
+    performs an action using that object.  An operation may change the
+    state of the object's parameter(s) or merely extract information about them
+    For example, inserting a nail is an operation which takes a hammer object.
+    \proc{TextIO.Read} extracts the next character and advances the
+    read pointer from an instance of a {TextIO.Object}.
+    Synonyms: method and message.
+\item[Class] \index{Class}
+    defines an object and its operations.  For example,
+    ballpeen is a class of hammer which can insert nails and mold
+    metal.  A claw hammer can insert and extract nails, but it can't
+    mold metal.  \module{StringBinaryIO}, 
+    \module{DosBinaryIO}, and \module{UnixBinaryIO} are all classes.
+\item[Category] \index{Category}
+    is a group of classes which support a common set of operations.
+    For example, hammer is a category.  \module{BinaryIO} is a category.
+    Synonyms: super-class and inheritable class.
+\item[Visible Objects] \index{Visible Objects}
+    are declared publicly and may used as such.
+    For purposes of system maintenance, visible objects should be used as
+    opaque objects wherever possible.  One of the greatest difficulties
+    in porting code occurs where declarations of visible objects are duplicated
+    or have been abused.  For example, one should not assume that a
+    \code{CHAR} object is 8 bits even though on most implementations it is.
+\item[Opaque Objects] \index{Opaque Objects}
+    are exported from definition modules and are defined in implementation
+    modules.
+\item[Private Objects] \index{Private Objects} \index{\code{PRIVATE}}
+    are declared visibly for one reason or another,
+    but their implementation should be treated as opaque.  In other words,
+    private objects are visible objects with a Surgeon General's warning
+    against improper usage.
+    In the library, instances of private objects must be accessed by
+    using the keyword \code{PRIVATE}.
+\end{description}
+
+
+\section{Modula-2}
+
+Given a modicum of programmer discipline,
+most HLL provide a good base for OOP.
+To aid the programmer in this task, Modula-2 provides:
+
+\begin{description}
+\item[Modules] 
+    \index{Modules}
+    form the basis by which programmers can logically group
+    the operations associated with an object(s).  Modularity supports
+    maintainability and problem decomposition.
+
+\item[Opaque Types] 
+    \index{Opaque Types}
+    protect objects and allow for mutable implementations.  
+    Protection enhances robustness and maintainability.  The
+    ability to change an object's implementation is greatly needed
+    in a world of constantly changing specifications.
+    
+\item[Procedure Types] 
+    \index{Procedure Types}
+    add customizable extensibility to existing
+    implementations.  An importer can drastically change the behaviour
+    of an object without affecting the other importers of that object's exporter.
+
+\item[SYSTEM.ADDRESS and SYSTEM.BYTE] 
+    \index{SYSTEM.ADDRESS} \index{SYSTEM.BYTE}
+    provide extensibility in the
+    form of {\em inheritance}.  Generic object modules are used by
+    importers to add functionality to objects.  
+
+\end{description}
+
+\subsection{Modules}
+\index{Module}
+
+The O\&A Library is divided into modules.  Each module is usually
+designed to support a single object, e.g. \module{Strings}, \module{DirIO},
+and \module{TextIO}.
+A module in the library is a collection of operations for a particular
+object and may also define that object.  For example, \module{TextIO}
+defines an opaque object and the object's fundamental operations.
+The module \module{Strings} defines the fundamental operations for the
+generic object \code{ARRAY OF CHAR}.  Although the flavor of the operations
+may seem different, these are both good examples of object oriented modules.
+In some cases, there is only a single instance of an object per program.
+For example, \module{ProgArgs} supports the operations on the
+``program arguments'' object for which there is only one instance
+per program.  
+
+Many of the modules in the library support more than one object.  For
+example, \module{CardIO} supports the \code{CARDINAL} object and the 
+\code{TextIO.Object}.  In fact, one of the purposes of the library
+is to ``finish'' defining the necessary set of operations for the
+generic Modula-2 objects.  Another purpose was to define some new objects
+(e.g. error output, textual I/O, and directories) which are ``missing''
+in Modula-2.  This is the essence of object-oriented programming.
+
+
+\subsection{Opaque Types}
+\index{Opaque Type}
+
+There are two ways to create new objects in Modula-2: \newterm{opaquely} and
+\newterm{visibly}.  Opaque objects (types) are defined in most 
+Modula-2 books.  Visible objects are normal type declarations.  The
+library defines both kinds of objects.  For example, \code{BinaryIO.Object} is
+opaque and \code{BinaryIO.Index} is visible.  Defining opaque objects
+enhances system maintenance and thus portability.   For example, an
+\code{TextIO.Object} can be implemented in any fashion.  For Unix and 
+MS-DOS, they have been implemented using \code{BinaryIO.Object}s, but
+on other systems this may not be the case.
+Visible objects are usually defined when their implementation is
+a necessary semantic to their function, e.g. \code{SysTypes.CARDINAL16}
+occupies 32 bits of storage space.  
+
+Private Objects are a special breed, because they are visible but
+pretend to be opaque.  This convention was introduced so that importer
+could know the size of the object and thus instances of these objects
+need not be dynamically allocated.  A good example is the object
+\code{SysTypes.CARDINAL32} for the IBM-PC.  In this case, the object
+is emulating the generic object \code{CARDINAL} which also does not 
+need to be dynamically allocated.  If \code{SysTypes.CARDINAL32} were
+not declared as a private object, then each instance would need to
+be {\em created} and {\em destroyed}.  Standard Modula-2 assignment 
+also would not behave as it would with the generic object \code{CARDINAL}.
+Another reason for declaring objects as private instead of opaque is
+to make the size known and thus make operations such as I/O simpler.
+The object \code{BinaryIO.Index} was designed with this feature in mind.
+
+In all cases, the object structure depends strongly upon
+its intended uses and implementation complexity.  Objects declared
+in SysTypes are simple to implement even on systems like the IBM-PC,
+therefore it makes sense to define them as private or visible.
+File I/O is much more complex and thus these
+objects are defined as opaque.  Some modules such as \module{DirIO}
+do not even define a Modula-2 type to represent a directory, because the
+concept of a directory varies so greatly from system to system that
+portability would be sharply reduced if such a type were defined.
+
+\subsection{Procedure Types}
+\index{Procedure Types}
+
+Modula-2 procedure types are not first-class citizens, but are 
+sufficient to support OOP.  Procedure types can implement multi-flavored
+objects.  \module{Lists} and \module{CatBinaryIO} use this feature to
+allow importer defined objects to be used in conjunction with these
+modules. This is a form of \newterm{inheritence} or \newterm{polymorphism}
+known in languages like SmallTalk and C++.  Because the Modula-2 form
+is not truly polymorphic, we call inheritable object modules
+\newterm{categories}.
+A category is limited, because
+the object (module) must make itself inheritable while in these other
+languages the converse is the case.  In Modula-2, creating inheritable
+objects requires discipline and examples.
+
+There are few important points to consider when using procedure types:
+\begin{itemize}
+\item
+    Defer assignment of procedure variables until the last possible moment
+    in order to enhance flexibility from the importers' perspective.  
+\item
+    Procedure types should either be declared with an importer supplied
+    state as a parameter (called an \code{importerObject} in the library) 
+    or have access 
+    to per object state.  This feature supports re-entrancy of all modules and
+    allows registered procedures to be object-based.  The procedure types
+    in \module{DirIO}
+    are an example of an \code{importerObject} and the types in
+    \module{CatBinaryIO} provide a good example of state information
+    provided on a per object basis.
+    Note this rule does not apply if there can be only one object per module
+    (e.g. \module{ProgErr.InstallTermProc}).
+\item \index{registration}
+    If a module supports registration of a global procedure
+    (e.g. \module{ProgErrOutput}), the previous registrant should
+    be supplied as the return value to the registration call. 
+    The newly installed procedure may need to call the previous registrant.
+    The single {\em install} entry-point ensures the registration order
+    is not confused.
+\item \index{upcalls} \index{call-backs}
+    Calling registered procedures (aka. upcalls and call-backs)
+    can cause dead-lock
+    (in conjunction with \module{Tasks}) and/or
+    corrupted object or global state.
+    Before calling a registered procedure (upcall)
+    which can possibly call you back, make sure any globally accessible
+    state is stable
+    and that as few monitors as possible are locked.  Upon return from
+    an upcall, the callee should re-evaluate the state and re-enter
+    monitors.  Note that the upcalled procedure may do as it wishes
+    including destroying the very object being upcalled unless
+    a documented requirement forbids specific actions.
+\end{itemize}
+
+\subsection{\code{SYSTEM.ADDRESS} and \code{ARRAY OF SYSTEM.BYTE}}
+
+One of the least used features in most Modula-2 programs are the
+generic objects \code{SYSTEM.ADDRESS} and 
+\code{ARRAY OF SYSTEM.BYTE}.\footnote{
+    The library assumes that all systems are byte addressed.  If
+    your system is not, then replace all references to \code{BYTE} with 
+    \code{WORD} and pray that \code{SYSTEM.TSIZE} and \code{SIZE} return
+    amounts in words.
+    }
+A good example of their use is the \module{FormatIO} family of modules.
+A typical example is the procedure \proc{SimpleFIO.Write1} declared
+as follows:
+
+\begin{verbatim}
+        PROCEDURE Write1(
+        format : ARRAY OF CHAR;     (* How to write arg1 *)
+        arg1   : ARRAY OF SYSTEM.BYTE   (* Object to be written *)
+        );
+\end{verbatim}
+
+The \code{arg1} parameter may be any Modula-2 object.
+\module{FormatIO} does not know the type of this value, but allows
+other modules to register format names and associated procedures
+to handle the data.  For example,
+
+\begin{verbatim}
+        SimpleFIO.Write1( out, "Index = [Card]", i ); 
+        SimpleFIO.Write1( out, "Name: [String]", name );
+        SimpleFIO.Write1( out, "Today is [Date]", date );
+\end{verbatim}
+
+The language Modula-2 automatically forces the different object types
+into the conformant array.  \code{FormatIO} in turn takes the address
+and size of the conformant array and passes them to the previously
+registered procedure identified in the \code{format}.  The registered
+procedure is responsible for verifying the type of the 
+argument.\footnote{
+    The type verification is weak. Only certain measures (such
+    as checking the size) can ensure that the type of \code{arg1} matches
+    the type in the \code{format}.  Hence, the genericity is not type-safe.
+}
+
+\index{\code{importerObject}}
+\code{SYSTEM.ADDRESS} is a generic pointer.  In the library it is
+used primarily
+to pass importer specified data through modules and back to the original
+importer.  For example, \module{NameLists} associates strings with importer
+supplied values called \code{importerObjects}.  To add items to a list,
+the following procedure is used.
+
+\begin{verbatim}
+    PROCEDURE Insert(
+        list           : Object;
+        key            : ARRAY OF CHAR;
+        importerObject : SYSTEM.ADDRESS
+        );
+\end{verbatim}
+
+The \code{importerObject} is any globally allocated value or 
+\code{NameLists.DONTCARE}.
+\proc{NameLists.Insert} associates this value with \code{key}.  When
+\proc{NameLists.Find} is supplied \code{key}, it will return
+the \code{importerObject} with which it was inserted.  The generic
+value is untouched by \module{NameLists}.
+
+\section{The module \module{Objects}} \index{memory allocation}
+
+As the previous section demonstrated, most user defined Modula-2 objects
+are pointers.  These pointers are for the most part either
+dynamically allocated or in module data sections.   Most object-oriented
+modules are structured around an opaque object.  The type of this
+object is typically called \code{XXX.Object} where \code{XXX} is
+some module name, e.g. \code{TextIO.Object}, \code{QStrings.Object},
+\code{Lists.Object}.  The objects are generally of a fixed size and
+there is usually more than one allocated per program invocation.
+The module \module{Objects} was designed to manage the memory
+allocation for this particular kind of object.
+
+\subsection{Allocation and Deallocation}
+\index{\code{Objects.Manager}}
+\module{Objects} supports an object called an \code{Objects.Manager}.
+Each instance of an \code{Objects.Manager} (henceforth called a 
+{\em manager}) controls the allocation and deallocation for a 
+particular class of object.  For example, the implementation
+%\module{BinaryIO} creates
+a single manager for the allocation and deallocation of
+\code{BinaryIO.Objects}.  Here a typical declaration and
+use taken from the library:
+
+\begin{verbatim}
+    CONST
+        moduleName = "BinaryIO";
+    TYPE
+        Object = POINTER TO ObjectRec;
+        ObjectRec = RECORD
+            ...
+        END;
+    VAR
+        objectMgr : Objects.Manager;
+    BEGIN (* BinaryIO *)
+        Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ),
+                               moduleName );
+\end{verbatim}
+
+The \code{moduleName} is provided for debugging purposes (discussed later).
+After creation, the \code{objectMgr} is used in calls to \module{Objects}.
+
+The two procedures \proc{Allocate} and \proc{Deallocate} allow the
+importer to allocate and deallocate objects as specified in the
+definition module.  In most modules, Allocate and Deallocate will
+be called in object creation and destruction procedures, respectively.
+The following is a fragment of code from a typical object-oriented module's
+creation procedure.
+
+\begin{verbatim}
+    BEGIN (* Create *)
+        Objects.Allocate( objectMgr, object );
+        (* Initialize the object *)
+        ...
+\end{verbatim}
+
+Note that we assume \code{object} is uninitialized upon entry.  
+The size of the object was specified in the call to \code{CreateManager}.
+If there is not enough memory available to satisfy this request, 
+the caller will be terminated.\footnote{
+    The module \module{SafeStorage} is used for all memory allocations.
+    \module{SafeStorage} indicates memory shortages.  See this
+    module if you are concerned with managing memory at its limit.
+    }
+
+The following demonstrates the typical procedure for the deallocation
+of an object.
+
+\begin{verbatim}
+    BEGIN (* Destroy *)
+        IF Objects.IsValid( objectMgr, object ) THEN
+            Objects.Deallocate( objectMgr, object );
+\end{verbatim}
+
+The procedure \proc{IsValid} (discussed in greater detail later)
+is necessary to protect importer's in the event that \code{object}
+is uninitialized.\footnote{
+    This convention was established to help programmers.  There is
+    some doubt as to its usefulness.
+    }
+If the \code{object} was not allocated with \code{objectMgr}, the
+caller is terminated.  Upon return, \code{object} is set to \code{NIL}.
+
+\subsection{Validation and Assertion Checking}
+
+A common programming problem is uninitialized data.  Uninitialized
+pointer variables can cause no end of confusion.  The procedures
+\proc{Assert} and \proc{IsValid} aid the programmer in the detection
+of uninitialized pointers at their source {\em before} memory 
+becomes corrupted.  \proc{IsValid} is a safe procedure; it
+does not interrupt the caller's flow of control whereas \proc{Assert}
+terminates the caller if the specified object is invalid.
+
+
+One use of \proc{IsValid} can be found in the previous section
+in conjunction with \proc{Deallocate}.  Typically, \proc{IsValid}
+is used when the importer is providing a higher level validation
+service.  Here is an excerpt from the procedure \proc{TextIO.GetError}.
+
+\begin{verbatim}
+    BEGIN (* GetError *)
+        IF NOT Objects.IsValid( objectMgr, file ) THEN
+            RETURN IOErrors.notOpen;
+        END;
+        RETURN file^.errorState;
+\end{verbatim}
+
+\proc{GetError} interrogates the \code{file}'s status.  If the
+\code{file} is not open, the caller gets back the error code
+\code{IOErrors.notOpen}.  Without the module \module{Objects},
+this call would probably end up referencing invalid memory
+or terminating the caller if the file was not open.
+
+Assertion checking (aka precondition checking) 
+occurs throughout the library in various forms.  The procedure
+\proc{Objects.Assert} can be used to assert the precondition
+that the object passed is valid.  For example, the following
+code fragment is from \proc{TextIO.IsInteractive}.
+
+\begin{verbatim}
+    BEGIN (* IsInteractive *)
+        @IF Assert THEN
+            Objects.Assert( objectMgr, file );
+        @END
+        RETURN file^.isInteractive;
+\end{verbatim}
+
+If \code{file} is invalid (i.e. \proc{IsValid} returns FALSE),
+the caller will be terminated with a message of the form:
+\begin{verbatim}
+    TextIO: invalid object.
+\end{verbatim}
+where \code{TextIO} is the name which was passed to the \code{CreateManager}
+call.
+
+The preprocessor flag \code{Assert}
+can be used to control the inclusion or exclusion of the call
+to \proc{Objects.Assert}, the trade-off being between faster
+code execution and better error detection.  
+
+
+The difference between \proc{IsValid} and \proc{Assert} is more
+than a boolean return value.  \proc{Assert} provides a regular
+way of terminating a program as the result of an invalid object.
+A feature of \proc{IsValid} is that it {\em never} terminates
+the caller accidentally.  This feature turns out to be a handicap
+in terms of implementation considerations, as \proc{IsValid}
+can take more time to execute than \proc{Assert}.
+
+The following is a list of suggestions for object-oriented
+modules:
+\begin{itemize}
+\item
+    All exported procedures should call \proc{IsValid} or \proc{Assert}.
+    If this rule is held fast, non-exported procedures do not need
+    object assertion checking.
+\item
+    Procedures which report the status of an object (e.g. 
+    \code{GetError}, \code{IsValid}) should call \proc{Objects.IsValid}
+    and not \proc{Objects.Assert}.
+\item
+    All modules which support opaque or private objects should have
+    a harmless object initialization procedure (e.g. 
+    \code{TextIO.SetInvalid}) and a validation checking procedure
+    (e.g. \code{Lists.IsValid}).
+\item
+    Calls to \code{Objects.Assert} should be controlled by the preprocessor
+    flag \code{Assert}.
+\end{itemize}
+
+\subsection{Lists of Objects}
+
+\module{Objects} exports the procedures
+\proc{NumAllocated}, \proc{MakeFirstNext}, and \proc{Next}.
+The first procedure returns the number of objects allocated with
+a manager.  The next two procedures allow the
+importer to traverse the list of objects associated with a manager.
+The list is kept in first allocated, first returned order.  A
+sample usage follows.
+
+\begin{verbatim}
+    Objects.MakeFirstNext( objectMgr );
+    WHILE Objects.Next( objectMgr, object ) DO
+        ...Do something with the object...
+    END;
+\end{verbatim}
+
+Each manager maintains an internal list pointer which can be reset to the
+start of the list by \proc{MakeFirstNext}.  Each successive call to 
+\proc{Next} returns the next most recently allocated member in the list.
+If all the pointers were {\em visible}, one could translate this
+loop into:
+
+\begin{verbatim}
+    object := objectMgr^.root;
+    WHILE object # NIL DO
+        ...Do something with the object...
+        object := object^.next;
+    END;
+\end{verbatim}
+
+There are no restrictions on what may be done between calls to 
+\proc{Next}; the importer is free to deallocate and allocate
+objects with the manager.  \module{Objects} will maintain the
+list properly.
+
+\subsection{Implementation and Debugging}
+
+Tracking memory usage in systems without automatic
+garbage collection can be a problem.  The procedure \proc{PrintStatus}
+displays a list of object statistics by manager.  The
+following was generated by calling this procedure.
+
+\begin{verbatim}
+        Object Allocation Statistics
+Module                            Count   Free   Size
+NameLists                             3      0     11
+Lists.objects                         3      0     32
+Lists.types                           5      0     17
+Lists.Anonymous                       5      0     28
+Lists.Anonymous                       1      0     28
+DosBinaryIO                           3      0    272
+Lists.Anonymous                       1      0     28
+BinaryIO                              2      1     20
+Notices                               2      0     15
+Interrupts                            5      0    169
+TaskTime                              3      0     17
+Monitors.TaskInfo                     3      0     23
+TaskMonitors                          3      0     56
+TextIO                                2      1     28
+TextIO.buffer                         1      1   1034
+\end{verbatim}
+
+The \code{Module} column specifies the name of the manager as
+passed to \proc{CreateManager}.  \code{Count} indicates the
+number of allocated objects, i.e. what the procedure 
+\proc{NumAllocated} would return for each of the objects in
+the list.  In the last column is the size of the
+objects allocated {\em excluding} the overhead required by
+\module{Objects}.
+The number of \code{free} objects (third column) is interesting.
+\module{Objects} keeps a free list of objects per manager for
+efficiency.
+Summing the free and allocated counts will yield the peak memory
+used by a manager, since the last free list purge.  The
+notice \proc{Notices.GetOutOfMemoryNotice} is called by 
+\module{SafeStorage} to free all unused memory.  This is how the
+free lists get purged (returned back to the global memory pool or
+heap).

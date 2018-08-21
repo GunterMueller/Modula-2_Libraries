@@ -1,0 +1,152 @@
+(*
+13			The Unbounded Set (continued)
+
+This chapter presents the unbounded, unmanaged implementation of the set abstraction described in
+Chapter 11.  As with the other unbounded modules, given previously, the size of the set
+structure varies dynamically as items are added and removed.  This particular form has
+the properties: Sequential, Unbounded, Unmanaged, and Non-Iterator.  These describe specific
+aspects of the implementation as follows:
+
+Sequential:	Can only be used in a non-tasking environment, or by only one task.
+Unbounded:	The size of a set varies dynamically as items are added and removed from
+		the set.
+Unmanaged:	Memory space for objects is returned to the system when no longer needed.
+		Note that Items are not managed.
+Non-Iterator:	Routines for looping over each of the set items are not provided.
+
+The unbounded set interface follows in Section 13.5 while the actual implementation
+appears in Section 13.6.
+
+The TypeManager module is needed for the implementation which uses an ordered list. So
+comparison is needed but assignment and disposal are not.
+
+
+
+13.5		SetSUUN Interface
+*)
+
+
+DEFINITION MODULE SetSUUN;
+(*==========================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Set
+               Sequential Unbounded Unmanaged Non-Iterator
+
+    INTRODUCTION
+    This module provides the interface for the unbounded Set
+    abstraction for generic Items.
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2. Derived from
+	  SetSUMN module.
+
+    (C) Copyright 1989 Charles A. Lins
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM SetEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  Set;
+CONST NullSet = Set(NIL);
+
+
+(*
+13.5.1			Exceptions
+*)
+
+CONST ModuleID = 10;
+
+PROCEDURE SetError    ()             : Exceptions  (*--out  *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*--in   *);
+                           toHandler : HandlerProc (*--in   *));
+
+
+(*
+13.5.2			Constructors
+*)
+
+PROCEDURE Create        (    theType : TypeID (*--in   *))
+                                     : Set    (*--out  *);
+
+PROCEDURE Destroy       (VAR theSet  : Set    (*--inout*));
+
+PROCEDURE Clear         (VAR theSet  : Set    (*--inout*));
+
+PROCEDURE Assign        (    theSet  : Set    (*--in   *);
+                         VAR toSet   : Set    (*--inout*));
+
+PROCEDURE Include       (    theItem : Item   (*--in   *);
+                         VAR inSet   : Set    (*--inout*));
+
+PROCEDURE Exclude       (    theItem : Item   (*--in   *);
+                         VAR fromSet : Set    (*--inout*));
+
+PROCEDURE Union         (    left    : Set    (*--in   *);
+                             right   : Set    (*--in   *);
+                         VAR toSet   : Set    (*--inout*));
+
+PROCEDURE Intersection  (    left    : Set    (*--in   *);
+                             right   : Set    (*--in   *);
+                         VAR toSet   : Set    (*--inout*));
+
+PROCEDURE Difference    (    left    : Set    (*--in   *);
+                             right   : Set    (*--in   *);
+                         VAR toSet   : Set    (*--inout*));
+
+PROCEDURE SymDifference (    left    : Set    (*--in   *);
+                             right   : Set    (*--in   *);
+                         VAR toSet   : Set    (*--inout*));
+
+
+
+(*
+13.5.3			Selectors
+*)
+
+PROCEDURE IsDefined     (    theSet  : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+PROCEDURE IsEmpty       (    theSet  : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+PROCEDURE TypeOf        (    theSet  : Set      (*--in   *))
+                                     : TypeID   (*--out  *);
+
+PROCEDURE IsEqual       (    left    : Set      (*--in   *);
+                             right   : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+PROCEDURE NumMembers    (    theSet  : Set      (*--in   *))
+                                     : CARDINAL (*--out  *);
+
+PROCEDURE IsAMember     (    theItem : Item     (*--in   *);
+                             theSet  : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+PROCEDURE IsSubset      (    left    : Set      (*--in   *);
+                             right   : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+PROCEDURE IsProperSubset(    left    : Set      (*--in   *);
+                             right   : Set      (*--in   *))
+                                     : BOOLEAN  (*--out  *);
+
+END SetSUUN.
+

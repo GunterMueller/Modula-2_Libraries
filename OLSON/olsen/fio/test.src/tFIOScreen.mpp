@@ -1,0 +1,82 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tFIOScreen;
+
+IMPORT
+    CardIO,
+    IOErrors,
+    FIOScreen,
+    FormatIO,
+    ScreenIO,
+    StringIO,
+    TextIO;
+
+VAR
+    screenIn  : TextIO.Object;
+    screenOut : TextIO.Object;
+
+    Attrs : ScreenIO.AttributeSet;
+    i, j  : ScreenIO.Attributes;
+    x, y  : CARDINAL;
+
+    ch : CHAR;
+
+    tt : TextIO.States;
+
+CONST
+    editEcho = ScreenIO.CapabilitySet { ScreenIO.editCtl, ScreenIO.echoCtl };
+
+BEGIN (* tFIOScreen *)
+    screenIn  := ScreenIO.GetTextInput();
+    screenOut := ScreenIO.GetTextOutput();
+
+    ScreenIO.EnterVisualMode;
+    ScreenIO.Do( ScreenIO.clear );
+
+    tt := FormatIO.Write1( screenOut, "[Screen,r10,c10,-a,+u][String,w51]",
+        "This should be underlined and at (10,10)" );
+
+    tt := FormatIO.Write1( screenOut, "[Screen,r11,c11,+b][String,w51]",
+        "This should be bold and at (11,11)" );
+
+    tt := FormatIO.Write2( screenOut,
+        "[Screen,r12,c12,+ik][String,w51][Screen,r13,c13,-a][String,w51]",
+        "This should be inverse and blinking and at (12,12)",
+        "This should be normal and at (13,13)" );
+
+    (* End nicely *)
+
+    ScreenIO.SetAttributes( ScreenIO.AttributeSet{ } );
+    ScreenIO.GotoRowCol( 16, 5 );
+    IF ScreenIO.GetCapabilities( ) * editEcho # editEcho THEN
+	tt := StringIO.Write( screenOut, 'Enter a new line: ' );
+	tt := TextIO.ReadLn( screenIn );
+    ELSE
+	ScreenIO.SetEchoMode( ScreenIO.noEcho );
+	ScreenIO.SetEditMode( ScreenIO.noEdit );
+	tt := StringIO.Write( screenOut, 'Press any key' );
+	tt := TextIO.Read( screenIn, ch );
+	ScreenIO.SetEchoMode( ScreenIO.echo );
+	ScreenIO.SetEditMode( ScreenIO.edit );
+    END;
+END tFIOScreen.

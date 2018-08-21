@@ -1,0 +1,35 @@
+DEFINITION MODULE EBNFTable;
+(*====================================================================
+    Version  : 1.00  04 Feb 1989  C. Lins
+    Compiler : Bob Campbell's MPW Modula-2 Compiler
+    Component: EBNFTable
+
+    INTRODUCTION
+    This module defines a symbol table for identifiers and line numbers
+                for the EBNF tool.
+
+                The act of tabulating a symbol table causes the table to be destroyed.
+
+    REVISION HISTORY
+    v1.00  04 Feb 1989  C. Lins:
+      Initial implementation derived from Wirth's Programming in
+                        Modula-2, 4th edition, pp 96-100.
+====================================================================*)
+
+FROM    StrCSUMI IMPORT
+        (*--type*)      String;
+
+TYPE    SymbolTable;
+
+PROCEDURE Create  () : SymbolTable                                              (*--out  *);
+
+PROCEDURE Record  (    inTable  : SymbolTable (*--inout*);
+                                                                                         theID          : String                        (*--in   *);
+                                                                                         lineNo         : INTEGER                       (*--in   *));
+
+PROCEDURE Tabulate (    theTable: SymbolTable (*--in   *));
+
+PROCEDURE Overflow () : BOOLEAN                                                         (*--out  *);
+
+END EBNFTable.
+

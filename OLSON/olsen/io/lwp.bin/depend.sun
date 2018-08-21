@@ -1,0 +1,28 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+UnixAsynchIO.def: ../sun_lwp.src/UnixAsynchIO.dpp 
+	${StandardM2pp}
+IOMonitors.def: ../lwp.src/IOMonitors.dpp 
+	${StandardM2pp}
+UnixAsynchIO.mod: ../sun_lwp.src/UnixAsynchIO.mpp 
+	${StandardM2pp}
+IOMonitors.mod: ../lwp.src/IOMonitors.mpp 
+	${StandardM2pp}
+DirIO.mod: ../sun.src/DirIO.mpp 
+	${StandardM2pp}
+IONames.mod: ../sun.src/IONames.mpp 
+	${StandardM2pp}
+UnixBinaryIO.mod: ../sun.src/UnixBinaryIO.mpp 
+	${StandardM2pp}
+SimpleIO.mod: ../shared.src/SimpleIO.mpp 
+	${StandardM2pp}
+TextIO.mod: ../shared.src/TextIO.mpp 
+	${StandardM2pp}
+TextIOPRIVATE.mod: ../shared.src/TextIOPRIVATE.mpp 
+	${StandardM2pp}

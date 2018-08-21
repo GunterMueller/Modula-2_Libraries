@@ -1,0 +1,206 @@
+(*
+6.1 Singly-Linked Bounded List Interface
+
+Presented below is the interface to the singly-linked bounded
+list for generic Items, which for reasons discussed shortly is
+somewhat different from that of the unbounded list.  Like the
+unbounded list, the bounded list also does not concern
+itself with the data type of the objects or items manipulated.
+*)
+
+DEFINITION MODULE ListSBM;
+
+(*
+    Version  : 1.00  18 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Polylithic Structures - List
+	Singly-Linked Bounded Managed
+
+    Revision History
+    v1.00  18 May 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2.
+	(C) Copyright 1989 Charles A. Lins
+*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM ListEnum IMPORT
+    (*--Type*) Exceptions;
+
+    (*-----------------------*)
+
+(*
+6.1.1 Type Declarations
+
+The reader may remember from the bounded structures in Volume 1
+it was sufficient to modify the unbounded form of the Create
+operation to include a
+parameter specifying the structure's desired maximum size.  And
+to allow the client to easily retrieve this limit, the selector
+SizeOf was also added as a convenience.  This approach could be
+taken for bounded lists as well resulting in each list created
+being associated with its own pool of nodes.  This is not necessarily
+bad, but potentially would be very wasteful of space since the
+pools (and the nodes resident there) could not be shared by all
+bounded lists of the same type.
+
+The approach taken for the bounded list is in addition to the
+abstract type List, the abstract type Pool is exported along
+with a subrange representing the limits on the size of a node
+pool.  Now the client can create a number of Pools and associate
+Lists with a given pool.  The only constraint is that a List may
+not draw nodes from more than a single pool and all operations
+must identify the pool on which to operate.  The maximum size of
+a pool is limited to 5400 nodes due to constraints imposed by the
+TML Modula-2 compiler on the size of arrays.
+
+List cannot be declared opaque and then in the 
+implementation defined as a CARDINAL (at least in the TML Modula-2
+compiler); for this reason transparent export is used.  The constant
+NullList is used to terminate a sequence of links.
+*)
+
+TYPE  Pool;
+TYPE  PoolSize = [1 .. 5400];
+
+TYPE  List     = CARDINAL;
+CONST NullList = 0;
+
+
+(*
+6.1.2 Exceptions
+
+The ModuleID uniquely identifies this module.  ListError returns
+the result code from the most recently invoked list operation.
+GetHandler and SetHandler allow assignment and retrieval,
+respectively, of exception handlers for specific exceptions.
+
+The undefined exception is associated with the type Pool, and the
+listisnull exception used to identify invalid operations on an
+empty list.  Overflow is raised when attempting to expand a list
+and there are no more nodes left in the pool.
+*)
+
+CONST ModuleID = 3;
+
+PROCEDURE ListError   ()	: Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    theError  : Exceptions  (*-- in    *))
+	: HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    theError  : Exceptions  (*-- in    *);
+	theHandler: HandlerProc (*-- in    *));
+
+
+(*
+6.1.3 Constructors
+
+InitPool attempts to construct a node pool of the given size and
+FreePool releases the existing node pool.  In the list operations
+the internal state of the pool may change as a result of the operation
+but the actual value for the pool itself does not change; this is
+why thePool is labeled as inout without an accompanying VAR.
+
+Create retrieves a node from the given pool, raising overflow and
+returning the NullList if the node pool is already full.  It is
+equivalent to the routine GetNode seen in Pascal texts.
+
+Destroy returns theList node to the node pool and is equivalent
+to the routine FreeNode seen in Pascal texts.
+
+Definitions for the other constructors was given in Section 3.3,
+under Constructor Operations.
+*)
+
+PROCEDURE InitPool  (    theSize : PoolSize (*-- in    *))
+	: Pool     (*-- out   *);
+
+PROCEDURE FreePool  (    thePool : Pool     (*-- inout *));
+
+
+PROCEDURE Create    (    thePool : Pool     (*-- inout *))
+	: List     (*-- out   *);
+
+PROCEDURE Destroy   (    thePool : Pool     (*-- inout *);
+	VAR theList : List     (*-- inout *));
+
+PROCEDURE Clear     (    thePool : Pool     (*-- inout *);
+	VAR theList : List     (*-- inout *));
+
+PROCEDURE Assign    (    thePool : Pool     (*-- inout *);
+	theList : List     (*-- in    *);
+	VAR toList  : List     (*-- inout *));
+
+PROCEDURE SetItem   (    thePool : Pool     (*-- inout *);
+	theList : List     (*-- inout *);
+	theItem : Item     (*-- in    *));
+
+PROCEDURE SetNext   (    thePool : Pool     (*-- inout *);
+	theList : List     (*-- inout *);
+	newNext : List     (*-- in    *));
+
+PROCEDURE SetList   (    thePool : Pool     (*-- inout *);
+	theItem : Item     (*-- in    *))
+	: List     (*-- out   *);
+
+PROCEDURE Insert    (    thePool : Pool     (*-- inout *);
+	theItem : Item     (*-- in    *);
+	VAR theList : List     (*-- inout *));
+
+
+(*
+6.1.4 Selectors
+
+The selectors have all been modified from the unbounded form to
+accept thePool parameter.  IsDefined has been added to test whether
+a given pool variable has been initialized through the InitPool
+operation.
+Definitions for the other selectors was given in Section 3.4,
+under Selector Operations.  All list selectors have a complexity
+of O(1) except for IsEqual which is O(Min(m,n)) and LengthOf which
+is O(n).
+*)
+
+PROCEDURE IsDefined (    thePool : Pool     (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty   (    thePool : Pool     (*-- in    *);
+	theList : List     (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    thePool : Pool     (*-- in    *);
+	left    : List     (*-- in    *);
+	right   : List     (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    thePool : Pool     (*-- in    *);
+	theList : List     (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE GetNext   (    thePool : Pool     (*-- in    *);
+	theList : List     (*-- in    *))
+	: List     (*-- out   *);
+
+PROCEDURE GetItem   (    thePool : Pool     (*-- in    *);
+	theList : List     (*-- in    *))
+	: Item     (*-- out   *);
+
+END ListSBM.
+
+(*
+
+References
+
+[1] Aho, Hopcroft, and Ullman, Data Structures and Algorithms,
+    Addison-Wesley, Reading MA 1983.
+[2] G. Booch, Software Components with Ada, Structures, Tools, and Subsystems,
+    Benjamin/Cummings, Menlo Park, CA 1987.
+[3] D. Knuth, The Art of Computer Programming, Volume 1, Fundamental
+    Algorithms, Addison-Wesley, Reading MA 1973.
+[4] R. Wiener and R. Sincovec, Data Structures Using Modula-2,
+    John Wiley & Sons, New York, NY, 1986, pg. 198.
+*)

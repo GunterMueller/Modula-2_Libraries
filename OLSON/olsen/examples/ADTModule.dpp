@@ -1,0 +1,183 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ADTModule;
+(*
+ * This is a template of a typical abstract data type module based 
+ * on the coding standards of the software group.  The required exports
+ * are Object, Create (or Open), Destroy (or Close), IsValid, SetInvalid.
+ * The other parameters are defined to should how we do some other interesting
+ * things.
+ *)
+IMPORT
+    Notices,	 (* Import list is sorted for easy manipulation *)
+    SYSTEM;
+
+EXPORT QUALIFIED (* In order of declaration of the module *)
+    Object,	Modes,		Create,		Destroy,
+    Value,	Finish,		Start,		Operate,
+    IsValid,	SetInvalid,	States,		GetState,
+    GetMode,	GetImportantNotice;
+    
+TYPE
+    Object;
+
+    Modes = (		(* How to initialize the object *)
+	thisMode,	(* The mode that becomes before that *)
+	thatMode,	(* When you are sure that it isn't this *)
+	theOtherMode	(* Something that is better than this and that  *)
+    );
+
+PROCEDURE Create(
+    VAR adt  : Object;	(* Initialized object (IN value not checked) *)
+	mode : Modes	(* How this object should behave *)
+    );
+    (*
+     * Intializes the object in the specified mode and returns a handle
+     * to be used in future transactions and Destroy.  Note that we
+     * put the "adt" parameter first.  The modifiers come afterwards.
+     * This breaks the rules of returning information about.
+     * "adt" is used as opposed to "object" as the name, since it gives 
+     * a little more information than the declaration "object : Object".  
+     * In general, this sets the skeleton for the rest of the module.
+     *)
+    
+PROCEDURE Destroy(
+    VAR adt : Object	(* May be in any state (i.e. created or not) *)
+    );
+    (*
+     * Destroys the adt and deallocates its associated resources.  If
+     * the object is not valid, nothing is done and this call is equivalent
+     * to the SetInvalid call.
+     *)
+
+TYPE
+    Value  = RECORD		(* Result of Start function *)
+	field1    : CARDINAL;	(* First result *)
+	fieldVal2 : REAL;	(* Linear regression of results *)
+    END;
+    Finish = PROCEDURE(
+	SYSTEM.ADDRESS,	(* This is the importerObject passed to Start *)
+	Value		(* The result of the operation *)
+    );
+	(*
+	 * This procedure may do anything it likes (include destroy the
+	 * adt from which it is being called).  In general, upcall procedures
+	 * must be free and clear to do most anything.  This means that
+	 * the modules which call anonymous procedures (upcalls) must
+	 * not maintain state during the actual call.  Such things include
+	 * holding TaskMonitors or assuming global variables will not
+	 * be modified by the upcall.
+	 *)
+
+PROCEDURE Start(
+    adt            : Object;	(* must be valid and in "ok" state *)
+    initialValue   : Value;	(* value to start the operation. *)
+    finish         : Finish;	(* will be called when operation is complete *)
+    importerObject : SYSTEM.ADDRESS	(* Passed to finish unmodified *)
+    );
+    (*
+     * Starts a linear regression based on the information specified in
+     * the initialValue and the current value of the adt.  When the
+     * operation is complete, the finish procedure will be called with
+     * the result as its second argument.
+     *)
+
+PROCEDURE Operate(
+        adt       : Object;	(* must be valid and in "ok" state *)
+        someValue : Value;	(* add the value to the current set *)
+    VAR newValue  : Value	(* most recently added value before this one *)
+    );
+    (*
+     * Performs a random operation on the adt and returns the previous 
+     * value in the newValue.
+     *)
+    
+PROCEDURE IsValid(
+    adt : Object	(* May be in any state *)
+    )   : BOOLEAN;	(* TRUE => object has been initialized *)
+    (* 
+     * This procedure determines the validity of this procedure for the
+     * operations.  The procedures Start and Operate do not work 
+     * if the state of the object is not "ok".   In general, you can
+     * probably combine the IsValid and GetState procedures into a single
+     * return, but it is up to the module designer to do so.
+     *)
+    
+PROCEDURE SetInvalid(
+    VAR adt : Object	(* to be set to invalid state (IN value ignored) *)
+    );
+    (*
+     * Sets the adt to invalid so that succeeding call to IsValid will
+     * always return FALSE.  This procedure allows an importer to properly
+     * initialize all datastructures w/o actually creating an object.
+     *)
+
+TYPE
+    States = (		(* How is our little ADT doing? *)
+	ok,		(* Everything is just honky donk *)
+	thisState,	(* Well, you know, this happened. *)
+	thatState	(* Oh, and that happened *)
+    );
+
+PROCEDURE GetState(
+    adt : Object	(* must be a valid Object *)
+    )   : States;	(* Current state of adt *)
+    (*
+     * You can find out what is wrong.  Note that we use a return
+     * value here so we can put this procedure call in a CASE or IF
+     * statement.
+     *)
+
+PROCEDURE GetMode(
+    adt : Object	(* must be a valid Object *)
+    )   : Modes;	(* Current mode of the adt *)
+    (*
+     * Get the mode that the object was initialized with.  This may not
+     * always be necessary, but we provide it here as an example.
+     *)
+
+PROCEDURE GetImportantNotice(
+    ) : Notices.Object;		(* firstRegisteredFirstCalled order *)
+    (*
+     * Returns the notice that will be called if something important
+     * happens to this module.  The importerObject passed to the notice
+     * is an Object coerced into a SYSTEM.ADDRESS (not SYSTEM.ADR of
+     * an object).  It is up to the registrants of this notices to
+     * figure out if they are interested in the event.  
+     *
+     * The notice is shared among all ADTs as opposed to having 
+     * a registration system with each adt.  This allows a more 
+     * flexible error handling system.  It may be, however, that you
+     * want to use a more restricted model in the case of normal events
+     * (such as received data or whatever).
+     *)
+
+CONST
+    formatName = "ADTModule";
+	(*
+	 * Defines the format which can be used to print out this
+	 * type using FormatIO.  Note that if this module is compiled
+	 * with the Debug option off, this format is not registered.
+	 *)
+
+END ADTModule.

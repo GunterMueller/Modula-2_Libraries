@@ -1,0 +1,338 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE FIOBase;
+(*
+ * Allows dynamic registration of new formats to FormatIO.
+ * Provides services to modules doing the I/O of FormatIO objects.
+ *
+ * Also provides a low-level interface to reading and writing
+ * which allows nested formats to be more easily implemented.
+ * See the procedures Write1, Read1, and PromptedRead1.
+ *)
+IMPORT 
+    Chars,
+    GenConsts,
+    Strings,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED
+    escapeChar,          argSeparator,    beginCommand,     endCommand,
+    CommandName,         noSizeCheck,     noParameter,      DONTCARE,
+    WriteProc,           RegisterWrite,   ReadProc,         RegisterRead,
+    GetSpecifier,        GetString,       GetCard,          ExpectedModifiers,
+    ExpectedModifierSet, readModifierSet, writeModifierSet, ModifierValues,
+    ScanModifiers,       ReadToken,       PromptForReread,  Write1,
+    Read1,               PromptedRead1;
+
+CONST
+    escapeChar   = '`';
+    argSeparator = ',';
+    beginCommand = '[';
+    endCommand   = ']';
+    (*
+     * The special characters known by FormatIO.
+     *)
+ 
+TYPE
+    CommandName = GenConsts.Identifier;
+    (*
+     * Command names must be no longer than this.
+     *)
+
+CONST
+    noSizeCheck = (* IMPLSPEC *) 0;                    
+    noParameter = (* IMPLSPEC *) SysTypes.maxArrayIndexANY + 1; 
+    (*
+     * The size parameter passed to both Register routines
+     * is defined in three ways:
+     *     noParameter : this registrant doesn't take a parameter.
+     *     noSizeCheck : don't verify size of passed argument.
+     *     <others>    : the parameter must be this size.
+     *)
+
+    DONTCARE = NIL;
+    (*
+     * If importer object is not used.
+     *)
+
+TYPE 
+    WriteProc = PROCEDURE(
+        SysTypes.ANYPTR, (* ImporterObject value passed to Register *)
+        TextIO.Object,   (* Where data is to be written *)
+        ARRAY OF CHAR,   (* Format modifiers *) 
+        SysTypes.SAUPTR, (* Address of data to be written *)
+        SysTypes.Card    (* Size of data object passed *)
+    ) : TextIO.States;   (* Success => "TextIO.ok" *)
+    (*
+     * Definition of a procedure which supplies write services 
+     * within FormatIO for a user-defined type.
+     *
+     * Note that the "format" is stripped of beginCommand, endCommand
+     * and of the command name (only the modifiers are passed in).
+     *)
+
+PROCEDURE RegisterWrite(
+    name           : CommandName;     (* FormatIO name of type *)
+    writeProc      : WriteProc;       (* Provides formated write for type *)
+    importerObject : SysTypes.ANYPTR; (* Passed through (can be DONTCARE) *)
+    expectedSize   : SysTypes.Card    (* Size of user-defined type *)
+    );
+    (*
+     * RegisterWrite accepts data to be stored in the FormatIO write dictionary.
+     * Attempts to Register duplicate names in the write dictionary will cause 
+     * the caller to be terminated.
+     *)
+
+TYPE 
+    ReadProc = PROCEDURE(
+        SysTypes.ANYPTR, (* ImporterObject value passed to Register *)
+        TextIO.Object,   (* File to which data is to be written *)
+        ARRAY OF CHAR,   (* Format modifiers *) 
+        SysTypes.SAUPTR, (* Address of object to be read *)
+        SysTypes.Card,   (* Size of data object passed *)
+        BOOLEAN,         (* TRUE => prompted read *)
+        TextIO.Object    (* Prompt output file (only if prompted read) *)
+    ) : TextIO.States;   (* Success => "TextIO.ok" *)
+    (*
+     * Definition of a procedure which supplies read services
+     * within FormatIO for a user-defined type.
+     *
+     * Note that the "format" is stripped of beginCommand, endCommand
+     * and of the command name (only the modifiers are passed in).
+     *)
+
+PROCEDURE RegisterRead(
+    name           : CommandName;     (* FormatIO name of type *)
+    readProc       : ReadProc;        (* Provides formated read for type *)
+    importerObject : SysTypes.ANYPTR; (* Passed through (can be DONTCARE) *)
+    expectedSize   : SysTypes.Card    (* Size of user-defined type *)
+    );
+    (*
+     * RegisterRead accepts data to be stored in the FormatIO read
+     * dictionary.
+     *
+     * Attempts to Register duplicate names in the read dictionary
+     * will cause the caller to be terminated.
+     *
+     * Registered Read procedures may be written so that they prompt
+     * for input when asked to do so by the caller. They should do so
+     * by writing to the promptFile, and only should do so if the
+     * prompting BOOLEAN is TRUE.
+     *)
+    
+    (*
+     * Start of support routines for format string decomposition.
+     * All of the routines handle the escape character.
+     *)
+PROCEDURE GetSpecifier(
+    VAR format : ARRAY OF CHAR  (* Format string analyzed and modified *)
+    )          : CHAR;          (* Specifier, or 0C if error *)
+    (*
+     * This procedure supports a structured model to format string
+     * modifiers.
+     *
+     * A specifier is the first character in a modifier string that
+     * identifies the "type" of the modifier. If a format supports
+     * multiple types of modifiers, this is the model to be used.
+     * The typical scenario is to call this routine for the type
+     * and then follow it by a call to GetString or GetCard.
+     *
+     * The routine takes the first character off the format string
+     * and returns it. Several syntax errors are checked for:
+     *     - Empty strings aren't allowed,
+     *     - A leading argSeparator is illegal.
+     *     - The specifier must be followed by a non-zero string
+     *       (a trailing separator is illegal).
+     *)
+
+PROCEDURE GetString(
+    VAR format   : ARRAY OF CHAR;  (* Format string analyzed and modified *)
+    VAR modifier : ARRAY OF CHAR   (* Modifier string (removed from format *)
+    )            : BOOLEAN;        (* No errors => TRUE *)
+    (*
+     * Removes the format modifier string and copies it into modifier.
+     *
+     * A modifier string is terminated by the argSeparator or by the
+     * end of the string being reached.
+     *
+     * Several syntax errors are checked for:
+     *     - Format string is empty.
+     *     - Modifier is too small to hold the value. This case is useful
+     *       when one expects a modifier to be of a specific length.
+     *     - A leading argSeparator is encountered.
+     *)
+
+PROCEDURE GetCard(
+    VAR format   : ARRAY OF CHAR;  (* Format string analyzed and modified *)
+        base     : Chars.Bases;    (* Base to interpret Card in *)
+    VAR modifier : SysTypes.Card   (* extracted number *)
+    )            : BOOLEAN;        (* TRUE => cardinal succesfully extracted *)
+   (*
+    * Same semantics as GetString with the additional constraint that
+    * the modifier must be converted to a Card (in the base).
+    *)
+
+(*
+ * Simplified usage for default modifiers.
+ *)
+TYPE
+    ExpectedModifiers = ( 
+        expectMessage,        (* 'm' : message prompt *)
+        expectWidth,          (* 'w' : width *)
+        expectFillChar,       (* 'f' : fill character *)
+        expectJustification   (* 'j' : justification  *)
+    );
+    ExpectedModifierSet = SET OF ExpectedModifiers;
+
+CONST
+    readModifierSet  = ExpectedModifierSet{ expectMessage };
+    writeModifierSet = ExpectedModifierSet{
+        expectWidth, 
+        expectFillChar, 
+        expectJustification
+    };
+
+TYPE
+    (* 
+     * This record is returned by ScanModifiers.
+     *
+     * None of the values are modified unless ScanModifiers finds
+     * them in the format passed in.
+     *)
+    ModifierValues = RECORD
+        width         : SysTypes.Card;            (* Total field width *)
+        fillChar      : ARRAY[ 0 .. 0 ] OF CHAR;  (* String for ease of use *)
+        justification : Strings.Justifications;   (* How to justify *)
+        messageOutput : BOOLEAN;                  (* prompt output => TRUE *)
+    END;
+
+PROCEDURE ScanModifiers(
+        format            : ARRAY OF CHAR;        (* To be scanned *)
+        expectedModifiers : ExpectedModifierSet;  (* Values to be parsed out *)
+        promptFile        : TextIO.Object;        (* Where to write messages *)
+    VAR values            : ModifierValues;       (* Parsed and translated *)
+    VAR resultFormat      : ARRAY OF CHAR         (* Unknown modifiers *)
+    )                     : BOOLEAN;              (* All ok => TRUE *)
+    (*
+     * Scans the "format" string for the modifiers specified in the
+     * "expectedModifiers" set. As each is encountered, transfers
+     * the specified value to the appropriate parameter variable. 
+     *
+     * Modifiers:
+     *     If a modifier in "ExpectedModifierSet" is encountered,
+     *     but it is not in "expectedModifiers", failure is returned.
+     *
+     *     If a modifier appears in "expectedModifiers", but does not
+     *     appear in format, its value is unchanged.
+     *
+     *     An unknown modifier will be copied to "resultFormat".
+     *
+     *     Message modifiers are written to the "outFile" directly.
+     *
+     * ResultFormat:
+     *     The correct usage is to pass the same format string to
+     *     "format" and "resultFormat". This will guarantee that
+     *     "resultFormat" is large enough. If resultFormat is not
+     *     large enough, the caller will be terminated.
+     *
+     * Special characters:
+     *     This routine assumes that the format string does not contain
+     *     "argSeparator", "beginCommand", "endCommand", or "escapeChar"
+     *     as modifier type specifiers.
+     *)
+
+
+    (*
+     * RJN - Move this pup to StringIO. It has nothing to do with
+     * FormatIO and is certainly of general utility. There should
+     * be a max length as well?
+     *)
+PROCEDURE ReadToken(
+        inFile      : TextIO.Object;  (* From which token is to be read *)
+        skipChars   : ARRAY OF CHAR;  (* To be skipped before reading *)
+        acceptChars : ARRAY OF CHAR;  (* TO be accepted into the token *)
+    VAR token       : ARRAY OF CHAR   (* Token string read from file *)
+    )               : TextIO.States;  (* Errors => "TextIO.error" *)
+    (*
+     * Skips (reads) characters specified in "skipChars" and then
+     * reads characters in "acceptChars" into "token".
+     *
+     * This allows easy reads of lists of names or numbers separated
+     * by spaces or commas. 
+     * Does not skip over end-of-line conditions.
+     *
+     * If the "token" variable fills before a terminator char
+     * is located, the procedure returns with an error state.  
+     *
+     * If the token fills up, an extra character is read (and then
+     * UndoRead) to see if a terminator is next. If such a terminator
+     * is not found, the return state is "TextIO.error".
+     *)
+
+PROCEDURE PromptForReread(
+    promptFile : TextIO.Object;  (* On which to write the "re-enter" *)
+    inFile     : TextIO.Object   (* From which to clear erroneous chars *)
+    )          : TextIO.States;  (* Success => "TextIO.ok" *)
+    (*
+     * Figures out the state of the inFile.
+     *
+     * If the file has a "IOErrors.badData" error, it will reset
+     * it, the input line will be flushed, and an error message
+     * put out to the user via the promptFile.
+     *
+     * If at the end-of-file, "TextIO.endOfFile" is returned.
+     *)
+
+    (*
+     * Support procedures for nested formats.
+     *
+     * These procedures are exactly like FormatIO, but you pass
+     * pointers (addresses) and lengths instead of the magic coercion
+     * that ARRAY OF SysTypes.ANY provides. Specifically, the "argPtr"
+     * parameter is merely the SYSTEM.ADR of the "arg" and "argSize"
+     * is the SYSTEM.SIZE. For other semantics please see FormatIO.
+     *)
+PROCEDURE Write1(
+    file    : TextIO.Object;
+    format  : ARRAY OF CHAR;
+    argPtr  : SysTypes.SAUPTR;
+    argSize : SysTypes.Card
+    )       : TextIO.States;
+
+PROCEDURE Read1(
+    inFile  : TextIO.Object;
+    format  : ARRAY OF CHAR;
+    argPtr  : SysTypes.SAUPTR;
+    argSize : SysTypes.Card
+    )       : TextIO.States;
+
+PROCEDURE PromptedRead1(
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    argPtr     : SysTypes.SAUPTR;
+    argSize    : SysTypes.Card;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+
+END FIOBase.

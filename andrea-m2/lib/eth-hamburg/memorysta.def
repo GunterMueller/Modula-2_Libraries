@@ -1,0 +1,17 @@
+DEFINITION MODULE MemoryStatus;
+
+(* Return some information about memory use *)
+(* J. Andrea, Sept.4/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED   Used, Available;
+
+
+PROCEDURE Used() :CARDINAL;
+(* return the number of bytes of memory that have been used up *)
+
+PROCEDURE Available() :CARDINAL;
+(* return the number of bytes of memory that are still available *)
+
+
+END MemoryStatus.

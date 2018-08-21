@@ -1,0 +1,90 @@
+BLOCKIO-1.MOD
+    A program which shows how to use the module MOD$LIBRARY:BlockIO.
+    This is actually a working program which will copy any file into
+    a new file.
+
+BLOCKIO-2.MOD
+    A program which shows how to use the module MOD$LIBRARY:BlockIO.
+    This is actually a working program which will dump any file into
+    an ASCII display format.
+
+DIRFILES-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:DirectAccessFiles.
+
+DIRFILES-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:DirectAccessFiles.
+
+FOREIGNCOMMAND.MOD
+    This program tests, and shows how to use the module ForeignCommand.
+    Use the following commands to actually create a DCL Foreign Command
+    to test the program:
+           essex> test :== $mod$examples:foreigncommand
+    then test the program like this:
+           essex> test a b c
+           essex> test abc 123
+    etc.
+
+GET-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:GetCharacter.
+
+GET-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:GetCharacter.
+
+HILBERT_REGIS.MOD
+    This is an example which shows how to use the module
+    MOD$LIBRARY:RegisGraphics. It must be run on a terminal which
+    supports REGIS graphics.
+
+LOOKUP.MOD
+    This program tests, and shows how to use the procedure 'Lookup'
+    from the module MOD$SYSTEM:FileSystem.
+
+PI.MOD
+    This program tests, and shows how to use the procedure CalcPi
+    from the module MOD$LIBRARY:MoreMath.
+
+PIG_LATIN.MOD
+    This is an example program which shows how to perform i/o
+    from standard text files.
+    This is actually a working program which converts the words
+    in a file into a new file containing pig latin.
+
+RANPLOT.MOD
+    This program tests and shows how to use procedures from both
+    Randomly and Plotter.
+    A Regis graphics output file is created in TEST.REGIS
+
+REGIS-1.MOD
+    This is an example which shows how to use the module
+    MOD$LIBRARY:RegisGraphics. It must be run on a terminal which
+    supports REGIS graphics.
+
+REGIS-2.MOD
+    This is an example which shows how to use the module
+    MOD$LIBRARY:RegisGraphics. It must be run on a terminal which
+    supports REGIS graphics.
+
+SHOW_MEMORY_USE.MOD
+     This program shows how dynamic memory gets used up.
+     It also shows the use of the module MemoryStatus.
+
+SIERPINSKI_REGIS.MOD
+    This is an example which shows how to use the module
+    MOD$LIBRARY:RegisGraphics. It must be run on a terminal which
+    supports REGIS graphics.
+
+TIMER.MOD
+    This program tests, and shows how to time a program.
+
+TOPO-1.EXE
+TOPO-1.MOD
+    This program tests, and shows how to use the topological
+    sorting procedure in the module MOD$LIBRARY:Sorting.
+
+WINDOWS.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:SimpleWindows.

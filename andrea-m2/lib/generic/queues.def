@@ -1,0 +1,44 @@
+DEFINITION MODULE Queues;
+
+(*
+ This module provides procedures for queue'ing (lifo, fifo, and combinations)
+ objects up to 512 bytes in size.
+ A queue may be made of non-homogeneous objects, but care muse be taken to pop
+ data into the same format as there object which was push'ed.
+ If an item longer than 512 bytes is pushed, then only the first 512 bytes is
+ stored on the queue. And conversely, only as much data is pop'ed as can be
+ stored in the object which will contain the pop'ed item.
+*)
+(* J. Andrea, Oct.11/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT BYTE;
+
+EXPORT QUALIFIED Queue, Directions, InitQueue, Pop, Push, DelQueue, QueueInfo;
+
+TYPE
+   Queue; (* hidden *)
+
+   Directions = (Top,Bottom);
+
+PROCEDURE InitQueue( VAR a_queue :Queue );
+(* Create a queue, this must be called before the first Push *)
+
+PROCEDURE Push( a_queue :Queue; which_end :Directions; data :ARRAY OF BYTE );
+(* Push an item onto the Queue, any item up to 512 bytes in size *)
+
+PROCEDURE Pop( a_queue :Queue; which_end :Directions;
+               VAR data :ARRAY OF BYTE; VAR nothing_to_pop :BOOLEAN );
+(* Pop the next item from the queue,
+   return 'empty' as TRUE is there is nothing to get popped *)
+
+PROCEDURE DelQueue( VAR a_queue :Queue );
+(* Delete the queue completely *)
+
+PROCEDURE QueueInfo( a_queue :Queue; which_end :Directions;
+                     VAR n_items, size :CARDINAL );
+(* Get some information about the queue
+   'n_items' is the number of items currently on the queue,
+   'size'    is the size of the item at the specified end of the queue *)
+
+END Queues.

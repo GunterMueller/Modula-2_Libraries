@@ -1,0 +1,68 @@
+DEFINITION MODULE BlockIO;
+
+(*
+  This module is for doing block i/o to/from files.
+  This method of i/o is faster than standard record i/o and also allows
+  for the reading of any file type no matter what format or record size.
+
+  Typically one block of data (512 bytes) is read/written at a time, however
+  less or more data may be moved, but the data is always started at a
+  block boundary and users must always specify which block number in the
+  file to read/write from/to. If reading/writing more than one block
+  at a time you should skip by n = ( size + 511 ) / 512 blocks.
+
+  Any data structure can be read/written from/to a file since the data
+  is passed as an array of bytes (meaning unknown structure).
+
+  Files created using the OpenOut procedure are created with fixed length
+  records of 512 bytes and no record format (this format is similar to
+  .EXE files)
+
+  The file type used here may not be compatible with the file type
+  from FileSystem.
+*)
+(* J. Andrea, June.4/91, taken from FileSystem from ETH V3.1 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT BYTE;
+
+EXPORT QUALIFIED  BlockFile,
+                  OpenIn, OpenOut, Close,
+                  Read, Write,
+                  Done, Status, ShowStatus;
+
+TYPE BlockFile; (* hidden *)
+
+PROCEDURE Done() :BOOLEAN;
+
+PROCEDURE OpenIn( VAR f :BlockFile; filename :ARRAY OF CHAR );
+          (* opens an existing file for readonly block i/o *)
+
+PROCEDURE OpenOut( VAR f :BlockFile; filename :ARRAY OF CHAR );
+          (* opens a new file for writeonly block i/o *)
+          (* these files are created with 512 byte fixed length records,
+             and no record structures *) 
+
+PROCEDURE Close( VAR f :BlockFile );
+          (* closes file, modifications become permanent *)
+
+PROCEDURE Read( VAR f :BlockFile; count :CARDINAL;
+                VAR block :ARRAY OF BYTE; VAR size :CARDINAL );
+          (* read the count'th block, starting at 1 *)
+          (* the number of bytes read is returned in 'size', often
+             the last block of a file is not filled *)
+
+PROCEDURE Write( VAR f :BlockFile; count :CARDINAL;
+                 block :ARRAY OF BYTE; size :CARDINAL );
+          (* write the count'th block, starting at 1 *)
+          (* if size=0 then the whole structure is output
+                otherwise only the given number of bytes are written *)
+
+PROCEDURE Status(): CARDINAL;
+          (* returns the VAX/VMS status code of the last RMS operation *)
+
+PROCEDURE ShowStatus;
+          (* should be called if not Done() to display
+             the corresponding error message on the terminal *)
+
+END BlockIO. 

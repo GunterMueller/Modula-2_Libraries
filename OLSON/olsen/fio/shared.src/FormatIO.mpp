@@ -1,0 +1,558 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FormatIO;
+(*
+ * This procedure implements the surface of FormatIO.  FIOPRIVATE does
+ * all the parsing of format strings and calls to external modules.
+ * The procedures are simple.  We also register for new-line since it
+ * seems obvious that everyone will need this.
+ *
+ * TODO:
+ * 	- Move ControlChars to FIOChar and add array of char.
+ *	- Fix NL and ControlChars to do reads properly like VerifyLiteral
+ *	  checks endOfFile.
+ *)
+IMPORT 
+    IOErrors,
+    FIOBase,
+    FIOPRIVATE,
+    ModInit,	(* MUST BE HERE -- See ModInit *)
+    StringIO,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+@IF M2V2 OR LogitechM2 THEN
+    FROM SYSTEM IMPORT
+	SIZE;
+@END
+
+PROCEDURE Write(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write *)
+
+	(* Shouldn't find any parameters *)
+	args[ 1 ].ptr := NIL;
+	args[ 1 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format, SYSTEM.ADR( args ) ) ;
+    END Write;
+
+
+PROCEDURE Write1(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SYSTEM.BYTE
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write1 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );;
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format, SYSTEM.ADR( args ) ) ;
+    END Write1;
+
+
+PROCEDURE Write2(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SYSTEM.BYTE;
+    arg2   : ARRAY OF SYSTEM.BYTE
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write2 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );;
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );;
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := NIL;
+	args[ 3 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format, SYSTEM.ADR( args ) ) ;
+    END Write2;
+
+
+PROCEDURE Write3(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SYSTEM.BYTE;
+    arg2   : ARRAY OF SYSTEM.BYTE;
+    arg3   : ARRAY OF SYSTEM.BYTE
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write3 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );;
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );;
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );;
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := NIL;
+	args[ 4 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format, SYSTEM.ADR( args ) ) ;
+    END Write3;
+
+
+PROCEDURE Write4(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SYSTEM.BYTE;
+    arg2   : ARRAY OF SYSTEM.BYTE;
+    arg3   : ARRAY OF SYSTEM.BYTE;
+    arg4   : ARRAY OF SYSTEM.BYTE
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write4 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );;
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );;
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );;
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := SYSTEM.ADR( arg4 );;
+	args[ 4 ].size := SIZE( arg4 );
+	args[ 5 ].ptr  := NIL;
+	args[ 5 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format, SYSTEM.ADR( args ) ) ;
+    END Write4;
+
+
+(*
+ * All of the read routines only return upon an error.  If the
+ * guy tries a multi-object read and hits EOF in the middle, then
+ * the read may or may not fail.  Basically, you have to hit EOF exactly
+ * or it is no good, that is, the last FIOPRIVATE.Read must find EOF (or
+ * the file must be in that state already).  Note that sometimes we
+ * return EOF when we really mean readPastEOF.
+ *)
+PROCEDURE Read(
+    inFile : TextIO.Object;
+    format : ARRAY OF CHAR
+    )      : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read *)
+
+	(* No values to be read *)
+	args[ 1 ].ptr := NIL;
+	args[ 1 ].size := 0;
+	RETURN FIOPRIVATE.Read( inFile, format, format, SYSTEM.ADR( args ), 
+			     FALSE, inFile );
+
+   END Read;
+
+
+PROCEDURE Read1(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SYSTEM.BYTE
+    )          : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read1 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	RETURN FIOPRIVATE.Read( inFile, format, format, SYSTEM.ADR( args ), 
+			     FALSE, inFile );
+   END Read1;
+
+   
+PROCEDURE Read2(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SYSTEM.BYTE;
+    VAR arg2   : ARRAY OF SYSTEM.BYTE
+    )          : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read2 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := NIL;
+	args[ 3 ].size := 0;
+
+	RETURN FIOPRIVATE.Read( inFile, format, format, SYSTEM.ADR( args ), 
+			     FALSE, inFile );
+   END Read2;
+
+
+PROCEDURE Read3(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SYSTEM.BYTE;
+    VAR arg2   : ARRAY OF SYSTEM.BYTE;
+    VAR arg3   : ARRAY OF SYSTEM.BYTE
+    )          : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read3 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := NIL;
+	args[ 4 ].size := 0;
+
+	RETURN FIOPRIVATE.Read( inFile, format, format, SYSTEM.ADR( args ), 
+			     FALSE, inFile );
+   END Read3;
+
+
+PROCEDURE Read4(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SYSTEM.BYTE;
+    VAR arg2   : ARRAY OF SYSTEM.BYTE;
+    VAR arg3   : ARRAY OF SYSTEM.BYTE;
+    VAR arg4   : ARRAY OF SYSTEM.BYTE
+    )          : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read4 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := SYSTEM.ADR( arg4 );
+	args[ 4 ].size := SIZE( arg4 );
+	args[ 5 ].ptr  := NIL;
+	args[ 5 ].size := 0;
+
+	RETURN FIOPRIVATE.Read( inFile, format, format, SYSTEM.ADR( args ), 
+			     FALSE, inFile );
+   END Read4;
+
+(* 
+ * Begin PromptedReads.
+ *)
+PROCEDURE PromptedRead1(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SYSTEM.BYTE;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+    VAR
+	args  : FIOPRIVATE.Arguments;
+	state : TextIO.States;
+    BEGIN (* PromptedRead1 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	LOOP
+	    state := FIOPRIVATE.Read( inFile, format, format, 
+				      SYSTEM.ADR( args ), TRUE, promptFile );
+	    IF ( state # TextIO.error ) OR
+	       ( TextIO.GetError( inFile ) # IOErrors.badData ) THEN
+		RETURN state;
+	    END;
+
+	    (* Have to start all over *)
+	    IF FIOBase.PromptForReread( promptFile, inFile ) # TextIO.ok THEN
+		RETURN TextIO.GetState( inFile );
+	    END;
+	END; (* LOOP *)
+
+   END PromptedRead1;
+
+   
+PROCEDURE PromptedRead2(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SYSTEM.BYTE;
+    VAR arg2       : ARRAY OF SYSTEM.BYTE;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+    VAR
+	args  : FIOPRIVATE.Arguments;
+	state : TextIO.States;
+    BEGIN (* PromptedRead2 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := NIL;
+	args[ 3 ].size := 0;
+
+	LOOP
+	    state := FIOPRIVATE.Read( inFile, format, format, 
+				      SYSTEM.ADR( args ), TRUE, promptFile );
+	    IF ( state # TextIO.error ) OR
+	       ( TextIO.GetError( inFile ) # IOErrors.badData ) THEN
+		RETURN state;
+	    END;
+
+	    (* Have to start all over *)
+	    IF FIOBase.PromptForReread( promptFile, inFile ) # TextIO.ok THEN
+		RETURN TextIO.GetState( inFile );
+	    END;
+	END; (* LOOP *)
+
+   END PromptedRead2;
+
+
+PROCEDURE PromptedRead3(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SYSTEM.BYTE;
+    VAR arg2       : ARRAY OF SYSTEM.BYTE;
+    VAR arg3       : ARRAY OF SYSTEM.BYTE;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+    VAR
+	args  : FIOPRIVATE.Arguments;
+	state : TextIO.States;
+    BEGIN (* PromptedRead3 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := NIL;
+	args[ 4 ].size := 0;
+
+	LOOP
+	    state := FIOPRIVATE.Read( inFile, format, format, 
+				      SYSTEM.ADR( args ), TRUE, promptFile );
+	    IF ( state # TextIO.error ) OR
+	       ( TextIO.GetError( inFile ) # IOErrors.badData ) THEN
+		RETURN state;
+	    END;
+
+	    (* Have to start all over *)
+	    IF FIOBase.PromptForReread( promptFile, inFile ) # TextIO.ok THEN
+		RETURN TextIO.GetState( inFile );
+	    END;
+	END; (* LOOP *)
+
+   END PromptedRead3;
+
+
+PROCEDURE PromptedRead4(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SYSTEM.BYTE;
+    VAR arg2       : ARRAY OF SYSTEM.BYTE;
+    VAR arg3       : ARRAY OF SYSTEM.BYTE;
+    VAR arg4       : ARRAY OF SYSTEM.BYTE;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+    VAR
+	args  : FIOPRIVATE.Arguments;
+	state : TextIO.States;
+    BEGIN (* PromptedRead4 *)
+
+	args[ 1 ].ptr  := SYSTEM.ADR( arg1 );
+	args[ 1 ].size := SIZE( arg1 );
+	args[ 2 ].ptr  := SYSTEM.ADR( arg2 );
+	args[ 2 ].size := SIZE( arg2 );
+	args[ 3 ].ptr  := SYSTEM.ADR( arg3 );
+	args[ 3 ].size := SIZE( arg3 );
+	args[ 4 ].ptr  := SYSTEM.ADR( arg4 );
+	args[ 4 ].size := SIZE( arg4 );
+	args[ 5 ].ptr  := NIL;
+	args[ 5 ].size := 0;
+
+	LOOP
+	    state := FIOPRIVATE.Read( inFile, format, format, 
+				      SYSTEM.ADR( args ), TRUE, promptFile );
+	    IF ( state # TextIO.error ) OR
+	       ( TextIO.GetError( inFile ) # IOErrors.badData ) THEN
+		RETURN state;
+	    END;
+
+	    (* Have to start all over *)
+	    IF FIOBase.PromptForReread( promptFile, inFile ) # TextIO.ok THEN
+		RETURN TextIO.GetState( inFile );
+	    END;
+	END; (* LOOP *)
+
+   END PromptedRead4;
+
+   
+(*
+ * Start of routines to support default "noParameters"
+ *)
+PROCEDURE ReadLn(
+    DONTCARE   : SysTypes.ANYPTR;
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    DONTCARE1  : SysTypes.SAUPTR;
+    DONTCARE2  : CARDINAL;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    CONST
+	errorFmt = "Unexpected characters '[String]' before end of line.[NL]";
+    VAR
+	numLines  : CARDINAL;
+	state     : TextIO.States;
+	chars     : ARRAY [ 0 .. 20 ] OF CHAR;
+			(* The characters here are only used for prompting *)
+	readDone  : BOOLEAN;
+    BEGIN (* ReadLn *)
+
+	(* If there is not format parameter, then just write one line *)
+	IF format[ 0 ] = 0C THEN
+	    numLines := 1;
+
+	(* 
+	 * If there is a format parameter, then there better be one and
+	 * only one cardinal after it. 
+	 *)
+	ELSIF NOT FIOBase.GetCard( format, 10, numLines ) OR
+	  ( format[ 0 ] # 0C ) THEN
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+
+	(* Don't have to do anything if no end of lines to be read! *)
+	IF numLines = 0 THEN
+	    RETURN TextIO.GetState( inFile );
+	END;
+
+	(*
+	 * FormatIO is always forward looking, that is, we don't do
+	 * the same thing as TextIO.ReadLn if the current state is endOfLine.
+	 * In our case, we just ignore the incoming state and read on.
+	 * FormatIO reads are never allowed to fail with "endOfLine" as
+	 * TextIO.Read can.
+	 *)
+
+	readDone := FALSE;
+        WHILE numLines > 0 DO
+	    state := StringIO.Read( inFile, chars );
+	    CASE state OF
+		TextIO.ok:
+		    IF prompting THEN
+			IF Write1( promptFile, errorFmt, chars ) # TextIO.ok
+			 THEN RETURN TextIO.SetError( inFile, 
+						      IOErrors.badParameter );
+			END;
+		    END;
+		    (* Always return badData *)
+		    RETURN TextIO.SetError( inFile, IOErrors.badData );
+		|
+		TextIO.endOfLine:
+		    (* We got what we wanted *)
+		    DEC( numLines );
+		|
+		TextIO.endOfFile:
+		    IF readDone THEN
+			RETURN TextIO.SetError( inFile, IOErrors.readPastEOF );
+		    END;
+		    RETURN TextIO.endOfFile;
+		|
+		TextIO.error:
+		    RETURN TextIO.error;
+	    END; (* CASE *)
+	    readDone := TRUE;
+	END; (* WHILE *)
+
+	RETURN TextIO.ReadLn( inFile );
+   	(* Get rid of outstand EOL state *)
+    END ReadLn;
+
+
+PROCEDURE WriteLn(
+    DONTCARE  : SysTypes.ANYPTR;
+    outFile   : TextIO.Object;
+    format    : ARRAY OF CHAR; 
+    DONTCARE1 : SysTypes.SAUPTR;
+    DONTCARE2 : CARDINAL
+    )         : TextIO.States;
+    VAR
+	numLines : CARDINAL;
+	state    : TextIO.States;
+    BEGIN (* WriteLn *)
+
+	(* If there is not format parameter, then just write one line *)
+	IF format[ 0 ] = 0C THEN
+	    numLines := 1;
+	(* 
+	 * If there is a format parameter, then there better be one and
+	 * only one cardinal after it. 
+	 *)
+	ELSIF NOT FIOBase.GetCard( format, 10, numLines ) OR
+	  ( format[ 0 ] # 0C ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+	IF numLines = 0 THEN
+	    RETURN TextIO.GetState( outFile );
+	END;
+
+	(* Don't have to do anything if no end of lines to be read! *)
+	REPEAT
+	    state := TextIO.WriteLn( outFile );
+	    IF state # TextIO.ok THEN
+		RETURN state;
+	    END;
+	    DEC( numLines );
+	UNTIL numLines = 0;
+
+	RETURN state;
+    END WriteLn;
+
+BEGIN (* FormatIO *)
+
+    (* Register default commands *)
+    FIOBase.RegisterRead( 'NL', ReadLn, FIOBase.DONTCARE, FIOBase.noParameter );
+
+    FIOBase.RegisterWrite( 'NL', WriteLn, FIOBase.DONTCARE, 
+			   FIOBase.noParameter );
+
+END FormatIO.

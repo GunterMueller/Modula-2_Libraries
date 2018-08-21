@@ -1,0 +1,309 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Chars;
+(*
+ * The trade between time and space is made here.  Space has won,
+ * thus we have an array of descriptions for every character in
+ * the set.  This probably isn't the smartest thing for greater
+ * than 7 bit characters, but it works and was easy to implement.
+ * The "info" array contains classifications of characters and
+ * values for character to cardinal translations.  It is used
+ * almost every procedure in this module.
+ *)
+IMPORT 
+    ASCII,
+    SysTypes;
+
+TYPE
+    Kinds = (
+        white, 	  (* ASCII.ht, ' ', etc. *)
+	lower, 	  (* 'a' .. 'z' *)
+	upper,    (* 'A' .. 'Z' *)
+	numeric,  (* '0' .. '9' *)
+	other     (* Doesn't quite fit... *)
+    );
+
+    KindSet = SET OF Kinds;
+
+    Values  = [ 0 .. maxBase ];  (* Return maxBase for all illegal values *)
+    Info    = RECORD
+        kind    : Kinds;
+        value   : Values;
+    END;
+
+VAR
+    info : ARRAY CHAR OF Info;
+   
+PROCEDURE IsWhiteSpace(
+    toTest : CHAR
+    )      : BOOLEAN;
+    BEGIN (* IsWhiteSpace *)
+
+	RETURN info[ toTest ].kind = white;
+
+    END IsWhiteSpace;
+
+
+PROCEDURE IsAlpha(
+    toTest : CHAR
+    )      : BOOLEAN;
+    CONST
+	mySet = KindSet { upper, lower };
+    BEGIN (* IsAlpha *)
+
+	RETURN info[ toTest ].kind IN mySet;
+
+    END IsAlpha;
+
+
+PROCEDURE IsAlphaNumeric(
+    toTest : CHAR
+    )      : BOOLEAN;
+    CONST
+	mySet = KindSet { upper, lower, numeric };
+    BEGIN (* IsAlphaNumeric *)
+
+	RETURN info[ toTest ].kind IN mySet;
+
+    END IsAlphaNumeric;
+
+
+PROCEDURE IsLower(
+    toTest : CHAR
+    )      : BOOLEAN;
+    BEGIN (* IsLower *)
+
+	RETURN info[ toTest ].kind = lower;
+
+    END IsLower;
+
+
+PROCEDURE IsUpper(
+    toTest : CHAR
+    )      : BOOLEAN;
+    BEGIN (* IsUpper *)
+
+	RETURN info[ toTest ].kind = upper;
+
+    END IsUpper;
+   
+
+PROCEDURE ToLower(
+    toConvert : CHAR
+    )         : CHAR;
+    BEGIN (* ToLower *)
+
+	IF info[ toConvert ].kind # upper THEN
+	    RETURN toConvert;	(* Not an upper-case, just return *)
+	END;
+
+	RETURN CHR( ORD( toConvert ) + ( ORD( 'a' ) - ORD( 'A' ) ) );
+
+    END ToLower;
+
+
+PROCEDURE StringToLower(
+    VAR toConvert : ARRAY OF CHAR
+    );
+    VAR
+	i    : SysTypes.Card;
+	char : CHAR;
+    BEGIN (* StringToLower *)
+
+	FOR i := 0 TO HIGH( toConvert ) DO
+	    (* 
+	     * If the stupid compiler ever optimizes, then it
+	     * will figure out that I am doing this stupid assignment
+	     * and feel sorry that I wrote this for a really stupid compiler!
+	     *)
+	    char := toConvert[ i ];	
+	    IF char = 0C THEN
+		RETURN;
+	    END;
+	    IF info[ char ].kind = upper THEN
+		toConvert[ i ] := CHR( ORD( char ) 
+				  + ( ORD( 'a' ) - ORD( 'A' ) ) );
+	    END;
+	END; (* FOR *)
+
+    END StringToLower;
+
+   
+PROCEDURE ToUpper(
+    toConvert : CHAR
+    )         : CHAR;
+    BEGIN (* ToUpper *)
+
+	IF info[ toConvert ].kind # lower THEN
+	    RETURN toConvert;	(* Not an lower-case, just return *)
+	END;
+
+	RETURN CHR( ORD( toConvert ) - ( ORD( 'a' ) - ORD( 'A' ) ) );
+
+    END ToUpper;
+
+
+PROCEDURE StringToUpper(
+    VAR toConvert : ARRAY OF CHAR
+    );
+    VAR
+	i    : SysTypes.Card;
+	char : CHAR;
+    BEGIN (* StringToUpper *)
+
+	FOR i := 0 TO HIGH( toConvert ) DO
+	    (* 
+	     * See the stupid note in StringToLower.
+	     *)
+	    char := toConvert[ i ];	
+	    IF char = 0C THEN
+		RETURN;
+	    END;
+	    IF info[ char ].kind = lower THEN
+		toConvert[ i ] := CHR( ORD( char ) 
+				  - ( ORD( 'a' ) - ORD( 'A' ) ) );
+	    END;
+	END; (* FOR *)
+
+   END StringToUpper;
+   
+
+(* Numeric operations *)
+
+PROCEDURE IsDigit(
+    toTest : CHAR;
+    base   : Bases
+    )      : BOOLEAN;
+    BEGIN (* IsDigit *)
+ 
+        RETURN info[ toTest ].value < base;
+ 
+    END IsDigit;
+
+   
+PROCEDURE ToDigit(
+    toConvert : CHAR
+    )         : SysTypes.Card;
+    (*
+     * The conversion is set up so that "info.value" is maxBase
+     * for invalid characters.
+     *)
+    BEGIN (* ToDigit *)
+
+	RETURN info[ toConvert ].value;
+
+    END ToDigit;
+    
+VAR
+    digitToChar : ARRAY DigitValues OF CHAR;
+
+PROCEDURE FromDigit(
+    toConvert : DigitValues
+    )         : CHAR;
+    (* 
+     * Since the thing is range checked, we don't have to.
+     *)
+    BEGIN (* FromDigit *)
+
+       RETURN digitToChar[ toConvert ];
+
+    END FromDigit;
+
+
+PROCEDURE FillInfo(
+    firstChar : CHAR;
+    lastChar  : CHAR;
+    theKind   : Kinds; 
+    theValue  : Values
+    );
+    (*
+     * Initialize firstChar .. lastChar with the kind specified and
+     * successively assign the value and then increment it.
+     *)
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* FillInfo *)
+
+(* BEGIN LOGIBUG - Can't use "CHAR" as loop counter in for loop. *)
+
+	FOR i := ORD( firstChar ) TO ORD( lastChar ) DO
+	    WITH info[ CHR( i ) ] DO
+		kind  := theKind;
+		value := theValue;
+		INC( theValue );
+	    END;
+	END; (* FOR *)
+
+(* END LOGIBUG *)
+
+    END FillInfo;
+
+
+PROCEDURE Initialize;
+    (*
+     * Initialize the info and digitToChar arrays.    This
+     * code is implementation dependent for ASCII, but it
+     * should work for any size characters.
+     *)
+    VAR
+	i  : SysTypes.Card;
+    BEGIN (* Initialize *)
+
+	(* 
+	 * First initialize the info array to all invalid values.
+	 *)
+(* BEGIN LOGIBUG *)
+
+	FOR i := ORD( SysTypes.MINCHAR ) TO ORD( SysTypes.MAXCHAR ) DO
+	    WITH info[ CHR( i ) ] DO
+		kind  := other;
+		value := maxBase;	(* Invalid value *)
+	    END;
+	END; (* FOR *)
+
+(* END LOGIBUG *)
+
+	(* 
+	 * Fill in the well-defined classes 
+	 *)
+	info[     ' '].kind := white;
+	info[ASCII.ht].kind := white;
+
+	FillInfo( 'a', 'z', lower, 10 (* .. 35 *) );
+	FillInfo( 'A', 'Z', upper, 10 (* .. 35 *) );
+	FillInfo( '0', '9', numeric, 0 (* .. 9 *) );
+
+	(* 
+	 * This is rather hackerish, but it certainly should work and
+	 * serves a kind of nice compile-time check of digitToChar.
+	 *)
+	digitToChar := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    END Initialize;
+
+
+BEGIN (* Chars *)
+
+    Initialize;
+
+END Chars.

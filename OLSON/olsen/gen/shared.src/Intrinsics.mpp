@@ -1,0 +1,102 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Intrinsics;
+(*
+ * This is a very simple implementation, but it would be hoped (some day)
+ * that a compiler can inline these procedures.
+ *)
+IMPORT
+    SysTypes;
+
+PROCEDURE MinCard(
+    left  : SysTypes.Card;
+    right : SysTypes.Card
+    )     : SysTypes.Card;
+    BEGIN (* MinCard *)
+	IF left < right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MinCard;
+
+
+PROCEDURE MaxCard(
+    left  : SysTypes.Card;
+    right : SysTypes.Card
+    )     : SysTypes.Card;
+    BEGIN (* MaxCard *)
+	IF left > right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MaxCard;
+
+
+PROCEDURE MinInt(
+    left  : SysTypes.Int;
+    right : SysTypes.Int
+    )     : SysTypes.Int;
+    BEGIN (* MinInt *)
+	IF left < right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MinInt;
+
+
+PROCEDURE MaxInt(
+    left  : SysTypes.Int;
+    right : SysTypes.Int
+    )     : SysTypes.Int;
+    BEGIN (* MaxInt *)
+	IF left > right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MaxInt;
+
+
+PROCEDURE MinReal(
+    left  : SysTypes.Real;
+    right : SysTypes.Real
+    )     : SysTypes.Real;
+    BEGIN (* MinReal *)
+	IF left < right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MinReal;
+
+
+PROCEDURE MaxReal(
+    left  : SysTypes.Real;
+    right : SysTypes.Real
+    )     : SysTypes.Real;
+    BEGIN (* MaxReal *)
+	IF left > right THEN 
+	    RETURN left; 
+	END; 
+	RETURN right; 
+    END MaxReal;
+
+END Intrinsics.

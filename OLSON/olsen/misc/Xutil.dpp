@@ -1,0 +1,284 @@
+(*$Copyright************************************************
+Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts,
+and the Massachusetts Institute of Technology, Cambridge, Massachusetts.
+
+                        All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its 
+documentation for any purpose and without fee is hereby granted, 
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in 
+supporting documentation, and that the names of Digital or MIT not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  
+
+DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+DIGITAL BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+SOFTWARE.
+
+******************************************************************)
+
+DEFINITION FOR C MODULE Xutil;
+(*
+ * Structures and functions of Xutil.
+ *)
+FROM UnixCtypes IMPORT
+    p_char;
+
+IMPORT
+    X,
+    Xlib;
+
+(* 
+ * Bitmask returned by XParseGeometry().  Each bit tells if the corresponding
+ * value (x, y, width, height) was found in the parsed string.
+ *)
+CONST
+    NoValue	= 0000h;
+    XValue  	= 0001h;
+    YValue	= 0002h;
+    WidthValue  = 0004h;
+    HeightValue = 0008h;
+    AllValues 	= 000Fh;
+    XNegative 	= 0010h;
+    YNegative 	= 0020h;
+
+TYPE
+    Aspect = RECORD
+        x : INTEGER; (* Denominator *)
+        y : INTEGER; (* Denominator *)
+    END;
+
+    struct_XSizeHints = RECORD
+    	flags      : INTEGER;  (* Which fields are defined *)
+	x          : INTEGER;
+        y          : INTEGER;
+	width      : INTEGER;
+        height     : INTEGER;
+	min_width  : INTEGER;
+        min_height : INTEGER;
+	max_width  : INTEGER;
+        max_height : INTEGER;
+    	width_inc  : INTEGER;
+        height_inc : INTEGER;
+	min_aspect : Aspect;
+        max_aspect : Aspect;
+    END;
+    XSizeHints = POINTER TO struct_XSizeHints;
+
+(*
+ * The next block of definitions are for window manager properties
+ * that clients and applications use for communication.
+ *)
+
+(* flags argument in size hints *)
+
+CONST
+    USPosition	= { 0 };  (* User x, y *)
+    USSize	= { 1 };  (* User width, height *)
+    PPosition	= { 2 };  (* Program position *)
+    PSize	= { 3 };  (* Program size *)
+    PMinSize	= { 4 };  (* Program minimum size *)
+    PMaxSize	= { 5 };  (* Program maximum size *)
+    PResizeInc	= { 6 };  (* Program resize increments *)
+    PAspect	= { 7 };  (* Program min and max aspect ratios *)
+    PAllHints   = { 2 .. 7 };
+
+TYPE
+    struct_XWMHints = RECORD
+	flags         : INTEGER;   (* Marks fields defined *)
+	input         : BOOLEAN;   (* Appl rely on wm for keyboard input? *)
+	initial_state : INTEGER;   (* See below *)
+	icon_pixmap   : X.Pixmap;  (* Pixmap to be used as icon *)
+	icon_window   : X.Window;  (* Window to be used as icon *)
+	icon_x        : INTEGER;   (* Initial poxition of icon *)
+        icon_y        : INTEGER;   (* Initial position of icon *)
+	icon_mask     : X.Pixmap;  (* Icon mask bitmap *)
+	window_group  : X.XID;     (* ID of related window group *)
+        (* this structure may be extended in the future *)
+    END;
+    XWMHints = POINTER TO struct_XWMHints;
+
+(* definition for flags of XWMHints *)
+
+CONST
+    InputHint 		= { 0 };
+    StateHint 		= { 1 };
+    IconPixmapHint	= { 2 };
+    IconWindowHint	= { 3 };
+    IconPositionHint	= { 4 };
+    IconMaskHint	= { 5 };
+    WindowGroupHint	= { 6 };
+    AllHints 		= { 0 .. 6 };
+
+(* definitions for initial window state *)
+
+CONST
+    DontCareState	= 0;  (* Don't know or care *)
+    NormalState		= 1;  (* Most appl want to start this way *)
+    ZoomState		= 2;  (* Appl wants to start zoomed *)
+    IconicState		= 3;  (* Appl wants to start as an icon *)
+    InactiveState	= 4;  (* Appl believes it is seldom used *)
+
+
+TYPE
+    struct_IconSize = RECORD
+	min_width  : INTEGER;
+        min_height : INTEGER;
+	max_width  : INTEGER;
+        max_height : INTEGER;
+	width_inc  : INTEGER;
+        height_inc : INTEGER;
+    END;
+    IconSize = POINTER TO struct_IconSize;
+
+    struct_XClassHint = RECORD
+	res_name  : p_char;
+	res_class : p_char;
+    END;
+    XClassHint = POINTER TO struct_XClassHint;
+
+(*
+ * These macros are used to give some sugar to the image routines
+ * so that naive people are more comfortable with them.
+ *
+ *     XDestroyImage
+ *     XGetPixel
+ *     XPutPixel
+ *     XSubImage
+ *     XAddPixel
+ *)
+
+(*
+ * Compose sequence status structure, used in calling XLookupString.
+ *)
+TYPE
+    struct_XComposeStatus = RECORD
+        compose_ptr   : p_char;   (* State table pointer *)
+        chars_matched : INTEGER;  (* Match state *)
+    END;
+    XComposeStatus = POINTER TO struct_XComposeStatus;
+
+(*
+ * Keysym macros, used on Keysyms to test for classes of symbols
+ *
+ *     IsKeypadKey
+ *     IsCursorKey
+ *     IsPFKey
+ *     IsFunctionKey
+ *     IsMiscFunctionKey
+ *     IsModifierKey
+ *)
+
+(*
+ * opaque reference to Region data type 
+ *)
+TYPE
+    Region;
+
+(* Return values from XRectInRegion *)
+
+CONST
+    RectangleOut   =  0;
+    RectangleIn    =  1;
+    RectanglePart  =  2;
+ 
+
+(*
+ * Information used by the visual utility routines to find desired
+ * visual type from the many visuals a display may support.
+ *)
+TYPE
+    struct_XVisualInfo = RECORD
+        visual        : Xlib.Visual;
+        visualid      : X.VisualID;
+        screen        : INTEGER;
+        depth         : INTEGER;
+        class         : INTEGER;
+        red_mask      : CARDINAL;
+        green_mask    : CARDINAL;
+        blue_mask     : CARDINAL;
+        colormap_size : INTEGER;
+        bits_per_rgb  : INTEGER;
+    END;
+    XVisualInfo = POINTER TO struct_XVisualInfo;
+
+CONST
+    VisualNoMask		= 0h;
+    VisualIDMask 		= 1h;
+    VisualScreenMask		= 2h;
+    VisualDepthMask		= 4h;
+    VisualClassMask		= 8h;
+    VisualRedMaskMask		= 10h;
+    VisualGreenMaskMask		= 20h;
+    VisualBlueMaskMask		= 40h;
+    VisualColormapSizeMask	= 80h;
+    VisualBitsPerRGBMask	= 100h;
+    VisualAllMask		= 1FFh;
+
+(*
+ * This defines a window manager property that clients may
+ * use to share standard color maps:
+ *)
+
+TYPE
+    struct_XStandardColormap = RECORD
+	colormap   : X.Colormap;
+	red_max    : CARDINAL;
+	red_mult   : CARDINAL;
+	green_max  : CARDINAL;
+	green_mult : CARDINAL;
+	blue_max   : CARDINAL;
+	blue_mult  : CARDINAL;
+	base_pixel : CARDINAL;
+    END;
+    XStandardColormap = POINTER TO struct_XStandardColormap;
+
+(*
+ * return codes for XReadBitmapFile and XWriteBitmapFile
+ *)
+CONST
+    BitmapSuccess	= 0;
+    BitmapOpenFailed 	= 1;
+    BitmapFileInvalid 	= 2;
+    BitmapNoMemory	= 3;
+(*
+ * Declare the routines that don't return int.
+ *)
+
+
+(****************************************************************
+ * Context Management
+ ****************************************************************)
+
+(* Associative lookup table return codes *)
+
+CONST
+    XCSUCCESS = 0;    (* No error *)
+    XCNOMEM   = 1;    (* Out of memory *)
+    XCNOENT   = 2;    (* No entry in table *)
+
+TYPE
+    XContext = INTEGER;
+
+(*
+ *     XUniqueContext
+ *     XStringToContext
+ *)
+
+(*
+ *     XSaveContext
+ *     XFindContext
+ *     XDeleteContext
+ *     XGetWMHints
+ *     XCreateRegion
+ *     XPolygonRegion
+ *     XCreateImage
+ *     XGetVisualInfo
+ *)
+
+END Xutil.

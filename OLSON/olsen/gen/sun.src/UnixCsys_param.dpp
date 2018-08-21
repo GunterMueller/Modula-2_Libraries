@@ -1,0 +1,68 @@
+DEFINITION FOR C MODULE UnixCsys_param;
+(*
+ * See include files:
+ *    sys/param.h
+ *
+ * NOTE: not all of the definitions have been included here.
+ *)
+IMPORT
+    SysTypes;
+
+CONST
+
+    NMOUNT	= 20;		
+    MSWAPX	= 15;		
+    MAXUPRC	= 25;		
+    NOFILE	= 30;		
+
+    MAXPID	= 30000;		
+    MAXUID	= 60000;		
+    MAXLINK	= 32767;		
+    CANBSIZ	= 256;		
+    HZ		= 60;		
+
+    NCARGS	= 10240;		
+    NGROUPS	= 8;		
+
+    NOGROUP	= -1;		
+
+    PMASK	= 177B;
+    PCATCH	= 400B;	
+    PSWP	= 0;
+    PINOD	= 10;
+    PRIBIO	= 20;
+    PRIUBA	= 24;
+    PZERO	= 25;
+    PPIPE	= 26;
+    PVFS	= 27;
+    PWAIT	= 30;
+    PLOCK	= 35;
+    PSLEP	= 40;
+    PUSER	= 50;
+
+    NZERO	= 20;
+
+    NBBY	= 8;		
+
+    NBPW	= SysTypes.bitsPerWORD DIV SysTypes.bitsPerBYTE;
+
+    NULL	= 0;
+    CMASK	= 0;		
+    NODEV	= -1;		
+
+    CBSIZE	= 28;		
+    CROUND	= 1FH;		
+
+    MAXBSIZE		= 8192;
+    DEV_BSIZE		= 512;
+    DEV_BSHIFT		= 9;		
+    BLKDEV_IOSIZE	= 2048;
+    MAXFRAG		= 8;
+
+    MAXPATHLEN	= 1024;
+    MAXSYMLINKS	= 8;
+
+    FSHIFT	= 8;		
+    FSCALE	= { FSHIFT };
+
+END UnixCsys_param.

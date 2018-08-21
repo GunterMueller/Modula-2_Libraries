@@ -1,0 +1,15 @@
+DEFINITION.TEMPLATE
+    This is an empty template for a definition module.
+
+IMPLEMENTATION.TEMPLATE
+    This is an empty template for implementation modules.
+
+MINIMAN.DOC
+    This document describes the Modula-2 setup on the academic VAX
+    and how to use it.
+
+MODULA.BNF
+    This is the BNF definition for the language Modula-2.
+
+MODULE.TEMPLATE
+    This is an empty template for program modules.

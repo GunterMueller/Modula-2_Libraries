@@ -1,0 +1,6 @@
+FORMS-1.MOD
+   This program tests and shows how the use the module FormEdit.
+
+READKEY-1.MOD
+   This program test and shows how to use the procedure ReadKey
+   from the module ScreenIO.

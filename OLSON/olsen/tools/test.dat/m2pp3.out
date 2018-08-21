@@ -1,0 +1,29 @@
+(*
+ * This file tests some WeIrD stuff in the preprocessor.
+ *
+ * If there are no @ signs, then the source has already been
+ * preprocessed!
+ *)
+
+
+(* Nesting one
+    (* Nesting two
+	(* Nesting three
+	    (* Nesting four *)
+	*)
+    *)
+*)(**)(**)(*(*(*(*(**)*)*)*)*) 
+
+
+
+
+
+PASS 
+
+
+ PASS
+
+(*"*)"" 
+
+"(*"
+"'"'"'""''

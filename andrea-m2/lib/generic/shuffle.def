@@ -1,0 +1,36 @@
+DEFINITION MODULE Shuffle;
+
+(*
+ These routines are for randomly picking numbers from a sequential list
+ so that no number is picked more than once.
+ Applications are card shuffling type operations where a set of objects
+ need to be rearranged/picked randomly.
+
+ First call Create to build a list with the specified range, then use Next
+ to get numbers within that range, randomly without repeating a number.
+ Call Reset to reset the list to have all 'size' numbers available again.
+ If Next is called more than 'size' times, a Reset will be forced.
+*)
+
+(* V1.1, John Andrea, Jun.22/93 -add Copy and Duplicate *)
+(* V1.0, John Andrea, Apr.5/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED Deck, Create, Reset, Next;
+
+TYPE
+    Deck;   (* opaque *)
+
+PROCEDURE Create( VAR d :Deck; min, max :CARDINAL );
+
+PROCEDURE Reset( d :Deck );
+
+PROCEDURE Next( d :Deck ) :CARDINAL;
+
+PROCEDURE Copy( d, e :Deck );
+(* copy the settings of 'd' into 'e', iff min and max are the same *)
+
+PROCEDURE Duplicate( d :Deck; VAR e :Deck );
+(* make a new duplicate of 'd' in new 'e' *)
+
+END Shuffle.

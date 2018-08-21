@@ -1,0 +1,55 @@
+DEFINITION MODULE ShortRealInOut;
+(* taken from the Multiscope RealInOut module, but for standard/short reals *)
+
+EXPORT QUALIFIED
+   ReadReal, WriteReal, Done;
+
+
+VAR Done: BOOLEAN;
+
+
+PROCEDURE ReadReal( VAR x :REAL );
+(*
+- Read a REAL from the terminal.
+
+out:    x       the number read.
+
+The range of representable valid real numbers is:
+   1.0E-37 <= ABS(r) < 1.0E38
+
+The syntax accepted for input is:
+
+   realnumber       = fixedpointnumber [exponent].
+   fixedpointnumber = [sign] {digit} [ '.' {digit} ].
+   exponent         =  ('e' | 'E') [sign] digit {digit}.
+   sign             = '+' | '-'.
+   digit            = '0'|'1'|'2'|'3'|'4'|'5'|'6'|'7'|
+                      '8'|'9'.
+
+The following numbers are legal representations of one
+hundred: 100, 10E1, 100E0, 1000E-1, E2, +E2, 1E2, +1E2,
++1E+2, 1E+2 .
+
+At most (about 6) digits are significant, leading zeros not
+counting. Input terminates a control character or space.
+DEL or BS is used for backspacing
+
+The variable 'Done' indicates whether a valid number was
+read.
+*)
+
+
+PROCEDURE WriteReal( x :REAL; 
+                     n :CARDINAL );
+(*
+- Write a REAL to the terminal, right-justified.
+
+in:     x       number to write,
+        n       minimum field width.
+
+If fewer than n characters are needed to represent x,
+leading blanks are output. At least 10 characters are
+needed to write any REAL number.
+*)
+
+END ShortRealInOut.

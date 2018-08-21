@@ -1,0 +1,3 @@
+M2Defs= KeyInput.def Maze.def Screen.def 
+M2Imps= KeyInput.mod Maze.mod Screen.mod 
+M2Mods= Solver.mod 

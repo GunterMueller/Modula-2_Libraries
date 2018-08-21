@@ -1,0 +1,115 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tMon1;
+IMPORT
+    Tasks,	TaskConsts, 	ProgErrOutput, 	ProgArgs,
+    SYSTEM,	ProgErr,	TaskMonitors,	TaskNotices,
+    TaskDebug,	Notices;
+
+VAR
+    numPings       : CARDINAL;
+    monitor        : TaskMonitors.Object;
+
+PROCEDURE Ping( DONTCARE : SYSTEM.ADDRESS );
+    BEGIN (* Ping *)
+
+	ProgErrOutput.WriteString( "Ping Running" );
+	ProgErrOutput.WriteLn;
+	WHILE numPings # 0 DO
+	    ProgErrOutput.WriteString( "Ping" );
+	    TaskMonitors.Enter( monitor );
+		TaskMonitors.Enter( monitor );
+		    (* Just test nesting *)
+		TaskMonitors.Exit( monitor );
+	    TaskMonitors.Exit( monitor );
+	    Tasks.Suspend;
+	    DEC( numPings );
+	END;
+
+    END Ping;
+
+
+PROCEDURE Pong( DONTCARE : SYSTEM.ADDRESS );
+    VAR
+	ping    : Tasks.Object;
+	me      : Tasks.Object;
+    BEGIN (* Pong *)
+	
+	ProgErrOutput.WriteString( "Pong Running" );
+	ProgErrOutput.WriteLn;
+	me := Tasks.GetCurrent();
+	Tasks.Create( ping, " Ping", Ping, Tasks.DONTCARE, 
+		      Tasks.GetPriority( me ) + 1, 
+		      TaskConsts.GetDefaultStackSize() );
+	WHILE numPings # 0 DO
+	    ProgErrOutput.WriteString( "Pong" );
+	    ProgErrOutput.WriteLn;
+	    TaskMonitors.Enter( monitor );
+		Tasks.Ready( ping );
+		IF numPings = 1 THEN
+		    TaskDebug.PrintAll;
+		END;
+	    TaskMonitors.Exit( monitor );
+	END;
+
+    END Pong;
+
+VAR
+    pong : Tasks.Object;
+BEGIN (* tMon1 *)
+
+    numPings := 1;
+    ProgArgs.RegisterCardHandler( 'n', ProgArgs.DefaultCardHandler,
+				  SYSTEM.ADR( numPings ) );
+    IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	ProgErr.Terminate( "Usage: tMon1 /n=#switches" );
+    END;
+
+    @IF SpeedMode THEN
+	ProgErrOutput.WriteString( "Running in SpeedMode" );
+	ProgErrOutput.WriteLn;
+    @END (* SpeedMode *)
+
+    TaskMonitors.Create( monitor, "Manny" );
+    Tasks.Create( pong, "Pong", Pong, Tasks.DONTCARE, 
+		  Tasks.GetPriority( Tasks.GetCurrent() ) + 1, 
+		  TaskConsts.GetDefaultStackSize() );
+	
+    ProgErrOutput.WriteString( "Normal destroy." );
+    ProgErrOutput.WriteLn;
+    TaskMonitors.Destroy( monitor );
+    
+    TaskMonitors.Create( monitor, "Manny" );
+    ProgErrOutput.WriteString( "Testing destroy with monitor locked." );
+    ProgErrOutput.WriteLn;
+    TaskMonitors.Enter( monitor );
+    TaskMonitors.Destroy( monitor );
+
+    ProgErrOutput.WriteString( "Testing destroy of destroyed monitor." );
+    ProgErrOutput.WriteLn;
+    TaskMonitors.Destroy( monitor );
+
+    (* For TaskDebug *)
+    Notices.Call( TaskNotices.GetExitRequest(), Notices.DONTCARE );
+
+END tMon1.

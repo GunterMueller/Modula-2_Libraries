@@ -1,0 +1,23 @@
+DEFINITION MODULE SystemConstants;
+
+(* specific system constants *)
+
+(* J. Andrea, May.18/92 - DOS, Multiscope 4.0 version *)
+(* J. Andrea, 1985*)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+                 WORDLENGTH, BYTELENGTH, MININT, MAXINT, MINCARD, MAXCARD;
+
+CONST
+
+   WORDLENGTH = 16;
+   BYTELENGTH =  8;
+
+   MININT     = -32768;
+   MAXINT     = +32767;
+   
+   MINCARD    =      0;
+   MAXCARD    =  65535;
+
+END SystemConstants.

@@ -1,0 +1,443 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE TestRealConv;
+
+IMPORT
+
+RealConvert,    CardConvert,    Objects,    SYSTEM, 
+TestIO,         TestSystem,     StringLib,  SysTypes,
+GenTestIO;
+
+CONST
+    epsilon = 0.000000000000001;
+    releps = 0.1;
+
+TYPE 
+    compareResults = ( withinBounds, adjusted, outOfBounds, compareError );
+    formatUsed = ( floating, engineer, scientific );
+    formatRec = RECORD
+		    FormatFlag: formatUsed;
+		    TotalWidth,
+		    FractionWidth,
+		    ExponentWidth: CARDINAL;
+                END; 
+    toStringProc = PROCEDURE( SysTypes.REAL64, formatRec, 
+			      VAR StringLib.string,
+			      VAR TestIO.ErrMsg ): BOOLEAN;
+    pointerToData = POINTER TO dataRec; 
+    dataRec = RECORD 
+		  ToStringProc: toStringProc;
+		  Source, 
+		  Result: StringLib.string;
+		  Num: SysTypes.REAL64; 
+		  Format: formatRec; 
+              END; 
+	      
+VAR     
+    DataMgr: Objects.Manager;
+
+(* ----------------------------------------------------------------------- *)
+PROCEDURE ToFloatingString( Num: SysTypes.REAL64; 
+                            Format: formatRec; 
+		            VAR String: StringLib.string;
+			    VAR Msg: TestIO.ErrMsg )
+			    : BOOLEAN;
+
+    BEGIN
+	WITH String DO WITH Format DO 
+	    IF FormatFlag # floating THEN
+		Msg:= TestSystem.WrongData;
+		RETURN FALSE
+	    ELSE CASE Size OF
+		StringLib.short: RETURN RealConvert.
+			 ToFloatingString( Num, 
+					   TotalWidth, FractionWidth, 
+					   ShortString )
+		    |
+		StringLib.normal: RETURN RealConvert.
+			  ToFloatingString( Num, 
+					    TotalWidth, FractionWidth, 
+					    NormalString )
+		    |
+		StringLib.long: RETURN RealConvert.
+			ToFloatingString( Num, 
+					  TotalWidth, FractionWidth, 
+					  LongString )
+	    END;    (* case Size... *)
+	    END;    (* if FormatFlag... *)
+        END;    (* with Format... *)
+        END;    (* with String... *)
+
+    END ToFloatingString;
+(* ----------------------------------------------------------------------- *)
+PROCEDURE ToEngineeringString( Num: SysTypes.REAL64; 
+                               Format: formatRec; 
+		               VAR String: StringLib.string;
+			       VAR Msg: TestIO.ErrMsg )
+			       : BOOLEAN;
+
+    BEGIN
+	WITH String DO WITH Format DO 
+	IF FormatFlag = floating THEN
+	    Msg:= TestSystem.WrongData;
+	    RETURN FALSE
+	ELSE CASE Size OF
+	    StringLib.short: RETURN RealConvert.
+		     ToEngineeringString( Num, 
+					  TotalWidth, 
+	                                  FractionWidth,
+					  ExponentWidth, 
+					  ShortString )
+                |
+	    StringLib.normal: RETURN RealConvert.
+		     ToEngineeringString( Num, 
+					  TotalWidth, 
+	                                  FractionWidth,
+					  ExponentWidth, 
+					  NormalString )
+                |
+	    StringLib.long: RETURN RealConvert.
+		    ToEngineeringString( Num, 
+					 TotalWidth, 
+	                                 FractionWidth,
+					 ExponentWidth, 
+					 LongString )
+        END;    (* case Size... *)
+        END;    (* if FormatFlag... *)
+        END;    (* with Format... *)
+        END;    (* with String... *)
+
+    END ToEngineeringString;
+(* ----------------------------------------------------------------------- *)
+PROCEDURE ToScientificString( Num: SysTypes.REAL64; 
+                              Format: formatRec;
+		              VAR String: StringLib.string;
+			      VAR Msg: TestIO.ErrMsg )
+			      : BOOLEAN;
+
+    BEGIN
+	WITH String DO WITH Format DO 
+	IF FormatFlag = floating THEN
+	    Msg:= TestSystem.WrongData;
+	    RETURN FALSE
+	ELSE CASE Size OF
+	    StringLib.short: RETURN RealConvert.
+		     ToScientificString( Num, 
+					 TotalWidth, 
+	                                 FractionWidth,
+					 ExponentWidth, 
+					 ShortString )
+                |
+	    StringLib.normal: RETURN RealConvert.
+		     ToScientificString( Num, 
+					 TotalWidth, 
+	                                 FractionWidth,
+					 ExponentWidth, 
+					 NormalString )
+                |
+	    StringLib.long: RETURN RealConvert.
+		    ToScientificString( Num, 
+					TotalWidth, 
+	                                FractionWidth,
+					ExponentWidth, 
+					LongString )
+        END;    (* case Size... *)
+        END;    (* if FormatFlag... *)
+        END;    (* with Format... *)
+        END;    (* with String... *)
+
+    END ToScientificString;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE FromString( String: StringLib.string ;
+		      VAR Num: SysTypes.REAL64 ): BOOLEAN;
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    StringLib.short: RETURN RealConvert.
+	                       FromString64( ShortString, Num )
+            |
+	    StringLib.normal: RETURN RealConvert.
+	                       FromString64( NormalString, Num )
+            |
+	    StringLib.long: RETURN RealConvert.
+	                      FromString64( LongString, Num )
+        END;    (* case Size... *)
+        END;    (* with String... *)
+
+    END FromString;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE Test1( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg )
+	       : BOOLEAN;
+
+    VAR
+	Ptr: pointerToData;
+
+    BEGIN
+	Ptr:= Data;
+	WITH Ptr^ DO
+	    IF NOT FromString( Source, Num ) THEN
+		Msg:= RealConvertSyntax;
+		RETURN FALSE;
+	    END;
+	    IF NOT ToStringProc( Num, Format, Result, Msg ) THEN
+		IF Msg = 0 THEN
+		    Msg:= TooShort
+                END;
+		RETURN FALSE;
+	    END;
+	END;    (* with Ptr^... *)
+	RETURN TRUE;
+
+    END Test1;
+(* ----------------------------------------------------------------------- *)
+PROCEDURE WriteResults( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg )
+	              : BOOLEAN;
+
+    VAR
+	Ptr: pointerToData;
+
+    BEGIN
+	Ptr:= Data;
+	WITH Ptr^ DO
+	    StringLib.WriteResult( "Result: ", Result );
+	END;
+	RETURN TRUE;
+
+    END WriteResults;
+(* ----------------------------------------------------------------------- *)
+CONST
+    RealConvertSyntax = 8;
+    TooShort = 9;
+    ResultWithinTolerance = 10;
+    ResultAdjusted = 11;
+    ResultOutOfTolerance = 12;
+    CompareError = 13;
+(* ----------------------------------------------------------------------- *)
+PROCEDURE CompareResults( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg ) 
+	              : BOOLEAN; 
+
+    VAR
+	Ptr: pointerToData;
+
+    (* ------------------------------------------------------------------- *)
+    PROCEDURE CompareBack( Result, Source: StringLib.string; 
+			   Num: SysTypes.REAL64 ): compareResults;
+
+	VAR
+	    TmpReal: SysTypes.REAL64;
+
+	BEGIN
+	    LOOP(* forward exit *)
+		IF FromString( Result, TmpReal ) THEN
+		    IF ABS( TmpReal - Num ) < epsilon
+		    THEN
+			EXIT;
+		    END;
+		    TmpReal:= FLOAT( TRUNC( TmpReal ) ) - TmpReal;
+		    Num:= FLOAT( TRUNC( Num ) ) - Num;
+		    IF ABS( TmpReal - Num ) < ABS( Num*releps )
+		    THEN
+			EXIT;
+		    END;
+		    RETURN outOfBounds;
+		ELSE
+		    RETURN compareError;
+		END;
+            END;    (* LOOP *)
+	    IF StringLib.Length( Result ) = 
+	      StringLib.Length( Source ) 
+	    THEN
+		RETURN withinBounds 
+	    ELSE
+		RETURN adjusted
+	    END;
+
+	END CompareBack;
+    (* ------------------------------------------------------------------- *)
+    BEGIN 
+	Ptr:= Data;
+        WITH Ptr^ DO 
+	    CASE CompareBack( Result, Source, Num ) OF
+		withinBounds:
+		    Msg:= ResultWithinTolerance; 
+		|
+		adjusted:
+		    Msg:= ResultAdjusted; 
+		|
+		outOfBounds:
+		    Msg:= ResultOutOfTolerance;
+		    RETURN FALSE;
+		|
+		compareError:
+		    Msg:= CompareError;
+		    RETURN FALSE;
+	    END;    (* case CompareBack... *)
+	END;
+	RETURN TRUE;
+
+    END CompareResults;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE GetInfo( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg )
+		 : BOOLEAN;
+
+    VAR
+	Ptr: pointerToData;
+
+    (* ------------------------------------------------------------------- *)
+    PROCEDURE GetFormat( VAR Format: formatUsed; Name: ARRAY OF CHAR; 
+		 	 VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+	VAR
+	    FormatStr: ARRAY[ 0..20 ] OF CHAR;
+
+	BEGIN
+	    LOOP
+		IF NOT TestIO.GetString( FormatStr, Name, Msg ) THEN 
+		    RETURN FALSE;
+		END;
+		IF CAP( FormatStr[ 0 ] ) = "F" THEN
+		    Format:= floating;
+		    EXIT;
+		ELSIF CAP( FormatStr[ 0 ] ) = "E" THEN
+		    Format:= engineer;
+		    EXIT;
+		ELSIF CAP( FormatStr[ 0 ] ) = "S" THEN
+		    Format:= scientific;
+		    EXIT;
+		ELSE
+		    IF GenTestIO.IsInteractive( GenTestIO.GetInput() ) 
+		    THEN
+			TestIO.Write( GenTestIO.GetOutput(),
+			  "  floating, engineering or scientific !!!" );
+                        TestIO.WriteLn( GenTestIO.GetOutput() );
+		    ELSE
+			Msg:= TestSystem.WrongData; 
+			RETURN FALSE;
+                    END;
+		END;
+            END;
+	    RETURN TRUE;
+
+	END GetFormat;
+    (* ------------------------------------------------------------------- *)
+(* ----------------------------------------------------------------------- *)
+BEGIN
+    Ptr:= Data;
+    WITH Ptr^ DO WITH Format DO 
+        IF NOT StringLib.GetString( Source, 
+				    "Source ( any real or long real )", " ", 
+				    StringLib.longDefault, Msg )
+        THEN
+	    RETURN FALSE;
+        END;
+	IF NOT GetFormat( FormatFlag, 
+	  "Format of result ( floating, engineer, scientific )", Msg ) 
+        THEN
+	    RETURN FALSE
+        END;
+	IF NOT StringLib.GetSize( Result.Size,
+	  "Size of result ( short, normal, long )", Msg )
+        THEN
+	    RETURN FALSE
+        END;
+        IF NOT TestIO.GetCard( TotalWidth,  
+          "Total width of result ( cardinal )", Msg )
+        THEN
+	    RETURN FALSE
+        END;
+        IF NOT TestIO.GetCard( FractionWidth,  
+          "Fraction width of result ( cardinal )", Msg )
+        THEN
+	    RETURN FALSE
+        END;
+	IF FormatFlag # floating THEN
+	    IF NOT TestIO.GetCard( ExponentWidth,  
+	      "Exponent width of result ( cardinal )", Msg )
+	    THEN
+		RETURN FALSE
+	    END;
+	END;
+	CASE FormatFlag OF
+	    floating: ToStringProc:= ToFloatingString
+	    |
+	    engineer: ToStringProc:= ToEngineeringString
+	    |
+	    scientific: ToStringProc:= ToScientificString
+	END;    (* case FormatFlag... *)
+	
+    END; (* with Format... *)
+    END; (* with Ptr^... *)
+    TestIO.WriteLn( GenTestIO.GetErrOutput() );
+    RETURN TRUE;
+
+END GetInfo;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE InitMsgTab;
+
+    BEGIN
+	TestIO.AssignMessage( RealConvertSyntax, 
+	  "RealConvert syntax error" );
+	TestIO.AssignMessage( TooShort, 
+		  "String too short or width too long" );
+	TestIO.AssignMessage( ResultWithinTolerance, 
+	  "result within tolerance" );
+	TestIO.AssignMessage( ResultAdjusted, "Result adjusted" );
+	TestIO.AssignMessage( ResultOutOfTolerance, 
+	  "result out of tolerance" );
+	TestIO.AssignMessage( CompareError, 
+	                      "Compare error" );
+
+    END InitMsgTab;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE AddComm( Command: ARRAY OF CHAR; 
+		   CmdProc: TestSystem.standardProc );
+
+    VAR
+	KnownData: pointerToData;
+
+    BEGIN
+        Objects.Allocate( DataMgr, KnownData );	
+	TestSystem.AddCommand( Command, CmdProc, KnownData );
+
+    END AddComm;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE Init;
+
+    BEGIN
+	InitMsgTab;
+        Objects.CreateManager( DataMgr, SYSTEM.TSIZE( dataRec ), 
+	                       "TwilightZone" );
+	AddComm( "Quit", TestSystem.Quit ); 
+	AddComm( "ciao", TestSystem.Quit ); 
+	AddComm( "test1", Test1 ); 
+	AddComm( "go", Test1 ); 
+	AddComm( "#test1", Test1 ); 
+
+    END Init;
+(* ----------------------------------------------------------------------- *) 
+BEGIN
+    Init;
+    TestSystem.RunTest( GetInfo, WriteResults, CompareResults,
+			 "RealConvert" );
+
+END TestRealConv.

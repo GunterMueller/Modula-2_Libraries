@@ -1,0 +1,1373 @@
+#!/bin/sh
+# This is a shell archive, meaning:
+#    1. Remove everything above the "#!/bin/sh" line.
+#    2. Save the resulting test in a file.
+#    3. Execute the file with /bin/sh (not csh) to create the files:
+# 	makefile
+# 	sunm2.txt
+# 	M1.def
+# 	M2.def
+# 	M3.def
+# 	SelfImport.def
+# 	TestIO.def
+# 	UnixCsystem.def
+# 	CardTest.mod
+# 	CaseCARDINAL16.mod
+# 	CharTest.mod
+# 	EnumSetCrash.mod
+# 	EnumToInteger.mod
+# 	ExpressionCoerce.mod
+# 	FLOATBigCard.mod
+# 	ForAndGenerics.mod
+# 	ForLoopVars.mod
+# 	ForwardPtrDecl.mod
+# 	HIGHNotEqual.mod
+# 	HIGHString.mod
+# 	Hang1.mod
+# 	ImportSelfImport.mod
+# 	IntTest.mod
+# 	LongProcedureName.mod
+# 	M1.mod
+# 	M2.mod
+# 	M3.mod
+# 	M4.mod
+# 	MC68881Test.mod
+# 	MinIntGames.mod
+# 	NotEqualSign.mod
+# 	NumberIOReadTest.mod
+# 	OnExitTest.mod
+# 	RealConstDivide.mod
+# 	RealConstPrecision.mod
+# 	RealExceptions.mod
+# 	ReturnFloat.mod
+# 	SelfImport.mod
+# 	SetCoerce.mod
+# 	StorageDEALLOCATE.mod
+# 	StringParameters.mod
+# 	SubrangeConversion.mod
+# 	SubrangeIndexTest.mod
+# 	TestIO.mod
+# 	ImportSelfImport.dbx
+# 	NumberIOReadTest.dat
+# Creation date: Fri Sep 9 18:41:59 EET 1988
+echo '	'makefile
+sed 's/^X//' >makefile << 'END-of-makefile'
+X#**************************************************************************
+X#* Copyright 1987, 1988 by Olsen & Associates, Zurich, Switzerland.       *
+X#*                                                                        *
+X#*                          All Rights Reserved                           *
+X#*                                                                        *
+X#* Permission to use, copy, modify, and distribute this software and its  *
+X#* documentation for any purpose and without fee is hereby granted,       *
+X#* provided that the above copyright notice appear in all copies, and     *
+X#* that both that copyright notice and this permission notice appear in   *
+X#* supporting documentation, and that all modifications of this software  *
+X#* or its documentation not made by O&A or its agents are accompanied     *
+X#* by a prominent notice stating who made the modifications and the date  *
+X#* of the modifications.                                                  *
+X#*                                                                        *
+X#* O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS      *
+X#* DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND *
+X#* FITNESS, IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR  *
+X#* CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF   *
+X#* USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR  *
+X#* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR *
+X#* PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.                     *
+X#**************************************************************************
+X#
+X# Pseudo test suite for Modula-2
+X# You should run this makefile with the "-k" flag so that
+X# failed conformance tests and passed deviance tests don't
+X# stop the makefile from continuing.
+X#
+X# The following lines need to be set to the local site, if your
+X# machine doesn't have a 68881.
+X# MC68881_HOST=on olsen
+X
+X
+X# There are deviance tests here which are supposed to fail.
+X.IGNORE:
+X.SUFFIXES: .out .dat .dbx .dbx~ .mod .def
+X.SILENT:
+X# Everything should be off.
+XM2FLAGS=
+X
+X.mod.out:
+X	echo $*:
+X	rm -f $@ $*
+X	m2c $< -e $* -o $* 2>&1 | tee $@ | sed 's/^/	/'
+X	if [ -x $* ]; then						\
+X	    if [ -r $*.dat ]; then					\
+X		$* < $*.dat 2>&1 | tee -a $@ | sed 's/^/	/'	;\
+X	    else							\
+X		$* 2>&1 | tee -a $@ | sed 's/^/	/'			;\
+X	    fi								;\
+X	fi
+X
+XDEFS=UnixCsystem.def TestIO.def M1.def M2.def M3.def
+XIMPS=TestIO.mod M1.mod M2.mod M3.mod
+XLIBRARY=${DEFS:.def=.sym} ${IMPS:.mod=.o}
+X
+XFIXED_2_0_Beta= CaseCARDINAL16.mod EnumToInteger.mod ForwardPtrDecl.mod \
+X       Hang1.mod LongProcedureName.mod MC68881Test.mod NumberIOReadTest.mod \
+X       RealConstDivide.mod RealConstPrecision.mod ReturnFloat.mod \
+X       SubrangeIndexTest.mod
+X
+XFIXED_2_0=MinIntGames.mod SetCoerce.mod FLOATBigCard.mod \
+X       StringParameters.mod ForAndGenerics.mod StorageDEALLOCATE.mod 
+X
+XBROKEN= CardTest.mod CharTest.mod HIGHString.mod IntTest.mod \
+X       OnExitTest.mod NotEqualSign.mod RealExceptions.mod \
+X       HIGHNotEqual.mod ForLoopVars.mod ExpressionCoerce.mod \
+X       ImportSelfImport.mod SubrangeConversion.mod EnumSetCrash.mod \
+X       M4.mod
+X
+X
+XOUT=${BROKEN:.mod=.out} ${FIXED_2_0:.mod=.out} ${FIXED_2_0_Beta:.mod=.out}
+XOBJS=${BROKEN:.mod=.o} ${FIXED_2_0:.mod=.o} ${FIXED_2_0_Beta:.mod=.o} \
+X     ${BROKEN:.mod=} ${FIXED_2_0:.mod=} ${FIXED_2_0_Beta:.mod=}
+X
+Xall: ${OUT}
+X
+Xclean: 
+X	rm -f ${OUT} ${LIBRARY} ${OBJS} core
+X
+X${OUT}: ${LIBRARY}
+X
+X#
+X# This program needs a floating point processor
+X#
+XMC68881Test.out: MC68881Test.mod
+X	rm -f $@ $*
+X	echo $*:
+X	m2c -f68881 $*.mod -e $* -o $* 2>&1 | tee $@ | sed 's/^/	/'
+X	if [ -x $* ]; then						\
+X	    ${MC68881_HOST} $* 2>&1 | tee -a $@ | sed 's/^/	/'	;\
+X	fi
+X
+X#
+X# This program only fails with "-g"
+X#
+XLongProcedureName.out: LongProcedureName.mod
+X	rm -f $@ $*
+X	echo $*:
+X	m2c -g $*.mod -e $* -o $* 2>&1 | tee $@ | sed 's/^/	/'
+X	if [ -x $* ]; then						\
+X	    $* 2>&1 | tee -a $@ | sed 's/^/	/'			;\
+X	fi
+X
+XImportSelfImport.out: ImportSelfImport.dbx SelfImport.def SelfImport.mod \
+X    ImportSelfImport.mod
+X	rm -f $@ $* SelfImport.o SelfImport.sym
+X	echo $*:
+X	m2c -g SelfImport.def 2>&1 | tee $@ | sed 's/^/	/'
+X	m2c -g SelfImport.mod 2>&1 | tee $@ | sed 's/^/	/'
+X	m2c -g $*.mod -e $* -o $* 2>&1 | tee $@ | sed 's/^/	/'
+X	if [ -x $* ]; then						\
+X	    rm -f core							;\
+X	    dbx $* < $*.dbx 2>&1 | tee -a $@ | sed 's/^/	/'	;\
+X	fi
+END-of-makefile
+echo '	'sunm2.txt
+sed 's/^X//' >sunm2.txt << 'END-of-sunm2.txt'
+XBugs found By Olsen & Associates in Sun's Modula-2.  
+X    o - is the bug definition.
+X    + - is when the bug was fixed (if at all)
+X
+X86-9-16 - Beta 2 Release
+X    o NumberIO.ReadCard and NumberIO.ReadInt (and maybe NumberIO.ReadNum)
+X      do not return FALSE in success ever.
+X      File: NumberIOReadTest.mod
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o String.Position has an infinite loop problem (gets into them every
+X      now and then).
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o ConvertReal.RealToString (and WriteReal, WriteLongReal) get into
+X      an infinite loop when passed a "width" of 0.
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o General problems with 16 and 8 bit quantities.
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o Constant reals don't work all that well in comparisons (or expressions).
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o -2147483648 can't be entered in a program (won't be fixed in 1.0 FCS).
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o ABS doesn't work on REALs.
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X86-9-28
+X    o Terminal.EraseToEOL doesn't seem to behave properly.  I think it
+X      gets into an infinite loop. 
+X    + 14.11.86 [RJN] I am not sure why this is here....
+X    o String.Substring has an off by one error.  It returns one less than
+X      the amount you asked for...
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X    o SimpleIO.WriteChar crashes if you give it a character greater than
+X      177C (I think this is the problem).
+X    + 14.11.86 [RJN] Another non-problem, how do these get in here....
+X    o identifier not exported from qualifying module (SIZE)
+X      The module was SYSTEM, whoops.  
+X    + 14.11.86 [RJN] It is a pervasive identifier, no longer needed from SYSTEM.
+X    o Only allows 128 modules per program.
+X    + 14.11.86 [RJN] Will be fixed if we need it (or maybe in 1.0 FCS).
+X86-11-6
+X    o MathLib implements everything in terms of REAL instead of LONGREAL
+X      which means that it is worthless for any big computations.  The C
+X      library implements everything in doubles so that you can shrink it
+X      if you want, but you still have the precision.
+X    + 14.11.86 [RJN] Use LongMathLib.
+X86-11-11
+X    o String.Delete does delete from end, but only from middle.
+X    + 14.11.86 [RJN] To be fixed in 1.0 FCS.
+X86-11-13
+X    o It seems that the run time system is funny, not sure what it is. 
+X      15.9.87 
+X      Found the problems.  It seems that if you run a program that imports 
+X      Terminal w/o a controlling terminal (i.e. /dev/tty is invalid), the 
+X      program will hang sometimes.  We don't understand why it is intermittent, 
+X      but it is.  The fix was to not import Terminal (which wasn't needed).
+X      This is informational, i.e. not a bug report since we can't reproduce
+X      it easily and don't really care. 
+X86-11-17
+X    o SimpleIO doesn't flush its output buffers when the program crashes,
+X      because of a Modula error (which it clearly could do).  This only
+X      matters when the output is to a file or when a WriteLn hasn't been
+X      done.
+X86-11-21
+X    o Can't compare two procedure variables as follows:
+X	    VAR procX, procY : PROC;
+X	    IF procX # procY THEN
+X    - Sun has decided that this was not defined by the language.
+X86-11-22
+X    o HIGH( '01' ) yields 2 not 1 as defined by the language.
+X      File: HIGHString.mod
+X87-1-15
+X    o Floating point processor is inaccurate.  50.0 - 0.5 is
+X      not in the range of 49.4 and 49.6.  With the emulation software
+X      it is!
+X      File: MC68881Test.mod
+X    + 8.2.87 [RJN] Fixed in 1.0 FCS.
+X    o RETURN FLOAT( 123 ); does yield the correct value in the
+X      calling procedure.
+X      File: ReturnFloat.mod
+X    + 8.2.87 [RJN] Fixed in 1.0 FCS.
+X87-1-29
+X    o Byte size subrange (on stack) can't be used to index a Conformant 
+X      Array, because the byte size is stuffed into a 4 byte register
+X      and compared with the 4 byte high.
+X      File: SubrangeIndexTest.mod
+X    + 8.2.87 [RJN] Fixed in 1.0 FCS.
+X    o on_exit doesn't work when HALT is called or range errors occur.
+X      Also it seems impossible to substitute your own "m2_kill" in
+X      for the one in the "m2_rts.o" supplied with the release.
+X      File: OnExitTest.mod
+X    + Fixed 2.0 Beta (you can register your own trap routines).
+X87-2-8
+X    + 1.0 FCS Modula-2 was installed.
+X87-2-24
+X    o Incorrect error message when there is a missing variable declaration
+X      to a pointer and there is a forward reference to another pointer
+X      still open.
+X      File: ForwardPtrDecl.mod
+X    + Fixed in 2.0 Beta
+X87-2-27
+X    o The length of a procedure name and module name pair may be no longer
+X      than 50 characters when compiling with "-g".
+X      File: LongProcedureName.mod
+X    + Fixed in 2.0 FCS
+X87-3-6
+X    o Cannot have a '#' at the beginning of a line in a Modula-2 file.
+X      File: NotEqualSign.mod
+X    o With the "-M" flag, the compiler treats directories with spaces in them
+X      as separate directories.  Example: 
+X	    m2c -M"Some Directory" Fred.mod
+X      is identical to:
+X	    m2c -MSome -MDirectory Fred.mod
+X87-3-15
+X    o Not really important, but it seems some the error strings written
+X      by the m2_rts have tabs in them.  It only looks funny on the output.
+X      File: /usr/lib/modula2/m2_rts.o
+X    + Fixed 2.0 Beta.
+X    o None of the IEEE real exceptions seem to be being caught.  The
+X      test includes overflow, underflow, and divide by zero.  It fails
+X      both with the software emulation and the 68881.
+X      File: RealExceptions.mod
+X87-3-16
+X    o The following expression doesn't work when "i" is an INTEGER.
+X	      i := ORD( FALSE );
+X      It doesn't work for normal enumeration types either.
+X      File: EnumToInteger.mod
+X    + Fixed in 2.0 Beta.
+X87-4-9
+X    o The compiler will go into an infinite loop if you have the following
+X      construction:  
+X	      SomeProcedure[
+X      File: Hang1.mod
+X    + Fixed in 2.0 Beta
+X87-4-14
+X    o Can't coerce a CARDINAL constant (e.g. 0FFH) into a BITSET16 (0..15).
+X      However, a coercion of a CARDINAL16 (0..0FFFFH) variable works fine.
+X      File: SetCoerce.mod
+X    + Fixed in 2.0 FCS
+X87-4-15
+X    o Case statement on a 16 bit subrange goes wacko.  It allocates a huge
+X      jump table (we're talkin' mongo) and it doesn't always work right.
+X      The test should run, but instead it segmentation faults.
+X      File: CaseCARDINAL16.mod
+X    + Fixed in 2.0 Beta.
+X87-5-1
+X    o If you convert a very large cardinal (greater than MAX( INTEGER ))
+X      into a REAL, the value returned is negative.
+X      File: FLOATBigCard.mod
+X    + Fixed in 2.0 FCS
+X    o If you pass an array of char (or whatever) to an open array parameter,
+X      it always returns the correct high value.  However, if the open array
+X      parameter is an ARRAY OF SYSTEM.BYTE, the HIGH value is always odd,
+X      that is, it passes the size allocate minus one instead of the actually
+X      addressable object.  Clearly, this is in an implementation defined
+X      domain, but if you trying to use generics, you get blown away by this
+X      feature.  Would it be too hard for the byte sized arrays to get their
+X      real HIGH passed instead of their size - 1? 
+X      File: HIGHNotEqual.mod
+X87-5-4
+X    o card := ABS( MIN( INTEGER ) + 1 ) doesn't seem to work and neither 
+X      does anything else that you add before taking the absolute value.
+X      If you want the value ABS( MIN( INTEGER ) ), you have to do the 
+X      following:
+X	    VAR 
+X		absMinInteger : CARDINAL;
+X		tmp           : INTEGER;
+X	    tmp := MAX( INTEGER ); (* or SysTypes.MININTEGER ) *)
+X	    absMinInteger := -( tmp + 1 );
+X	    INC( absMinInteger );
+X      File: MinIntGames.mod
+X    + Fixed in 2.0 FCS
+X87-6-5
+X    o Can't divide real constants without getting an error.
+X      File: RealConstDivide.mod
+X    + Fixed in 2.0 Beta.
+X    o Can't create a constant of type LONGREAL from two other constants.
+X      Seems to always yield a REAL result. Specifically, 1.0/3.0 doesn't
+X      have enough precision digits.
+X      File: RealConstPrecision.mod
+X    + Fixed in 2.0 Beta
+X87-6-6
+X    o FOR loops aren't allowed to have formal parameters or imported 
+X      identifiers as control variables.
+X      File: ForLoopVars.mod
+X87-7-30
+X    o -pipe option doesn't seem to do the right thing, that is, you
+X      still go to disk inbetween passes.  For example,
+X	% m2c -temp=/ -pipe x.mod
+X	m2c: Can not open //m2cfe.7941.0.none for output
+X    o If you import a module that is also an identifier within the
+X      scope of the importation, then the compiler gets in a very strange
+X      state.  One time this happened, we used up 30 megabytes of /tmp.
+X      Can't reproduce this easily.
+X    - Don't know if still a bug, wait till it happens again.
+X    o -temp=dir option doesn't seem to work either, that is, files are
+X      still created in /tmp.
+X    + Fixed in 2.0 Beta
+X87-9-1
+X    o The default search path is "-M. -M/usr/lib/modula2".  If you add new
+X      directories, it becomes "-Mnew1 -Mnew2 -M. -M/usr/lib/modula2".
+X      The result is that the new directories are searched before the
+X      current directory which "we at Olsen" believe is a mistake.  The
+X      upshot is that we always have to put "-M." in our search path,
+X      thus it is searched twice.  We believe that the correct path should
+X      be "-M. -Mnew1 -Mnew2 -M/usr/lib/modula2".  C provides an alternative
+X      to this problem with its quotes and angle brackets.
+X87-9-24 - 2.0 Beta received
+X87-9-25
+X    o You can't declare a procedure as follows:
+X	    String = ARRAY [ 0 .. 256 ] OF CHAR;
+X	    PROCEDURE P( s : String );
+X      The compiler crashes when it tries to compile calls to the procedure.
+X      File: StringParameters.mod
+X    + Fixed in 2.0 FCS
+X87-9-29
+X    o If a module imports itself (explicitly) and the "-g" option is
+X      used, the compiler generates a symbols which "dbx" doesn't
+X      understand and causes error "modus # not defined yet".
+X      File: SelfImportSelf.mod
+X    o If you get a bad compile on a definition module, the compiler 
+X      leaves an illegal ".sym" file.   This can be annoying.
+X    o Complex expressions aren't handled when you compile with "-f68881".
+X      The compiler spits out an error message: "register allocation error".
+X    o The two versions of the compiler are *completely* incompatible.
+X      It would be great if there was a strong warning to this effect,
+X      otherwise people may have a hard time debugging double initialization
+X      errors (for example).
+X87-10-2
+X    o FOR loop optimization doesn't catch the case of passing the value
+X      as an ARRAY OF SYSTEM.BYTE.  It pushes the address of the stack location
+X      and doesn't put a copy of the register into the stack location.  The
+X      case may seem obscure, but we use ARRAY OF SYSTEM.BYTE a great deal
+X      here in our FormatIO system.  The workaround is to take the address
+X      of the variable in the procedure and the compiler doesn't optimize.
+X      File: ForAndGenerics.mod
+X    + Fixed in 2.0 FCS
+X87-11-3
+X    o Subrange conversions don't work right from CARDINAL to INTEGER.
+X      The compiler does the conversion in the size of the subrange
+X      type instead of the size of the integer type.
+X      File: SubrangeConversion.mod
+X    + Fixed in 2.0 FCS
+X    o Storage.DEALLOCATE doesn't set the pointer to NIL.
+X      File: StorageDEALLOCATE.mod
+X    + Fixed in 2.0 FCS
+X87-11-9
+X    o The following message is off by one:
+X	"ISGraph.mod", line 666:  value out of expected range
+X      It is a constant which is out of range being assigned.  The error
+X      occurred on line 665.  It could also tell you which value was
+X      out of range where.
+X88-4-11
+X    o If you reference an undeclared set type in an CONST section, the
+X      compiler will crash.
+X      File: EnumSetCrash.mod
+END-of-sunm2.txt
+echo '	'M1.def
+sed 's/^X//' >M1.def << 'END-of-M1.def'
+XDEFINITION MODULE M1;
+XEND M1.
+END-of-M1.def
+echo '	'M2.def
+sed 's/^X//' >M2.def << 'END-of-M2.def'
+XDEFINITION MODULE M2;
+XEND M2.
+END-of-M2.def
+echo '	'M3.def
+sed 's/^X//' >M3.def << 'END-of-M3.def'
+XDEFINITION MODULE M3;
+XEND M3.
+END-of-M3.def
+echo '	'SelfImport.def
+sed 's/^X//' >SelfImport.def << 'END-of-SelfImport.def'
+XDEFINITION MODULE SelfImport;
+XEND SelfImport.
+END-of-SelfImport.def
+echo '	'TestIO.def
+sed 's/^X//' >TestIO.def << 'END-of-TestIO.def'
+XDEFINITION MODULE TestIO;
+X(*
+X * Cause the output files to be flushed every call.
+X *)
+XPROCEDURE WriteChar  (    ch	  : CHAR);
+XPROCEDURE WriteLn    ();
+XPROCEDURE WriteString(    str	  : ARRAY OF CHAR);
+XPROCEDURE WriteInt   (    int	  : INTEGER;
+X			  width   : CARDINAL);
+XPROCEDURE WriteCard  (   card	  : CARDINAL;
+X			  width   : CARDINAL);
+XPROCEDURE WriteNum   (    num	  : CARDINAL;
+X			  base	  : CARDINAL; (* [2..36] *)
+X			  width	  : CARDINAL);
+XEND TestIO.
+END-of-TestIO.def
+echo '	'UnixCsystem.def
+sed 's/^X//' >UnixCsystem.def << 'END-of-UnixCsystem.def'
+XDEFINITION FOR C MODULE UnixCsystem;
+X
+XPROCEDURE on_exit( proc : PROC );
+X
+XPROCEDURE exit( returnCode : CARDINAL );
+X
+XEND UnixCsystem.
+END-of-UnixCsystem.def
+echo '	'CardTest.mod
+sed 's/^X//' >CardTest.mod << 'END-of-CardTest.mod'
+XMODULE CardTest;
+XIMPORT
+X    TestIO;
+XCONST
+X    MinCard = 0;
+X    MaxCard = 0FFFFFFFFH;
+XVAR
+X    c : CARDINAL;
+XBEGIN (* CardTest *)
+X
+X    TestIO.WriteString( "DEC( MinCard ) --> " );
+X    c := MinCard;
+X    DEC( c );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "INC( MaxCard ) --> " );
+X    c := MaxCard;
+X    INC( c );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MinCard - 1 --> " );
+X    c := MinCard;
+X    c := c - 1;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MaxCard + 1 --> " );
+X    c := MaxCard;
+X    c := c + 1;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MaxCard * MaxCard --> " );
+X    c := MaxCard;
+X    c := c * c;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+XEND CardTest.
+END-of-CardTest.mod
+echo '	'CaseCARDINAL16.mod
+sed 's/^X//' >CaseCARDINAL16.mod << 'END-of-CaseCARDINAL16.mod'
+XMODULE CaseCARDINAL16;
+XIMPORT
+X    TestIO;
+X
+XTYPE
+X    UnixModeSet = SET OF [ 0 .. 15 ];
+X    CARDINAL16  = [ 0 .. 0FFFFH ]; 
+X
+XCONST
+X    (* for st_mode *)
+X    S_IFMT      = 0170000B; (* type of file *)
+X    S_IFDIR     = 0040000B; (* directory *)
+X    S_IFCHR     = 0020000B; (* character special *)
+X    S_IFBLK     = 0060000B; (* block special *)
+X    S_IFREG     = 0100000B; (* regular *)
+X    S_IFLNK     = 0120000B; (* symbolic link *)
+X    S_IFSOCK    = 0140000B; (* socket *)
+X    S_IFIFO     = 0010000B; (* fifo *)
+X
+XTYPE
+X    EntryTypes = ( directory,           (* S_IFDIR  *)
+X                   characterSpecial,    (* S_IFCHR  *)
+X                   blockSpecial,        (* S_IFBLK  *)
+X                   regular,             (* S_IFREG  *)
+X                   symbolicLink,        (* S_IFLNK  *)
+X                   socket,              (* S_IFSOCK *)
+X                   fifo );              (* S_IFIFO  *)
+X
+XVAR
+X    vS_IFMT : CARDINAL16;	(* This is because of another bug *)
+XPROCEDURE p() : BOOLEAN;
+X    VAR
+X	tmp     : UnixModeSet;
+X	st_mode : CARDINAL16;
+X	type    : EntryTypes;
+X    BEGIN (* p *)
+X	st_mode := S_IFREG + 644B;
+X	tmp := UnixModeSet( st_mode ) * UnixModeSet( vS_IFMT );
+X	CASE CARDINAL16( tmp ) OF
+X	    S_IFDIR:
+X		type := directory;
+X	    |
+X	    S_IFCHR:
+X		type := characterSpecial;
+X	    |
+X	    S_IFBLK:
+X		type := blockSpecial;
+X	    |
+X	    S_IFREG:
+X		type := regular;
+X	    |
+X	    S_IFLNK:
+X		type := symbolicLink;
+X	    |
+X	    S_IFSOCK:
+X		type := socket;
+X	    |
+X	    S_IFIFO:
+X		type := fifo;
+X	    
+X	    ELSE
+X		RETURN FALSE;		(* Bus Error Here *)
+X	END; (* CASE *)
+X	RETURN type = regular;
+X    END p;
+X
+XBEGIN (* CaseCARDINAL16 *)
+X    vS_IFMT := S_IFMT;
+X    IF p() THEN
+X	TestIO.WriteString( "PASSED" );
+X    ELSE
+X	TestIO.WriteString( "FAILED" );
+X    END;
+X    TestIO.WriteLn;
+XEND CaseCARDINAL16.
+END-of-CaseCARDINAL16.mod
+echo '	'CharTest.mod
+sed 's/^X//' >CharTest.mod << 'END-of-CharTest.mod'
+XMODULE CharTest;
+XIMPORT
+X    TestIO;
+XCONST
+X    MinChar = 0C;
+X    MaxChar = 377C;
+XVAR
+X    ch : CHAR;
+XBEGIN (* CharTest *)
+X
+X    TestIO.WriteString( "DEC( MinChar ) --> " );
+X    ch := MinChar;
+X    DEC( ch );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "INC( MaxChar ) --> " );
+X    ch := MaxChar;
+X    INC( ch );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+XEND CharTest.
+END-of-CharTest.mod
+echo '	'EnumSetCrash.mod
+sed 's/^X//' >EnumSetCrash.mod << 'END-of-EnumSetCrash.mod'
+XMODULE EnumSetCrash;
+XTYPE
+X    Enum = ( one );
+X    EnumSet = SET OF Enum;
+XCONST
+X    someSet = NotEnumSet { one };	(* NotEnumSet is the problem *)
+XEND EnumSetCrash.
+END-of-EnumSetCrash.mod
+echo '	'EnumToInteger.mod
+sed 's/^X//' >EnumToInteger.mod << 'END-of-EnumToInteger.mod'
+XMODULE EnumToInteger;
+XIMPORT
+X    TestIO;
+XVAR
+X    i : INTEGER;
+XBEGIN (* EnumToInteger *)
+X
+X    i := ORD( FALSE );
+X
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND EnumToInteger.
+END-of-EnumToInteger.mod
+echo '	'ExpressionCoerce.mod
+sed 's/^X//' >ExpressionCoerce.mod << 'END-of-ExpressionCoerce.mod'
+XMODULE ExpressionCoerce;
+XIMPORT
+X    SYSTEM,		TestIO;
+X
+XPROCEDURE Generic( param : ARRAY OF SYSTEM.BYTE );
+XEND Generic;
+X
+XVAR
+X    i : CARDINAL;
+XBEGIN
+X    i := 0;
+X    Generic( i + 2 );
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+XEND ExpressionCoerce.
+END-of-ExpressionCoerce.mod
+echo '	'FLOATBigCard.mod
+sed 's/^X//' >FLOATBigCard.mod << 'END-of-FLOATBigCard.mod'
+XMODULE FLOATBigCard;
+XIMPORT
+X    TestIO;
+X
+XVAR
+X    card : CARDINAL;
+XBEGIN (* FLOATBigCard *)
+X
+X    card := MAX( INTEGER );
+X    INC( card );
+X    IF FLOAT( card ) > 0.0 THEN
+X	TestIO.WriteString( "PASSED" );
+X    ELSE
+X	TestIO.WriteString( "FAILED" );
+X    END;
+X    TestIO.WriteLn;
+X
+XEND FLOATBigCard.
+END-of-FLOATBigCard.mod
+echo '	'ForAndGenerics.mod
+sed 's/^X//' >ForAndGenerics.mod << 'END-of-ForAndGenerics.mod'
+XMODULE ForAndGenerics;
+X(*
+X * The following conditions must be met:
+X * 	- The variable is a not a global (probably not record either).
+X *	- Must be used inside for loop (assigned or referenced)
+X *	- CARDINAL or INTEGER (haven't really tested).
+X *	- Not used as a VAR parameter or SYSTEM.ADR.
+X *	- Passed to a procedure which takes a generic ARRAY OF SYSTEM.BYTE.
+X *)
+XIMPORT
+X    SYSTEM,	TestIO;
+X
+X
+XPROCEDURE BadCode;
+X    VAR
+X	i : CARDINAL;
+X    BEGIN (* BadCode *)
+X
+X	FOR i := 0 TO 100 DO
+X	    realValue := i;
+X	    Generic( i );	(* Passes address of stack space, but
+X				   value is in the register *)
+X	END;
+X
+X    END BadCode;
+X
+XVAR
+X    realValue : CARDINAL;
+X
+XPROCEDURE Generic( card : ARRAY OF SYSTEM.BYTE );
+X    VAR
+X	cardPtr : POINTER TO CARDINAL;
+X    BEGIN (* Generic *)
+X
+X	cardPtr := SYSTEM.ADR( card );
+X	IF cardPtr^ # realValue THEN
+X	    TestIO.WriteString( "FAILED" );
+X	    TestIO.WriteLn;
+X	    HALT;
+X	END;
+X
+X    END Generic;
+X	
+XBEGIN (* ForAndGenerics *)
+X
+X    BadCode;
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND ForAndGenerics.
+END-of-ForAndGenerics.mod
+echo '	'ForLoopVars.mod
+sed 's/^X//' >ForLoopVars.mod << 'END-of-ForLoopVars.mod'
+XMODULE ForLoopVars;
+XIMPORT
+X    TestIO;
+X
+XPROCEDURE Fred( i : CARDINAL );
+X
+X    BEGIN (* Fred *)
+X
+X	FOR i := 0 TO 0 DO
+X	END;
+X
+X    END Fred;
+XVAR
+X    rec : RECORD
+X	i   : CARDINAL;
+X    END;
+X
+XMODULE Freddy;
+X    EXPORT
+X	i;
+X    VAR
+X	i : CARDINAL;
+X    END Freddy;
+X
+XBEGIN (* ForLoopVars *)
+X
+X    (*  This one fails...
+X	WITH rec DO
+X	    FOR i := 0 TO 0 DO
+X	    END;
+X	END;
+X    *)
+X
+X    FOR i := 0 TO 0 DO
+X    END;
+X
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+XEND ForLoopVars.
+END-of-ForLoopVars.mod
+echo '	'ForwardPtrDecl.mod
+sed 's/^X//' >ForwardPtrDecl.mod << 'END-of-ForwardPtrDecl.mod'
+XMODULE ForwardPtrDecl;
+X
+XTYPE
+X    ThisOneIsOK      = POINTER TO FAILED;
+X
+X    ThisOneIsMissing = POINTER TO PASSED;
+X
+X    FAILED           = CARDINAL;
+X
+XEND ForwardPtrDecl.
+END-of-ForwardPtrDecl.mod
+echo '	'HIGHNotEqual.mod
+sed 's/^X//' >HIGHNotEqual.mod << 'END-of-HIGHNotEqual.mod'
+XMODULE HIGHNotEqual;
+X(*
+X * This doesn't fail if the objects are of an even number of bytes in length.
+X *)
+XIMPORT
+X    SYSTEM,	TestIO;
+X
+XPROCEDURE Compare( bytes  : ARRAY OF SYSTEM.BYTE;
+X		   string : ARRAY OF CHAR )
+X			  : BOOLEAN;
+X    BEGIN (* Compare *)
+X	RETURN HIGH( bytes ) = HIGH( string );
+X    END Compare;
+X
+XVAR
+X    s2 : ARRAY [ 0 .. 1 ] OF CHAR; 	(* Works *)
+X    s3 : ARRAY [ 0 .. 2 ] OF CHAR;	(* Fails *)
+X
+XBEGIN (* HIGHNotEqual *)
+X    
+X    IF Compare( s3, s3 ) AND Compare( s2, s2 ) THEN
+X	TestIO.WriteString( "PASSED" );
+X    ELSE
+X	TestIO.WriteString( "FAILED" );
+X    END;
+X    TestIO.WriteLn;
+X
+XEND HIGHNotEqual.
+END-of-HIGHNotEqual.mod
+echo '	'HIGHString.mod
+sed 's/^X//' >HIGHString.mod << 'END-of-HIGHString.mod'
+XMODULE HIGHString;
+XIMPORT
+X    TestIO;
+X
+XPROCEDURE S( s : ARRAY OF CHAR;
+X	     n : CARDINAL );
+X    BEGIN
+X	TestIO.WriteString( "HIGH( '" );
+X	TestIO.WriteString( s );
+X	TestIO.WriteString( "' ) should be " );
+X	TestIO.WriteCard( n, 0 );
+X	TestIO.WriteString( " --> " );
+X	IF HIGH( s ) # n THEN
+X	    TestIO.WriteString( "FAILED (is " );
+X	    TestIO.WriteCard( HIGH( s ), 0 );
+X	    TestIO.WriteString( ")" );
+X	ELSE
+X	    TestIO.WriteString( "PASSED" );
+X	END;
+X	TestIO.WriteLn;
+X    END S;
+X
+XBEGIN (* HIGHString *)
+X    S( '012', 2 );
+XEND HIGHString.
+END-of-HIGHString.mod
+echo '	'Hang1.mod
+sed 's/^X//' >Hang1.mod << 'END-of-Hang1.mod'
+XMODULE Hang1;
+XPROCEDURE SomeProcedure[
+XEND Hang1.
+END-of-Hang1.mod
+echo '	'ImportSelfImport.mod
+sed 's/^X//' >ImportSelfImport.mod << 'END-of-ImportSelfImport.mod'
+XMODULE ImportSelfImport;
+XIMPORT
+X    SelfImport;
+XEND ImportSelfImport.
+END-of-ImportSelfImport.mod
+echo '	'IntTest.mod
+sed 's/^X//' >IntTest.mod << 'END-of-IntTest.mod'
+XMODULE IntTest;
+XIMPORT
+X    TestIO;
+XCONST
+X    MinInt = -7FFFFFFH - 1;
+X    MaxInt = +7FFFFFFH;
+XVAR
+X    i : INTEGER;
+XBEGIN (* IntTest *)
+X
+X    TestIO.WriteString( "DEC( MinInt ) --> " );
+X    i := MinInt;
+X    DEC( i );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "INC( MaxInt ) --> " );
+X    i := MaxInt;
+X    INC( i );
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MinInt - 1 --> " );
+X    i := MinInt;
+X    i := i - 1;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MaxInt + 1 --> " );
+X    i := MaxInt;
+X    i := i + 1;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( "MaxInt * MaxInt --> " );
+X    i := MaxInt;
+X    i := i * i;
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+XEND IntTest.
+END-of-IntTest.mod
+echo '	'LongProcedureName.mod
+sed 's/^X//' >LongProcedureName.mod << 'END-of-LongProcedureName.mod'
+XMODULE LongProcedureName;
+XIMPORT
+X    TestIO;
+X(* 
+X * Maximum length for Sun Procedures is 50 characters when you
+X * add the module and procedure name together and only when
+X * compiling with "-g".   The limit for variables is higher, but
+X * untested.
+X *)
+XPROCEDURE P1234567890123456789012345678901234;
+XEND P1234567890123456789012345678901234;
+XBEGIN
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND LongProcedureName.
+END-of-LongProcedureName.mod
+echo '	'M1.mod
+sed 's/^X//' >M1.mod << 'END-of-M1.mod'
+XIMPLEMENTATION MODULE M1;
+XIMPORT InOut;
+XBEGIN
+X    InOut.WriteString( "1" );
+XEND M1.
+END-of-M1.mod
+echo '	'M2.mod
+sed 's/^X//' >M2.mod << 'END-of-M2.mod'
+XIMPLEMENTATION MODULE M2;
+XIMPORT InOut, M3;
+XBEGIN
+X    InOut.WriteString( "2" );
+XEND M2.
+END-of-M2.mod
+echo '	'M3.mod
+sed 's/^X//' >M3.mod << 'END-of-M3.mod'
+XIMPLEMENTATION MODULE M3;
+XIMPORT InOut, M2, M1;	(* Switch M2 and M1 and it works! *)
+XBEGIN 
+X    InOut.WriteString( "3" ); 
+XEND M3.
+END-of-M3.mod
+echo '	'M4.mod
+sed 's/^X//' >M4.mod << 'END-of-M4.mod'
+XMODULE M4;
+XIMPORT InOut, M3;
+XBEGIN
+X    InOut.WriteString( "4 -- should this be 1234?" );
+X    InOut.WriteLn;
+XEND M4.
+END-of-M4.mod
+echo '	'MC68881Test.mod
+sed 's/^X//' >MC68881Test.mod << 'END-of-MC68881Test.mod'
+XMODULE MC68881Test;
+X(*
+X * Must be compiled with "-f68881".
+X *)
+XIMPORT
+X    TestIO;
+XVAR
+X    j  : LONGREAL;
+X    f1 : LONGREAL;
+XBEGIN
+X    TestIO.WriteString( "50.0 - 0.5 in the range of 49.4 .. 49.6 --> " );
+X    j  := 50.0;
+X    f1 := j - 0.5;
+X    IF ( f1 < 49.4 ) OR ( f1 > 49.6 ) THEN
+X	TestIO.WriteString( "FAILED" );
+X    ELSE
+X	TestIO.WriteString( "PASSED" );
+X    END;
+X    TestIO.WriteLn;
+XEND MC68881Test.
+X
+X
+END-of-MC68881Test.mod
+echo '	'MinIntGames.mod
+sed 's/^X//' >MinIntGames.mod << 'END-of-MinIntGames.mod'
+XMODULE MinIntGames;
+XIMPORT
+X    TestIO;
+XVAR
+X    card : CARDINAL;
+X
+XBEGIN (* MinIntGames *)
+X
+X    card := ABS( MIN( INTEGER ) + 1 );
+X
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND MinIntGames.
+END-of-MinIntGames.mod
+echo '	'NotEqualSign.mod
+sed 's/^X//' >NotEqualSign.mod << 'END-of-NotEqualSign.mod'
+XMODULE NotEqualSign; 
+XIMPORT
+X    TestIO;
+XBEGIN 
+XIF 0
+X# 0 THEN END;
+XTestIO.WriteString( "PASSED" );
+XTestIO.WriteLn;
+XEND NotEqualSign.
+END-of-NotEqualSign.mod
+echo '	'NumberIOReadTest.mod
+sed 's/^X//' >NumberIOReadTest.mod << 'END-of-NumberIOReadTest.mod'
+XMODULE NumberIOReadTest;
+XIMPORT
+X    TestIO,	NumberIO,	StandardIO,	Files;
+X
+XVAR
+X    result   : BOOLEAN;
+X    cardinal : CARDINAL;
+X    integer  : CARDINAL;
+X    file     : Files.File;
+X    state    : Files.FileState;
+X
+XBEGIN (* NumberIOReadTest *)
+X
+X    TestIO.WriteString( 
+X       "Please enter a letter (trying to read a CARDINAL): " );
+X    result := FALSE;
+X    StandardIO.GetInput( file );
+X    NumberIO.ReadCard( file, cardinal, result, state );
+X    TestIO.WriteLn;
+X    TestIO.WriteString( "NumberIO.ReadCard --> " );
+X    IF result THEN
+X	TestIO.WriteString( "FAILED" );
+X    ELSE
+X	TestIO.WriteString( "PASSED" );
+X    END;
+X    TestIO.WriteLn;
+X
+X    TestIO.WriteString( 
+X       "Please enter a letter (trying to read an INTEGER): " );
+X    result := FALSE;
+X    StandardIO.GetInput( file );
+X    NumberIO.ReadCard( file, integer, result, state );
+X    TestIO.WriteLn;
+X    TestIO.WriteString( "NumberIO.ReadInt --> " );
+X    IF result THEN
+X	TestIO.WriteString( "FAILED" );
+X    ELSE
+X	TestIO.WriteString( "PASSED" );
+X    END;
+X    TestIO.WriteLn;
+X
+XEND NumberIOReadTest.
+END-of-NumberIOReadTest.mod
+echo '	'OnExitTest.mod
+sed 's/^X//' >OnExitTest.mod << 'END-of-OnExitTest.mod'
+XMODULE OnExitTest;
+XIMPORT
+X    TestIO, UnixCsystem;
+X
+XPROCEDURE Term;
+X    BEGIN
+X	TestIO.WriteString( "PASSED" );
+X	TestIO.WriteLn;
+X    END Term;
+X
+XBEGIN (* OnExitTest *)
+X
+X    UnixCsystem.on_exit( Term );
+X    TestIO.WriteString( "Expecting a call of TermProc --> " );
+X    HALT;
+X
+XEND OnExitTest.
+END-of-OnExitTest.mod
+echo '	'RealConstDivide.mod
+sed 's/^X//' >RealConstDivide.mod << 'END-of-RealConstDivide.mod'
+XMODULE RealConstDivide;
+XIMPORT
+X    TestIO;
+XCONST
+X    r = 1.0 / 3.0;
+XBEGIN (* RealConstDivide *)
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+XEND RealConstDivide.
+END-of-RealConstDivide.mod
+echo '	'RealConstPrecision.mod
+sed 's/^X//' >RealConstPrecision.mod << 'END-of-RealConstPrecision.mod'
+XMODULE RealConstPrecision;
+XIMPORT
+X    TestIO;
+X
+XCONST
+X    oneThird = 1.0 / 3.0;
+X    epsilon  = 1.0E-15;
+XVAR
+X    one     : LONGREAL;
+X    three   : LONGREAL;
+X    aThird  : LONGREAL;
+XBEGIN (* RealConstPrecision *)
+X
+X    one     := 1.0;
+X    three   := 3.0;
+X    aThird  := one / three;
+X
+X    IF ( oneThird - epsilon < aThird ) AND ( aThird < oneThird + epsilon ) THEN
+X	TestIO.WriteString( "PASSED" );
+X    ELSE
+X	TestIO.WriteString( "FAILED" );
+X    END;
+X    TestIO.WriteLn;
+X    
+XEND RealConstPrecision.
+END-of-RealConstPrecision.mod
+echo '	'RealExceptions.mod
+sed 's/^X//' >RealExceptions.mod << 'END-of-RealExceptions.mod'
+XMODULE RealExceptions;
+XIMPORT
+X    TestIO;
+X
+XVAR
+X    r    : REAL;
+XBEGIN (* RealExceptions *)
+X
+X    r := 1.0E36;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X
+X    r := 1.0E-36;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X    r := r * r * r * r * r * r * r * r * r * r;
+X
+X    r := 0.0;
+X    r := r / r;
+X
+X    TestIO.WriteString( "FAILED" );
+X    TestIO.WriteLn;
+X
+XEND RealExceptions.
+END-of-RealExceptions.mod
+echo '	'ReturnFloat.mod
+sed 's/^X//' >ReturnFloat.mod << 'END-of-ReturnFloat.mod'
+XMODULE ReturnFloat;
+XIMPORT
+X    TestIO;
+X
+XPROCEDURE FloatByProc( n : CARDINAL ) 
+X	                 : REAL;
+X    BEGIN (* FloatByProc *)
+X	RETURN FLOAT( n );
+X    END FloatByProc;
+X
+XBEGIN (* ReturnFloat *)
+X
+X    TestIO.WriteString( "Test Float( 123 ) = FloatByProc( 123 ) --> " );
+X    IF FLOAT( 123 ) # FloatByProc( 123 ) THEN
+X	TestIO.WriteString( "FAILED" );
+X    ELSE
+X	TestIO.WriteString( "PASSED" );
+X    END;
+X    TestIO.WriteLn;
+X    
+XEND ReturnFloat.
+END-of-ReturnFloat.mod
+echo '	'SelfImport.mod
+sed 's/^X//' >SelfImport.mod << 'END-of-SelfImport.mod'
+XIMPLEMENTATION MODULE SelfImport;
+XIMPORT
+X    SelfImport;
+XEND SelfImport.
+END-of-SelfImport.mod
+echo '	'SetCoerce.mod
+sed 's/^X//' >SetCoerce.mod << 'END-of-SetCoerce.mod'
+XMODULE SetCoerce;
+XIMPORT
+X    TestIO;
+XTYPE
+X    BITSET16   = SET OF [ 0 .. 15 ];
+XVAR
+X    b16 : BITSET16;
+XBEGIN (* SetCoerce *)
+X    b16 := BITSET16( 0FFH );
+X
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+XEND SetCoerce.
+END-of-SetCoerce.mod
+echo '	'StorageDEALLOCATE.mod
+sed 's/^X//' >StorageDEALLOCATE.mod << 'END-of-StorageDEALLOCATE.mod'
+XMODULE StorageDEALLOCATE;
+XIMPORT
+X    TestIO;
+XFROM Storage IMPORT
+X    ALLOCATE, 	DEALLOCATE;
+X    
+XVAR
+X    p : POINTER TO CARDINAL;
+XBEGIN (* StorageDEALLOCATE *)
+X    
+X    NEW( p );
+X    DISPOSE( p );
+X    IF p # NIL THEN
+X	TestIO.WriteString( "FAILED" );
+X    ELSE
+X	TestIO.WriteString( "PASSED" );
+X    END;
+X    TestIO.WriteLn;
+X
+XEND StorageDEALLOCATE.
+END-of-StorageDEALLOCATE.mod
+echo '	'StringParameters.mod
+sed 's/^X//' >StringParameters.mod << 'END-of-StringParameters.mod'
+XMODULE StringParameters;
+XIMPORT
+X    TestIO;
+XTYPE
+X    String = ARRAY [ 0 .. 256 ] OF CHAR;
+X	(* If you change this number to 255 it works. *)
+X
+XPROCEDURE SomeProc( s : String );
+X    END SomeProc;
+X
+XBEGIN (* StringParameters *)
+X
+X    SomeProc( 'any string' );
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND StringParameters.
+END-of-StringParameters.mod
+echo '	'SubrangeConversion.mod
+sed 's/^X//' >SubrangeConversion.mod << 'END-of-SubrangeConversion.mod'
+XMODULE SubrangeConversion;
+XIMPORT
+X    TestIO;
+XVAR
+X    subrange : [ 0 .. 255 ];
+X    integer  : INTEGER;
+XBEGIN (* SubrangeConversion *)
+X
+X    subrange := 128;
+X    integer  := subrange;
+X    TestIO.WriteString( "PASSED" );
+X    TestIO.WriteLn;
+X
+XEND SubrangeConversion.
+END-of-SubrangeConversion.mod
+echo '	'SubrangeIndexTest.mod
+sed 's/^X//' >SubrangeIndexTest.mod << 'END-of-SubrangeIndexTest.mod'
+XMODULE SubrangeIndexTest;
+XIMPORT
+X    TestIO;
+X
+XPROCEDURE FillArray( VAR array : ARRAY OF CARDINAL );
+X    (*
+X     * Must be in a procedure.
+X     *)
+X    VAR   
+X	rangeIndex     : [ 0 .. 9 ]; 
+X	cardRangeIndex : CARDINAL [ 0 .. 9 ]; 
+X    BEGIN 
+X
+X	TestIO.WriteString( "Index array with CARDINAL [ 0 .. 9 ] --> " );
+X	FOR cardRangeIndex := 0 TO HIGH ( array ) DO
+X	    array [ cardRangeIndex ] := cardRangeIndex;
+X	END;
+X	TestIO.WriteString( "PASSED" );
+X	TestIO.WriteLn;
+X
+X	TestIO.WriteString( "Index array with [ 0 .. 9 ] --> " );
+X	FOR rangeIndex := 0 TO HIGH ( array ) DO
+X	    array [ rangeIndex ] := rangeIndex;
+X	END;
+X	TestIO.WriteString( "PASSED" );
+X	TestIO.WriteLn;
+X
+X    END FillArray;
+X
+XVAR
+X    array : ARRAY [ 0 .. 9 ] OF CARDINAL;
+X
+XBEGIN (* SubrangeIndexTest *)
+X
+X   FillArray( array );
+X
+XEND SubrangeIndexTest.
+END-of-SubrangeIndexTest.mod
+echo '	'TestIO.mod
+sed 's/^X//' >TestIO.mod << 'END-of-TestIO.mod'
+XIMPLEMENTATION MODULE TestIO;
+XIMPORT
+X    Files,	NumberIO, 	Text,		StandardIO;
+X
+XVAR
+X    output   : Files.File;
+X    DONTCARE : Files.FileState;
+X
+XPROCEDURE WriteChar  (    ch	  : CHAR);
+X    BEGIN
+X	Text.WriteChar( output, ch, DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteChar;
+X    
+XPROCEDURE WriteLn    ();
+X    BEGIN
+X	Text.WriteLn( output, DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteLn;
+X    
+XPROCEDURE WriteString(    str	  : ARRAY OF CHAR);
+X    BEGIN
+X	Text.WriteString( output, str, DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteString;
+X    
+XPROCEDURE WriteInt   (    int	  : INTEGER;
+X			  width   : CARDINAL);
+X    BEGIN
+X	NumberIO.WriteInt( output, int, width , DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteInt;
+X    
+XPROCEDURE WriteCard  (   card	  : CARDINAL;
+X			  width   : CARDINAL);
+X    BEGIN
+X	NumberIO.WriteCard( output, card, width , DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteCard;
+X    
+XPROCEDURE WriteNum   (    num	  : CARDINAL;
+X			  base	  : CARDINAL; (* [2..36] *)
+X			  width	  : CARDINAL);
+X    BEGIN
+X	NumberIO.WriteNum( output, num, base, width, DONTCARE );
+X	Files.Flush( output, DONTCARE );
+X    END WriteNum;
+X    
+XBEGIN
+X    StandardIO.GetOutput( output );
+XEND TestIO.
+END-of-TestIO.mod
+echo '	'ImportSelfImport.dbx
+sed 's/^X//' >ImportSelfImport.dbx << 'END-of-ImportSelfImport.dbx'
+Xquit
+END-of-ImportSelfImport.dbx
+echo '	'NumberIOReadTest.dat
+sed 's/^X//' >NumberIOReadTest.dat << 'END-of-NumberIOReadTest.dat'
+XX
+XX
+END-of-NumberIOReadTest.dat
+exit

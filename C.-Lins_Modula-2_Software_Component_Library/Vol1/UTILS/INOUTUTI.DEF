@@ -1,0 +1,79 @@
+DEFINITION MODULE InOutUtils;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Author   : Chuck Lins
+    Compiler : JPI TopSpeed Modula-2
+
+    Component Class: Tool
+    Component Form : Standard I/O Support Utility - InOut Utilities
+
+    INTRODUCTION
+    This module provides support routines for simplifying use of InOut.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved. 
+====================================================================*)
+
+PROCEDURE CarriageReturn;
+
+PROCEDURE LineFeed;
+
+PROCEDURE BackSpace	  (    n: CARDINAL	      (*-- in *));
+
+PROCEDURE Erase 	  (    n: CARDINAL	      (*-- in *));
+
+PROCEDURE Beep		  (    n: CARDINAL	      (*-- in *));
+
+PROCEDURE WriteNChars	  (    c: CHAR		      (*-- in *);
+			       n: CARDINAL	      (*-- in *));
+
+PROCEDURE WriteBlanks	  (    n: CARDINAL	      (*-- in *));
+
+PROCEDURE WriteBlankLines (    n: CARDINAL	      (*-- in *));
+
+PROCEDURE WriteLnString   (    string : ARRAY OF CHAR (*-- in *));
+
+PROCEDURE WriteLnsString  (    string : ARRAY OF CHAR (*-- in *);
+			       nLines : CARDINAL      (*-- in *));
+
+PROCEDURE WriteYesOrNo	  (    logical: BOOLEAN       (*-- in *));
+
+PROCEDURE WriteLblBoolean (    s : ARRAY OF CHAR      (*--in   *);
+			       b : BOOLEAN	      (*--in   *));
+
+PROCEDURE WriteLblCardinal(    s : ARRAY OF CHAR      (*--in   *);
+			       c : CARDINAL	      (*--in   *);
+			       w : CARDINAL	      (*--in   *));
+
+PROCEDURE WriteLblInteger (    s : ARRAY OF CHAR      (*--in   *);
+			       n : INTEGER	      (*--in   *);
+			       w : CARDINAL	      (*--in   *));
+
+PROCEDURE WriteLblReal	  (    s : ARRAY OF CHAR      (*--in   *);
+			       r : REAL 	      (*--in   *);
+			       n : CARDINAL	      (*--in   *);
+			       d : CARDINAL	      (*--in   *);
+			       fixed : BOOLEAN	      (*--in   *));
+
+PROCEDURE WriteLblLongCard(    s : ARRAY OF CHAR      (*--in   *);
+			       c : LONGCARD	      (*--in   *);
+			       w : CARDINAL	      (*--in   *));
+
+PROCEDURE WriteLblLongInt (    s : ARRAY OF CHAR      (*--in   *);
+			       n : LONGINT	      (*--in   *);
+			       w : CARDINAL	      (*--in   *));
+
+PROCEDURE WaitForUser;
+
+
+
+PROCEDURE AnswerIsYesTo   (    query  : ARRAY OF CHAR (*-- in *))
+				      : BOOLEAN       (*-- out *);
+
+PROCEDURE InputString	  (VAR string : ARRAY OF CHAR (*-- out *));
+
+END InOutUtils.

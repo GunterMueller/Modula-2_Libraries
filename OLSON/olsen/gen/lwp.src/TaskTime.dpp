@@ -1,0 +1,89 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskTime;
+(*
+ * Supports finite length Tasks.Suspend operations (timed Suspends).
+ *
+ * A Sleep and Tasks.Suspend are identical except that Sleep wakes
+ * the task up after a specified period of time.
+ *
+ * TODO:
+ *    A Unit should be implementation dependent and there should be
+ *    routines to convert from milliseconds (or whatever) to Units
+ *    and Units to milliseconds.
+ *)
+IMPORT
+    SysTypes,
+    Tasks;
+
+EXPORT QUALIFIED
+    Units, Sleep,  WakeUp,  Resolution;
+
+TYPE
+    Units = SysTypes.Card;	(* One unit is equal to one millisecond. *)
+
+PROCEDURE Sleep(
+    timeout : Units  (* Time to keep the task suspended *)
+    );
+    (*
+     * Relinquish the processor to the next best ready to run task
+     * for the specified time period.
+     *
+     * The task appears as if it is suspended, but it will be awaken
+     * automatically by this module if the period has elapsed and the
+     * task has not been awaken by another task. The granularity of
+     * the clock may be greater than one Unit, thus the number
+     * of Units may not be exactly as requested.
+     *
+     * Also Sleep( 0 ) causes the task to be suspended till the next
+     * clock tick.
+     * 
+     * IMPLEMENTATION NOTE:
+     *     This procedure may be called from a SYSTEM.DISABLE section.
+     *     It uses push/pop flags to save the interrupt state, so a call
+     *     to this procedure in an DISABLE section will return with
+     *     interrupts still disabled.
+     *)
+
+PROCEDURE WakeUp(
+    sleepingTask : Tasks.Object  (* Task to be awaken *)
+    );
+    (*
+     * Wakes up the specified task from a Sleep.
+     *
+     * If the task is not sleeping, this call has no effect.
+     *
+     * This procedure may be called from interrupt handlers
+     * and tasks alike.
+     *
+     * IMPLEMENTATION NOTE:
+     *     This procedure may be called from a SYSTEM.DISABLE section.
+     *     It uses push/pop flags to save the interrupt state, so a call
+     *     to this procedure in an DISABLE section will return with 
+     *     interrupts still disabled.
+     *)
+
+PROCEDURE Resolution(
+    ) : REAL;  (* Number of milliseconds per clock tick for this system *)
+
+END TaskTime.

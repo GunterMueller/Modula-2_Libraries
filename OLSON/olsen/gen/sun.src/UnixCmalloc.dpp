@@ -1,0 +1,52 @@
+DEFINITION FOR C MODULE UnixCmalloc;
+(* 
+ * See the man pages:
+ *     malloc(3), free(3), realloc(3), calloc(3), cfree(3), memalign(3),
+ *     valloc(3), alloca(3), malloc_debug(3), malloc_verify(3).
+ *)
+IMPORT
+    SYSTEM;
+
+PROCEDURE malloc(
+    size : CARDINAL
+    )    : SYSTEM.ADDRESS;
+
+PROCEDURE free(
+    ptr : SYSTEM.ADDRESS
+    );
+
+PROCEDURE realloc(
+    ptr  : SYSTEM.ADDRESS;
+    size : CARDINAL
+    )    : SYSTEM.ADDRESS;
+
+PROCEDURE calloc(
+    nelem  : CARDINAL;
+    elsize : CARDINAL
+    )      : SYSTEM.ADDRESS;
+
+PROCEDURE cfree(
+    ptr : SYSTEM.ADDRESS
+    );
+
+PROCEDURE memalign(
+    alignment : CARDINAL;
+    size      : CARDINAL
+    )         : SYSTEM.ADDRESS;
+
+PROCEDURE valloc(
+    size : CARDINAL
+    )    : SYSTEM.ADDRESS;
+
+PROCEDURE alloca(
+    size : CARDINAL
+    )    : SYSTEM.ADDRESS;
+
+PROCEDURE malloc_debug(
+    level : INTEGER
+    )     : INTEGER;
+
+PROCEDURE malloc_verify(
+    ) : INTEGER;
+
+END UnixCmalloc.

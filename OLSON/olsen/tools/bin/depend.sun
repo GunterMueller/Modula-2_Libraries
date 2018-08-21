@@ -1,0 +1,45 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Irregular stuff
+CheckComments: ../sun.src/CheckComments.sh
+	${StandardScript}
+ttyreset: ../sun.src/ttyreset.c
+	$(CC) $(CFLAGS) $? -o $@
+
+# Preprocessor dependencies
+# M2Depend
+M2Parser.def: ../shared.src/M2Parser.dpp 
+	${StandardM2pp}
+M2Scanner.def: ../shared.src/M2Scanner.dpp 
+	${StandardM2pp}
+MakeIO.def: ../shared.src/MakeIO.dpp 
+	${StandardM2pp}
+MakeParameters.def: ../shared.src/MakeParameters.dpp 
+	${StandardM2pp}
+m2depend.mod: ../shared.src/m2depend.mpp 
+	${StandardM2pp}
+M2Parser.mod: ../shared.src/M2Parser.mpp 
+	${StandardM2pp}
+M2Scanner.mod: ../shared.src/M2Scanner.mpp 
+	${StandardM2pp}
+MakeIO.mod: ../shared.src/MakeIO.mpp 
+	${StandardM2pp}
+MakeParameters.mod: ../shared.src/MakeParameters.mpp 
+	${StandardM2pp}
+
+# m2pp
+M2PParser.def: ../shared.src/M2PParser.dpp 
+	${StandardM2pp}
+M2PScanner.def: ../shared.src/M2PScanner.dpp 
+	${StandardM2pp}
+M2PParser.mod: ../shared.src/M2PParser.mpp 
+	${StandardM2pp}
+M2PScanner.mod: ../shared.src/M2PScanner.mpp 
+	${StandardM2pp}
+m2pp.mod: ../shared.src/m2pp.mpp 
+	${StandardM2pp}

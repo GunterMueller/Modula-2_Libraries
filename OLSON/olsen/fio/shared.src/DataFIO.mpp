@@ -1,0 +1,1575 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DataFIO;
+(*
+ * There are several parts to the module: name management, parsing, 
+ * variable management, and miscellaneous.  The miscellaneous is name
+ * management and state routines which are all self explanatory.
+ *
+ * Variable Management
+ * The variable management deals with the object once it has been opened.
+ * An Object contains a NameList of all the variables in the program.
+ * Each name is associated with a type (inputFormat) and a value.
+ * The values are always TextIO.Objects which have been opened
+ * with the StringBinaryIO class option, that is, the value is an
+ * exact copy of the text between the white-space after the "=" till
+ * the ";" is found.  When Get is called, this TextIO.Object
+ * is rewound and passed to FormatIO.Read1 along with the inputFormat
+ * and value passed in.  Calls to Put close the old TextIO.Object
+ * and open a new one in appendOnly mode.  FormatIO.Write1 is then
+ * called with the outputFormat and the value.
+ *
+ * Open/Close/Write:
+ * The first task of "open" is to find the correct file.  This consists
+ * primarily of version number management.  After the file is opened,
+ * it is parsed and broken up into the NameList described above. While
+ * the input is being parsed, it is being split into the NameList which
+ * is in sorted order for faster retrieval and an in memory copy.  The
+ * in memory copy (inputCopy) is an exact duplicate with the "value" and
+ * "inputFormat" removed.  When a Write is performed, the inputCopy is
+ * read and copied to the output file.  When a name is encountered, its
+ * input format, name, and value are substituted for the name.
+ *
+ * Appending:
+ * Given the structure of the in memory copy, appending is fairly simple.
+ * For variables, we add the name to the list of variables and write
+ * the name at the end of the in memory copy.  For comments, we merely write
+ * the value to the end of the in memory copy.
+ *)
+IMPORT
+    BinaryIO,
+    Chars,
+    DirIO,		
+    FIOBase,
+    FormatIO,
+    GenConsts,
+    IntConvert,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    IONames,
+    IOVersions,
+    NameLists,
+    Objects,
+    ProgErr,
+    StringBinaryIO,
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+CONST
+    moduleName = "DataFIO";	(* Error messages, Objects... *)
+
+CONST
+    tupleTerminator = ';';
+	(*
+	 * Used to terminate a tuple in the file.
+	 *)
+    arrayIndexBegin = '[';
+    arrayIndexEnd   = ']';
+	(*
+	 * For the information of the user.
+	 *)
+
+    @IF SunOS THEN
+        logFileSuffix = "log";
+    @ELSIF MsDosOS THEN
+        logFileSuffix = "l";
+    @END
+
+TYPE
+    Object = POINTER TO ObjectRec;
+    ObjectRec = RECORD
+	absolutePath : IOConsts.Path;	 (* Doesn't have version attached *)
+	openPath     : IOConsts.Path;	 (* Needed for GetOpenPath *)
+	hasVersion   : BOOLEAN;		 (* Open was called with a version *)
+	isDefault    : BOOLEAN;		 (* Is the file default input? *)
+	accessMode   : AccessModes;	 (* What operations can we do *)
+	dirMode      : DirIO.CreateModes;(* Based on accessMode *)
+	lowVersion   : IOVersions.Number;(* First in cycle *)
+	highVersion  : IOVersions.Number;(* Last in cycle *)
+	openVersion  : IOVersions.Number;(* Value on Open *)
+	saveVersion  : IOVersions.Number;(* Last version saved *)
+	inputCopy    : TextIO.Object;	 (* in memory copy of names/comments *)
+	variables    : NameLists.Object; (* queue, VariableInfo *)
+	varInfoMgr   : Objects.Manager;	 (* Allocates VariableInfo *)
+	CASE logFileOpen : BOOLEAN OF	 (* initially false *)
+	    TRUE:
+		logFile : TextIO.Object;
+	    |
+	    FALSE:
+		(* No file *)
+	END;
+	needNewLine  : BOOLEAN;		 (* If anything is appended, then
+					    we must add a NL *)
+    END;
+
+TYPE
+    VariableInfo = POINTER TO VariableInfoRec;
+    VariableInfoRec = RECORD
+	format    : InputFormat;	(* FormatIO value *)
+	valueFile : TextIO.Object;	(* must be rewound before reading *)
+    END;
+
+    Buffer = GenConsts.Line;
+
+TYPE
+    Options = ARRAY [ 0 .. TextIO.maxOptionsLength + BinaryIO.maxOptionsLength
+			   + StringBinaryIO.maxOptionsLength - 1 ] OF CHAR;
+VAR
+    objectMgr         : Objects.Manager;	(* List of all files *)
+    valueFileOptions  : Options;
+    inputCopyOptions  : Options;
+    defaultObject     : Object;			(* Initially NIL *)
+
+
+CONST
+    messageFormat = "[String]: ";
+
+PROCEDURE Error(
+    format : ARRAY OF CHAR
+    );
+    VAR
+	DONTCARE : TextIO.States;
+    BEGIN (* Error *)
+	
+	DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(), messageFormat,
+				    moduleName );
+	DONTCARE := FormatIO.Write( TextIO.GetErrorOutput(), format );
+	ProgErr.Terminate( "" );
+
+    END Error;
+
+
+PROCEDURE Error1(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY
+    );
+    VAR
+	DONTCARE : TextIO.States;
+    BEGIN (* Error1 *)
+
+	DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(), messageFormat,
+				    moduleName );
+	DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(), format,
+				     arg1 );
+	ProgErr.Terminate( "" );
+
+    END Error1;
+
+
+PROCEDURE Error2(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY
+    );
+    VAR
+	DONTCARE : TextIO.States;
+    BEGIN (* Error2 *)
+
+	DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(), messageFormat,
+				    moduleName );
+	DONTCARE := FormatIO.Write2( TextIO.GetErrorOutput(), format,
+				     arg1, arg2 );
+	ProgErr.Terminate( "" );
+
+    END Error2;
+
+PROCEDURE ReadOnlyError(
+    file : Object
+    );
+    BEGIN (* ReadOnlyError *)
+
+	Error1( "[String]: file is marked as read-only", file^.openPath );
+
+    END ReadOnlyError;
+
+
+PROCEDURE ValueError(
+    file    : Object;
+    varInfo : VariableInfo;
+    name    : ARRAY OF CHAR;
+    format  : ARRAY OF CHAR;
+    isRead  : BOOLEAN
+    );
+    (* 
+     * Display an intelligent error message about the conversion error.
+     * This is called for both read and write.
+     *)
+    VAR
+	modeString : ARRAY [ 0 .. 10 ] OF CHAR;
+	DONTCARE   : TextIO.States;
+    BEGIN (* ValueError *)
+
+	IF isRead THEN
+	    modeString := "reading";
+	ELSE
+	    modeString := "writing";
+	END;
+
+	DONTCARE := FormatIO.Write3( TextIO.GetErrorOutput(),
+		"[String]: Error [String] variable '[String]'.[NL]",
+		file^.openPath, modeString, name );
+
+	TextIO.PrintErrorMessage( varInfo^.valueFile, '' );
+
+	Error1( "Format should be '[String]'.[NL]", format );
+
+    END ValueError;
+
+
+(*
+ * Variable Management.
+ *)
+PROCEDURE Find(
+    file        : Object;
+    name        : ARRAY OF CHAR;
+    inputFormat : ARRAY OF CHAR
+    )           : VariableInfo;
+    (* 
+     * Look of the variable and verify the input format.  If the
+     * format or the variable do not agree, then an error message
+     * is output and the caller is terminated.
+     *)
+    VAR
+	varInfo  : VariableInfo;
+	DONTCARE : TextIO.States;
+    BEGIN (* Find *)
+
+	IF NOT NameLists.Find( file^.variables, name, varInfo ) THEN
+	    Error2( "file '[String]': variable '[String]' not found.[NL]", 
+		    file^.openPath, name );
+	END;
+
+	IF Strings.Compare( varInfo^.format, inputFormat ) # 
+	  Intrinsics.equal THEN
+	    DONTCARE := FormatIO.Write2( TextIO.GetErrorOutput(),
+		"Expecting format '[String]' and not '[String]'.[NL]",
+		varInfo^.format, inputFormat );
+
+	    Error2( 
+	      "file '[String]': variable ([String]) incompatible types.[NL]", 
+	      file^.openPath, name );
+	END;
+
+	RETURN varInfo;
+    END Find;
+
+
+PROCEDURE Get(
+        file        : Object;
+	name        : ARRAY OF CHAR;
+	inputFormat : ARRAY OF CHAR;
+    VAR value       : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * Call Find, then pass the valueFile to FormatIO with the
+     * specified inputFormat.  If there is a FormatIO error, then just
+     * terminate.
+     *)
+    VAR
+	varInfo : VariableInfo;
+    BEGIN (* Get *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	varInfo := Find( file, name, inputFormat );
+
+	IF ( TextIO.Rewind( varInfo^.valueFile ) # TextIO.ok ) OR
+	   ( FormatIO.Read1( varInfo^.valueFile, inputFormat, value ) #
+	     TextIO.ok ) THEN
+	    ValueError( file, varInfo, name, inputFormat, TRUE );
+	END;
+
+    END Get;
+
+
+PROCEDURE Put(
+    file         : Object;
+    name         : ARRAY OF CHAR;
+    inputFormat  : ARRAY OF CHAR;
+    outputFormat : ARRAY OF CHAR;
+    value        : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * Call Find, then close the valueFile and open a new one.
+     * Call FormatIO.Write1 with the output format and the value.   Verify
+     * that the output result does not contain a ";" in it.
+     *)
+    VAR
+	varInfo  : VariableInfo;
+    BEGIN (* Put *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	    IF file^.accessMode = readOnly THEN
+		ReadOnlyError( file );
+	    END;
+	@END (* Assert *)
+
+	varInfo := Find( file, name, inputFormat );
+
+	(* Close/Open a new string file with this magic command *)
+	TextIO.DONTCARE := TextIO.RewindAndTruncate( varInfo^.valueFile );
+
+	IF ( FormatIO.Write1( varInfo^.valueFile, outputFormat, value ) #
+	     TextIO.ok ) OR 
+	   NOT IsValidValueFile( varInfo^.valueFile ) THEN
+	    ValueError( file, varInfo, name, outputFormat, FALSE );
+	END;
+
+    END Put;
+
+PROCEDURE AppendInputCopy(
+    file    : Object;
+    name    : ARRAY OF CHAR;	(* name = '' means just do a comment *)
+    format  : ARRAY OF CHAR;	(* inputFormat only valid if name # '' *)
+    comment : ARRAY OF CHAR
+    );
+    BEGIN (* AppendInputCopy *)
+
+	WITH file^ DO
+	    (* Append the name and comment to the file *)
+	    TextIO.DONTCARE := TextIO.Append( inputCopy );
+	    IF needNewLine THEN
+		needNewLine := FALSE;
+		WriteLn( inputCopy );
+	    END;
+	    IF name[ 0 ] # 0C THEN
+		WriteString( inputCopy, format );
+		WriteString( inputCopy, ' ' );
+		WriteString( inputCopy, name );
+		WriteString( inputCopy, ' ' );
+	    END;
+	    WriteString( inputCopy, tupleTerminator );
+	    WriteString( inputCopy, comment );
+	    WriteLn( inputCopy );
+	END;
+
+    END AppendInputCopy;
+
+
+PROCEDURE Append(
+    file         : Object;               (* Must be valid and writable *)
+    name         : ARRAY OF CHAR;        (* Must not exist in the file *)
+    inputFormat  : ARRAY OF CHAR;        (* The type of the value *)
+    outputFormat : ARRAY OF CHAR;        (* How to output value *)
+    value        : ARRAY OF SysTypes.ANY; (* The data to be stored *)
+    comment      : ARRAY OF CHAR	 (* Appears to the right of value *)
+    );
+    (*
+     * We set up for a Put by adding the name to the inputCopy and
+     *
+     *)
+    VAR
+	varInfo  : VariableInfo;
+    BEGIN (* Append *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	    IF file^.accessMode = readOnly THEN
+		ReadOnlyError( file );
+	    END;
+
+	    (* Does the variable exist? *)
+	    IF NameLists.Find( file^.variables, name, varInfo ) THEN
+		Error1( "Append: name '[String]' already exists.[NL]", name );
+	    END;
+	@END (* Assert *)
+
+	AppendInputCopy( file, name, inputFormat, comment );
+	WITH file^ DO
+	    Objects.Allocate( varInfoMgr, varInfo );
+	    NameLists.Insert( variables, name, varInfo );
+	END;
+
+	WITH varInfo^ DO
+	    Strings.Assign( inputFormat, format );
+
+	    IOErrors.DONTCARE := TextIO.Open( valueFile, '', 
+				    TextIO.appendOnly, valueFileOptions );
+
+	    IF ( FormatIO.Write1( varInfo^.valueFile, outputFormat, 
+				  value ) # TextIO.ok ) OR 
+	      NOT IsValidValueFile( varInfo^.valueFile ) THEN
+		ValueError( file, varInfo, name, outputFormat, FALSE );
+	    END;
+	END;
+
+    END Append;
+
+
+PROCEDURE AppendComment(
+    file    : Object;          (* Must be valid and writable *)
+    comment : ARRAY OF CHAR    (* Appears on its own line *)
+    );
+    (*
+     * Puts a comment at the end of the file.
+     *)
+    VAR
+	varInfo  : VariableInfo;
+	DONTCARE : IOErrors.Errors;
+    BEGIN (* AppendComment *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	    IF file^.accessMode = readOnly THEN
+		ReadOnlyError( file );
+	    END;
+	@END (* Assert *)
+
+	AppendInputCopy( file, '', '', comment );
+
+    END AppendComment;
+
+
+
+PROCEDURE IsValidValueFile(
+    valueFile : TextIO.Object
+    )         : BOOLEAN;
+    (* 
+     * Make sure there are no "tupleTerminators" in the file.
+     *)
+    VAR
+	buffer    : Buffer;
+	DONTCARE1 : SysTypes.Card;
+    BEGIN (* IsValidValueFile *)
+
+	TextIO.DONTCARE := TextIO.Rewind( valueFile );	(* Must work. *)
+
+	LOOP
+	    CASE StringIO.Read( valueFile, buffer ) OF
+		TextIO.ok:
+		    IF Strings.Position( buffer, Strings.BOS, Strings.EOS,
+					 tupleTerminator, DONTCARE1 ) THEN
+			TextIO.DONTCARE := TextIO.SetError( valueFile, 
+						      IOErrors.badData );
+			RETURN FALSE;
+		    END;
+		|
+		TextIO.endOfLine:
+		    (* Nothing to do *)
+		|
+		TextIO.endOfFile:
+		    RETURN TRUE;
+		|
+		TextIO.error:
+		    RETURN FALSE;
+	    END; (* CASE *)
+	END;
+
+    END IsValidValueFile;
+
+
+PROCEDURE Exists(
+    file        : Object;
+    name        : ARRAY OF CHAR;
+    inputFormat : ARRAY OF CHAR
+    )           : BOOLEAN;
+    VAR
+	varInfo : VariableInfo;
+    BEGIN (* Exists *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	RETURN NameLists.Find( file^.variables, name, varInfo ) AND
+	       ( Strings.Compare( varInfo^.format, inputFormat ) 
+		 = Intrinsics.equal );
+    END Exists;
+
+
+PROCEDURE IndexByNumber(
+        arrayName      : ARRAY OF CHAR;
+        index          : SysTypes.Int;
+    VAR indexedElement : Name
+    );
+    VAR
+	intString : ARRAY [ 0 .. SysTypes.bitsPerInt ] OF CHAR;
+	DONTCARE  : BOOLEAN;
+    BEGIN (* IndexByNumber *)
+	
+	DONTCARE := IntConvert.ToString( index, 0, intString );
+	IndexByString( arrayName, intString, indexedElement );
+
+    END IndexByNumber;
+	
+
+PROCEDURE IndexByString(
+        arrayName      : ARRAY OF CHAR;
+	index          : ARRAY OF CHAR;
+    VAR indexedElement : Name
+    );
+    BEGIN (* IndexByString *)
+	
+	IF NOT Strings.ConcatOK( arrayName, arrayIndexBegin, indexedElement ) OR
+	  NOT Strings.InsertOK( indexedElement, Strings.EOS, index ) OR
+	  NOT Strings.InsertOK( indexedElement, Strings.EOS, arrayIndexEnd )
+	  THEN 
+	    Error2( "Could not index '[String]' with '[String]'.[NL]",
+		    arrayName, index );
+	    ProgErr.Terminate( "DataFIO: indexed element name is too long" );
+	END;
+	   
+    END IndexByString;
+
+
+(*
+ * File Name Management (TextIO.Open/DirIO.Create).
+ *)
+PROCEDURE MakeReadPath(
+        path        : ARRAY OF CHAR; 
+	versionMode : VersionModes;
+	low	    : IOVersions.Number;
+	high	    : IOVersions.Number;
+    VAR version     : IOVersions.Number; (* IN: specific; OUT: found *)
+    VAR foundPath   : IOConsts.Path	  (* Valid path *)
+    )		    : BOOLEAN;		  (* TRUE => file version found *)
+    (*
+     * Looks up version numbers.
+     *)
+    VAR
+	findMode : IOVersions.FindModes;
+    BEGIN (* MakeReadPath *)
+
+	CASE versionMode OF
+	    noVersion:
+		RETURN Strings.AssignOK( path, foundPath );
+	    |
+	    specificVersion:
+		IOVersions.Append( path, version, foundPath );
+		RETURN TRUE;
+	    |
+	    lowestInCycle:
+		findMode := IOVersions.lowestNumber;
+	    |
+	    highestInCycle:
+		findMode := IOVersions.highestNumber;
+	    |
+	    newestInCycle:
+		findMode := IOVersions.newestDate;
+	    |
+	    oldestInCycle:
+		findMode := IOVersions.oldestDate;
+	END;
+
+	IF IOVersions.Find( path, low, high, findMode, version ) # IOErrors.ok
+	  THEN RETURN FALSE;
+	END;
+
+	IOVersions.Append( path, version, foundPath );
+	RETURN TRUE;
+
+    END MakeReadPath;
+
+
+PROCEDURE CreateFile(
+        absolutePath : IOConsts.Path;
+	mode	     : DirIO.CreateModes;	(* dirMode? *)
+	newSuffix    : ARRAY OF CHAR;	(* Needed for log files *)
+	hasVersion   : BOOLEAN;
+	specific     : IOVersions.Number;
+    VAR textIO       : TextIO.Object
+    );
+    (*
+     * Puts a new suffix on path if newSuffix is non-zero.  If
+     * the version is "noVersion", then don't "change the version".
+     * Otherwise, replace the old version number with the new one.
+     *)
+    VAR
+	DONTCARE  : IOVersions.Number;
+	DONTCARE1 : BOOLEAN;
+	i         : SysTypes.Card;
+	directory : IOConsts.Path;
+	base      : IOConsts.Base;
+	suffix    : IOConsts.Suffix;
+	ioError   : IOErrors.Errors;
+    BEGIN (* CreateFile *)
+
+	IF newSuffix[ 0 ] # 0C THEN
+	    IONames.Separate( absolutePath, directory, base, suffix );
+	    IONames.Make( directory, base, newSuffix, absolutePath );
+	END;
+
+	IF hasVersion THEN
+	    IOVersions.Append( absolutePath, specific, absolutePath );
+	END;
+	
+	ioError := DirIO.CreateEntry( absolutePath, DirIO.createTextFile, 
+				      mode );
+	IF ioError = IOErrors.ok THEN
+	    ioError := TextIO.Open( textIO, absolutePath, TextIO.appendOnly,
+				    '' );
+	END;
+	IF ioError # IOErrors.ok THEN
+	    IOErrors.PrintMessage( ioError, absolutePath );
+	    Error( "Unable to create new file.[NL]" );
+	END;
+
+    END CreateFile;
+
+(*
+ * Opens/Closes (Parsing/Writing).
+ *)
+PROCEDURE Open(
+    VAR file     : Object;            (* In any state, will be valid *)
+        path     : ARRAY OF CHAR;     (* Identifies the file to be read *)
+	access   : AccessModes;	      (* What operations to allow *)
+        version  : VersionModes;      (* How to find first read version *)
+	low      : IOVersions.Number; (* First number in the version cycle *)
+	high     : IOVersions.Number; (* Last "" *)
+	specific : IOVersions.Number  (* Only valid in specificVersion mode *)
+    );
+    VAR
+	textIO    : TextIO.Object;
+	ioError   : IOErrors.Errors;
+	DONTCARE  : BOOLEAN;
+	DONTCARE2 : IOVersions.Number;
+    BEGIN (* Open *)
+
+	Objects.Allocate( objectMgr, file );
+
+	WITH file^ DO
+	    IF NOT MakeReadPath( path, version, low, high, specific, 
+				 absolutePath ) THEN
+		Error1( "Could not find a valid version for [String][NL]", 
+			path );
+	    END;
+	    ioError := TextIO.Open( textIO, absolutePath, TextIO.readOnly, '' );
+	    IF ioError # IOErrors.ok THEN
+		IOErrors.PrintMessage( ioError, absolutePath );
+		Error( "Unable to Open file.[NL]" );
+	    END;
+
+	    (* Ensure the file is absolute for re-opens *)
+	    IONames.MakeAbsolute( absolutePath, absolutePath );
+	    isDefault := FALSE;
+
+	    Strings.Assign( path, openPath );	(* has to work *)
+	    hasVersion := version # noVersion;
+	    IF hasVersion THEN
+		DONTCARE := IOVersions.Extract( absolutePath, DONTCARE2,
+						absolutePath );
+	    END;
+	    accessMode := access;
+	    lowVersion := low;
+	    highVersion := high;
+	    openVersion := specific;
+	    saveVersion := specific;
+	    IF accessMode = readOverwrite THEN
+		dirMode := DirIO.overwritePath;
+	    ELSE
+		dirMode := DirIO.mustBeNewPath;
+	    END;
+
+	    (* Initialize inputCopy, variables, varInfoMgr *)
+	    ReadFromTextFile( file, textIO );
+	    IOErrors.DONTCARE := TextIO.Close( textIO );	(* all done! *)
+
+	    logFileOpen := FALSE;
+
+	END;
+
+    END Open;
+
+
+PROCEDURE Close(
+    VAR file : Object
+    );
+    (*
+     * Close the log file (if there is one) and deallocate the memory.
+     *)
+    VAR
+	varInfo  : VariableInfo;
+	DONTCARE : IOErrors.Errors;
+    BEGIN (* Close *)
+
+	IF NOT Objects.IsValid( objectMgr, file ) THEN
+	    file := NIL;
+	    RETURN;
+	END;
+
+	WITH file^ DO
+	    DONTCARE := TextIO.Close( inputCopy );
+
+	    Objects.MakeFirstNext( varInfoMgr );
+	    WHILE Objects.Next( varInfoMgr, varInfo ) DO
+		DONTCARE := TextIO.Close( varInfo^.valueFile );
+	    END; (* WHILE *)
+
+	    Objects.DestroyManager( varInfoMgr );
+	    NameLists.Destroy( variables );
+
+	    (* Close the log file if open and not default file *)
+	    IF logFileOpen AND NOT isDefault THEN
+		DONTCARE := TextIO.Close( logFile );
+	    END;
+
+	END; (* WITH *)
+
+	Objects.Deallocate( objectMgr, file );
+
+    END Close;
+
+
+PROCEDURE SetInvalid(
+    VAR file : Object
+    );
+    BEGIN (* SetInvalid *)
+	
+	file := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE IsValid(
+    file : Object
+    )    : BOOLEAN;
+    BEGIN (* IsValid *)
+	
+	RETURN Objects.IsValid( objectMgr, file );
+
+    END IsValid;
+
+
+PROCEDURE FileExists(
+    path     : ARRAY OF CHAR;     (* Identifies the file to be read *)
+    version  : VersionModes;      (* How to find first read version *)
+    low      : IOVersions.Number; (* First number in the version cycle *)
+    high     : IOVersions.Number; (* Last "" *)
+    specific : IOVersions.Number  (* Only valid in specificVersion mode *)
+    )	     : BOOLEAN;		  (* TRUE => Open would succeed *)
+    (*
+     * Call MakeReadPath and Open to see what happens.
+     *)
+    VAR
+	textIO   : TextIO.Object;
+	p2       : IOConsts.Path;
+    BEGIN (* FileExists *)
+
+	IF NOT MakeReadPath( path, version, low, high, specific, p2 ) OR
+	  ( TextIO.Open( textIO, p2, TextIO.readOnly, '' ) # IOErrors.ok ) THEN
+	    RETURN FALSE;
+	END;
+
+	IOErrors.DONTCARE := TextIO.Close( textIO );
+
+	RETURN TRUE;
+
+    END FileExists;
+
+
+PROCEDURE GetDefault(
+    ) : Object;
+    VAR
+	textIO : TextIO.Object;
+    BEGIN (* GetDefault *)
+	
+	IF defaultObject = NIL THEN
+	    (* 
+	     * First call, we must create a special initialization for
+	     * the TextIO.GetInput object.
+	     *)
+	    Objects.Allocate( objectMgr, defaultObject );
+	    WITH defaultObject^ DO
+		textIO := TextIO.GetInput();
+		TextIO.GetOpenPath( textIO, openPath );
+		absolutePath := openPath;	(* Don't need absolute *)
+		hasVersion := FALSE;
+		isDefault := TRUE;
+		accessMode := readWrite;
+		dirMode := DirIO.mustBeNewPath;  (* Doesn't matter *)
+		lowVersion := IOVersions.minNumber;
+		highVersion := IOVersions.minNumber;
+		openVersion := IOVersions.minNumber;
+		saveVersion := IOVersions.minNumber;
+
+		(* Initialize inputCopy, variables, varInfoMgr *)
+		ReadFromTextFile( defaultObject, textIO );
+
+		logFileOpen  := FALSE;
+	    END; (* WITH *)
+	END;
+
+	RETURN defaultObject;
+    END GetDefault;
+
+
+(* 
+ * The syntax/IO errors that we get in the following procedures.
+ *)
+CONST
+    writeError   	= "unable to write to file.";
+    errorReading 	= "error reading from source file.";
+    expectingFormat	= "format expected.";
+    incompleteFormat	= "format does not end before new line.";
+    unexpectedEOF	= "file ended in middle of variable declaration.";
+    emptyValue	 	= "variable value is empty.";
+    incompleteTuple	= "incompelete variable declaration.";
+    formatTooLong	= "format string is too long.";
+    duplicateName	= "duplicate name found in file.";
+    nameTooLong		= "the name string is too long.";
+    expectingEquals     = "expecting an equals sign between name and value.";
+
+
+PROCEDURE WriteString(
+    textIO : TextIO.Object;
+    string : ARRAY OF CHAR
+    );
+    BEGIN (* WriteString *)
+
+	IF StringIO.Write( textIO, string ) # TextIO.ok THEN
+	    TextIO.PrintErrorMessage( textIO, '' );
+	    Error( writeError );
+	END;
+
+    END WriteString;
+
+
+PROCEDURE WriteLn(
+    textIO : TextIO.Object
+    );
+    BEGIN (* WriteLn *)
+
+	IF TextIO.WriteLn( textIO ) # TextIO.ok THEN
+	    TextIO.PrintErrorMessage( textIO, '' );
+	    Error( writeError );
+	END;
+
+    END WriteLn;
+
+
+PROCEDURE ReadFromTextFile(
+    file   : Object;
+    textIO : TextIO.Object
+    );
+    (*
+     * There are two parts of the parsing: copying comments/white space
+     * the inputCopy and reading variables.  This procedure calls 
+     * ReadVariable whenever it finds a character it doesn't know.  The
+     * basic copy loop is simple.  Remember that tupleTerminator is
+     * a comment start and new line terminates all comments.
+     * This procedure also initializes varInfoMgr, variables, 
+     * and inputCopy.
+     *)
+    VAR
+	buffer    : Buffer;
+	index     : SysTypes.Card;
+	length    : SysTypes.Card;
+	inComment : BOOLEAN;
+	ch        : CHAR;
+    BEGIN (* ReadFromTextFile *)
+	
+	WITH file^ DO
+	    IOErrors.DONTCARE := TextIO.Open( inputCopy, '', TextIO.appendOnly, 
+					      inputCopyOptions );
+	    (* Copy of variables in order they were read *)
+	    NameLists.Create( variables, NameLists.queue,
+			      NameLists.caseSensitive );
+	    Objects.CreateManager( varInfoMgr, SYSTEM.TSIZE( VariableInfoRec ),
+				   openPath );	(* Give it a unique name *)
+	    inComment := FALSE;
+	    needNewLine := FALSE;
+	    LOOP
+		CASE StringIO.Read( textIO, buffer ) OF
+		    TextIO.ok:
+			IF NOT inComment THEN
+
+			    index := 0; 
+			    length := Strings.Length( buffer ); 
+			    WHILE ( index < length ) AND
+				  Chars.IsWhiteSpace( buffer[ index ] ) DO
+				INC( index );
+			    END; (* WHILE *)
+
+			    (* Did we find anything but white space? *)
+			    IF index < length THEN
+				inComment := buffer[ index ] = tupleTerminator;
+				(* Do we need to parse a variable? *)
+				IF NOT inComment THEN
+				    (* 
+				     * Do we need to copy/delete leading
+				     *)
+				    IF index > 0 THEN
+					ch := buffer[ index ];
+					buffer[ index ] := 0C;
+					WriteString( inputCopy, buffer );
+					buffer[ index ] := ch;
+					Strings.Delete( buffer, Strings.BOS,
+							index - 1 );
+				    END;
+				    ReadVariable( file, textIO, buffer );
+				    (* Always end up in comment after value *)
+				    inComment := TRUE;
+				END; (* IF NOT inComment *)
+			    END;
+			END;
+			WriteString( inputCopy, buffer );
+			(* Make sure Append works properly *)
+			needNewLine := TRUE;
+		    |
+		    TextIO.endOfLine:
+			WriteLn( inputCopy );
+			inComment := FALSE;	(* New lines end comments *)
+			(* Append needn't add a new line *)
+			needNewLine := FALSE;
+		    |
+		    TextIO.endOfFile:
+			EXIT;
+		    |
+		    TextIO.error:
+			buffer := '';
+			SyntaxError( textIO, buffer, 0, errorReading );
+		END; (* CASE *)
+	    END; (* LOOP *)
+	    
+	END; (* WITH *)
+
+    END ReadFromTextFile;
+
+
+PROCEDURE ReadVariable(
+        file   : Object;
+	textIO : TextIO.Object;
+    VAR buffer : Buffer
+    );
+    (*
+     * This routine is handed a buffer which contains the start of
+     * a variable declaration.  If there are syntax errors in the
+     * file, they are discovered by this routine.  Upon completion
+     * of the variable parsing, the final tupleTerminator is returned
+     * in the buffer (along with the rest of the line).   
+     *
+     * This routine is also responsible for copying the inputFormat,
+     * name, and trailing white-space to the inputCopy.  The characters
+     * from the "=" up to (but not including) the first non-space after
+     * the equals are thrown away.
+     * 
+     * To process a variable declaration, we first need to allocate
+     * and initialize a VariableInfo record.   The syntax of a declaration is:
+     *	 "[" <input-format> "]" <white-space> <name> <white-space> "="
+     *       <white-space> <value> <tuple-terminator>.
+     * The <value> is copied verbatim to the varInfo^.valueFile.  The
+     * input-format (along with brackets) is copied to varInfo^.format.
+     * The name is used to insert the varInfo into the variables list.
+     * Note that we must be able to read across buffers (i.e. long lines).
+     *)
+    VAR
+	state : ( 
+	    awaitingFormatEnd,	(* looking for "]" *)
+	    inFormatEscape,	(* just copy next character *)
+	    awaitingName,	(* looking for non-white *)
+	    awaitingNameEnd,	(* looking for white *)
+	    awaitingEquals,	(* looking for non-white and "=" *)
+	    awaitingValue,	(* looking for non-white *)
+	    awaitingValueEnd 	(* looking for ";" *)
+	);
+	bufferIndex  : SysTypes.Card;
+	bufferLength : SysTypes.Card;
+	nameIndex    : SysTypes.Card;
+	formatIndex  : SysTypes.Card;
+	formatLevel  : SysTypes.Card;	(* For nested formats *)
+	varInfo      : VariableInfo;
+	name         : Name;
+	textIOState  : TextIO.States;
+	ch           : CHAR;
+    BEGIN (* ReadVariable *)
+
+	(* There must be a format start *)
+	IF buffer[ 0 ] # FIOBase.beginCommand THEN
+	    SyntaxError( textIO, buffer, 0, expectingFormat );
+	END;
+
+	Objects.Allocate( file^.varInfoMgr, varInfo );
+	IOErrors.DONTCARE := TextIO.Open( varInfo^.valueFile, '', 
+				TextIO.appendOnly, valueFileOptions );
+
+	(*
+	 * Read up the name, inputFormat, and valueFile.
+	 *)
+	varInfo^.format[ 0 ] := FIOBase.beginCommand;
+	formatIndex  := 1;
+	formatLevel  := 1;	(* We have found one format identifier *)
+	bufferIndex  := 1;
+	bufferLength := Strings.Length( buffer );
+
+	state := awaitingFormatEnd;
+	textIOState := TextIO.GetState( textIO );
+
+	(*
+	 * We loop on each character for better error output and
+	 * to handle buffer management more simply.
+	 *)
+	LOOP
+	    (*
+	     * Go until we refill the buffer.
+	     *)
+	    WHILE bufferIndex >= bufferLength DO
+
+		(* 
+		 * We copy endOfLine's when we encounter them. 
+		 * Thus we only need to flush the buffer when we
+		 * just have ordinary data.
+		 *)
+	        IF textIOState # TextIO.endOfLine THEN
+		    CASE state OF
+			awaitingValue:
+			    ; (* We just toss characters in this state *)
+			|
+			awaitingValueEnd:
+			    (* Copy value to valueFile *)
+			    WriteString( varInfo^.valueFile, buffer );
+			ELSE
+			    (* Otherwise copy input to inputCopy *)
+			    WriteString( file^.inputCopy, buffer );
+		    END; (* CASE *)
+		END;
+
+		textIOState := StringIO.Read( textIO, buffer );
+		CASE textIOState OF
+		    TextIO.ok:
+			(* Just process normally *)
+			bufferLength := Strings.Length( buffer );
+			bufferIndex  := 0;
+		    |
+		    TextIO.endOfLine:
+			CASE state OF
+			    awaitingFormatEnd,
+			    inFormatEscape:
+				buffer := '';
+				SyntaxError( textIO, buffer, 0, 
+					     incompleteFormat );
+			    |
+			    awaitingValueEnd:
+				(* Get exact copy of value *)
+				WriteLn( varInfo^.valueFile );
+			    ELSE
+				(* Do we need to write to the inputCopy? *)
+				IF state # awaitingValue THEN
+				    WriteLn( file^.inputCopy );
+				END;
+				(* Treat as white space *)
+				buffer := ' ';
+				bufferLength := 1;
+				bufferIndex  := 0;
+			END; (* CASE *)
+		    |
+		    TextIO.endOfFile:
+			buffer := '';
+			SyntaxError( textIO, buffer, 0, unexpectedEOF );
+		    |
+		    TextIO.error:
+			buffer := '';
+			SyntaxError( textIO, buffer, 0, errorReading );
+		END; (* CASE *)
+	    END; (* WHILE *)
+
+	    (*
+	     * Process the curren character based on the state.
+	     *)
+	    ch := buffer[ bufferIndex ];
+
+	    (* Can't have tupleTerminators anywhere (not even in formats) *)
+	    IF ( ch = tupleTerminator ) AND ( state # awaitingValueEnd ) THEN
+		IF state = awaitingValue THEN
+		    SyntaxError( textIO, buffer, bufferIndex, emptyValue );
+		END;
+		SyntaxError( textIO, buffer, bufferIndex, incompleteTuple );
+	    END;
+
+	    CASE state OF
+		awaitingFormatEnd,
+		inFormatEscape:
+		    IF formatIndex > HIGH( varInfo^.format ) THEN
+			SyntaxError( textIO, buffer, bufferIndex,
+				     formatTooLong );
+		    END;
+		    varInfo^.format[ formatIndex ] := ch;
+		    INC( formatIndex );
+
+		    IF state = inFormatEscape THEN
+			state := awaitingFormatEnd;
+		    ELSIF ch = FIOBase.escapeChar THEN
+			state := inFormatEscape;
+		    ELSIF ch = FIOBase.endCommand THEN
+			DEC( formatLevel );	(* One level less nested *)
+			IF formatLevel = 0 THEN
+			    (* null-terminate and change state *)
+			    IF formatIndex <= HIGH( varInfo^.format ) THEN
+				varInfo^.format[ formatIndex ] := 0C;
+			    END;
+			    state := awaitingName;
+			END;
+		    ELSIF ch = FIOBase.beginCommand THEN
+			INC( formatLevel );	(* One level deeper *)
+		    END;
+		|
+		awaitingName:
+		    (* Wait until we don't have white space *)
+		    IF NOT Chars.IsWhiteSpace( ch ) THEN
+			name[ 0 ] := ch;
+			nameIndex := 1;
+			state := awaitingNameEnd;
+		    END;
+		|
+		awaitingNameEnd:
+		    (* Are we at the end of the name yet? *)
+		    IF Chars.IsWhiteSpace( ch ) THEN
+			IF nameIndex <= HIGH( name ) THEN
+			    name[ nameIndex ] := 0C;
+			END;
+			(* Do the insert now, so we get proper messages *)
+			IF NameLists.Find( file^.variables, name, 
+					   NameLists.DONTCARE ) THEN
+			    SyntaxError( textIO, buffer, bufferIndex,
+					 duplicateName );
+			END;
+			NameLists.Insert( file^.variables, name,
+					  varInfo );
+			state := awaitingEquals;
+		    ELSE
+			IF nameIndex > HIGH( name ) THEN
+			    SyntaxError( textIO, buffer,
+					 bufferIndex, nameTooLong );
+			END;
+			name[ nameIndex ] := ch;
+			INC( nameIndex );
+		    END;
+		|
+		awaitingEquals:
+		    IF NOT Chars.IsWhiteSpace( ch ) THEN
+			IF ch # "=" THEN
+			    SyntaxError( textIO, buffer, bufferIndex,
+					 expectingEquals );
+			END;
+			IF bufferIndex > 0 THEN
+			    buffer[ bufferIndex ] := 0C;
+			    WriteString( file^.inputCopy, buffer );
+			    buffer[ bufferIndex ] := "=";
+			END;
+			(* Have to delete everything before the "=" (and "=") *)
+			Strings.Delete( buffer, Strings.BOS, bufferIndex );
+			DEC( bufferLength, bufferIndex + 1 );
+			bufferIndex := 0;
+			state := awaitingValue;
+		    END;
+		|
+		awaitingValue:
+		    IF NOT Chars.IsWhiteSpace( ch ) THEN
+			IF bufferIndex > 0 THEN
+			    (* Have to delete leading white space *)
+			    Strings.Delete( buffer, Strings.BOS,
+					    bufferIndex - 1 );
+			    DEC( bufferLength, bufferIndex );
+			    bufferIndex := 0;	(* will be incremented *)
+			END;
+			state := awaitingValueEnd;
+		    END;
+		|
+		awaitingValueEnd:
+		    IF ch = tupleTerminator THEN
+			EXIT;
+		    END;
+	    END; (* CASE *)
+
+	    (*  
+	     * Go on to next character to here so SyntaxErrors point at
+	     * the correct character (value).
+	     *)
+	    INC( bufferIndex );
+
+	END; (* LOOP *)
+
+	(* We only get here if the value is terminated properly. *)
+	IF bufferIndex > 0 THEN
+	    buffer[ bufferIndex ] := 0C;	(* replace tuple terminator *)
+	    WriteString( varInfo^.valueFile, buffer );
+
+	    (* Replace tuple terminator so that it gets written to inputCopy *)
+	    buffer[ bufferIndex ] := tupleTerminator;
+	    Strings.Delete( buffer, Strings.BOS, bufferIndex - 1 );
+	END;
+
+    END ReadVariable;
+
+
+PROCEDURE SyntaxError(
+    textIO      : TextIO.Object;
+    buffer      : Buffer;
+    bufferIndex : SysTypes.Card;
+    message     : ARRAY OF CHAR
+    );
+    VAR
+	i        : SysTypes.Card;
+	state    : TextIO.States;
+    BEGIN (* SyntaxError *)
+	
+	state := TextIO.GetState( textIO );
+	IF state # TextIO.error THEN
+	    TextIO.DONTCARE := TextIO.SetError( textIO, IOErrors.badData );
+	END;
+
+	TextIO.PrintErrorMessage( textIO, '' );
+	IF buffer[ 0 ] # 0C THEN
+	    TextIO.DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(),
+					 "Input: [String][NL]", buffer );
+	    (* Set up a line that looks like: ----------^ *)
+	    buffer := '^';
+	    Strings.Justify( buffer, Strings.justifyRight, bufferIndex + 1,
+			     '-' );
+	ELSE
+	    CASE state OF
+		TextIO.endOfLine:
+		    buffer := "end of line";
+		|
+		TextIO.endOfFile:
+		    buffer := "end of file";
+		ELSE
+		    buffer := "none";
+	    END;
+	END;
+
+	TextIO.DONTCARE := FormatIO.Write1( TextIO.GetErrorOutput(),
+				     "Index: [String][NL]", buffer );
+	Error1( "[String][NL]", message );
+
+    END SyntaxError;
+			
+
+PROCEDURE WriteToTextFile(
+    source : Object;
+    dest   : TextIO.Object
+    );
+    (*
+     * Read lines of the inputCopy and write to dest.  If the first
+     * non-white-space character on the line is not a tupleTerminator,
+     * then copy the input until a tupleTerminator is found.  Upon
+     * finding the tupleTerminator, output a "= " and then output 
+     * the values in the valueFile and then copy the rest of 
+     * the line (including the tupleTerminator) to the dest.
+     *
+     * ASSUMES:  "variables" is in the same order as "inputCopy".
+     *)
+    VAR
+	buffer    : Buffer;
+	index     : SysTypes.Card;
+	length    : SysTypes.Card;
+	state     : ( 
+	    awaitingSolidChar,	(* non-white space *)
+	    awaitingValueEnd,	(* looking for tupleT *)
+	    awaitingLineEnd 	(* in comment *)
+	);
+	name      : Name;
+	varInfo	  : VariableInfo;
+	DONTCARE2 : BOOLEAN;
+    BEGIN (* WriteToTextFile *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, source );
+	@END (* Assert *)
+
+	TextIO.DONTCARE :=  TextIO.Rewind( source^.inputCopy ); (* must work. *)
+
+	(*
+	 * We just cruise through the inputCopy.  When we find a
+	 * variable declaration, we copy it to the output and then
+	 * get the "Next" value in variables and copy its valueFile
+	 * to the dest.
+	 *)
+	NameLists.MakeFirstNext( source^.variables );
+	state := awaitingSolidChar;	(* Start of file *)
+	LOOP
+	    CASE StringIO.Read( source^.inputCopy, buffer ) OF
+		TextIO.ok:
+		    IF state = awaitingSolidChar THEN
+			index  := 0;
+			length := Strings.Length( buffer );
+			WHILE ( index < length ) AND
+			      Chars.IsWhiteSpace( buffer[ index ] ) DO
+			    INC( index );
+			END; (* WHILE *)
+			IF index < length THEN
+			    IF buffer[ index ] = tupleTerminator THEN
+				state := awaitingLineEnd; (* in comment *)
+			    ELSE
+				state := awaitingValueEnd; (* new variable *)
+			    END;
+			END;
+		    END;
+
+		    (* Are we copying a variable declaration? *)
+		    IF state = awaitingValueEnd THEN
+			IF Strings.Position( buffer, Strings.BOS,
+			     Strings.EOS, tupleTerminator, index ) THEN
+			    (* Do we have to copy the rest of the decl? *)
+			    IF index > 0 THEN
+				buffer[ index ] := 0C;
+				WriteString( dest, buffer );
+				buffer[ index ] := tupleTerminator;
+				Strings.Delete( buffer, Strings.BOS,
+						index - 1 );
+			    END;
+			    (* We assume the list is valid *)
+			    DONTCARE2 := NameLists.Next( source^.variables,
+							 name, varInfo );
+			    TextIO.DONTCARE := TextIO.Rewind( 
+						varInfo^.valueFile );
+			    (* Put out the necessary "=" and space *)
+			    WriteString( dest, "= " );
+			    CopyFile( varInfo^.valueFile, dest );
+			    state := awaitingLineEnd;  (* All done *)
+			END;
+		    END; (* IF *)
+
+		    (* Copy the rest of the buffer (whatever it is) *)
+		    WriteString( dest, buffer );
+		|
+		TextIO.endOfLine:
+		    WriteLn( dest );
+		    IF state = awaitingLineEnd THEN
+			state := awaitingSolidChar;
+		    END;
+		|
+		TextIO.endOfFile:
+		    EXIT;	(* All done *)
+		|
+		TextIO.error:
+		    TextIO.PrintErrorMessage( source^.inputCopy, '' );
+		    Error1( "[String]: unable to read input copy.[NL]",
+			    source^.openPath );
+	    END; (* CASE *)
+
+	END; (* LOOP *)
+
+    END WriteToTextFile;
+
+
+PROCEDURE CopyFile(
+    source : TextIO.Object;
+    dest   : TextIO.Object
+    );
+    (* 
+     * Simply copy all lines of the source to the dest.
+     * This should probably we a TextIO utility (someday...)
+     *)
+    VAR
+	buffer : Buffer;
+    BEGIN (* CopyFile *)
+	
+	LOOP
+	    CASE StringIO.Read( source, buffer ) OF
+		TextIO.ok:
+		    WriteString( dest, buffer );
+		|
+		TextIO.endOfLine:
+		    WriteLn( dest );
+		|
+		TextIO.endOfFile:
+		    EXIT;
+		|
+		TextIO.error:
+		    TextIO.PrintErrorMessage( source, '' );
+		    Error( "Cannot read internal value file.[NL]" );
+	    END; (* CASE *)
+	END; (* LOOP *)
+
+    END CopyFile;
+
+
+PROCEDURE Save(
+    file     : Object; 		   (* Must be valid and writable *)
+    version  : SaveVersionModes;
+    specific : IOVersions.Number
+    );
+    (*
+     * Checks isDefault.  Computes the next version number.
+     * Once we have a textIO, then call WriteToTextFile.  Finally, close 
+     * the textIO.
+     *)
+    VAR
+	textIO  : TextIO.Object;
+	ioError : IOErrors.Errors;
+    BEGIN (* Save *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	    IF file^.accessMode = readOnly THEN
+		ReadOnlyError( file );
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    (* Figure out which version to use *)
+	    IF isDefault THEN
+		textIO       := TextIO.GetOutput();
+	    ELSE
+		IF version = nextVersionInCycle THEN
+		    IF saveVersion >= highVersion THEN
+			saveVersion := lowVersion;
+		    ELSE
+			INC( saveVersion );
+		    END;
+		    specific := saveVersion;
+		END;
+		CreateFile( absolutePath, dirMode, '', version # noVersion,
+			    specific, textIO );
+	    END;
+
+	    WriteToTextFile( file, textIO );
+
+	    ioError := TextIO.Close( textIO );
+
+	    IF ioError # IOErrors.ok THEN
+		Error1( "Error closing new version '[String]'.[NL]",
+			absolutePath );
+	    END;
+
+	END; (* WITH *)
+
+    END Save;
+
+
+PROCEDURE GetLogFile(
+    file : Object
+    )    : TextIO.Object;
+    (*
+     * If the log file is opened, just return it.  If it isn't, then
+     * call CreateFile with the proper parameters.   Note the special
+     * handling of "isDefault".
+     *)
+    BEGIN (* GetLogFile *)
+	
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	WITH file^ DO
+	    IF logFileOpen THEN
+		RETURN logFile;
+	    END;
+
+	    logFileOpen := TRUE;
+	    IF isDefault THEN
+		logFile := TextIO.GetErrorOutput();
+	    ELSE
+		CreateFile( absolutePath, dirMode, logFileSuffix,
+			    hasVersion, openVersion, logFile );
+	    END;
+	    RETURN logFile;
+
+	END; (* WITH *)
+
+    END GetLogFile;
+
+
+PROCEDURE GetSaveVersion(
+    file : Object
+    )    : IOVersions.Number;
+    BEGIN (* GetSaveVersion *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.saveVersion;
+    END GetSaveVersion;
+
+
+PROCEDURE GetOpenVersion(
+    file : Object
+    )    : IOVersions.Number;
+    BEGIN (* GetOpenVersion *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.openVersion;
+    END GetOpenVersion;
+
+
+PROCEDURE GetOpenPath(
+        file     : Object;
+    VAR openPath : IOConsts.Path
+    );
+    BEGIN (* GetOpenPath *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, file );
+	@END (* Assert *)
+
+	openPath := file^.openPath;
+
+    END GetOpenPath;
+
+
+
+PROCEDURE SetDefault(
+    newDefault : Object
+    );
+    BEGIN (* SetDefault *)
+	
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, newDefault );
+	@END (* Assert *)
+
+	newDefault := defaultObject;
+
+    END SetDefault;
+
+
+BEGIN (* DataFIO *)
+
+    defaultObject := NIL;
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), moduleName );
+
+    (*
+     * We want relatively small files for "values", since they are generally
+     * small values. We don't need buffering for these small values.
+     *)
+    StringBinaryIO.MakeOptions( StringBinaryIO.minBlockSize, 
+				valueFileOptions );
+    BinaryIO.MakeOptions( StringBinaryIO.className,
+			  valueFileOptions, valueFileOptions );
+    TextIO.MakeOptions( TextIO.doNotBuffer, valueFileOptions, 
+			valueFileOptions );
+
+    (*
+     * The input copy is just like a disk file or thereabouts, thus
+     * we expect them to be large.  We could be wrong, but this should
+     * be a good guess.  Note that we assume text buffering is a good idea.
+     *)
+    StringBinaryIO.MakeOptions( StringBinaryIO.maxBlockSize, 
+				inputCopyOptions );
+    BinaryIO.MakeOptions( StringBinaryIO.className,
+			  inputCopyOptions, inputCopyOptions );
+    TextIO.MakeOptions( TextIO.doBuffering, inputCopyOptions, 
+			inputCopyOptions );
+
+END DataFIO.
+

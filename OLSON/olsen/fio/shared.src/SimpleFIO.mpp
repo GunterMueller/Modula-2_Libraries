@@ -1,0 +1,502 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE SimpleFIO;
+(* 
+ * Don't have Assert around the TerminateWithError because this isn't
+ * really assertion check which is costly.  It provides semantics to the
+ * library.  It is a post-condition and not a pre-condition.
+ *
+ * Tasks NOTE:
+ *     This may not be right, but we terminate with the Monitor locked.
+ *     The reason is that someone else might be wanting to use the file
+ *     and the errors would be kind of funny.
+ *     The semantics of the Tasking stuff at Olsen says that the program
+ *     exits if the caller is terminated.  If other Tasks semantics are
+ *     chosen, then a different approach will have to be taken.
+ *)
+IMPORT
+    IOErrors,
+    FormatIO,
+    ProgErr,
+    SysTypes,
+    TextIO,
+    TextIOPRIVATE;
+
+@IF Tasks THEN
+    IMPORT
+	IOMonitors,
+	TaskMonitors;
+
+    VAR
+	inputMonitor	: TaskMonitors.Object ;
+	outputMonitor	: TaskMonitors.Object ;
+
+@END (* Tasks *)
+
+
+PROCEDURE TerminateWithError(
+    file : TextIOPRIVATE.Object
+    );
+    (*  
+     * Terminate program due to error/end state on file.
+     *)
+    BEGIN (* TerminateWithError *)
+
+	TextIO.PrintErrorMessage( TextIO.Object( file ), '' );
+	ProgErr.Terminate( 'SimpleFIO: I/O error.' );
+
+    END TerminateWithError;
+
+
+PROCEDURE ReadError;
+    BEGIN (* ReadError *)
+
+	IF ( TextIOPRIVATE.input^.errorState # IOErrors.badData ) OR
+	   ( TextIO.SetError( TextIO.Object( TextIOPRIVATE.input ), 
+			      IOErrors.ok ) = TextIO.error ) THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+    END ReadError;
+
+
+PROCEDURE WriteError;
+    (*
+     * If we get an error writing, then we should try to see if
+     * it was just a bad parameter.  In this case, we just ignored
+     * the error.  This is SimpleFIO, right?
+     *
+     * Tasks NOTE:
+     * 		ASSUMES is called with the monitor locked!
+     *)
+    BEGIN (* WriteError *)
+
+	(*
+	 * If the error isn't badParameter or the badParameter error
+	 * couldn't be reset, the blow up!
+	 *)
+	IF ( TextIOPRIVATE.output^.errorState # IOErrors.badParameter ) OR
+	   ( TextIO.SetError( TextIO.Object( TextIOPRIVATE.output ), 
+			      IOErrors.ok ) = TextIO.error ) THEN
+	    TerminateWithError( TextIOPRIVATE.output );
+	END;
+
+    END WriteError;
+
+
+PROCEDURE EOF(
+    ) : BOOLEAN;
+    VAR
+	result : BOOLEAN;
+    BEGIN  (* EOF *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	@IF Assert THEN
+	    IF TextIOPRIVATE.input^.state = TextIO.error THEN
+		TerminateWithError( TextIOPRIVATE.input );
+	    END;
+	@END (* Assert *)
+
+	result := TextIOPRIVATE.input^.state = TextIO.endOfFile;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END EOF;
+
+
+PROCEDURE Read(
+    format : ARRAY OF CHAR
+    )      : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* Read *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := FormatIO.Read( TextIO.Object( TextIOPRIVATE.input ), 
+				 format ) = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    ReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result; 	(* may be false *)
+
+    END Read;
+
+
+PROCEDURE Read1(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* Read1 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := FormatIO.Read1( TextIO.Object( TextIOPRIVATE.input ), 
+				  format, arg1 ) = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    ReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;  (* may be false *)
+
+    END Read1;
+
+
+PROCEDURE Read2(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* Read2 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := FormatIO.Read2( TextIO.Object( TextIOPRIVATE.input ), 
+				  format, arg1, arg2 ) = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    ReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result; 	(* may be false *)
+
+    END Read2;
+
+
+PROCEDURE Read3(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* Read3 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := FormatIO.Read3( TextIO.Object( TextIOPRIVATE.input ), 
+				  format, arg1, arg2, arg3 ) = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    ReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result; 	(* may be false *)
+
+    END Read3;
+
+
+PROCEDURE Read4(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY;
+    VAR arg4   : ARRAY OF SysTypes.ANY
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* Read4 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := FormatIO.Read4( TextIO.Object( TextIOPRIVATE.input ), 
+			  format, arg1, arg2, arg3, arg4 ) = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    ReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result; 	(* may be false *)
+
+    END Read4;
+
+
+PROCEDURE PromptedRead1(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* PromptedRead1 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.PromptedRead1( TextIO.Object( TextIOPRIVATE.input ), format, 
+		arg1, TextIO.Object( TextIOPRIVATE.output) ) 
+		= TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+    END PromptedRead1;
+
+
+PROCEDURE PromptedRead2(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* PromptedRead2 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.PromptedRead2( TextIO.Object( TextIOPRIVATE.input ), format, 
+		arg1, arg2, TextIO.Object( TextIOPRIVATE.output) ) 
+		= TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+    END PromptedRead2;
+
+
+PROCEDURE PromptedRead3(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* PromptedRead3 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.PromptedRead3( TextIO.Object( TextIOPRIVATE.input ), format, 
+		arg1, arg2, arg3, TextIO.Object( TextIOPRIVATE.output) ) 
+		= TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+    END PromptedRead3;
+
+
+PROCEDURE PromptedRead4(
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY;
+    VAR arg4   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* PromptedRead4 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.PromptedRead4( TextIO.Object( TextIOPRIVATE.input ), format, 
+		arg1, arg2, arg3, arg4, TextIO.Object( TextIOPRIVATE.output) ) 
+		= TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+    END PromptedRead4;
+
+
+PROCEDURE Write(
+    format : ARRAY OF CHAR
+    );
+    BEGIN (* Write *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.Write( TextIO.Object( TextIOPRIVATE.output ), format ) 
+	  = TextIO.error THEN
+	    WriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+
+    END Write;
+
+
+PROCEDURE Write1(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* Write1 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.Write1( TextIO.Object( TextIOPRIVATE.output ), format, 
+		arg1 ) = TextIO.error THEN
+	    WriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+    END Write1;
+
+
+PROCEDURE Write2(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* Write2 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.Write2( TextIO.Object( TextIOPRIVATE.output ), format, 
+		arg1, arg2 ) = TextIO.error THEN
+	    WriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+    END Write2;
+
+
+PROCEDURE Write3(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* Write3 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.Write3( TextIO.Object( TextIOPRIVATE.output ), format, 
+		arg1, arg2, arg3 ) = TextIO.error THEN
+	    WriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+    END Write3;
+
+
+PROCEDURE Write4(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY;
+    arg4   : ARRAY OF SysTypes.ANY
+    );
+    BEGIN (* Write4 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF FormatIO.Write4( TextIO.Object( TextIOPRIVATE.output ), format, 
+		arg1, arg2, arg3, arg4 ) = TextIO.error THEN
+	    WriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+    END Write4;
+
+
+BEGIN (* SimpleFIO *)
+
+    @IF Tasks THEN
+        inputMonitor  := IOMonitors.GetInput();
+        outputMonitor := IOMonitors.GetOutput();
+    @END (* Tasks *)
+
+END SimpleFIO.
+
+

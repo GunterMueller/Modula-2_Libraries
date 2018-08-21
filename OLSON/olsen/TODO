@@ -1,0 +1,111 @@
+Things To Do (Known Problems)
+
+The Library runs ok, but it has many ``inefficiencies''.  Most of
+the problems don't affect us, since we just don't care if these
+particular operations go any faster.  Some of the operations would
+be nice to have, but we don't have time right now.  The following 
+operations will be fixed up some time in the future.  If you think 
+you can do it, please contact the e-mail address listed in the 
+bugs section.
+
+o When using Logitech 3.0 and Tasks and you type a ctrl-break,
+  the system hangs.  If you don't use Tasks, the system just
+  ignores the ctrl-break.  
+
+o The manual needs to be proofread and upgraded.  In particular, 
+  the following references should be added: 
+    Wirth, N. {\em Programming In Modula-2} Third, Corrected Edition.
+	Springer-Verlag, N.Y. 1985.
+    Motrola, Inc. {\em MC68020 32-bit Microprocessor User's Manual}
+	Second Edition. Prentice Hall, N.J. 1985.
+    Rector R. and G. Alexy {\em The 8086 Book.} Osborne/McGraw-Hill, 
+	Berkeley, CA 1980.
+    Norton, P. {\em The Peter Notron Programmer's Guide to the IBM PC.}
+	Microsoft Press, Bellevue, Washington 1985.
+    IBM, {\em DOS Technical Reference} DOS 3.1 Version. IBM, Boca Raton,
+	FL, 1985.
+    
+o Bytes is coded in Modula-2 when it should probably be coded
+  in assembler or at least call operating system supplied
+  memory operations.
+
+o Strings might gain performance if it was coded using the 
+  new and improved version of Bytes.
+  
+o FormatIO is horribly inefficient.  A redesign of the string
+  parsing internals and registration interfaces is in order.
+  
+o FormatIO is a memory pig because it uses all of the TextIO
+  modules (CardIO et al) and their complementary FIO modules 
+  (FIOCard et al).  It isn't clear if this can be fixed, but
+  it is worth looking into.
+
+o StringBinaryIO is memory inefficient, because it uses an
+  Objects.Manager per file.  A quick hack of including the
+  first buffer in the file object would probably speed up
+  performance tremendously.
+  
+o Objects should share memory pools between managers of like size.
+  
+o TasksPRIVATE should keep a cache of stacks.  Using SafeStorage
+  directly may have disastrous effects on global memory pool.
+
+o DirIO.Create should be optimized for the normal case.  For
+  each create, it does two operating system calls when it could
+  possibly get away with one.
+
+o QStrings should be expanded to support all the operations
+  Strings supports as well as FIOQString and QStringIO.
+
+o [Real] for writing should behave like the C "%g" format.
+
+o TextIO attempts all file opens in BinaryIO.readWrite mode first.
+  If this fails, it tries either appendOnly or readOnly.  The reason
+  is to allow for Rewind and Append.  We may want to change this
+  default to be an I/O option, thus deferring the cost to those
+  applications which require more than just the normal I/O.  In fact,
+  however, the cost of repeated opens is quite minimal, because most
+  operating systems keep a cache.
+
+o Task switching doesn't save floating point registers.
+
+o UnixAsynchIO causes strange results when the program terminates
+  without having a chance to clean up.  This can happen with SEGV,
+  INT, or QUIT.  Perhaps Interrupts should catch all signals and
+  call the termination handlers.
+
+o ProgArgs upcalls its arguments multiple times which means all
+  arguments must be in global memory as well as requiring checking
+  code in the client software.  A better approach would be to 
+  only upcall arguments once.  The catch, of course, is that many
+  library modules call Parse( ignoreErrors ) which would mean that
+  errors would be upcalled multiple times iff ignore errors was used.
+
+o ProgArgs on Logitech 2.0 (who cares?) behaves improperly when used
+  from an "exe" version of a Modula-2 program without the modified
+  version of the run-time system.  Specifically, Logitech puts an
+  "a" as a dummy program name to be skipped instead of an illegal
+  character like "*" (which is what we do in our special version of
+  the run-time system).
+
+o DataFIO does not allow a semicolon (;) in data values.  The appropriate
+  fix would be to read ";;" as a single ";" to be inserted in the data
+  value.
+
+o DataFIO should have an option for not crashing.  It could be implemented
+  with a Notice as opposed to cluttering up the definition module with
+  error returns (a la Strings.XXXOK).
+
+o ScreenIO on the PC doesn't allow control of line editing or echoing,
+  because DOS doesn't provide an easy method of doing this.  It would
+  to allow this type of control, but it would be costly in terms of
+  code size.  An alternative approach might be to add Keyboard.ReadString
+  which would allow a editing/echo control, but this wouldn't work
+  with a redirected console (sigh).
+
+o Keyboard should be implemented for the Sun.
+
+o TextIO should provide another option for quick and dirty string files
+  similar to "sprintf" in C.  Specifically, the user could supply the
+  buffer used by TextIO and TextIO would not open a lower level BinaryIO
+  file.  Naturally, this wouldn't be very portable, but it would be fast!

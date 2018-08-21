@@ -1,0 +1,352 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Keyboard;
+(*
+ * See IBM PC/AT Technical Reference Guide, March 1984, chap. 5, pp 13-19,
+ * for details about the BIOS (also the Norton book on PCs is quite useful).
+ *
+ * Basically, we are interested in two keyboard services: is-there-a-key
+ * and get-the-key.  The get-the-key function is rather complicated, because
+ * the BIOS returns two bytes which aren't simply interpreted.  The first
+ * byte is normal ASCII except if it is zero, then the second byte contains
+ * the value.  However, if the second byte can return a null, so we must
+ * check for this specially.  There are also "holes" in the extended code
+ * table, thus we protect ourselves by not returning these values at all.
+ *
+ * non-Tasks:
+ *     Simply asks the BIOS if there is input, if there is then it
+ *     gets the input and translates it according to the algorithm
+ *     defined in the BIOS book.
+ *     
+ * Tasks:
+ *     We don't want to write a whole keyboard driver, so we needed only
+ *     to wakeup the task.  We chain the keyboard interrupt so that the
+ *     handler wakes up the task and the BIOS does the keyboard mgmt.
+ *     If there is no task waiting, then the task is not awoken.  This
+ *     algorithm has a draw back that the suspended task may be woken
+ *     on shift lock and other non-keys.  This is really not a big deal.
+ *)
+IMPORT
+    ASCII,
+    I8086,
+    SYSTEM,
+    SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+        Interrupts,
+        Notices,
+	Tasks,
+        TaskMonitors;
+
+    CONST
+	handlerVector = 9H;		(* Hardware interrupt on PC *)
+    VAR
+	monitor : TaskMonitors.Object;
+	    (*
+	     * Provides queueing in the light weight process world.
+	     * All tasks which enter Read are stopped at the monitor,
+	     * if there is already a task waiting.
+	     *)
+	isTaskWaiting : BOOLEAN;	(* TRUE, then waitingTask is valid *)
+	waitingTask   : Tasks.Object;	(* task to wake up on key press *)
+@END (* Tasks *)
+
+CONST
+    specialFunction = ctrlBreak;
+    ctrlBreakKey    = 0C;	(* ctrl-break was typed *)
+    nulKey 	    = 3C;	(* Kind of funny, but this is *)
+VAR
+    codeToFunction  : ARRAY CHAR OF Functions;
+	(*
+	 * Converts a "code" key into a function key value.  Note that
+	 * the "break" is treated specially, so that we can figure out
+	 * funny codes like "nul" and non-values (just in case).
+	 *)
+
+CONST
+    biosKeyboardRequestInt = 16H;  (* How to talk to the BIOS *)
+	(*
+	 * the request code must be in AH, so this requires using
+	 * a SETREG with a shift ( * 100H ).
+	 *)
+    biosReadKeyboard       = 0;	   (* Function to read the keyboard *)
+    isExtendedFunctionKey  = 0C;   (* whether to look in AH for value *)
+	(*
+	 * AL contains ASCII value of the key.  If it is isExtendedFunctionKey,
+	 * then the value is in AH and must be interpreted by the 
+	 * codeToFunction table (with special cases)
+	 *)
+    biosCheckKeyboard      = 1;	   (* Test to see if there is a key *)
+	(*
+	 * This function tells you if a key is available. If one is
+	 * not available, upon return the Zero Flag will be set.
+	 * Otherwise, input is available and should be read via 
+	 * biosReadKeyboard.
+	 *)
+
+PROCEDURE Available(
+    ) : BOOLEAN;
+    (*
+     * Ask the BIOS if the key is available.  Notice the reverse
+     * logic on checking the zero flag.
+     *)
+    VAR
+	flags : I8086.FlagsRegister;
+    BEGIN (* Available *)
+	
+	SYSTEM.SETREG( SYSTEM.AX, biosCheckKeyboard * 100H ); (* in AH *)
+	SYSTEM.SWI( biosKeyboardRequestInt );
+	SYSTEM.CODE( I8086.Pushf );		(* Only way to get flags reg *)
+	SYSTEM.CODE( I8086.Pop + SYSTEM.DX );
+	SYSTEM.GETREG( SYSTEM.DX, flags );
+
+	RETURN NOT ( I8086.zeroFlag IN flags );
+    END Available;
+
+
+PROCEDURE Read(
+    VAR key : Value
+    )       : BOOLEAN;
+    (*
+     * Check if there is a key available. If there is, then process
+     * it according to the rules of the BIOS.
+     *
+     * Note the use of the LOOP for a forward exit for Tasks.
+     *)
+    VAR
+	result  : BOOLEAN;	(* what this function returns *)
+	axValue : SysTypes.Card;(* what the BIOS returns on read keyboard *)
+	ahValue : CHAR;		(* high byte of the axValue *)
+	alValue : CHAR;		(* low byte of the axValue *)
+    BEGIN (* Read *)
+	
+	@IF Tasks THEN
+	    TaskMonitors.Enter( monitor );
+	@END (* Tasks *)
+
+	LOOP (* for forward exits *)
+	    
+	    (* 
+	     * Is there a key available?
+	     *)
+
+	    @IF NOT Tasks THEN
+		result := Available();
+		IF NOT result THEN
+		    EXIT;
+		END;
+
+	    @ELSE (* Tasks *)
+		result := Available();
+		IF NOT result THEN
+		    (* No key (first try), so we wait *)
+		    SYSTEM.DISABLE;
+			waitingTask   := Tasks.GetCurrent();
+			isTaskWaiting := TRUE;
+			Tasks.Suspend;
+			isTaskWaiting := FALSE;
+		    SYSTEM.ENABLE;
+
+		    (* Is no key (second try), then exit *)
+		    result := Available();
+		    IF NOT result THEN
+			EXIT;
+		    END;
+		END;
+	    @END (* Tasks *)
+
+	    (* Read the key from the keyboard and interpret *)
+	    SYSTEM.SETREG( SYSTEM.AX, biosReadKeyboard * 100H ); (* in AH *)
+	    SYSTEM.SWI( biosKeyboardRequestInt );
+	    SYSTEM.GETREG( SYSTEM.AX, axValue );	(* Get the key *)
+
+	    (* Check the low byte first *)
+	    alValue := CHR( axValue MOD 100H );
+	    IF alValue # isExtendedFunctionKey THEN
+		(* Ordinary key, just task value *)
+		key.type   := normalKey;
+		key.ascii8 := alValue;
+	    ELSE
+		(* Extended function key, use table to convert *)
+		key.type := functionKey;
+		ahValue  := CHR( axValue DIV 100H );
+		key.function := codeToFunction[ ahValue ];
+
+		(* Is this a special function key? *)
+		IF key.function = specialFunction THEN
+
+		    (* If it isn't the break key *)
+		    IF ahValue # ctrlBreakKey THEN
+			IF ahValue = nulKey THEN
+			    key.type   := normalKey;
+			    key.ascii8 := ASCII.nul;
+			ELSE
+			    result := FALSE;
+			END;
+		    END;
+		END;
+	    END;
+
+	    EXIT;	(* success *)
+	END; (* LOOP For forward exits *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( monitor );
+	@END (* Tasks *)
+
+	RETURN result;
+    END Read;
+
+
+@IF Tasks THEN
+    PROCEDURE Handler(
+        DONTCARE : SysTypes.ANYPTR
+        );
+	(*
+	 * All we have to do is wakeup the task that is waiting (if
+	 * there is one).
+	 *)
+	BEGIN (* Handler *)
+	    
+	    IF isTaskWaiting THEN
+		Tasks.Ready( waitingTask );
+	    END;
+
+	END Handler;
+
+
+    VAR
+	handler : Interrupts.Object;
+
+    PROCEDURE TerminateTasks(
+        mode : SysTypes.ANYPTR
+        );
+	(*
+	 * No matter how we are terminating, we must destroy
+	 * the interrupt handler.  We also get rid of the monitor.
+	 *)
+	BEGIN (* TerminateTasks *)
+	    
+	    Interrupts.Destroy( handler );
+	    IF mode = Notices.normalTermination THEN
+		TaskMonitors.Destroy( monitor );
+	    END;
+
+	END TerminateTasks;
+
+
+    PROCEDURE InitializeTasks;
+	(*
+	 * We must set up the interrupt handler.
+	 *)
+	BEGIN (* InitializeTasks *)
+
+	    isTaskWaiting := FALSE;
+	    Notices.Register( Notices.GetTerminationNotice(), TerminateTasks );
+	    TaskMonitors.Create( monitor, "Keyboard" );
+	    Interrupts.Create( handler, Handler, Interrupts.DONTCARE,
+			       handlerVector, Interrupts.callPrevious );
+
+	END InitializeTasks;
+@END (* Tasks *)
+
+
+PROCEDURE FillCodeToFunction(
+    start : CHAR;
+    stop  : CHAR;
+    value : Functions
+    );
+    (*
+     * Does a sequential fill of the codeToFunction array during 
+     * initialization.
+     *)
+    BEGIN (* FillCodeToFunction *)
+
+	LOOP 
+	    codeToFunction[ start ] := value;
+	    INC( start );
+	    IF ORD( start ) > ORD( stop ) THEN
+		EXIT;
+	    END;
+	    INC( value );	(* Must be here to protect overflow *)
+	END;
+	    
+    END FillCodeToFunction;
+
+
+VAR
+    i : SysTypes.Card;
+BEGIN (* Keyboard *)
+    
+    FOR i := 0 TO ORD( SysTypes.MAXCHAR ) DO
+	codeToFunction[ CHR( i ) ] := specialFunction;
+    END;
+
+    (* Nul character is handled specially *)
+
+    codeToFunction[ CHR( 15 ) ] := rightArrow;
+
+    (* altQWERTYUIOP *)
+    FillCodeToFunction( CHR( 16 ), CHR( 25 ), altQ );
+
+    (* altASDFGHJKL *)
+    FillCodeToFunction( CHR( 30 ), CHR( 38 ), altA );
+
+    (* altZXCVBNM *)
+    FillCodeToFunction( CHR( 44 ), CHR( 50 ), altZ );
+
+    (* F1-10 *)
+    FillCodeToFunction( CHR( 59 ), CHR( 68 ), f1 );
+
+    codeToFunction[ CHR( 71 ) ] := home;
+    codeToFunction[ CHR( 72 ) ] := upArrow;
+    codeToFunction[ CHR( 73 ) ] := pageUp;
+    codeToFunction[ CHR( 75 ) ] := leftArrow;
+    codeToFunction[ CHR( 77 ) ] := rightArrow;	 (* twice? *)
+    codeToFunction[ CHR( 79 ) ] := end;
+    codeToFunction[ CHR( 80 ) ] := downArrow;
+    codeToFunction[ CHR( 81 ) ] := pageDown;
+    codeToFunction[ CHR( 82 ) ] := insert;
+    codeToFunction[ CHR( 83 ) ] := delete;
+
+    (* shiftF1-10, ctrlF1-F10, altF1-F10 *)
+    FillCodeToFunction( CHR( 84 ), CHR( 113 ), shiftF1 );
+
+    codeToFunction[ CHR( 114 ) ] := ctrlPrintScreen;
+    codeToFunction[ CHR( 115 ) ] := ctrlLeftArrow;
+    codeToFunction[ CHR( 116 ) ] := ctrlRightArrow;
+    codeToFunction[ CHR( 117 ) ] := ctrlEnd;
+    codeToFunction[ CHR( 118 ) ] := ctrlPageDown;
+    codeToFunction[ CHR( 119 ) ] := ctrlHome;
+
+    (* alt1234567890-= *)
+    FillCodeToFunction( CHR( 120 ), CHR( 131 ), alt1 );
+
+    codeToFunction[ CHR( 132 ) ] := ctrlPageUp;
+
+    @IF Tasks THEN
+	InitializeTasks;
+    @END (* Tasks *)
+
+END Keyboard.

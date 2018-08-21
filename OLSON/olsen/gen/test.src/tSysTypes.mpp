@@ -1,0 +1,173 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tSysTypes;
+IMPORT
+    SysTypes,
+    SYSTEM;
+@IF M2V2 OR LogitechM2 THEN
+FROM SYSTEM IMPORT
+    SIZE;
+@END
+TYPE
+    gSAU = ARRAY [ 0 .. SysTypes.maxArrayIndexSAU ] OF SysTypes.SAU;
+    gANY = ARRAY [ 0 .. SysTypes.maxArrayIndexANY ] OF SysTypes.ANY;
+    gBYTE = ARRAY [ 0 .. SysTypes.maxArrayIndexBYTE ] OF SYSTEM.BYTE;
+    gWORD = ARRAY [ 0 .. SysTypes.maxArrayIndexWORD ] OF SYSTEM.WORD;
+    gADDR = ARRAY [ 0 .. SysTypes.maxArrayIndexADDRESS ] OF SYSTEM.ADDRESS;
+    gInt = ARRAY [ 0 .. SysTypes.maxArrayIndexInt ] OF SysTypes.Int;
+    gCard = ARRAY [ 0 .. SysTypes.maxArrayIndexCard ] OF SysTypes.Card;
+    gReal = ARRAY [ 0 .. SysTypes.maxArrayIndexReal ] OF SysTypes.Real;
+
+    (* The following shouldn't compile *)
+(*
+    bSAU = ARRAY [ 0 .. SysTypes.maxArrayIndexSAU + 1 ] OF SysTypes.SAU;
+    bANY = ARRAY [ 0 .. SysTypes.maxArrayIndexANY + 1 ] OF SysTypes.ANY;
+    bBYTE = ARRAY [ 0 .. SysTypes.maxArrayIndexBYTE + 1 ] OF SYSTEM.BYTE;
+    bWORD = ARRAY [ 0 .. SysTypes.maxArrayIndexWORD + 1 ] OF SYSTEM.WORD;
+    bADDR = ARRAY [ 0 .. SysTypes.maxArrayIndexADDRESS + 1 ] OF SYSTEM.ADDRESS;
+    bInt = ARRAY [ 0 .. SysTypes.maxArrayIndexInt + 1 ] OF SysTypes.Int;
+    bReal = ARRAY [ 0 .. SysTypes.maxArrayIndexReal + 1 ] OF SysTypes.Real;
+    bCard = ARRAY [ 0 .. SysTypes.maxArrayIndexCard + 1 ] OF SysTypes.Card;
+*)
+
+PROCEDURE Generic( 
+	p1 : ARRAY OF SysTypes.ANY;
+    VAR p2 : ARRAY OF SysTypes.ANY;
+        p3 : SYSTEM.ADDRESS;
+	s  : SysTypes.Card
+    );
+    BEGIN (* Generic *)
+
+	(* Make sure the bitsPer values are correct *)
+	IF SIZE( p1 ) # s THEN
+	    HALT;
+	END;
+
+	(* Make sure that VAR and SYSTEM.ADR do the same thing *)
+	IF SIZE( p1 ) # SIZE( p2 ) THEN
+	    HALT;
+	END;
+
+	(* Make sure we can play address games *)
+	IF SYSTEM.ADR( p2 ) # p3 THEN
+	    HALT;
+	END;
+
+	(* Make sure bitsPerANY and bitsPerSAU are correct *)
+	IF ( HIGH( p1 ) + 1 ) *
+	    ( SysTypes.bitsPerANY DIV SysTypes.bitsPerSAU ) # SIZE( p1 ) THEN
+	    HALT;
+	END;
+
+	(* Make sure bitsPerANY isn't different for elements *)
+	IF SIZE( p1[ 0 ] ) # SysTypes.bitsPerANY DIV SysTypes.bitsPerSAU THEN
+	    HALT;
+	END;
+
+    END Generic;
+
+
+PROCEDURE Endian;
+    VAR
+	(* 
+	 * Assumes that CHAR and CARDINAL are different sizes
+	 *)
+	hack : RECORD
+	    CASE DONTCARE : INTEGER OF
+		0:
+		    set : BITSET;
+		|
+		1:
+		    card : CARDINAL;
+		|
+		2:
+		    char : CHAR;
+	    END;
+	END;
+
+    BEGIN (* Endian *)
+
+	IF ( SysTypes.littleEndian = SysTypes.bigEndian ) 
+	  OR ( SysTypes.littleEndianSets = SysTypes.bigEndianSets ) THEN 
+	    HALT;
+	END;
+
+	IF SYSTEM.TSIZE( SysTypes.SAU ) # 1 THEN
+	    HALT;
+	END;
+
+	hack.card := 1;
+	IF SysTypes.littleEndian AND ( hack.char = 0C ) THEN
+	    HALT;
+	ELSIF SysTypes.bigEndian AND ( hack.char # 0C ) THEN
+	    HALT;
+	END;
+
+	IF SysTypes.littleEndianSets AND NOT ( 0 IN hack.set ) THEN
+	    HALT;
+	ELSIF SysTypes.bigEndianSets AND ( 0 IN hack.set ) THEN
+	    HALT;
+	END;
+    END Endian;
+    
+VAR
+    i   : SysTypes.Int;
+    c   : SysTypes.Card;
+    r   : SysTypes.Real;
+    a   : ARRAY [ 1 .. 2 * SysTypes.bitsPerArrayCHAR DIV
+		       SysTypes.bitsPerSAU ] OF CHAR;
+    odd : ARRAY [ 0 .. 2 * SysTypes.bitsPerArrayCHAR DIV
+		       SysTypes.bitsPerSAU ] OF CHAR;
+BEGIN (* tSysTypes *)
+
+    Endian;
+
+    Generic( i, i, SYSTEM.ADR( i ), SysTypes.bitsPerInt DIV
+				    SysTypes.bitsPerSAU );
+    Generic( c, c, SYSTEM.ADR( c ), SysTypes.bitsPerCard DIV
+				    SysTypes.bitsPerSAU );
+    Generic( r, r, SYSTEM.ADR( r ), SysTypes.bitsPerReal DIV
+				    SysTypes.bitsPerSAU );
+    Generic( a, a, SYSTEM.ADR( a ), ( SysTypes.bitsPerArrayCHAR * HIGH( a ) + 
+				       SysTypes.bitsPerSAU - 1 )
+				       DIV SysTypes.bitsPerSAU );
+    (* These may not work... Seperate lines for the compiler *)
+    Generic( a[ 1 ], 
+	    a[ 1 ], 
+	    SYSTEM.ADR( a[ 1 ] ), 
+	    SIZE( a[ 1 ] ) );
+    Generic( 
+	    a[ 2 ], 
+	    a[ 2 ], 
+	    SYSTEM.ADR( a[ 2 ] ), 
+	    SIZE( a[ 2 ] ) );
+
+    @IF NOT ( SunM2 OR LogitechM2 ) THEN
+	(* Odd number of elements may yield funny results *)
+	Generic( a, a, SYSTEM.ADR( a ), ( SysTypes.bitsPerArrayCHAR * 
+					    ( HIGH( odd ) + 1 ) + 
+					   SysTypes.bitsPerSAU - 1 )
+					   DIV SysTypes.bitsPerSAU );
+    @END 
+
+END tSysTypes.

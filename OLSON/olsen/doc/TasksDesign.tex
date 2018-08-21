@@ -1,0 +1,616 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Tasks Design}
+
+\section{Introduction}
+The OIS Display Program is a complex real-time program which 
+responds to many asynchronous events, e.g. keyboard input, timers,
+serial communication interrupts.  Lightweight Processes (LWPs)\index{LWP}
+\index{Lightweight Processes}
+have been chosen as the medium to manage these asynchronous events
+on the IBM PC.  This paper discusses the implementation of LWPs
+and assumes that the reader is familiar with the reasons this
+solution was chosen. 
+
+\section{Philosophy}
+LWPs are a method of managing events in a system.
+\footnote{
+    The term \newterm{system} will be used in this document to describe
+    a set of sequential, concurrently executing, control threads.  
+    This bears no relation to the Olsen Information System other 
+    than in the spelling of the word.}
+There are two types of \newterm{events} to be managed: 
+{\em internal}\index{internal events}\index{events, internal} and 
+{\em external}\index{external events}\index{events, external}.
+External events correspond to inputs, e.g.
+a keystroke, character into the serial port, transmitter ready signal, etc.
+They are asynchronous to normally executing control threads,
+although some may be regular in nature, e.g. timer interrupts.
+Internal events are synchronization points in the system.  These
+events cause a temporary connection between two control threads.
+All internal events are initiated by the importer of the system
+whereas external events may be initiated by either the hardware or the
+importer.
+
+The LWP modules (if used properly) provide a strict boundary between
+external events and the rest of the sytem.  All external
+events are translated to internal events as soon as the conditions
+which cause the external events are satisfied.
+The theory is that internal events
+can be more easily structured (programmed, so to speak) than external events.
+
+In general, the strict model presented is necessary to control real-time
+events on the IBM PC.  The IBM PC is a {\em very} fragile environment, 
+because memory protection is unavailable.  Combined with a non-reentrant
+file system monitor (PC-DOS), the system must be tightly controlled in
+order to assure proper resource sharing.  These factors and others 
+may cause the design to appear facist.  Be that as it may, this design
+assumes the IBM PC is fragile and attempts to protect the programmer
+from ``getting bitten'' too often.
+
+\section{General Design}
+There are two types of control threads: \newterm{Tasks} and 
+\newterm{Interrupt Handlers}.  
+Tasks can wait for internal events and cause both types of
+events.  Interrupt handlers can wait for external events and cause both
+types of events.  The normal mode of operation is for tasks to cause
+and wait for internal events and interrupt handlers to wait for external
+events and translate them into internal events.  External events are
+rarely caused by either tasks or interrupt handlers.
+
+All control threads appear to the importer as a Modula-2 procedure
+plus state information (managed by the LWP system).  A task's state information
+is incarnated only once during its lifespan.  An interrupt handler's 
+internal state information is reinitialized each time an external 
+event occurs.  Both tasks and interrupt handlers may access global memory.
+Thus, although the internal state information is reinitialized for each
+external event, global data may be maintained by the importer to manage
+sequences of external events, e.g. an input buffer,
+keyboard shift-lock position, etc.
+
+The rest of this paper discusses the relationship between tasks and
+interrupt handlers.  The rules about what interrupt handlers can and
+cannot do are much simpler than for tasks, thus most of the paper
+discusses the inter-relationships between tasks.
+
+\subsection{Tasks}
+
+The basic entity in this model is a \newterm{Task}.  A
+task provides an independent control thread for Modula-2 code as well as
+PC-DOS function calls.
+Tasks are prioritized on a fixed linear
+scale which is specified at their creation time.  
+Tasks can be in several states:
+\begin{itemize}
+\item
+    Running.
+\item
+    Ready.
+\item
+    Suspended.
+\end{itemize}
+
+
+Only one task in the system may be in the \newterm{running} 
+state: the task which is currently executing.  A task which is
+\newterm{ready} is capable to run, but it is not of higher priority than the
+currently running task.
+A task may be ``readied'' (awakened) from a suspended
+state by another task (or by an interrupt thread).
+
+\subsection{Scheduling}
+\label{sec-sched}
+
+When a task is readied, it is put in the ready state.  If it has 
+\index{priority}
+{\em higher priority} than the running task, then the newly readied
+task {\em preempts} the running task; the running task is made
+\index{preemption}
+ready and the newly readied task is set running.
+Preemption is based solely on the priority of the tasks.
+The fundamental rule to follow is
+that task \code{A} may preempt task \code{B} only if \code{A} is of strictly 
+higher priority than \code{B}.  
+\footnote{There is an exception to this rule if alternative methods of
+scheduling are employed in the system.  For the time being, the rule
+is true.}
+
+Tasks can \newterm{allow} and \newterm{disallow} preemption.
+If preemption is disallowed, then the currently running task can not
+be interrupted by another task (by any means of control). 
+If a task disallows preemption, the task must allow preemption at some later
+time or no other task will get a chance to run.
+This feature provides mutual exclusion over ``very critical'' sections 
+of code.  Two uses are prevalent: to notify the LWP system that an
+interrupt handler is executing and to build higher level inter-task 
+communication primitives.
+
+\subsection{Interrupts}
+\index{Interrupts}
+
+Interrupt handlers are not tasks, but are Modula-2 procedures which
+are invoked each time a \newterm{vectored interrupt}\footnote{
+    There are two types of vectored interrupts on the IBM PC: 
+    {\em hardware}\index{hardware interrupts}
+    and {\em software}\index{software interrupts}.  The LWP system makes 
+    no distinction between the two except that tasks can cause 
+    software interrupts, thus they appear as external events
+    to the system.} 
+occurs.
+An interrupt handler's first responsibility is to manage external conditions 
+associated with the external event, such as reading characters from 
+a UART.  Secondly, it translates
+the external event to an internal one, if necessary.  The \proc{Ready}
+primitive (section \ref{sec-ctrl}) is the only way
+for an interrupt handler to perform this translation.  
+
+An interrupt manager is usually a module which contains the interrupt
+handler and provides entry points for tasks to access the data associated
+with the interrupt.  Tasks call the interrupt manager and are either
+passed the data or suspended until the data is received via an
+interrupt.  The exact sharing mechanism is not important, because 
+it can be implemented in many ways given the primitives in 
+sections \ref{sec-basic} and \ref{sec-adv}. However, it is important
+that the interrupt manager provide mutual exclusion between the interrupt
+handler and the tasks with which it shares data.
+
+Interrupt handlers are very special, because they are very closely
+related to the hardware of the system.  An interrupt handler may not
+be interrupted by a task, because the LWP system disallows preemption
+(automatically) during the course of an interrupt.  Interrupt handlers may 
+be interrupted by other interrupt handlers.  The priority scheme of
+these interrupts is specified by the hardware (and is not relevent to or 
+controllable by the LWP system).  
+Interrupt handlers and tasks can prevent all {\em hardware} interrupts 
+\index{hardware interrupts}
+from occurring by {\em disabling}\index{disable}
+interrupts to the CPU.  Interrupts
+must be {\em enabled}\index{enable}
+to continue normal processing.
+
+\section{Basic Primitives}\index{primitives, LWP}\index{LWP primitives}
+\label{sec-basic}
+The states of tasks, interrupts, and the hardware in the LWP system can be 
+controlled by a very small
+set of primitives.  Higher level primitives will be introduced later,
+but those primitives are merely built upon the fundamental synchronization
+techniques described here and the fact that all tasks and interrupt handlers
+share the same address space.
+
+\subsection{Task State Control}
+\label{sec-ctrl}
+Creation and destruction are introduced here, although they are discussed
+more thoroughly later.  All of these primitives may be executed only
+by tasks unless otherwise specified.
+\begin{description}
+\item[\proc{Tasks.Create}]
+    invokes a new task given a stack size, procedure to execute (for the
+    control), and a priority.  The task proceeds along asynchronously from
+    its creator and bears no further relationship to its caller; 
+    all tasks are treated equally.  The caller receives a handle with which
+    it can identify the newly created task.
+\item[\proc{Tasks.Suspend}]
+    puts the calling task in the suspend state.
+\item[\proc{Tasks.Ready}]
+    puts a task into a ready or running state under the rules of preemption
+    described in section \ref{sec-sched}.  
+    This procedure is passed a task and can be called by
+    a task or by an interrupt handler.
+\item[\proc{Tasks.SetPriority}]
+    allows dynamic modification of a task's priority.  This technique can
+    be used by an application specific scheduler (window manager, for 
+    instance).
+\end{description}
+
+\subsection{Preemption Control}\index{preemption control}
+These primitives must be used very sparingly, because they stop
+the normal scheduling in the system.  In general, they are needed only
+for building other inter-task communication primitives.  Both of 
+these primitives can be nested.
+\begin{description}
+\item[\proc{DisallowPreemption}]
+    turns off task switching.
+\item[\proc{AllowPreemption}]
+    turns on task switching.
+    If the running task is of lower priority than a ready task, 
+    the running task is preempted by the highest priority ready task.
+\end{description}
+
+\subsection{Interrupt Control}\index{interrupt control}
+Interrupts can be controlled at several levels.  The Intel 8088 processor
+can be put into a state in which it ignores interrupts.  The primary means
+of mutual exclusion between tasks and interrupts is by enabling and
+disabling the 8088's interrupt state.  The Intel 8259
+interrupt processor has many levels of control.  The control of the 8259
+is not discussed here, because it is very implementation specific and
+effects only the relationship of hardware interrupts.  Tasks may
+create interrupt handlers, but interrupt handlers cannot create other
+interrupt handlers or tasks.
+\begin{description}
+\item[\proc{Interrupts.Create}]
+    associates a importer-supplied procedure with an importer-supplied
+    interrupt vector.  The import can also provide a pointer (object)
+    to be passed to the procedure each time an interrupt occurs.  The
+    procedure is called only if and when an interrupt occurs.  It
+    returns a handle to be used by the following primitive.  Successive
+    calls with the same interrupt vector displace the previous handler.
+\item[\proc{Interrupts.Destroy}]
+    performs the inverse action of \proc{Interrupts.Create}; it 
+    dissociates
+    the importer-supplied procedure from the importer-supplied interrupt.
+    The caller need only supply the interrupt handler.  The previous
+    handler is replaced in the interrupt vector to allow nesting.
+\item[\proc{SYSTEM.DISABLE}]
+    turns off interrupts to the 8088 (except for non-maskable
+    and software interrupts).  No further interrupts will be detected
+    until the following call is used.  This call does not nest.
+    \footnote{
+	It should be noted that {\em pushing} and {\em popping} the
+	\index{interrupt flags}
+	interrupt state is a cleaner solution to interrupt control, but
+	the only modules in the Display which need to control interrupts
+	are interrupt managers. Thus, this method should be sufficient.}
+\item[\proc{SYSTEM.ENABLE}]
+    turns on interrupts to the 8088.  This call does not nest.
+\end{description}
+
+\section{Advanced Primitives}\index{primitives, LWP}\index{LWP primitives}
+\label{sec-adv}
+The discussion thus far has described a set of primitives which allow
+very simple communication between tasks and interrupts. 
+This section discusses the primitives normally used by tasks:
+the so-called ``higher level'' facilities.  These primitives allow
+the programmer to better model the real-time environment, because they
+provide a cleaner method of communication between tasks.
+
+\subsection{Time}
+\index{TaskTime}
+\index{Time}
+Tasks can suspend themselves for a finite period of time.
+The timing is not exact, but is approximately the time
+specified by the caller.  The timed suspensions
+are identical to regular suspensions in semantics; 
+a task may be readied (``awoken'') at any point.
+
+\subsection{Messages}
+\index{TaskMessages}
+A \newterm{Message} is a single two-way synchronized data pass
+between a sending task and a receiving task.  
+The \newterm{sender} suspends itself while the receiving task processes 
+the message.
+When the \newterm{receiver} replies to the message, the sender is awoken
+by the receiver and both tasks continue asynchronously.
+When there are no messages awaiting reception
+for a particular receiver, the receiver suspends itself until it
+is awoken by a sender.  Messages are not ordered, but are serviced
+on a first-come-first-serve basis.
+
+There are two parts to a message: a \newterm{request} and a \newterm{reply}.  
+Both 
+parts may be of arbitrary size and are treated as opaque entities by the
+message manager.  The sending task must provide the send buffer and
+the reply buffer at the point it enters the message manager.  
+
+The receiver
+need only supply a request buffer to await a message.  The size of the
+request buffer must be big enough to hold the sender's buffer.  It is
+the receiver's responsibility to define the message sizes. Once the
+receiver is finished processing the request, it replies to the sender
+by supplying a buffer to the message manager.  At this point, the
+sender is readied and may preempt the receiver, if the sender is at a higher 
+priority.
+
+This system also provides a mechanism for {\em timed} message receptions.
+The receiver can specify a maximum time period in which any message
+can be received or the attempted reception will return with failure.  
+Message
+sends may not be timed, because it is not as simple to unblock the sender
+while the receiver is processing the reply.  
+
+\subsection{Monitors}
+A \newterm{Monitor} provides a method of excluding all but one task from a
+critical section of code.
+Protection is implemented by
+surrounding the critical section with \newterm{enter} and 
+\newterm{exit} calls.  
+When multiple tasks attempt to enter a critical section controlled by 
+a monitor, the first is allowed to enter and the others are 
+{\em queued} and suspended at the entry on a first-in-first-out basis.
+When a task exits a monitor, it dequeues and readies the first task 
+awaiting entry (if there is one waiting).  
+Monitor entries may be timed as message
+receptions are and a timeout is indicated by failure to enter the critical
+section.  Exits do not suspend the caller; thus, they need not be timed.
+
+\section{Creation and Destruction}
+\index{Creation}
+\index{Destruction}
+Interrupt handlers are 
+easy to create and destroy, because they execute only for brief periods of
+time and a task never executes during an interrupt.  Therefore, a task 
+can safely create and destroy interrupt handlers without the complication
+of disrupting a control thread which it is destroying.
+Interrupt handlers cannot create or destroy tasks or other interrupt handlers.
+
+Creating tasks is quite simple, but destroying them is a little more
+complicated.  Tasks can be created only by other tasks. 
+The creating task may be preempted by the task it creates, 
+if the new task is of higher priority.
+
+The only way to destroy a task is for the task to destroy itself.
+This system is not a general purpose time sharing environment and/or
+command execution environment.  It has been designed for 
+the purpose of real-time applications.   Much complexity is added when
+a task can be terminated at any point during its lifetime.\footnote{
+    The task could be in a critical section or have allocated resources
+    which only it can free.  Maintaining proper system state after such
+    a termination in the fragile environment of the IBM PC and MS-DOS is 
+    difficult if not impossible.}
+If a task fails a run-time assertion test (e.g. a range check), 
+it will appear as if the task had committed suicide.
+
+Tasks which commit suicide (via \proc{ProgErr.Terminate}) 
+are treated as abnormal deaths and tasks which \code{RETURN} are 
+considered to have terminated normally.  
+This distinction is important, because a task which terminates
+abnormally will cause termination of the entire system.
+
+To summarize, a simple step by step enumeration of a task's life follows:
+\begin{enumerate}
+\item
+    A task calls \code{create} with a procedure, priority, name, and stack size.
+\item
+    After the task is readied, the new task is made known to task information
+    groups.  The notification is made from the newly created task before
+    it enters its normal execution thread.  During this notification, the
+    new task's creator is suspended.
+\item
+    Upon return of the notification, the new task's creator is readied
+    by the new task and they proceed along asynchronous paths.
+\item
+    The task proceeds until it terminates by:
+    \begin{enumerate}
+    \item \label{en-normal}
+	executing a \code{RETURN} from the procedure which was passed into
+	the create procedure, or
+    \item \label{en-abnormal}
+	encountering a run-time error or committing suicide.
+    \end{enumerate}
+\item
+    If the task terminated normally, the task notifies the task
+    information groups that it is dying.  The system terminates when 
+    the last task terminates.
+\item
+    If the task terminated abnormally (case \ref{en-abnormal}),
+    then the system will terminate.  Normal termination (case \ref{en-normal})
+    causes no global modification of the system state, except that there is
+    one less task running.
+\end{enumerate}
+
+\section{Per Task Information}
+All control threads in this system run in a shared memory space.
+Clearly, tasks need their own ``private'' memory areas so that they
+can execute normally (i.e. stack and state information).
+Modula-2 provides information hiding on a per module basis.
+Information hidden in modules sometimes needs to be managed on a 
+per task basis.
+Instead of providing specialized entry points for a specific set
+of priviledged modules, a generalized task information facility is
+provided.  
+
+The method is to provide a two dimensional table indexed by task identifier
+and a unique key representing a class of data.  A module which manages
+a resource can allocate a key during its initialization and then use
+that key to access its private data area for any task in the system.
+Specifically, each task will have an array of pointers.  The pointers
+are supplied by the data class managers and the keys (indexes into the
+array) are managed by the LWP system.  
+To access a specific entry, a task identifier and
+a key is supplied and the data manager receives the locations value or
+may modify it.
+
+\section{Modular Decomposition}
+This component is decomposed as follows:
+\begin{description}
+\item[\module{Tasks}]
+    The primary module of concern to the typical programmer.  It contains
+    the primitives for creation and the fundamental processor sharing 
+    primitives (Ready, Suspend).  Provides low-level procedures for preemption
+    control.
+\item[\module{TaskMessages}]
+    Provides the synchronous data passing primitives.
+\item[\module{TaskMonitors}]
+    Provides the mutual exclusion primitives.
+\item[\module{TaskTime}]
+    Supports ``timed'' suspends of tasks.
+    Provides a method of mutual exclusion for code which runs in DOS
+    which it registers with the \module{DOS} module.
+\item[\module{TaskInfo}]
+    Used by modules which need access to information on a per task basis.
+    Exports methods for creating and destroying data classes and for accessing
+    the data values for a particular task or the current task.  
+\item[\module{Interrupts}]
+    Provides access to the hardware and software interrupts on the IBM
+    PC.  Contains primitives for creation and destruction of interrupt
+    control threads.
+\item[\module{TasksPRIVATE}]
+    This module is imported only by \module{TaskInfo} and \module{Tasks}.  
+    It {\em is} the guts of the LWP environment.  It exports stack 
+    formats and the actual data structures associated with a task 
+    as well as the variables to manage tasks.
+\end{description}
+
+\section{Run Time Support/Integration}
+
+The current implementation of the Logitech RTS will be
+modified to support the requirements of the tasking system.  
+The tasking system supports its own version of process contexts,
+because it needs to integrate with \module{Interrupts}.
+This model may not work with the RTD, PMD, or RTS.  A 
+new \module{Storage} module is required, because Logitech implements
+a heap storage model which is integrated with its process model.
+
+\section{Debugging}\index{debugging, task}
+
+To expedite debugging, there is a way to dump the state
+of a task (including a stack trace) to the display or a file.  
+There will be hooks for providing task switch tracing information to
+simplify debugging, but the actual facility will only be implemented
+as required.  The debugging facilities are primitive and can be improved
+as needed.
+
+\section{Configuration}
+
+\subsection{Hardwired Configuration}\index{hardwired configuration}
+\index{configuration, hardwired}
+The following parameters will be compiled into this component:
+\begin{itemize}
+\item
+    Maximum and minimum priorities.
+\item
+    Maximum, minimum and default stack sizes.
+\item
+    The names, priorities, and stack sizes of the tasks internal to the system: 
+    idle task and death notifier.
+\item
+    The stack size and vector of the timer interrupt handler.
+\item
+    Maximum number of TaskInfo keys.
+\item
+    The resolution and range of the timeout facility.
+\item
+    Maximum size of task name.
+\end{itemize}
+
+\subsection{Init-time Configuration}\index{init-time configuration}
+\index{configuration, init-time}
+The question of initialization is an interesting one, because the tasking
+system does not need any other information except as is provided above.
+Importers will need access to an organized list of parameters, 
+because a task's parameters are not independent of the rest of the system.  
+Specifically, a task's priority affects how it will interact with other
+tasks and its stack size determines how much shared memory is included
+for its private memory space.  To ensure an organized environment,
+the list of information shared by importers is:
+\begin{itemize}
+\item
+    task names.
+\item
+    Task priorities (and modification values).
+\item
+    Stack sizes.
+\item
+    Interrupt vectors (some of these may be hardwired by the importers).
+\end{itemize}
+
+Because the names of the tasks can be generated by the importers, the
+tasking system can use these as keys to gain access to the other parameters
+which are under this component's domain.  There is a new module called
+\module{TaskParameters}\footnote{Not supplied with the library.} which will 
+provide an entry point to look 
+up task parameters
+by name.  The reason that this is a separate module is that this really
+has nothing to do with the LWP component per se.  The format of the
+configuration can be established from the definition modules of the rest
+of this component and thus \module{TaskParameters} can certainly be an 
+independent entity.
+
+\subsection{Run-time Configuration}\index{run-time configuration}
+\index{configuration, run-time}
+This component does not need to be dynamically reconfigured.
+
+\section{Errors}
+All of the errors that can occur in this component are assertion faults.
+Because the IBM PC is a fragile entity, corrupted memory is a common problem.
+This component assumes that exporters which pass in invalid parameters
+could not correct a failed call, thus it seems fair to treat all illegal
+calls as  assertion faults.
+
+\subsection{Exporter Errors}\index{exporter errors}\index{errors, exporter}
+The following is a list of externally generated errors:
+\begin{itemize}
+\item
+    Passing in an invalid object (be it a task, interrupt, or monitor).
+\item
+    Attempting to destroy a monitor on which tasks are blocked.
+\item
+    Attempting to create a task with invalid parameters (stacks too large, 
+    illegal priority, etc.)
+\item
+    Calling \proc{Suspend} in a non-preemptable section.
+\item
+    Executing any primitive other than \proc{Ready} from an interrupt 
+    thread.
+\item
+    Too many \module{TaskInfo} keys requested.
+\item
+    Stack overflow, range errors, and the like.
+\end{itemize}
+
+\subsection{Importer Errors}\index{importer errors}\index{errors, importer}
+The following is a list of internally generated errors:
+\begin{itemize}
+\item
+    Various internal data structure corruptions.
+\item
+    Task creation/destruction Notices are invalid.
+\item
+    Out of memory.
+\end{itemize}
+
+\section{Testing}
+The design of this system was made flexible explicitly to increase testability.
+The testing can be broken down easily:
+\begin{enumerate}
+\item
+    The assumptions of Logitech's Run Time System need to be verified
+    (preliminary work has already begun).
+\item
+    The high speed process model needs to be tested to establish if the
+    context switching code is valid.  The following tests should use both
+    models of processes.
+\item
+    Interrupts use the same context switching code (with minor modifications)
+    as the high speed process model and it really does not need any ``tasks''
+    to validate most of its correctness.
+\item
+    Task creation and destruction.
+\item
+    Fundamental primitives (Ready and Suspend). 
+\item
+    Preemption control primitives.
+\item
+    TaskInfo.
+\item
+    TaskTime.
+\item
+    Monitors.
+\item
+    Messages.
+\item
+    The last test should consist of a complex interaction of all of 
+    the primitives.  
+\end{enumerate}
+
+

@@ -1,0 +1,159 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE FIOPRIVATE;
+(* 
+ * These procedures support only FormatIO and FIOBase!
+ *
+ * Read/Write actually perform the FormatIO operation based on the
+ * format and its arguments. Arguments are variable length with a
+ * maximum as defined by maxArguments. The data-structure is an array
+ * of pointers and lengths. The Read/Write routines expect that the
+ * last element in the list is NIL and its size is 0, because the
+ * implementation assumes this.
+ *
+ * Another trick is that the routines must be called with a "copy"
+ * of the format string as a scratch area (love those M2strings).
+ * Just pass the "format" twice and thing will be ok. Do something
+ * wrong and things won't be ok, ok?
+ * 
+ * FIOBase needs the registration interface. FIOBASE initializes
+ * the variables exported from this module and preforms the inserts
+ * and deletes from the lists. This module only needs the lists
+ * to use for the Read and Write procedures below.
+ *)
+IMPORT 
+    NameLists,
+    FIOBase,
+    Objects,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED 
+    maxArguments,    Argument,       Arguments,          ArgumentsPtr,
+    Write,           VerifyLiteral,  Read,               WriteRecord,
+    WriteRecordPtr,  writeList,      writeObjectManager, ReadRecord,
+    ReadRecordPtr,   readList,       readObjectManager;
+
+    (*
+     * The following declarations are used by FormatIO and FIOBase.
+     *)
+CONST
+    maxArguments = 4;           
+    (* 
+     * Defined by the maximum number of arguments taken by FormatIO.
+     *)
+
+TYPE
+    Argument = RECORD
+        ptr  : SysTypes.SAUPTR; (* SYSTEM.ADR( arg# ) *)
+        size : SysTypes.Card;   (* SIZE( arg# ) *)
+    END;
+    Arguments    = ARRAY[ 1 .. maxArguments + 1 ] OF Argument; 
+    ArgumentsPtr = POINTER TO Arguments;
+        (* 
+         * Each of the Write#, Read#, or PromptedRead# routines
+         * calls Write or Read with an ArgumentsPtr parameter.
+         *
+         * The ArgumentsPtr allows the managing of multiple parameters
+         * simply and easily. Each routine is responsible for filling
+         * the Arguments array with the parameters it got passed in the
+         * order they were passed. It must then put a NIL ptr into the 
+         * Nth argument (N = #) record to indicate that no more arguments
+         * are to be processed (thus the +1 in Arguments).
+         *
+         * It is absolutely necessary that the Nth argument be set
+         * to NIL or the Write/Read procedures will behave improperly.
+         *)
+
+PROCEDURE Write(
+              file      : TextIO.Object;
+    (*IN*)VAR format    : ARRAY OF CHAR;  (* Format to use *)
+              tmpFormat : ARRAY OF CHAR;  (* Must be same as "format"! *)
+              argsPtr   : ArgumentsPtr
+    )                   : TextIO.States;
+    (*
+     * Parses the format string, printing literals when found
+     * and looking up commands otherwise.
+     *
+     * This procedure is called with an "ArgumentsPtr", see
+     * its definition for details on parameter passing rules.  
+     *)
+
+PROCEDURE VerifyLiteral(
+    inFile  : TextIO.Object;
+    literal : ARRAY OF CHAR  (* Non-zero length (otherwise verify 0C!) *)
+    )       : TextIO.States;
+    (*
+     * Make sure the file contains the specified literal
+     * (char for char).
+     *)
+
+PROCEDURE Read(
+    inFile      : TextIO.Object;
+    format      : ARRAY OF CHAR;  (* Format to use *)
+    tmpFormat   : ARRAY OF CHAR;  (* Must be same as "format"! *)
+    argsPtr     : ArgumentsPtr;
+    issuePrompt : BOOLEAN;
+    promptFile  : TextIO.Object
+    )           : TextIO.States;
+    (*
+     * Parses the format string, verifying literals when found
+     * and looking up commands otherwise.
+     *
+     * This procedure is called with an "ArgumentsPtr", see
+     * its definition for details on parameter passing rules.  
+     *
+     * For prompted reads, if this procedure returns bad data,
+     * it is up to the caller to call FIOBase.PromptForReread
+     * and the read be restarted from scratch.
+     *)
+
+    (*
+     * The following declarations are used only by FIOBase.
+     *)
+TYPE
+    WriteRecord = RECORD
+        expectedSize   : SysTypes.Card;
+        writeProc      : FIOBase.WriteProc;
+        importerObject : SysTypes.ANYPTR;
+    END;
+    WriteRecordPtr = POINTER TO WriteRecord;
+
+VAR
+    writeList          : NameLists.Object;
+    writeObjectManager : Objects.Manager;
+
+TYPE
+    ReadRecord = RECORD
+        expectedSize   : SysTypes.Card;
+        readProc       : FIOBase.ReadProc;
+        importerObject : SysTypes.ANYPTR;
+    END;
+    ReadRecordPtr = POINTER TO ReadRecord;
+
+VAR
+    readList          : NameLists.Object;
+    readObjectManager : Objects.Manager;
+
+END FIOPRIVATE.
+

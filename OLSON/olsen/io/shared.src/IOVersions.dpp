@@ -1,0 +1,105 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE IOVersions;
+(*
+ * Manages version numbers associated with IO entities. This module
+ * may not be available on all systems. On some systems, version numbers
+ * may be simulated in the event they are not supported by the operating
+ * system. This module is an extension of the IONames paradigm.
+ *
+ * A version number is a value between minNumber and maxNumber. A path
+ * may have several versions associated with it. Usually, they are written
+ * sequentially from minNumber to maxNumber, but this is not assumed by
+ * this module. The version part of paths may be manipulated using 
+ * Extract and Append. Find is a procedure for seeking out versions 
+ * of a particular characteristic.  
+ *)
+IMPORT
+    IOErrors,
+    SysTypes;
+
+EXPORT QUALIFIED
+    minNumber,	     maxNumber,	      Number,	       Extract,
+    Append,	     FindModes,       Find;
+
+CONST
+    minNumber = (* IMPLEMENTATION SPECIFIC *) 1;
+    maxNumber = (* IMPLEMENTATION SPECIFIC *) SysTypes.MAXCARDINAL16;
+TYPE
+    Number = [ minNumber .. maxNumber ];
+
+    
+PROCEDURE Extract(
+	path    : ARRAY OF CHAR;  (* From where to extract version *)
+    VAR version : Number;	  (* path's version *)
+    VAR result  : ARRAY OF CHAR	  (* path without version *)
+    )	        : BOOLEAN;	  (* TRUE => path has version and is valid *)
+    (*
+     * Deletes the version number from the last component of the path.
+     * The values version and result are invalid if return is FALSE.
+     * Failure occurs if path's version is out of range or path
+     * does not contain a version.  If result is too short, the output
+     * will be truncated silently.  It is up to the caller to ensure that
+     * path is no longer than HIGH( result ).
+     *)
+
+PROCEDURE Append(
+	path    : ARRAY OF CHAR;  (* Value to have version appended *)
+	version : Number;	  (* New version *)
+    VAR result  : ARRAY OF CHAR	  (* Path with version appended *)
+    );
+    (*
+     * Appends a version number to the last component of path.  If the
+     * result is too short, it will be truncated.  If there is already
+     * a version at the end of of path, the results are unpredicatable.
+     * If application requires that version be ok, call Extract before
+     * and after this call.  The pre-call should fail and the post-call
+     * should succeed with the version number you are interested in.
+     *)
+     
+TYPE
+    FindModes = (	 (* Which version should be returned *)
+	lowestNumber,	 (* version least ordinal value *)
+	highestNumber,	 (* greatest ordinal value *)
+	newestDate,      (* most recently updated version *)
+	oldestDate	 (* least recently updated version *)
+    );
+  
+PROCEDURE Find(
+        path  : ARRAY OF CHAR;	  (* path w/o version number *)
+	min   : Number;		  (* lowest allowable number *)
+	max   : Number;		  (* min must not be greater than max *)
+        mode  : FindModes;	  (* version of path to find *)
+    VAR found : Number		  (* version which matches mode *)
+    )         : IOErrors.Errors;  (* ok => means "found" is valid *)
+    (*
+     * Searches for all versions of "path" and returns the version which
+     * suites the specified "mode".  If the last component of path contains
+     * a version number, then the results are unpredictable, i.e. call
+     * Extract before calling this procedure if you are unsure if path 
+     * has a version number.  min/max specify a range of versions which
+     * are of interest.  If you don't care, set these values to minNumber
+     * and maxNumber, respectively.
+     *)
+    
+END IOVersions.

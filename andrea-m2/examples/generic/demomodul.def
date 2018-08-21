@@ -1,0 +1,19 @@
+DEFINITION MODULE DemoModule;
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED const_a , type_b , var_c , proc_d , proc_e;
+
+CONST
+    const_a = 20;
+
+TYPE
+   type_b = ARRAY [0..2] OF CARDINAL;
+
+VAR
+   var_c : CARDINAL;
+
+   PROCEDURE proc_d;
+
+   PROCEDURE proc_e;
+
+END DemoModule.

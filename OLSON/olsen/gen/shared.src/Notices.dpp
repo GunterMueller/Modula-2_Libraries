@@ -1,0 +1,206 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Notices;
+(* 
+ * Notices provides a method of inter-module communication by accepting both
+ * procedures to be executed and requests for execution from client modules.
+ *
+ * This allows two modules which are clients of Notices to communicate with
+ * each other (i.e. one module can call a procedure within another modules)
+ * without their having to know each other's identity. In particular, this
+ * facilitates "reverse importation" of procedures.  
+ *
+ * Notices:
+ *     A Notice is a list of procedures which can be invoked to provide
+ *     event or exception handling within an application. Notices can
+ *     be created or destroyed, and procedures may be added to the front
+ *     or back of the list. Invocation of a Notice causes the procedures
+ *     in the list to be called in the order specified (either the order
+ *     in which they were inserted, or in reverse order).
+ *
+ *     Notices are only valid if they are created, and become invalid
+ *     as they are Destroyed. Attempts to use Notices which have not been
+ *     created, or which have been destroyed, will cause the caller to
+ *     be terminated.
+ *
+ * "importerObject":
+ *     The procedures called when a Notice is Called take a SysTypes.ANYPTR
+ *     parameter called the "importerObject". This module passes the object
+ *     from the caller of a notice to the notice's registrants unaltered.
+ *     The value of the "importerObject" is usually exported by the exporter
+ *     of the Notice.
+ *
+ * Default notices:
+ *     There are two default notices that come with the library.
+ *     One indicates that the program is out of memory and the other
+ *     is used for termination clean up. A module which needs access
+ *     to these events should register with these notices.
+ *)
+IMPORT 
+    SysTypes;
+
+EXPORT QUALIFIED
+    Object,                CallingOrders,          Create,
+    Destroy,               SetInvalid,             Register,
+    Deregister,            DONTCARE,               Call,
+    GetCallingOrder,       GetOutOfMemoryNotice,   normalTermination,
+    GetTerminationNotice;
+
+TYPE
+    Object;
+
+TYPE
+    CallingOrders = (
+        firstRegisteredFirstCalled,
+        firstRegisteredLastCalled
+    );
+
+PROCEDURE Create(
+    VAR notice    : Object;        (* In any state, will be valid *)
+        howToCall : CallingOrders  (* Order in which Calls will be made *)
+    );
+    (* 
+     * Attempt to create a new Notice notice.
+     * If allocation is impossible, terminate the caller.
+     *)
+
+PROCEDURE Destroy(
+    VAR notice : Object  (* In any state, will be invalid *)
+    );
+    (* 
+     * destroy previously created Notice notice.
+     *
+     * This notice becomes invalid, that is, attempts to Call
+     * this notice in the future will cause caller termination.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR notice : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Initializes the notice variable to an invalid object.
+     *)
+
+TYPE
+    Proc = PROCEDURE(
+        SysTypes.ANYPTR  (* importerObject *)
+    );
+    (*
+     * Is called when a notice for which has registered
+     * has been Called.
+     *)
+
+PROCEDURE Register(
+    notice     : Object;  (* Must be valid *)
+    toRegister : Proc     (* Procedure to be called when notice is Called *)
+    );
+    (* 
+     * Add "toRegister" to list of procedures to be called for the
+     * specified notice. The parameter which "toRegister" receives
+     * is the "importerObject" which is passed to Call.
+     *
+     * If the procedure is already registered, it will not be called twice.
+     *)
+
+PROCEDURE Deregister(
+    notice       : Object;  (* Must be valid *)
+    toDeregister : Proc     (* Procedure to be removed from this notice *)
+    );
+    (*
+     * If this procedure is currently registered with the notice,
+     * remove it from the list of procedures to be called.
+     * If it is not registered, do nothing.
+     *)
+
+CONST
+    DONTCARE = NIL;
+    (*
+     * Passed as "importerObject" when not needed.
+     * Don't use for any other purpose.
+     *)
+
+PROCEDURE Call(
+    notice         : Object;         (* Must be valid *)
+    importerObject : SysTypes.ANYPTR (* Will be passed to all procs *)
+    );
+    (*
+     * Call each of the Registered procedures in the order specified
+     * when the notice was Created, passing the object to each procedure.
+     *)
+
+PROCEDURE GetCallingOrder(
+    notice : Object          (* Must be valid *)
+    )      : CallingOrders;  (* Calling order for notice *)
+    (*
+     * Returns the calling order of the Notice as specified to Create.
+     *)
+
+(*
+ * The following are pre-defined notices.  
+ *)
+PROCEDURE GetOutOfMemoryNotice(
+    ) : Object;  (* Notice Called if running out of memory *)
+    (* 
+     * This notice is automatically called when the system runs
+     * out of memory and gives a chance for the program to clean
+     * up and release some storage.
+     *
+     * The "importerObject" passed to the registrants is always DONTCARE.
+     * The notice is declared in "firstRegisteredLastCalled" order.  
+     *
+     * WARNING:
+     *    Attempting to call dynamic memory allocation procedures from
+     *    within a procedure registered with this notice, will cause
+     *    the caller to be terminated.
+     *)
+
+CONST
+    normalTermination = NIL;  (* Identifies type of termination *)
+    
+PROCEDURE GetTerminationNotice(
+    ) : Object;  (* Notice Called just before program termination *)
+    (*
+     * Notice which is Called upon program termination.
+     * This notice is declared in "firstRegisteredLastCalled" order.
+     *
+     * Termination types:
+     *     There are two types of termination: normal and abnormal.
+     *     Normal termination occurs when the program module returns.
+     *     Abnormal termination is the result of run-time errors,
+     *     calling ProgErr.Terminate, and calling HALT.
+     *
+     *     During normal termination, the "importerObject" passed
+     *     to the registrants is "normalTermination". During abnormal 
+     *     termination, the "importerObject" is not this value.
+     *
+     * Tasks NOTE:
+     *     If light-weight-processes are running with the library,
+     *     the "importerObject" is the task (or process) object
+     *     which has caused the abnormal termination. It is
+     *     "normalTermination", otherwise.
+     *
+     * For a complete discussion of termination handling,
+     * read the manual. It is implementation dependent.
+     *)
+
+END Notices.

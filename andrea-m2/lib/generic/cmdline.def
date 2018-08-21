@@ -1,0 +1,18 @@
+DEFINITION MODULE CmdLine;
+
+(* Return the command line (less program name) *)
+(* J. Andrea, Jun.28/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED WholeCommandLine, Nargs, GetArg;
+
+  PROCEDURE WholeCommandLine( VAR line :ARRAY OF CHAR );
+  (* Return the whole command line *)
+
+  PROCEDURE Nargs() :CARDINAL;
+  (* Return the number of arguments in the command line *)
+
+  PROCEDURE GetArg( n :CARDINAL; VAR arg :ARRAY OF CHAR );
+  (* Return the n'th argument on the command line *)
+
+END CmdLine.

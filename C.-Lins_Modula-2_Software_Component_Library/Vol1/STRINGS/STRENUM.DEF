@@ -1,0 +1,49 @@
+DEFINITION MODULE StrEnum;
+(*==========================================================
+    Version  : 1.00  28 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Tool - String Enumerations Utility
+
+    THE ABSTRACTION
+    This module provides enumeration definitions for string
+    operations and exceptions.
+
+    REVISION HISTORY
+    v1.00  29 Apr 1989  C. Lins:
+        Initial implementation.
+==========================================================*)
+
+CONST ComponentID = 512;	(*-- must be a multiple of 256 *)
+
+TYPE  Operations = (modinit,
+
+                    create, destroy, clear, assign,
+		    prepend, append, insert, delete,
+                    replace, setitem, construct,
+
+                    isdefined, isempty, lengthof, sizeof,
+		    typeof, compare, isequal, itemof,
+                    substringof, sliceof,
+                    loopover, loopchange, traverse,
+		    travchange,
+
+		    seize, release
+                   );
+
+TYPE  Constructors = Operations [create    .. construct];
+TYPE  Selectors    = Operations [isdefined .. sliceof];
+TYPE  Iterators    = Operations [loopover  .. travchange];
+TYPE  GuardedOps   = Operations [seize     .. release];
+
+
+TYPE  Exceptions   = (noerr,
+                      initfailed,
+                      overflow,
+                      positionerr,
+                      typeerror,
+                      undefined
+                     );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END StrEnum.

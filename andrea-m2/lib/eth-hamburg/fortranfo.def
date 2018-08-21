@@ -1,0 +1,37 @@
+%FOREIGN DEFINITION MODULE FortranFormat;
+
+(*
+ Use some FORTRAN routines to do formatting of real numbers in Modula-2.
+*)
+
+(* V1.0, J. Andrea, Aug.8/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+EXPORT QUALIFIED  For$FFormat, For$EFormat;
+
+
+PROCEDURE For$FFormat( %REF x                  :REAL;
+                       %REF width              :CARDINAL;
+                       %REF digits             :CARDINAL;
+                       VAR %STDESCR out_string :ARRAY OF CHAR );
+(*
+  This procedure formats a real number into a string in fixed decimal point
+  FORTRAN F style, with the given field width and number of digits,
+  like F<width>.<digits>
+ *)
+
+
+PROCEDURE For$EFormat( %REF x                  :REAL;
+                       %REF width              :CARDINAL;
+                       %REF digits             :CARDINAL;
+                       VAR %STDESCR out_string :ARRAY OF CHAR );
+(*
+  This procedure formats a real number into a string in exponential format,
+  FORTRAN E style, with the given field width and number of digits,
+  like E<width>.<digits>
+ *)
+
+
+END FortranFormat.

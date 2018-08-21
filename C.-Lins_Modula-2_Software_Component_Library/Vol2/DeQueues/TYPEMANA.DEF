@@ -1,0 +1,71 @@
+DEFINITION MODULE TypeManager;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tool - Dynamic Type Management Utility
+
+    INTRODUCTION
+    This module provides facilities for defining generic item types
+    and associating assignment, comparison and disposal routines with
+    that type.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved.
+====================================================================*)
+
+FROM  Items  IMPORT
+    (*--Type*) AssignProc, CompareProc, DisposeProc;
+
+    (*-----------------------*)
+
+TYPE  TypeID;
+TYPE  TypeName = ARRAY [0 .. 15] OF CHAR;
+
+CONST NullType = TypeID(NIL);
+
+
+    (*-----------------------*)
+    (*	   CONSTRUCTORS      *)
+
+CONST NoCompareProc = NULLPROC;
+
+PROCEDURE Create    (	 theName    : TypeName	  (*-- in    *);
+			 assignment : AssignProc  (*-- in    *);
+			 comparison : CompareProc (*-- in    *);
+			 deallocate : DisposeProc (*-- in    *))
+				    : TypeID	  (*-- out   *);
+
+PROCEDURE CharTypeID	 () : TypeID   (*-- out   *);
+PROCEDURE IntegerTypeID  () : TypeID   (*-- out   *);
+PROCEDURE CardinalTypeID () : TypeID   (*-- out   *);
+PROCEDURE LongIntTypeID  () : TypeID   (*-- out   *);
+PROCEDURE LongCardTypeID () : TypeID   (*-- out   *);
+PROCEDURE RealTypeID	 () : TypeID   (*-- out   *);
+
+    (*-----------------------*)
+    (*	    SELECTORS	     *)
+
+PROCEDURE NameOf    (	 theType : TypeID      (*-- in	  *);
+		     VAR theName : TypeName    (*-- out   *));
+
+PROCEDURE AssignOf  (	 theType : TypeID      (*-- in	  *))
+				 : AssignProc  (*-- out   *);
+
+PROCEDURE CompareOf (	 theType : TypeID      (*-- in	  *))
+				 : CompareProc (*-- out   *);
+
+PROCEDURE DisposeOf (	 theType : TypeID      (*-- in	  *))
+				 : DisposeProc (*-- out   *);
+
+PROCEDURE AttributesOf (    theType    : TypeID      (*-- in	*);
+			VAR theName    : TypeName    (*-- out	*);
+			VAR assignment : AssignProc  (*-- out	*);
+			VAR comparison : CompareProc (*-- out	*);
+			VAR deallocate : DisposeProc (*-- out	*));
+
+END TypeManager.
+

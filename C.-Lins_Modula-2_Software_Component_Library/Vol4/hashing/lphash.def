@@ -1,0 +1,134 @@
+DEFINITION MODULE LPHash;
+(*==============================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Hash Table - Sequential Bounded Managed Iterator
+              Collision resolution using linear probing
+
+    REVISION HISTORY
+    v1.00  10-11 Apr 1989  C. Lins:
+        Initial Modula-2 implementation
+    v1.01  19 Apr 1989  C. Lins:
+        Created HashTypes module.
+    v1.02  22 Apr 1989  C. Lins:
+       Added Iterate routine for testing purposes.
+    v1.03  11 Jun 1989  C. Lins:
+       Removed notFound procedure parameter from Update. Changed
+       semantics to automatically insert the new entry if not
+       found in the table.
+    v1.04  30 Jun 1989  C. Lins:
+       Removed separation of key and data.
+    v1.05  21 Aug 1989  C. Lins:
+       Added selector HashOf to return hashing function.
+    v1.06  29 Aug 1989  C. Lins:
+       Separate key and data.
+
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+==============================================================*)
+
+FROM HashTypes IMPORT
+   (*--type*) Exceptions, FoundProc, NotFoundProc,
+              UpdateProc, LoopProc, AccessProc, HashFunction,
+              States, Key, Data;
+
+FROM ErrorHandling IMPORT
+   (*--type*) HandlerProc;
+
+FROM TypeManager IMPORT
+   (*--type*) TypeID;
+
+   (*-------------------------*)
+
+
+CONST ModuleID = 1;
+
+PROCEDURE TableError () : Exceptions               (*--out  *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*--in   *);
+                          theHandler : HandlerProc (*--in   *));
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+   (*-------------------------*)
+
+
+TYPE  HashTable;
+VAR   NullTable : HashTable;
+
+   (*-------------------------*)
+
+
+PROCEDURE Create   (    keyTypeID  : TypeID        (*--in   *);
+                        dataTypeID : TypeID        (*--in   *);
+                        theSize    : CARDINAL      (*--in   *);
+                        hashFunc   : HashFunction  (*--in   *))
+                                   : HashTable     (*--out  *);
+
+PROCEDURE Destroy  (VAR theTable   : HashTable     (*--inout*));
+
+PROCEDURE Clear    (    theTable   : HashTable     (*--inout*));
+
+PROCEDURE Assign   (    theTable   : HashTable     (*--in   *);
+                    VAR toTable    : HashTable     (*--inout*));
+
+PROCEDURE Insert   (    theTable   : HashTable     (*--inout*);
+                        theKey     : Key           (*--in   *);
+                        theData    : Data          (*--in   *));
+
+PROCEDURE Remove   (    theTable   : HashTable     (*--inout*);
+                        theKey     : Key           (*--in   *);
+                        notFound   : NotFoundProc  (*--in   *));
+
+PROCEDURE Update   (    theTable   : HashTable     (*--inout*);
+                        theKey     : Key           (*--in   *);
+                        theData    : Data          (*--in   *);
+                        updateEntry: UpdateProc    (*--in   *));
+
+   (*-------------------------*)
+
+
+PROCEDURE IsDefined (    theTable  : HashTable     (*--in   *))
+                                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsEmpty   (    theTable  : HashTable     (*--in   *))
+                                   : BOOLEAN       (*--out  *);
+
+PROCEDURE KeyTypeOf (    theTable  : HashTable     (*--in   *))
+                                   : TypeID        (*--out  *);
+
+PROCEDURE DataTypeOf(    theTable  : HashTable     (*--in   *))
+                                   : TypeID        (*--out  *);
+
+PROCEDURE HashOf    (    theTable  : HashTable     (*--in   *))
+                                   : HashFunction  (*--out  *);
+
+PROCEDURE SizeOf    (    theTable  : HashTable     (*--in   *))
+                                   : CARDINAL      (*--out  *);
+
+PROCEDURE ExtentOf  (    theTable  : HashTable     (*--in   *))
+                                   : CARDINAL      (*--out  *);
+
+PROCEDURE IsPresent (    theTable  : HashTable     (*--in   *);
+                         theKey    : Key           (*--in   *);
+                         found     : FoundProc     (*--in   *);
+                         notFound  : NotFoundProc  (*--in   *));
+
+   (*-------------------------*)
+
+
+PROCEDURE LoopOver (    theTable   : HashTable     (*--in   *);
+                        process    : LoopProc      (*--in   *));
+
+PROCEDURE Traverse (    theTable   : HashTable     (*--in   *);
+                        process    : AccessProc    (*--in   *));
+
+
+TYPE  IterateProc = PROCEDURE (CARDINAL, States, Key, Data);
+
+PROCEDURE Iterate  (    theTable   : HashTable     (*--in   *);
+                        process    : IterateProc   (*--in   *));
+
+END LPHash.

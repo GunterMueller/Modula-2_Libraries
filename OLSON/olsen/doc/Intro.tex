@@ -1,0 +1,222 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Introduction}
+
+\xquote{Andrew Rooney}{Pieces of My Mind}{
+    First you count out all the ads looking for nuclear physicists,
+    registered, nurses, animal trainers, and, if you don't know
+    anything about computers, you count out the ads looking for 
+    computer programmers.   I mention that because there seem to be a
+    lot of ads for them these days.  I don't know what they do
+    but I assume it's a terrible job that doesn't pay much.
+    If it wasn't, there wouldn't be so many ads for them under Help
+    Wanted.
+}    
+
+Programming is a tough business.  Modula-2 makes a programmer's job
+harder by dividing the programming into two distinct tasks.
+A Modula-2 programmer
+must not only write software but also {\em design} it.
+In its primary role, the \library\ supports the task of programming,
+not designing.  Since everyone has the right to its source, the
+library also helps the Modula-2 designer; it serves as both a good
+and bad example of how to design computer programs.\footnote{
+    We leave it as an exercise to determine which parts are
+    worthy examples of good design practices.
+    }
+In any form, most designers and programmers should find the source
+of the library quite useful.
+
+\section{How to Use This Manual}
+
+Most programmers will be familiar with the general concepts in the
+library.  However, we recommend that all programmers skim this manual
+at least once.  The chapters are in order of utility.  Some of the
+chapters contain useful reference material (such as the
+\module{FormatIO} tables in chapter~\ref{IntroIOChapter}).
+The appendices may be read independently and need be consulted only 
+when the need arises.  The Implementation Notes appendix should be
+read before using the library.  
+
+The reader should have a working knowledge of Modula-2.  If you
+are new to the language, read the Introduction to Input/Output
+chapter and try to implement the examples on your own.  Experience
+with other libraries is obviously useful.  If you are quite experienced,
+you might be able to get away with just reading the definition modules.
+
+The chapters describe the library generally.
+The definition modules cover the specifics.  Many of the modules
+are not described in this manual, because their scope does not
+extend beyond the borders of a definition module.\footnote{
+    This arbitrary boundary was defined so that we could get
+    the library released.  Perhaps sometime in the future, these
+    other modules will also be covered by the manual.
+    }
+If you do not find a module in the table of contents, look in the
+index.   If the module name is not in the index, it is not mentioned
+specifically in any of the chapters.  In this case, the best documentation
+will be in the definition module.  
+If you get stuck, the \codeterm{examples} and \codeterm{test} directories 
+contain many sample uses of the different modules.
+
+\section{\module{SysTypes}}
+
+Most portable software defines a module which translates system
+specific type definitions into portable ones.
+\module{SysTypes} is that module and is used extensively, hence
+it is worthy of a short introduction.
+The module \module{SysTypes} defines three classes of declarations:
+\term{generic types}, 
+\term{storage specific types}, and
+\term{type description constants}.
+
+\subsection{Generic Types}
+Modula-2 has several pre-defined identifiers which we call
+\newterm{generic types}.  Unfortunately, the definitions of some
+of these types are too weak to allow the library to gain the most
+of various compiler implementations.
+The following generic types exported by \module{Sys\-Types}
+are used throughout the library in place of their Modula-2 counterparts.
+\begin{description}
+\item[\codeterm{Card}]\index{\code{Sys\-Types.\-Card}}
+    can be used as the index of all possible arrays whose index
+    is of the \codeterm{CARDINAL} Modula-2 type.\footnote{
+    	By \codeterm{CARDINAL}, we mean any one of:
+	\codeterm{CARDINAL}, \codeterm{LONGCARD}, or \codeterm{SHORTCARD}.
+    }
+    The modules \module{Card\-Conv\-ert}, \module{CardIO},
+    and \module{FIOCard} support this type.
+\item[\codeterm{Int}]\index{\code{Sys\-Types.\-Int}}
+    is of the same order of magnitude of \codeterm{Card}; that is,
+    they are in the same storage class.
+    The modules \module{Int\-Conv\-ert}, \module{IntIO},
+    and \module{FIOInt} support this type.
+
+\item[\codeterm{Real}]\index{\code{Sys\-Types.\-Real}}
+    is the largest Modula-2 \codeterm{REAL} type supported by
+    the language processor (and likely to be used).
+    The modules \module{Real\-Conv\-ert}, \module{RealIO},
+    and \module{FIOReal} support this type.
+    
+\item[\codeterm{SAU}]\index{\code{Sys\-Types.\-SAU}}
+    is the smallest addressable unit for the particular Modula-2
+    implementation: that is, \codeterm{SYS\-TEM.TSIZE}\code{( SAU )}
+    is 1.  The base type of an
+    \codeterm{SAU} is a scalar so that it can be used with
+    the procedures \proc{ORD} and \proc{VAL}.
+    See the implementation module \module{Bytes} for an
+    application of this type.
+
+\item[\codeterm{SAUPTR}]\index{\code{Sys\-Types.\-SAUPTR}}
+    is defined as a \codeterm{SYS\-TEM.\-AD\-DRESS}.
+    Formal parameters of type \codeterm{SAUPTR} are interpreted
+    by the procedure as memory (to be copied or otherwise).
+    Actual parameters must, therefore, point into valid program memory.
+    See the module \module{BinaryIO} for an application of this type.
+    
+\item[\codeterm{ANY}]\index{\code{Sys\-Types.\-ANY}}
+    is the smaller of \codeterm{SYS\-TEM.\-BYTE} and
+    \codeterm{SYS\-TEM.\-WORD}.
+    This \newterm{magic type} is used in formal parameter
+    declarations which accept {\em any type}.  See the module
+    \module{Lists} for a sample usage of this generic type.
+
+\item[\codeterm{ANYPTR}]\index{\code{Sys\-Types.\-ANYPTR}}
+    is defined as a \codeterm{SYS\-TEM.\-AD\-DRESS}.
+    Formal parameters of type \codeterm{ANYPTR} are {\em not}
+    interpreted by the procedure in which they are declared.
+    Typically, the name of a \codeterm{ANYPTR} is
+    \codeterm{impor\-ter\-Obj\-ect} or \codeterm{imp\-Obj}
+    to indicate that the object is supplied by the importer
+    of this procedure.
+
+\end{description}
+
+\finepoint{
+    On most implementations, the \code{FIO} type modules will also
+    support all of the other possible types of their class, e.g.
+    \module{FIOCard} will support all legal cardinal subranges.
+}
+
+\subsection{Storage Specific Types}
+
+The name of a \newterm{storage specific type} identifies its
+storage requirements.  Some applications use these types
+to conserve space (in program memory or disk files).  A particular
+storage specific type may not exist in all implementations; therefore,
+programs are less portable when these types are used.   A storage
+specific type prefix is the generic type class and its suffix
+is its storage class, e.g. \codeterm{REAL32} is of the real
+generic type class and occupies 32 bits of storage.  The suffix
+of a storage specific type is always in numbers of {\em bits}.
+
+\subsection{Type Description Constants}
+
+A \newterm{type description constant} defines a particular characteristic
+of a type.  These constants describe the range and storage specification
+of the generic and storage specific types.
+The prefix of a
+\term{type description constant} identifier defines the characteristic and
+the suffix defines the type to which it applies.  The value, of course,
+is system dependent.
+For example, \codeterm{Sys\-Types.\-MAX\-CARD\-INAL} defines the upper bound of
+the type \codeterm{CARD\-INAL}.   The standard prefixes are described
+in the \module{Sys\-Types} definition.
+
+\section{Outline}
+
+The other chapters in this manual are:
+
+\begin{description}
+\item[Installation]
+
+\item[An Introduction to Input/Output]
+    covers the basics of I/O.  \module{SimpleIO} and
+    \module{SimpleFIO} are described as well as the general approach
+    to \module{TextIO}.
+\item[Files]
+    describes in detail the semantics of the modules
+    \module{BinaryIO} and \module{TextIO}.
+\item[Errors and Program Termination]
+    defines the semantics
+    of errors during I/O, assertion faults, and the
+    modules \module{Prog\-Err} and \module{Notices}.
+\item[Doing More with FormatIO]
+    describes how to implement your own \module{FormatIO} commands.
+\item[Objects]
+    is a tutorial on object oriented program in Modula-2 and
+    describes the module \module{Objects}.
+\item[Lightweight Processes]
+    introduces the module \module{Tasks}, \module{Interrupts},
+    and other task primitives.  
+
+\item[Procedure Variables]
+    is a tutorial on Modula-2 procedure types, variables, and
+    parameters.
+
+\item[Implementing Modula-2 Classes]
+    explains how the library defines {\em classes}
+    (\`{a} la Simula, SmallTalk, etc.) in Modula-2.
+\end{description}    
+

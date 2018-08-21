@@ -1,0 +1,251 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOBool;
+(*
+ * Input is case sensitive and output is pretty(?).  The user can select
+ * the strings to be used, but can't turn off case-sensitivity.
+ *)
+
+IMPORT 
+    Chars,
+    FIOBase,
+    FormatIO,
+    GenConsts,
+    IOErrors,
+    Intrinsics,
+    ModInit,	(* MUST BE HERE -- See ConfFIO *)
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+CONST
+    prompt = "Enter `[ [String] or [String] `]: ";
+
+    defaultWidth         = 0;
+    defaultFillChar      = ' ';
+    defaultJustification = Strings.justifyLeft;
+    defaultFalse         = 'False';
+    defaultTrue          = 'True';
+   
+TYPE
+    BoolPtr = POINTER TO BOOLEAN;
+    BiggestBOOLEAN = BOOLEAN;
+   
+PROCEDURE Write(
+    DONTCARE : SysTypes.ANYPTR;
+    outFile  : TextIO.Object;
+    format   : ARRAY OF CHAR;
+    dataAdr  : SysTypes.SAUPTR;
+    length   : CARDINAL
+    )        : TextIO.States;
+    VAR
+        boolPtr    : BoolPtr;
+        bool       : BiggestBOOLEAN;
+        boolStr    : GenConsts.Identifier;
+        error      : BOOLEAN;
+        modifiers  : FIOBase.ModifierValues;
+        false      : GenConsts.Identifier;
+        true       : GenConsts.Identifier;
+    BEGIN
+      (* length checked by caller *)
+      (* establish defaults *)
+      WITH modifiers DO
+	  width         := defaultWidth;
+	  justification := defaultJustification;
+	  fillChar      := defaultFillChar;
+      END; (* WITH *)
+      false    := defaultFalse;
+      true     := defaultTrue;
+      
+      (* scan for default modifiers *)
+      IF NOT FIOBase.ScanModifiers(format, FIOBase.writeModifierSet,
+            outFile, modifiers, format ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+      END; 
+
+      (* strip out all command characters *)
+      WHILE format[0] # 0C DO
+         CASE FIOBase.GetSpecifier(format) OF
+            'n' : error := NOT FIOBase.GetString(format, false);
+           |'y' : error := NOT FIOBase.GetString(format, true);
+            ELSE  error := TRUE;
+            END; (* CASE *)
+         IF error THEN
+            RETURN TextIO.SetError(outFile, IOErrors.badParameter);
+            END;
+         END; (* WHILE *)
+
+      @IF Assert THEN
+	  (* Can't have the same string for both true and false! *)
+	  IF Strings.Compare( true, false ) = Intrinsics.equal THEN
+	     RETURN TextIO.SetError(outFile, IOErrors.badParameter);
+	  END;
+      @END (* Assert *)
+	 
+      
+      (* 
+       * Convert the boolean.  This procedure is standardized to allow for
+       * the case where there are multi-sized objects.
+       *)
+      boolPtr := dataAdr;
+      bool := boolPtr^;
+
+      IF bool THEN
+         boolStr := true;
+      ELSE
+         boolStr := false;
+         END;
+         
+      WITH modifiers DO
+	  RETURN StringIO.WriteJustifiedField(
+	     outFile, boolStr, justification, width, fillChar );
+      END; (* WITH *)
+    END Write;
+
+
+PROCEDURE Read(
+    DONTCARE   : SysTypes.ANYPTR;
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    dataAdr    : SysTypes.SAUPTR;
+    length     : CARDINAL;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    CONST
+        skipChars   = ' ,';
+        acceptChars = 
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    VAR
+        boolPtr   : BoolPtr;
+	bool      : BiggestBOOLEAN;
+        boolStr   : GenConsts.Identifier;
+        error     : BOOLEAN;
+        state     : TextIO.States;
+        modifiers : FIOBase.ModifierValues;
+        true      : GenConsts.Identifier;
+        false     : GenConsts.Identifier;
+    BEGIN
+      (* length checked by caller *)
+      (* establish defaults *)
+      false := defaultFalse;
+      true  := defaultTrue;
+      
+      (* scan for default modifiers *)
+      IF prompting THEN 
+	 modifiers.messageOutput := FALSE;
+	IF NOT FIOBase.ScanModifiers( format, FIOBase.readModifierSet, 
+		       promptFile, modifiers, format ) 
+	THEN 
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+  	END;
+      END;
+    
+      (* strip out all command characters *)
+      WHILE format[0] # 0C DO
+         CASE FIOBase.GetSpecifier(format) OF
+            'n' : error := NOT FIOBase.GetString(format, false);
+         |'y' : error := NOT FIOBase.GetString(format, true);
+          ELSE  error := TRUE;
+          END; (* CASE *)
+      IF error THEN
+         RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+         END;
+      END; (* WHILE *)
+
+      (* Set up for a case insensitive compare *)
+      Chars.StringToLower(true);
+      Chars.StringToLower(false);
+
+      @IF Assert THEN
+	  (* Can't have the same string for both true and false! *)
+	  IF Strings.Compare( true, false ) = Intrinsics.equal THEN
+	     RETURN TextIO.SetError( inFile, IOErrors.badParameter);
+	  END;
+      @END (* Assert *)
+
+      (* we have the parameters: repeat the read until a valid value is read *)
+      
+      bool := FALSE;
+      LOOP  
+	 IF prompting AND NOT modifiers.messageOutput THEN
+	     IF (FormatIO.Write2(promptFile, prompt, true, false ) # TextIO.ok)
+		OR (TextIO.Flush(promptFile) # TextIO.ok) THEN
+		(* we must tell the user somehow *)
+		RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+		END;
+	  END;
+         
+	 error := FALSE;
+
+         state := FIOBase.ReadToken( inFile, skipChars, acceptChars, boolStr );
+	 IF state = TextIO.ok THEN
+            Chars.StringToLower( boolStr );  (* case insensitive compare *)
+
+            IF Strings.Compare( boolStr, true ) = Intrinsics.equal THEN
+               bool := TRUE;
+            ELSIF NOT ( Strings.Compare( boolStr, false ) = Intrinsics.equal ) 
+	       THEN error := TRUE;
+	       END;
+
+	    IF NOT error THEN
+	       (* Got a success *)
+	       boolPtr := dataAdr;
+	       boolPtr^ := bool;
+	       RETURN TextIO.ok;
+	       END;
+
+	    (* Got an error put the file in the error state. *)
+	    state := TextIO.SetError( inFile, IOErrors.badData );
+	    END;
+
+	 IF NOT prompting THEN
+             IF state = TextIO.endOfLine THEN   (* expected a string! *)
+                RETURN TextIO.SetError( inFile, IOErrors.badData );
+             END;
+             RETURN state;
+	    END;
+
+         (* We are prompting, so use the standard procedure for errors *)
+         state := FIOBase.PromptForReread( promptFile, inFile );
+         IF state # TextIO.ok THEN
+            RETURN state;
+         END;
+	 modifiers.messageOutput := FALSE;
+
+         END; (* LOOP *)
+         
+    END Read;
+      
+
+BEGIN (* FIOBool *)
+
+    FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE,
+			   SYSTEM.TSIZE( BiggestBOOLEAN ) );
+
+    FIOBase.RegisterRead( formatName, Read, FIOBase.DONTCARE,
+			  SYSTEM.TSIZE( BiggestBOOLEAN ) );
+
+END FIOBool.

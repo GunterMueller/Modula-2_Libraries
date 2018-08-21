@@ -1,0 +1,12 @@
+#
+# LOCAL "environment" for makes in the current directory.  See the 
+# global file "rules.mak" and the sample "environ.mak" in the 
+# same location.
+
+include ../../bin/rules.mak
+include m2source.mak
+
+# What's special  about this directory
+M2Path		= -M../bin -M../../io/bin -M../../gen/bin
+AsmLib 		= $(TestAsmLib)
+Install		=

@@ -1,0 +1,1260 @@
+
+
+
+
+
+
+
+
+
+
+                                  Modula-2
+                                Mini - Manual
+
+
+
+
+
+
+
+
+
+
+
+
+      This document is a quick reference to the Modula-2 system running
+      on node Essex. It contains information about the programming
+      language Modula-2, use of the available software and how to
+      find more information.
+
+      The information here is not intended to be a full description of
+      the system, but to provide a list of the most common elements.
+      With this in mind, the contents of this document are organized in
+      a compact manner to create a short document.
+
+      The information here is based upon "Programming in Modula-2",
+      by Prof. N. Wirth, 2rd edition and DBPL Memo 072-85 from
+      Fachbereich Informatik, Johann Wolfgang Goethe-Universitaet
+      describing the VAX/VMS Modula-2 version 3.2-25.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      Oct.21/91
+      University Computer Services
+      Saint Francis Xavier University
+
+      File: MOD$LIBRARY:MINIMAN.DOC
+Reserved Words:
+
+      AND     ARRAY   BEGIN   BY      CASE    CONST   DEFINITION
+      DIV     DO      ELSE    ELSIF   END     EXIT    EXPORT
+      FOR     FROM    IF      IMPLEMENTATION  IMPORT  IN
+      LOOP    MOD     MODULE  NOT     OF      OR      POINTER
+      PROCEDURE       QUALIFIED       RECORD  REPEAT  RETURN
+      SET     THEN    TO      TYPE    UNTIL   VAR     WHILE
+      WITH
+
+
+
+
+Standard Types:
+
+      BITSET   -  subrange of integers from 0 to 31, treated as a SET
+      BOOLEAN  -  true or false
+      CARDINAL -  positive integers, range: 0 to 4292967296
+      CHAR     -  character
+      INTEGER  -  whole numbers, range: -2147483648 to 2147483647 
+      PROC     -  procedure type
+      REAL     -  real numbers, range: 0.29E-38 to 1.7E38
+
+
+
+
+Standard Procedures:
+
+      ABS(x)     - Absolute value. Result is same type as argument.
+      CAP(ch)    - Corresponding upper case character.
+      CHR(i)     - Character with ordinal value of i.
+      EXCL(s,i)  - Exclude i from the set s.
+      FLOAT(i)   - INTEGER i represented as a REAL.
+      HALT       - Terminate program.
+      HIGH(a)    - High index bound of array a.
+      INCL(s,i)  - Include i in the set s.
+      LEN(s)     - The length of a string.
+      ODD(i)     - i mod 2 # 0.
+      ORD(x)     - Ordinal number of x in its type.
+      TRUNC(x)   - REAL x truncated to INTEGER.
+      VAL(t,x)   - The value of ordinal number x in its type t.
+
+      NEW(p)     - New instance of p.
+      DISPOSE(p) - Remove p.
+
+      ADR(x)     - Address of x, of type ADDRESS
+      SIZE(x)    - Number of storage units of x. Returns CARDINAL.
+      TSIZE(t)   - Number of storage units of type t. Returns CARDINAL.
+
+
+
+Standard Identifiers:
+
+      FALSE   NIL     TRUE
+
+
+
+Type Transfer Functions:
+
+     REAL    CARDINAL    INTEGER    BITSET   ADDRESS                         2
+Modula-2 Grammar
+
+ident =      letter {letter | digit | "_" | "$"} .
+number =     integer | real .
+integer =    digit {digit} | octalDigit {octalDigit} ("B"|"C"|"b"|"c") |
+             digit {hexDigit} ("H"|"h") .
+real =       {"+"|"-"} digit {digit} "." {digit} [ScaleFactor] .
+ScaleFactor = ("E"|"e") ["+"|"-"] digit {digit} .
+hexDigit =   digit |"A"|"B"|"C"|"D"|"E"|"F"|"a"|"b"|"c"|"d"|"e"|"f" .
+digit =      octalDigit | "8" | "9" .
+octalDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" .
+string =     "'" {character} "'" | '"' {character} '"' .
+qualident =  ident {"." ident} .
+ConstantDeclaration = ident "=" ConstExpression .
+ConstExpression = SimpleConstExpr [relation SimpleConstExpr] .
+relation =   "=" | "#" | "<>" | "<" | "<=" | ">" | ">=" | IN .
+SimpleConstExpr = ["+"|"-"] ConstTerm {AddOperator ConstTerm} .
+AddOperator = "+" | "-" | OR .
+ConstTerm =  ConstFactor {MulOperator ConstFactor} .
+MulOperator = "*" | "/" | DIV | MOD | AND | "&" .
+ConstFactor = qualident | number | string | set |
+              "(" ConstExpression ")" | NOT ConstFactor .
+set =        [qualident] "{" [element {"," element}] "}" .
+element =    ConstExpression [".." ConstExpression] .
+TypeDeclaration = ident "=" type .
+type =       SimpleType | ArrayType | RecordType | SetType |
+             PointerType | ProcedureType .
+SimpleType = qualident | enumeration | SubrangeType .
+enumeration = "(" IdentList ")" .
+IdentList =  ident {"," ident} .
+SubrangeType = "[" ConstExpression ".." ConstExpression "]" .
+ArrayType =  ARRAY SimpleType {"," SimpleType} OF type .
+RecordType = RECORD FieldListSequence END .
+FieldListSequence = FieldList {";" FieldList} .
+FieldList =  [IdentList ":" type |
+             CASE [ident ":"] qualident OF variant {"|" variant}
+             [ELSE FieldListSequence] END] .
+variant =    CaseLabelList ":" FieldListSequence .
+CaseLabelList = CaseLabels {"," CaseLabels} .
+CaseLabels = ConstExpression [".." ConstExpression] .
+SetType =    SET OF SimpleType .
+PointerType = POINTER TO type .
+ProcedureType = PROCEDURE [FormalTypeList] .
+FormalTypeList = "(" [[VAR] FormalType
+                 {"," [VAR] FormalType}] ")" [":" qualident] .
+VariableDeclaration = IdentList ":" type .
+designator = qualident {"." ident | "[" ExpList "]" | "^"} .
+ExpList =    expression {"," expression} .
+expression = SimpleExpression [relation SimpleExpression] .
+SimpleExpression = ["+"|"-"] term {AddOperator term} .
+term =       factor {MulOperator factor} .
+factor =     number | string | set | designator [ActualParameters] |
+             "(" expression ")" | NOT factor .
+ActualParameters = "(" [ExpList] ")" .
+statement =  [ assignment | ProcedureCall |
+               IfStatement | CaseStatement | WhileStatement |
+               RepeatStatement | LoopStatement | ForStatement |
+               WithStatement | EXIT | RETURN [expression] ] .
+
+                                                                             3
+
+assignment = designator ":=" expression .
+ProcedureCall = designator [ActualParameters] .
+StatementSequence = statement {";" statement} .
+IfStatement = IF expression THEN StatementSequence
+              {ELSIF expression THEN StatementSequence}
+              [ELSE StatementSequence] END .
+CaseStatement = CASE expression OF case {"|" case}
+                [ELSE StatementSequence] END .
+case =       CaseLabelList ":" StatementSequence .
+WhileStatement = WHILE expression DO StatementSequence END .
+RepeatStatement = REPEAT StatementSequence UNTIL expression .
+ForStatement = FOR ident ":=" expression TO expression
+               [BY ConstExpression] DO StatementSequence END .
+LoopStatement= LOOP StatementSequence END .
+WithStatement= WITH designator DO StatementSequence END .
+ProcedureDeclaration= ProcedureHeading ";" block ident .
+ProcedureHeading = PROCEDURE ident [FormalParameters] .
+block =      {declaration} [BEGIN StatementSequence] END .
+declaration = CONST {ConstantDeclaration ";"} |
+              TYPE {TypeDeclaration ";"} |
+              VAR {VariableDeclaration ";"} |
+              ProcedureDeclaration ";" |
+              ModuleDeclaration ";" .
+FormalParameters = "(" [FPSection {";" FPSection}] ")" [":" qualident] .
+FPSection =  [VAR] IdentList ":" FormalType .
+FormalType = [ARRAY OF] qualident .
+ModuleDeclaration = MODULE ident [priority] ";"
+                    {import} [export] block ident .
+priority =   "[" ConstExpression "]" .
+export =     EXPORT [QUALIFIED] IdentList ";" .
+import =     [FROM ident] IMPORT IdentList ";" .
+DefinitionModule = DEFINITION MODULE ident ";"
+                   {import} [export] {definition} END ident "." .
+definition = CONST {ConstantDeclaration ";"} |
+             TYPE {ident ["=" type] ";"} |
+             VAR {VariableDeclaration ";"} |
+             ProcedureHeading ";" .
+ProgramModule = MODULE ident [priority] ";"
+                {import} block ident "." .
+CompilationUnit = DefinitionModule | ForeignDefinitionModule |
+                  [IMPLEMENTATION] ProgramModule .
+ForeignDefinitionModule = "%FOREIGN" DEFINITION MODULE ident ";"
+                          {import} [export] {foreigndefinition} END ident "." .
+foreigndefinition = CONST {ConstantDeclaration ";"} |
+                    TYPE {ident ["=" type] ";"} |
+                    VAR {VariableDeclaration ";"} |
+                    ForeignProcedureHeading ";" .
+ForeignProcedureHeading = PROCEDURE ident [ForeignFormalParameters] .
+ForeignFormalParameters = "(" [ForeignFPSection {";" ForeignFPSection}] ")"
+                           [":" qualident] .
+ForeignFPSection =  [VAR] ["%REF" | "%IMMED" | "%DESCR" | "%STDESCR"]
+                    IdentList ":" FormalType .
+
+
+
+
+
+
+                                                                             4
+There are several directories on the system which are relevant to
+Modula-2, they are MOD$SYSTEM, MOD$LIBRARY, and MOD$EXAMPLES.
+
+  MOD$SYSTEM   contains the compiler, modules supplied by the
+               compiler creator, and other support tools.
+  MOD$LIBRARY  contains modules in addition to those in MOD$SYSTEM,
+               most of which have been developed here at St.F.X.U.
+  MOD$EXAMPLES contains example programs. Some which have been
+               typed in from PIM2, some which test modules from
+               MOD$LIBRARY and some demo programs.
+
+  All three directories are open for general access, you can see
+what is inside one of those directories with a command like this:
+      DIR MOD$LIBRARY
+  Files in those directories (in particular MOD$EXAMPLES) may be
+treated as templates; to be copied into your own directory and modified
+for your own need. There is no reason to copy a file if you do not wish
+to modify it, doing so will only needlessly increase disk usage.
+  The programs in MOD$EXAMPLES may be run directly, using a command like:
+     RUN MOD$EXAMPLES:PRIMES
+  Both MOD$LIBRARY and MOD$EXAMPLES contain an index file (called A.INDEX)
+which lists the files there, and provides some documentation. To see such
+files use commands like this:
+     TYPE /PAGE MOD$LIBRARY:A.INDEX
+     TYPE /PAGE MOD$EXAMPLES:A.INDEX
+
+
+
+
+
+
+
+Following are listings of the most commonly used modules. Not all available
+modules are listed nor are all the modules listed in entirety, but note that
+very few (if any) programs will require elements which are not listed here.
+
+Each module listed here has a comment on the first line which contains two
+items: a note telling if the module is fully or partially listed, and the
+modules actual file name on the system. If you wish, you can view the actual
+file for those modules which are only partially listed.
+
+
+      InOut             - Standard input and output                 6
+      RealInOut         - Output formatting of real numbers         7
+      MathLib0          - Standard mathematical functions           7
+      MoreMath          - More mathematical functions               8
+      Randomly          - Random number generation                  8
+      BitsetFunctions   - Logical operations on BITSETs             8
+      FileSystem        - More extensive input and output           9
+      TextIO            - Multiple file input and output           10
+      DirectAccessFiles - Random access files                      11
+      Conversions       - Converting between variable types        12
+      Storage           - Memory allocation                        12
+      ProcessScheduler  - Subprocess handling                      12
+      StringOperations  - String manipulation                      13
+      GetCharacter      - Single character input                   14
+      VeryScreen        - Very simple screen management            14
+      Measures          - Program timing routines                  15
+      DateTime          - Date and time manipulation               15
+                                                                             5
+DEFINITION MODULE InOut;   (*  partial, MOD$SYSTEM:INOUT.DEF  *)
+
+      CONST
+          EOL = FileSystem.EOL;
+
+      VAR
+         Done:    BOOLEAN;
+         in, out: File;
+
+      PROCEDURE OpenInput( defnam: ARRAY OF CHAR );
+      (* request a file name and open input file "in".
+         Done := "file was successfully opened".
+         Name is parsed with defnam as default name *)
+
+      PROCEDURE OpenOutput( defnam: ARRAY OF CHAR );
+      (* request a file name and open output file "out".
+         Done := "file was successfully opened". *)
+
+      PROCEDURE CloseInput;
+
+      PROCEDURE CloseOutput;
+
+      PROCEDURE Read( VAR ch: CHAR );
+      (* Done := NOT Eof(in) *)
+
+      PROCEDURE ReadLn;
+      (* skip to the beginning of the next input line *)
+
+      PROCEDURE ReadString( VAR s: ARRAY OF CHAR );
+      (* read a sequence of characters not containing
+         blanks nor control characters; leading blanks are ignored.
+         Input is terminated by any character <= " " *)
+
+      PROCEDURE ReadInt( VAR i: INTEGER );
+      (* read string and convert to integer. Leading blanks are ignored.
+        Done := "integer was read" *)
+
+      PROCEDURE ReadCard( VAR c: CARDINAL );
+      (* read string and convert to cardinal. Leading blanks are ignored.
+         Done := "cardinal was read" *)
+
+      PROCEDURE ReadReal( VAR r: REAL );
+      (* read string and convert to real *)
+
+      PROCEDURE Write( ch: CHAR );
+
+      PROCEDURE WriteLn;
+
+      PROCEDURE WriteString( s: ARRAY OF CHAR );
+
+      PROCEDURE WriteInt( i: INTEGER; n: CARDINAL );
+      (* write integer i with (at least) n characters on file "out". *)
+
+      PROCEDURE WriteCard( c: CARDINAL; n: CARDINAL );
+      (* write cardinal c with (at least) n characters on file "out". *)
+
+      PROCEDURE WriteReal( r: REAL; n: CARDINAL );
+      (* write real r with n characters on file "out". *)
+
+END InOut.                                                                   6
+DEFINITION MODULE RealInOut;   (*  partial, MOD$LIBRARY:REALINOUT.DEF  *)
+
+      PROCEDURE ReadReal( VAR x :REAL );
+      (* same behaviour as InOut.ReadReal *)
+
+      PROCEDURE WriteReal( x :REAL; width :CARDINAL );
+      (* same behaviour as InOut.WriteReal *)
+
+      PROCEDURE FWriteReal( x :REAL; width, decimals :CARDINAL );
+      (* Write a real number to standard output with numeric formatting
+         as specified by the parameters 'width' and 'decimals'. *)
+      (* Examples:   number     width  decimals   output
+                    12345.678      9      3       "12345.678"
+                    12345.678      9      2       " 12345.68"
+                    12345.678      9      1       "  12345.7"
+                    12345.678      9      0       "   12346."
+                    12345.678     10      4      "12345.6777"
+                    12345.678      9      4       "*********"
+                    12345.678      6      0          "12346."
+                    12345.678      6      1          "******"
+                   -12345.678     10      3      "-12345.678"
+                   -12345.678      9      3       "*********" *)
+
+      PROCEDURE EWriteReal( x :REAL; width, decimals :CARDINAL );
+      (* Write a real number to standard output with numeric formatting
+         as specified by the parameters 'width' and 'decimals'. *)
+      (* Examples:   number     width  decimals   output
+                  12345.678       9       3       "0.123E+05"
+                  12345.678       8       3        ".123E+05"
+                  12345.678       7       3         "*******"
+                  12345.678      12       6    "0.123457E+05"
+                  12345.678      13       8   ".12345678E+05"
+                  12345.678      14       9  ".123456777E+05"
+            0.0000012345678       9       3       "0.123E-05"
+            0.0000012345678       8       3        ".123E-05" *)
+
+END RealInOut.
+
+
+DEFINITION MODULE MathLib0;  (*  partial, MOD$SYSTEM:MATHLIB0.DEF  *)
+
+      PROCEDURE arccos  ( x :Real ): Real;
+      PROCEDURE arcsin  ( x :Real ): Real;
+      PROCEDURE arctan  ( x :Real ): Real;
+      PROCEDURE arctan2 ( x, y :Real ): Real;
+      PROCEDURE cos     ( x :Real ): Real;
+      PROCEDURE exp     ( x :Real ): Real;
+      PROCEDURE log     ( x :Real ): Real;
+      PROCEDURE ln      ( x :Real ): Real;
+      PROCEDURE log2    ( x :Real ): Real;
+      PROCEDURE sin     ( x :Real ): Real;
+      PROCEDURE sqrt    ( x :Real ): Real;
+      PROCEDURE tan     ( x :Real ): Real;
+
+      PROCEDURE power   ( b, e :Real ): Real;
+
+      PROCEDURE random  ( VAR seed :INTEGER ): Real;
+      PROCEDURE mod     ( x, y :Real ): Real;
+
+END MathLib0.                                                                7
+DEFINITION MODULE MoreMath;  (* partial, MOD$LIBRARY:MOREMATH.DEF *)
+
+    PROCEDURE entier( a :REAL ) :INTEGER;
+    (* returns nearest INTEGER *)
+
+    PROCEDURE MinReal( x, y :REAL ) :REAL;
+    (* return the smaller of 'x' and 'y' *)
+
+    PROCEDURE MaxReal( x, y :REAL ) :REAL;
+    (* return the larger of 'x' and 'y' *)
+
+    PROCEDURE MinCard( a, b :CARDINAL ) :CARDINAL;
+    (* return the smaller of 'a' and 'b' *)
+
+    PROCEDURE MaxCard( a, b :CARDINAL ) :CARDINAL;
+    (* return the larger of 'a' and 'b' *)
+
+    PROCEDURE MinInt( i, j :INTEGER ) :INTEGER;
+    (* return the smaller of 'i' and 'j' *)
+
+    PROCEDURE MaxInt( i, j :INTEGER ) :INTEGER;
+    (* return the larger of 'i' and 'j' *)
+
+END MoreMath.
+
+
+DEFINITION MODULE Randomly;            (* partial, MOD$LIBRARY:RANDOMLY.DEF *)
+
+      PROCEDURE RandomReal( min, max :REAL ) :REAL;
+      (* return a real number X, such that: min >= X < max  *)
+
+      PROCEDURE Choose_0_To_N_Minus_1( n :CARDINAL ) :CARDINAL;
+      (* return a cardinal A, with given N, such that: 0 >= A <= N-1 *)
+
+      PROCEDURE Choose_0_To_N( n :CARDINAL ) :CARDINAL;
+      (* return a cardinal A, with given N, such that: 0 >= A <= N *)
+
+      PROCEDURE Choose_1_To_N( n :CARDINAL ) :CARDINAL;
+      (* return a cardinal A, with given N, such that: 1 >= A <= N *)
+
+END Randomly.
+
+
+DEFINITION MODULE BitsetFunctions;  (*  full, MOD$LIBRARY:BITSETFUN.MOD  *)
+
+      PROCEDURE Not(  a    :BITSET ) :BITSET;  (* invert set *)
+      PROCEDURE And(  a, b :BITSET ) :BITSET;
+      PROCEDURE Nand( a, b :BITSET ) :BITSET;
+      PROCEDURE Nor(  a, b :BITSET ) :BITSET;
+      PROCEDURE Or(   a, b :BITSET ) :BITSET;
+      PROCEDURE Xand( a, b :BITSET ) :BITSET;  (* set difference *)
+      PROCEDURE Xor(  a, b :BITSET ) :BITSET;
+
+      PROCEDURE ShiftLeft( a  :BITSET; n :CARDINAL ) :BITSET;
+      (* Perform a circular shift left n times *)
+
+      PROCEDURE ShiftRight( a :BITSET; n :CARDINAL ) :BITSET;
+      (* Perform a circular shift right n times. *)
+
+END BitsetFunctions.                                                         8
+DEFINITION MODULE FileSystem;  (*  partial, MOD$SYSTEM:FILESYSTE.DEF *)
+
+      TYPE  File; (*hidden*)
+
+      CONST EOL = 15C; (* <CR> *)
+
+      PROCEDURE Done(): BOOLEAN;   (* was previous call successful ? *)
+
+      PROCEDURE Create(VAR f: File; filename: ARRAY OF CHAR; var,cr: BOOLEAN);
+      (* create a new file and open it for read and write access.
+         var: if true the file will contain variable length records
+              otherwise the records are of fixed length (512 bytes).
+         cr:  if true the file's record attribute is set to 'cr'
+              otherwise it is set to 'none'.
+         'normal' text files should be created with var and cr set to TRUE *)
+
+      PROCEDURE Open(VAR f: File; filename: ARRAY OF CHAR; modify: BOOLEAN);
+      (* opens an existing file.
+         modify: if true write access to the file is allowed *)
+
+      PROCEDURE Close( VAR f: File );
+      (* closes file, modifications become permanent *)
+
+
+      PROCEDURE GetPos( VAR f: File; VAR highpos, lowpos: CARDINAL );
+      (* return position in highpos,lowpos *)
+
+      PROCEDURE SetPos( VAR f: File; highpos, lowpos: CARDINAL );
+      (* set position to highpos,lowpos pair which should be supplied
+         from a previous GetPos call.  Position := (highpos,lowpos) *)
+
+      PROCEDURE Reset( VAR f: File );
+      (* position := beginning of file *)
+
+      PROCEDURE Eof( VAR f: File ): BOOLEAN;
+      (* position at end of file ? *)
+
+
+      PROCEDURE ReadByte( VAR f: File; VAR b: BYTE );
+      (* read one byte from position; advance position *)
+
+      PROCEDURE WriteByte( VAR f: File; b: BYTE );
+      (* write one byte at position; advance position *)
+
+      PROCEDURE ReadChar( VAR f: File; VAR ch: CHAR );
+      (* read one character from position; advance position *)
+
+      PROCEDURE WriteChar( VAR f: File; ch: CHAR );
+      (* write one character at position; advance position *)
+
+
+      PROCEDURE ReadRecord( VAR f: File; VAR rec: ARRAY OF BYTE;
+                            VAR size: CARDINAL );
+      (* read an entire record from f *)
+
+      PROCEDURE WriteRecord( VAR f: File; VAR rec: ARRAY OF BYTE;
+                             size: CARDINAL );
+      (* write an entire record to f *)
+
+END FileSystem.                                                              9
+DEFINITION MODULE TextIO; (*  partial, MOD$SYSTEM:TEXTIO.DEF  *)
+
+      CONST
+         EOL = FileSystem.EOL;
+
+      TYPE
+         File = FileSystem.File;
+
+      VAR
+         Done: BOOLEAN;
+         tty:  File; (* terminal file *)
+
+      PROCEDURE OpenIn( VAR f: File; filename: ARRAY OF CHAR );
+      (* open input file "f".
+         Done := "file was successfully opened". *)
+
+      PROCEDURE OpenOut( VAR f: File; filename: ARRAY OF CHAR );
+      (* open output file "f".
+         Done := "file was successfully opened". *)
+
+      PROCEDURE Close( VAR f: File );
+
+      PROCEDURE Read( f: File; VAR ch: CHAR );
+      (* same behaviour as InOut.Read *)
+
+      PROCEDURE ReadLn( f: File );
+      (* same behaviour as InOut.ReadLn *)
+
+      PROCEDURE ReadString( f: File; VAR s: ARRAY OF CHAR );
+      (* same behaviour as InOut.ReadString *)
+
+      PROCEDURE ReadInt( f: File; VAR i: INTEGER );
+      (* same behaviour as InOut.ReadInt *)
+
+      PROCEDURE ReadCard( f: File; VAR c: CARDINAL );
+      (* same behaviour as InOut.ReadCard *)
+
+      PROCEDURE ReadReal( f: File; VAR r: REAL );
+      (* same behaviour as InOut.ReadReal *)
+
+      PROCEDURE Write( f: File; ch: CHAR );
+      (* same behaviour as InOut.Write *)
+
+      PROCEDURE WriteLn( f: File );
+      (* same behaviour as InOut.WriteLn *)
+
+      PROCEDURE WriteString( f: File; s: ARRAY OF CHAR );
+      (* same behaviour as InOut.WriteString *)
+
+      PROCEDURE WriteInt( f: File; i: INTEGER; n: CARDINAL );
+      (* same behaviour as InOut.WriteInt *)
+
+      PROCEDURE WriteCard( f: File; c: CARDINAL; n: CARDINAL );
+      (* same behaviour as InOut.WriteCard *)
+
+      PROCEDURE WriteReal( f: File; r: REAL; n: CARDINAL );
+      (* same behaviour as InOut.WriteReal *)
+
+END TextIO.
+                                                                            10
+DEFINITION MODULE DirectAccessFiles; (*  partial, MOD$LIBRARY:DIRECTACC.DEF *)
+
+      TYPE
+          DirectFile;
+
+      VAR
+         DirFileDone    :BOOLEAN;
+
+      PROCEDURE DirectCreate( VAR file :DirectFile;
+                              name     :ARRAY OF CHAR;
+                              maxrec   :CARDINAL );
+      (*
+        Create a direct access file of the given filename 'name',
+        the maximum possible number of records for the file must also
+           be specified as 'maxrec',
+        the file handle is returned in 'file'.
+        The file created will have a record length of 512 bytes.
+        DirFileDone is set to FALSE if the file cannot be created.
+        A successful create operation leaves the file in an "open" state.
+      *)
+
+
+      PROCEDURE DirectOpen( VAR file :DirectFile;
+                            name     :ARRAY OF CHAR );
+      (*
+        Open a direct access file for read/write, random record access.
+        If the file cannot be accessed, or is not suitable for random access
+        then DirFileDone is returned as FALSE.
+      *)
+
+      PROCEDURE DirectClose( file :DirectFile );
+
+      PROCEDURE DirectWrite( file          :DirectFile;
+                             record_number :CARDINAL;
+                             record        :ARRAY OF BYTE;
+                             n_bytes       :CARDINAL );
+      (*
+        Write a record into a direct access file at any record within
+        the limits specified during file creation.
+        Specify the record number in the file in 'record_number',
+        give any object for output as 'record', and
+        also specify the number of bytes of the output object in 'n_bytes'.
+      *)
+
+      PROCEDURE DirectRead( file          :DirectFile;
+                            record_number :CARDINAL;
+                            VAR record    :ARRAY OF BYTE;
+                            n_bytes       :CARDINAL );
+      (*
+        Read a record from a direct access file at any record within
+        the limits specified during file creation.
+        Specify the record number in the file in 'record_number',
+        specify any object to receive the data as 'record', and
+        also specify the number of bytes to read in 'n_bytes'.
+      *)
+
+END DirectAccessFiles.
+
+
+                                                                            11
+DEFINITION MODULE Conversions;  (* partial, MOD$SYSTEM:CONVERSIO.DEF  *)
+
+        (* number to string conversions *)
+        PROCEDURE IntToString(  num: INTEGER; len: CARDINAL;
+                                VAR s: ARRAY OF CHAR );
+        PROCEDURE CardToString( num: CARDINAL; len: CARDINAL;
+                                VAR s: ARRAY OF CHAR );
+        PROCEDURE RealToString( num: REAL; len: CARDINAL;
+                                VAR s: ARRAY OF CHAR );
+
+        (* string to number conversions *)
+        PROCEDURE StringToInt(  s: ARRAY OF CHAR ): INTEGER;
+        PROCEDURE StringToCard( s: ARRAY OF CHAR ): CARDINAL;
+        PROCEDURE StringToReal( s: ARRAY OF CHAR ): REAL;
+
+        (* number to number conversions *)
+        PROCEDURE ByteToInt( num: BYTE ):    INTEGER;
+        PROCEDURE IntToReal( num: INTEGER ): REAL;
+        PROCEDURE RealToInt( num: REAL ):    INTEGER;
+
+END Conversions.
+
+
+
+
+
+
+DEFINITION MODULE Storage;  (*  full, MOD$SYSTEM:STORAGE.DEF  *)
+
+        PROCEDURE ALLOCATE( VAR p: ADDRESS; size: CARDINAL );
+ 
+        PROCEDURE DEALLOCATE( VAR p: ADDRESS; size: CARDINAL );
+
+END Storage.
+
+
+
+
+
+
+
+DEFINITION MODULE ProcessScheduler;  (*  full, MOD$SYSTEM:PROCESSSC.DEF  *)
+
+  TYPE SIGNAL;
+
+  PROCEDURE StartProcess( p: PROC; a: ADDRESS; n: CARDINAL );
+  (* start p with workspace a of length n *)
+
+  PROCEDURE SEND( VAR s: SIGNAL );
+  (* resume first process waiting for s *)
+
+  PROCEDURE WAIT( VAR s: SIGNAL );
+  (* insert at end of queue waiting for s and resume any
+     process that is ready *)
+
+  PROCEDURE Awaited( s: SIGNAL ): BOOLEAN;
+ 
+  PROCEDURE InitSignal( VAR s: SIGNAL );
+
+END ProcessScheduler.                                                       12
+DEFINITION MODULE StringOperations;  (*  partial, MOD$LIBRARY:STRINGOPE.DEF *)
+(* Relative positions have an offset of 1, meaning first character. *)
+
+      PROCEDURE Equal( a, b :ARRAY OF CHAR ) :BOOLEAN;
+      (* Return TRUE if the two strings 'a' and 'b' are equal.
+         This is a very simple string comparison, the strings must be of
+         the same length, and must contain exactly the same characters. *)
+
+      PROCEDURE Compare( a, operation, b :ARRAY OF CHAR ) :BOOLEAN;
+      (* Compare the two string 'a' and 'b' and return a match of TRUE or FALSE
+         according to the comparison described in 'operation'.
+         Operation may be one of '=', '#', '<>', '>', '<', '>=', '<=',
+         an invalid operation always returns FALSE.
+         Read the parameters as if it was an expression,
+         "1", ">", "2" is false *)
+
+      PROCEDURE Assign( a :ARRAY OF CHAR; VAR b :ARRAY OF CHAR );
+      (* Copy all of 'a' into 'b'.
+         This procedure is provided in order to perform assignments of
+         strings of different lengths. *)
+
+      PROCEDURE Index( source, substring :ARRAY OF CHAR ) :CARDINAL;
+      (* Find the first occurrence of 'substring' in 'source'.
+         If the substring isn't found then a zero is returned.
+         If the substring is found then the relative position in 'source'
+         is returned.  *)
+
+      PROCEDURE Append( a :ARRAY OF CHAR; VAR b :ARRAY OF CHAR );
+      (* Append string 'a' to the end of string 'b'. *)
+
+      PROCEDURE Concat( a, b :ARRAY OF CHAR; VAR c :ARRAY OF CHAR );
+      (* Concatenate strings 'a' and 'b' into output string 'c'. *)
+
+      PROCEDURE SubString( a :ARRAY OF CHAR; start, len :CARDINAL;
+                           VAR b :ARRAY OF CHAR );
+      (* Copy from string 'a' starting from the 'start'TH character
+         and copying 'len' characters into the string 'b'. *)
+
+      PROCEDURE Insert( a :ARRAY OF CHAR;
+                        start :CARDINAL; VAR b :ARRAY OF CHAR );
+      (* Insert string 'a' into string 'b' in-front of relative
+         position 'start' in 'b'. *)
+
+      PROCEDURE Delete( VAR a :ARRAY OF CHAR; start, len :CARDINAL );
+      (* Delete 'len' characters from 'a' starting at position 'start'. *)
+
+      PROCEDURE Upper( VAR string :ARRAY OF CHAR );
+      (* Convert a string to all upper case. *)
+
+      PROCEDURE Lower( VAR string :ARRAY OF CHAR );
+      (* Convert a string to all lower case. *)
+
+      PROCEDURE Trim( VAR string :ARRAY OF CHAR );
+      (* Remove trailing blanks and tabs from a string. *)
+
+      PROCEDURE Empty( VAR string :ARRAY OF CHAR );
+      (* Set the string to completely empty. *)
+
+END StringOperations.
+                                                                            13
+DEFINITION MODULE GetCharacter;    (*  partial, MOD$LIBRARY:GETCHARAC.DEF  *)
+
+      PROCEDURE Get( VAR ch: CHAR );
+      (* return a single character, no Carriage-Return needed *)
+
+      PROCEDURE GetNoWait( VAR ch: CHAR );
+      (* return a single character, no Carriage-Return needed
+         and don't wait till a character occurs,
+         return a null character if there is no character in the buffer *)
+
+      PROCEDURE StartGet;
+      (* enter single character mode *)
+
+      PROCEDURE StopGet;
+      (* exit single character mode,
+         return to "carriage-return needed for input" mode *)
+
+END GetCharacter.
+
+
+
+
+
+
+
+
+
+
+DEFINITION MODULE VeryScreen;  (*  partial, MOD$LIBRARY:VERSCREE.DEF  *)
+(* For VT100 and better terminals. *)
+
+      PROCEDURE Home;
+      (* move the cursor to top of screen *)
+
+      PROCEDURE EraseScreen;
+      (* erase the screen from the cursor down *)
+
+      PROCEDURE EraseLine;
+      (* erase from the cursor to the end of the current line *)
+
+      PROCEDURE PutString( text :ARRAY OF CHAR; row, col :CARDINAL );
+      (* put some text at the given location *)
+
+      PROCEDURE PutCursor( row, col :CARDINAL );
+      (* move the cursor to the given location *)
+
+      PROCEDURE CursorOn( turn_on :BOOLEAN );
+      (* turn cursor on or off, true=on, false=off.
+         If you forget to turn it back on at the end of your program
+         use the editor, it will force the cursor back on *)
+
+END VeryScreen.
+
+
+
+
+
+
+
+                                                                            14
+DEFINITION MODULE Measures;  (*  full, MOD$SYSTEM:MEASURES.DEF  *)
+
+      PROCEDURE InitTimer;
+
+      PROCEDURE FreeTimer;
+
+      PROCEDURE GetTimer( VAR elapsed:   TimeType;
+                          VAR cputime:   CARDINAL;
+                          VAR bufio:     CARDINAL;
+                          VAR dirio:     CARDINAL;
+                          VAR pagefault: CARDINAL );
+
+      PROCEDURE ShowTimer;
+
+END Measures.
+
+
+
+
+
+
+
+DEFINITION MODULE DateTime;  (*  full, MOD$SYSTEM:DATETIME.DEF  *)
+
+      TYPE
+          TimeType;
+
+      PROCEDURE Time( VAR time: TimeType );
+      PROCEDURE Date( VAR date: ARRAY OF CHAR );
+      (*
+       * Procedures Time and Date return the current time
+       * in system format or as a string.
+       *)
+
+      PROCEDURE ConvertTime( time: TimeType; VAR date: ARRAY OF CHAR );
+      PROCEDURE ConvertDate( date: ARRAY OF CHAR; VAR time: TimeType );
+      (*
+       * The conversion procedures convert a time value from
+       * system format to string and vice versa.
+       *)
+
+      (*
+       * The following procedures return portions of a
+       * time value in system format as a cardinal
+       *)
+      PROCEDURE Year      ( time: TimeType ): CARDINAL;
+      PROCEDURE Month     ( time: TimeType ): CARDINAL;
+      PROCEDURE Day       ( time: TimeType ): CARDINAL;
+      PROCEDURE Hours     ( time: TimeType ): CARDINAL;
+      PROCEDURE Minutes   ( time: TimeType ): CARDINAL;
+      PROCEDURE Seconds   ( time: TimeType ): CARDINAL;
+      PROCEDURE Hundredths( time: TimeType ): CARDINAL;
+
+END DateTime.
+
+
+
+
+
+                                                                            15
+Special Notes:
+
+
+There is currently an international effort underway to standardize
+the language Modula-2. In the meantime, compiler creators are
+generally basing their implementations on the book "Programming in
+Modula-2" by Prof. N. Wirth (PIM2). However there are several editions
+of this book with significant changes from edition to edition.
+Therefore different compilers sometimes support different language
+features, some compiler creators stray from PIM2 by adding
+(or subtracting) language elements.
+  Our compiler is based upon PIM2 2nd edition. This edition does
+not support the MAX and MIN procedures, and LONGINT and LONGCARD
+types are not available.
+  Also note that this compiler is closely tied to the VAX/VMS
+system, sometimes providing great benefit, sometimes not. Types
+supported are tied to VAX hardware: CARDINAL, INTEGER and REAL
+types use 32 bits, BOOLEAN, BYTE and CHAR are 8 bits, enumerations
+cannot contain more than 256 elements, and SETs cannot have more
+than 32 elements.
+  Other compiler limitations are as follows:
+Module names must not be longer than 24 characters.
+String constants are limited to 100 characters.
+Open arrays are limited to 65536 bytes.
+Each compilation unit may import up to 30 modules.   
+Implementation module file names must be less than 10 characters.
+
+
+There are some documents available describing the compiler.
+  This document is MOD$LIBRARY:MINIMAN.DOC and is intended to be printed
+by any user who would like to use Modula-2 and needs reference material
+to keep with then when working on programming.
+  The main document which describes the compiler is
+MOD$SYSTEM:MODULAGUIDE.MEM and is intended for those who require extended
+reference material. This file is 66 pages long and should be printed on
+the line printer with the command:
+     PRINT /NOFEED MOD$SYSTEM:MODULA*.MEM 
+
+
+
+To use the following objects, they must be IMPORTed from the
+pseudo-module SYSTEM:
+
+   ADR       ADDRESS   BYTE      NEWPROCESS  OCTAWORD
+   PROCESS   QUADWORD  REGISTER  SHORTWORD   SIZE
+   TRANSFER  TSIZE     WORD 
+
+
+
+
+To use the procedure NEW and DISPOSE, the procedures
+ALLOCATE and DEALLOCATE must be IMPORTed from the module STORAGE.
+
+
+
+
+Strings in arrays are terminated with the null character.
+The null character can be defined like this:
+            CONST nul = 0C;
+                                                                            16
+Tips and Examples:
+
+To measure the speed of a program one must use the module Measures to
+gather the information, and the module DateTime to reformat those
+numbers. A program would look something like this:
+
+MODULE TestTime; (* MOD$EXAMPLES:TEST_TIMER.MOD *)
+    
+FROM InOut IMPORT WriteString, WriteCard, WriteLn, ReadCard, ReadLn;
+
+FROM DateTime IMPORT TimeType, Hours, Minutes, Seconds, Hundredths;
+FROM Measures IMPORT InitTimer, GetTimer, FreeTimer;
+
+VAR
+  elapsed :TimeType;
+  cputime, bufio, dirio, pagefaults :CARDINAL;
+  hundred :CARDINAL;
+  n, i    :CARDINAL;
+  x       :REAL;
+  
+BEGIN
+
+    WriteString( ' how many loops (0 to end) ? ' );
+    ReadCard( n ); ReadLn;
+
+    WHILE n # 0 DO
+
+      InitTimer;                                                ---| Initialize.
+
+      WriteCard( n, 0 ); WriteString( ' loops:' ); WriteLn;     ---+
+                                                                   | Here is the
+      x := 0.0;                                                    | code which
+      FOR i := 1 TO n DO                                           | we want to
+        x := x + 0.5;  x := x / 12.0;  x := x + 0.5;               | time.
+      END;                                                      ---+
+
+      GetTimer( elapsed, cputime, bufio, dirio, pagefaults );   ---| And get time.
+
+      WriteString( 'took cpu time of '); WriteCard( cputime, 0 ); -+
+      WriteString( ' units of 10 milliseconds' ); WriteLn;        -| Calculate
+                                                                  -|   and
+      hundred := Hours( elapsed );                                -|  display
+      hundred := hundred * 60  + Minutes( elapsed );              -|   the
+      hundred := hundred * 60  + Seconds( elapsed );              -|  time.
+      hundred := hundred * 100 + Hundredths( elapsed );           -|
+                                                                  -|
+      WriteString( 'and real time of '); WriteCard( hundred, 0 ); -|
+      WriteString( ' hundredths of seconds.' ); WriteLn;          -+
+
+      WriteLn; WriteString( ' how many loops ? ' );
+      ReadCard( n ); ReadLn;
+   END;
+
+   FreeTimer;
+
+END TestTime.
+
+Alternately, the whole section using GetTimer, the calculations and
+display could be replaced with a single call to ShowTimer which
+will output a standard format display.                                     17
+The procedures from GetCharacter can be used to build programs
+using keystrokes without need to use the carriage return key.
+This method makes possible the development of menuing systems and
+similar user interactions. Following is an example program which shows
+how to use this module:
+
+
+MODULE TestGet;  (* MOD$EXAMPLES:TEST_GET.MOD *)
+
+FROM GetCharacter IMPORT StartGet, StopGet, Get, GetNoWait;
+FROM InOut IMPORT WriteString, WriteLn, WriteCard;
+
+VAR
+  c :CHAR;
+  i :CARDINAL;
+
+BEGIN
+
+WriteString( 'about to enter single character mode' ); WriteLn;
+WriteString( 'hit any key, Q to quit' ); WriteLn;
+
+StartGet;
+
+Get( c );
+WHILE CAP( c ) # 'Q' DO
+  WriteString( c ); WriteLn; 
+  Get( c );
+END;
+
+StopGet;
+
+WriteLn; WriteLn;
+WriteString( 'about to enter single character mode with no waiting' );
+WriteLn; WriteString( 'hit any key to restart, Q to quit' ); WriteLn;
+
+StartGet;
+
+GetNoWait( c );  i := 0;
+WHILE CAP( c ) # 'Q' DO
+
+  IF c # 0C THEN
+    i := 0;
+  END;
+
+  WriteCard( i, 0 ); WriteLn;
+
+  GetNoWait( c );   i := i + 1;
+END;
+
+StopGet;
+
+END TestGet.
+
+
+
+
+
+
+
+                                                                            18
+If you wish to use two different procedures but with the same name you must
+explicitly qualify the procedure name with the module name. As well you
+must import the whole of a module to allow qualified import. Following is an
+example of a program Z which calls the procedure DoIt from both A and B.
+
+            MODULE Z;
+            FROM InOut IMPORT WriteString, WriteLn;
+
+            IMPORT A;
+            IMPORT B;
+
+            BEGIN
+               WriteString( 'about to call a ' );  A.DoIt;  WriteLn;
+               WriteString( 'about to call b ' );  B.DoIt;  WriteLn;
+            END Z.
+
+
+
+            DEFINITION MODULE A;
+              EXPORT QUALIFIED DoIt;
+              PROCEDURE DoIt;
+            END A.
+
+            IMPLEMENTATION MODULE A;
+              FROM InOut IMPORT WriteString;
+              PROCEDURE DoIt;
+              BEGIN
+                WriteString( 'A' );
+              END DoIt;
+            BEGIN
+            END A.
+
+
+            DEFINITION MODULE B;
+              EXPORT QUALIFIED DoIt;
+              PROCEDURE DoIt;
+            END B.
+
+            IMPLEMENTATION MODULE B;
+              FROM InOut IMPORT WriteString;
+              PROCEDURE DoIt;
+              BEGIN
+                 WriteString( 'B' );
+              END DoIt;
+            END B.
+
+
+And the output is as expected:
+
+            about to call a A
+            about to call b B
+
+
+
+
+
+
+
+
+                                                                            19
+Using the Compiler:
+
+To compile a module use the command MODULA followed by the name of the
+file containing the module. Files should end in .DEF for definition modules
+and .MOD for implementation and program modules. There are several options
+which can be attached to the MODULA command, but none are required and
+using the base command is sufficient. An example compilation command is:
+
+         MODULA /LOG MY-PROGRAM.MOD
+
+The option "/LOG" is always useful since it causes the display of the names
+of called modules. One other option to keep in mind is "/CHECK", this option
+enables runtime array bounds checking and is on by default, but turning it
+off by using the option "/NOCHECK" may generate a faster running program.
+  To get a full description of compile options see the document
+MOD$SYSTEM:MODULAGUIDE.MEM as described above or check the on-line help
+with the command:
+
+         HELP MODULA
+
+Program modules and implementation modules compile into object files, with
+file type .OBJ   Definition modules compile into symbol files, of type .SYM
+Program objects must be linked with all needed module objects to make a
+runnable program. All modules provided in MOD$SYSTEM and MOD$LIBRARY are
+placed in the object library MOD$SYSTEM:MODULA.OLB and so all programs must
+be linked with this library. An example of the LINK command is:
+
+         LINK myprogram + MOD$SYSTEM:MODULA/LIB
+
+All this compiling and linking can be done with one command by using a
+command procedure, and such a command procedure is provided as part of this
+system. All users have the command M2 defined which executes the procedure
+PUB$COMS:M2.COM  This procedure compiles a module and links it with the library
+of system objects, and runs the program. The syntax for this command is:
+
+         M2  program  print-option
+
+where print-option is a single character with the following meanings:
+
+    F  or  f  = save the compile list in the file program-name.LIS
+    N  or  n  = no compile list produced
+    P  or  p  = send the compile list to the printer
+    Q  or  q  = send the compile list and program output to the printer
+    S  or  s  = same as "P" but with a shorter listing
+    T  or  t  = list the program to the terminal
+
+If print-option is missing it defaults to the "T" option.
+
+There is a more advanced procedure, PUB$COMS:MOD2.COM, which is intended
+to be used by those developing and using their own implementation modules.
+This procedure takes much the same options as M2 (default is N and X
+for /nocheck is also added), but requires the user to input the names of
+modules in addition to those provided in MOD$SYSTEM and MOD$LIBRARY.
+  Users may make use of this advanced version by placing the following
+line in their LOGIN.COM file.
+
+      M2 :== @PUB$COMS:MOD2
+
+
+                                                                            20
+An added advantage of using command procedures is that output can easily be
+captured into a file for later viewing or printing. To capture output from
+any command procedure use the "/OUTPUT=" option, an example of how to capture
+the output from a Modula-2 run is:
+
+      M2 /OUT=file.out  myprogram.MOD  N
+
+
+
+The symbol files (.SYM) produced by the compilation of definition modules are
+read by the compiler inorder to perform the cross module type checking.
+  So the required order of compilation is:
+       1. definition module
+       2. implementation module
+       3. compile and link the calling modules
+  Time stamps are added to symbol files and object files and those time stamps
+are checked during the link process. If modules have not been compiled in the
+correct sequence then the linker will display an error message and an
+executable file will not be created.
+
+
+
+As compiler requires information from modules it searches for symbol files
+in predefined directories, and in the following search order:
+      1. the current directory
+      2. MOD$LIBRARY
+      3. MOD$LIBRARY_1 through MOD$LIBRARY_9 (user defined directories)
+      4. MOD$SYSTEM
+  MOD$SYSTEM, MOD$LIBRARY, etc. are logical names which are pointers into
+directories. As mentioned above, both MOD$SYSTEM and MOD$LIBRARY are always
+available since they are defined by the system, but the 9 other logical
+names are available to users to create their own module libraries. If you
+had some modules to which you wanted access no matter what the setting of
+your current directory, you could add a line like the following to your
+LOGIN.COM file.
+
+      DEFINE MOD$LIBRARY_1 [my-top-dir.LIBRARY]
+
+  The command procedure PUB$COMS:MOD2 uses that same search strategy when
+looking for modules for the LINK. If the given module name is not found as
+an .OBJ then the search is tried again as an .OLB (object library).
+
+
+  Something to keep in mind is that definition/implementation module file
+names are restricted to 9 characters. The module names themselves may be
+24 characters in length, but the file name restriction means that the first
+9 characters of module name should be unique.
+
+
+
+
+
+
+
+
+
+
+
+
+End MiniMan.                                                                21

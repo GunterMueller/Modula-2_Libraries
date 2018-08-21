@@ -1,0 +1,85 @@
+(*
+ * This is a BASIC conformance test for the preprocessor.
+ * 
+ * If there are no @ signs, then the source has already been
+ * preprocessed!
+ *)
+
+ PASS 
+ PASS 
+
+ 
+    PASS 
+
+
+
+
+
+
+
+
+ 
+    PASS 
+
+
+
+
+
+
+
+
+ 
+    PASS 
+
+
+
+
+
+
+ 
+    PASS 
+
+
+
+
+
+
+
+
+ 
+    PASS 
+    
+	PASS
+    
+
+
+    PASS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,364 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE M2Scanner;
+(*
+ * A real hack, but then what isn't.  Assumes that the StringIO module
+ * doesn't return null strings.  Otherwise, invalid data will be read.
+ * Also assumes that the strings returned are no longer than a line
+ * from the file.  Takes the liberty of having a "large enough" buffer
+ * for reading a line.  This number could be expanded without hurting
+ * much.
+ *
+ * HISTORY:
+ *    Please see SCCS history. [TB].
+ *    30.09.86 [Rico Cozzio] ported to Sun.
+ *)
+
+
+IMPORT
+    ProgErrOutput, TextIO, IOErrors, StringIO, Strings, Intrinsics,
+    SysTypes,	CardConvert;
+
+FROM SafeStorage IMPORT
+    ALLOCATE,   DEALLOCATE;
+
+CONST
+    lineSize     = 256;
+
+TYPE 
+    Instance    = POINTER TO InstanceRec;
+    InstanceRec = RECORD
+	input    : TextIO.Object;
+	line     : RECORD
+	    number    : CARDINAL;
+	    length    : CARDINAL;
+	    index     : CARDINAL;
+	    data      : ARRAY [ 0 .. lineSize - 1 ] OF CHAR;
+	END;
+    END;
+
+		 
+PROCEDURE Create( VAR instance : Instance;
+		      name     : ARRAY OF CHAR )
+			       : BOOLEAN;
+    (*
+     * Allocate an instance record and initialize the line.
+     *)
+    BEGIN (* Create *)
+
+	NEW( instance );
+	IF instance = NIL THEN
+	    RETURN FALSE;
+	END;
+
+	WITH instance^ DO
+	    IF TextIO.Open( input, name, TextIO.readOnly, "" ) # IOErrors.ok THEN
+		DISPOSE( instance );
+		RETURN FALSE;
+	    END;
+	    WITH line DO
+		number    := 0; (* not a line *)
+		index     := 0;
+		length    := 0;
+		data[ 0 ] := 0C;
+	    END; (* WITH line *)
+	END; (* WITH instance *)
+    
+	RETURN TRUE;
+
+    END Create;
+
+
+PROCEDURE Destroy( VAR instance : Instance ) 
+				: BOOLEAN;
+    VAR
+	result : IOErrors.Errors;
+    BEGIN (* Destroy *)
+	
+	IF instance = NIL THEN
+	    RETURN TRUE; (* do nothing *)
+	END;
+
+	result := TextIO.Close( instance^.input );
+	DISPOSE( instance );
+
+	RETURN (result = IOErrors.ok);
+
+    END Destroy;
+
+
+PROCEDURE Read(     instance : Instance;
+		VAR token    : Token )
+			     : BOOLEAN;
+    (*
+     * Read a line of text.  Blank lines are thrown away.
+     *)
+    VAR
+	prev   : CHAR;
+    BEGIN (* Read *)
+	prev := ' ';
+	WITH instance^ DO
+	    LOOP 
+		WHILE line.index >= line.length DO
+		    CASE StringIO.Read( input, line.data ) OF
+			TextIO.ok:  
+			    line.length := Strings.Length( line.data );
+			    line.index  := 0;
+			    INC( line.number );
+			    prev        := ' ';
+		      | TextIO.endOfLine : ;
+		      | TextIO.endOfFile,
+			TextIO.error     : RETURN FALSE;
+		    END;
+		END;
+
+		CASE line.data[ line.index ] OF
+		    '*':
+			IF prev = '(' THEN
+			    IF NOT SkipComment( instance ) THEN
+				RETURN FALSE;
+			    END;
+			    prev := ' ';
+			ELSE
+			    prev := line.data[ line.index ];
+			    INC( line.index );  (* not perfect, but simple *)
+			END;
+		    |
+		    'a' .. 'z', 'A' .. 'Z':
+			RETURN GetName( instance, token );
+		    |
+		    "'", '"':
+			RETURN GetString( instance, token );
+		    
+		    ELSE
+			prev := line.data[ line.index ];
+			INC( line.index );      (* not perfect, but simple *)
+			(* So it doesn't crash *)
+
+		END; (* CASE *)
+	    END; (* LOOP *)
+	END; (* WITH *)
+
+    END Read;
+
+(* 
+ * All of the GetXXXX procedures return a token and leave the index
+ * pointing to the next character to be scanned.  The SkipXXXX
+ * procedures do the same with the exception that they don't
+ * return a token.
+ *)
+
+PROCEDURE GetString(     instance : Instance;
+		     VAR token    : Token )
+				  : BOOLEAN;
+    VAR
+	quote  : CHAR;
+	ch     : CHAR;
+	strLen : CARDINAL;
+    BEGIN (* GetString *)
+	token.type := string;
+	strLen := 0;
+	WITH instance^ DO
+	    quote := line.data[ line.index ];   (* remember the start *)
+	    INC( line.index );
+	    LOOP 
+		IF line.index >= line.length THEN
+		    (* Syntax error line ended in middle of string *)
+		    EXIT;
+		END;
+		ch := line.data[ line.index ];
+		IF ch = quote THEN
+		    EXIT;
+		END;
+		INC( line.index );
+		IF strLen < maxStringLen THEN
+		    token.string[ strLen ] := ch;
+		    INC( strLen );
+		END;
+	    END; (* LOOP *)
+	END; (* WITH *)
+
+	token.string[ strLen ] := 0C; (* always null terminate *)
+	RETURN TRUE;
+
+    END GetString;
+
+CONST
+    firstKeyword = definition;
+    lastKeyword  = c;                 (* not otherKeyword *)
+
+TYPE
+    KeywordName  = ARRAY [ 0 .. 15 ] OF CHAR;
+
+VAR
+    keywordNames : ARRAY Keywords OF KeywordName;
+
+PROCEDURE GetName(     instance : Instance;
+		   VAR token    : Token )
+				: BOOLEAN;
+    VAR
+	i       : Keywords;
+	ch      : CHAR;
+	nameLen : CARDINAL;
+
+    BEGIN (* GetName *)
+	WITH instance^ DO
+	    token.identifier[ 0 ] := line.data[ line.index ];
+	    nameLen               := 1;
+	    INC( line.index );
+	    LOOP 
+		IF line.index >= line.length THEN
+		    EXIT;       (* valid end of name *)
+		END;
+		ch := line.data[ line.index ];
+		IF NOT ( ( ( 'a' <= ch ) AND ( ch <= 'z' ) ) OR 
+			 ( ( 'A' <= ch ) AND ( ch <= 'Z' ) ) OR
+			 ( ( '0' <= ch ) AND ( ch <= '9' ) ) OR
+			   ( '_' =  ch ) ) THEN
+		    EXIT;       (* valid end of name *)
+		END;
+		INC( line.index );
+		(* Identifier too long? *)
+		IF nameLen < maxIdentifierLen THEN  (* skip the rest *)
+		    token.identifier[ nameLen ] := ch;  
+		    INC( nameLen );
+		END;
+	    END; (* LOOP *)
+	END; (* WITH *)
+	token.identifier[ nameLen ] := 0C; (* always null terminate *)
+
+	(* Id or reserved word *)
+	FOR i := firstKeyword TO lastKeyword DO
+	    IF Strings.Compare( token.identifier, keywordNames[ i ] )
+			      = Intrinsics.equal 
+	      THEN
+		token.type    := keyword;
+		token.keyword := i;
+		RETURN TRUE;
+	    END;
+	END;
+	token.type := identifier;
+	RETURN TRUE;
+
+    END GetName;
+
+
+PROCEDURE SkipComment( instance : Instance )
+				: BOOLEAN;
+    VAR
+	ch    : CHAR;
+	prev  : CHAR;
+	level : CARDINAL;
+
+    BEGIN (* SkipComment *)
+	prev  := ' ';
+	level := 1;     (* nested comment detector *)
+	WITH instance^ DO
+	    INC( line.index );
+	    LOOP 
+		WHILE line.index >= line.length DO
+		    CASE StringIO.Read( input, line.data ) OF
+			TextIO.ok:  
+			    line.length := Strings.Length( line.data );
+			    line.index  := 0;
+			    INC( line.number );
+			    prev        := ' ';
+		      | TextIO.endOfLine : ;
+		      | TextIO.endOfFile,
+			TextIO.error     : RETURN FALSE;
+		    END;
+		END;
+		ch := line.data[ line.index ];
+		INC( line.index );
+		(* '*'s are common in comments, make the second check *)
+		IF ( ch = ')' ) AND ( prev = '*' ) THEN (* end comment *)
+		    DEC( level );
+		    IF level = 0 THEN
+			RETURN TRUE;
+		    END;
+
+		ELSIF ( prev = '(' ) AND ( ch = '*' ) THEN (* begin comment *)
+		    INC( level );
+		    ch := ' ';  (* the ( and * form a single token *)
+		END;
+		prev := ch;
+	    END; (* LOOP *)
+	END; (* WITH *)
+
+    END SkipComment;
+
+PROCEDURE PrintError( instance : Instance;
+		      fileName : ARRAY OF CHAR;
+		      msg      : ARRAY OF CHAR );
+    (*
+     * Assumes the buffer has been initialized.
+     *)
+    VAR
+	i          : CARDINAL;
+	cardString : ARRAY [ 0 .. SysTypes.bitsPerCARDINAL ] OF CHAR;
+	DONTCARE   : BOOLEAN;
+    BEGIN (* PrintError *)
+	
+	WITH instance^ DO
+	    ProgErrOutput.WriteString( "ERROR: file '" );
+	    ProgErrOutput.WriteString( fileName );
+	    ProgErrOutput.WriteString( "' line #" );
+	    DONTCARE := CardConvert.ToString( line.number, 10, 0, cardString );
+	    ProgErrOutput.WriteString( cardString );
+	    ProgErrOutput.WriteLn;
+	    ProgErrOutput.WriteString( line.data );  (* always ok to do *)
+	    ProgErrOutput.WriteLn;
+	    FOR i := 2 TO line.index DO  (* go to previous character *)
+		ProgErrOutput.WriteString( '-' );
+	    END;
+	    ProgErrOutput.WriteString( '^' );
+	    ProgErrOutput.WriteLn;
+	    ProgErrOutput.WriteString( "Reason: " );
+	    ProgErrOutput.WriteString( msg );
+	    ProgErrOutput.WriteLn;
+	END; (* WITH *)
+
+    END PrintError;
+
+BEGIN (* M2Scanner *)
+
+    (* Should be a hash table or a tree, but this is faster to code *)
+    keywordNames[ implementation ] := "IMPLEMENTATION";
+    keywordNames[ definition ]     := "DEFINITION";
+    keywordNames[ module ]         := "MODULE";
+    keywordNames[ from ]           := "FROM";
+    keywordNames[ import ]         := "IMPORT";
+    keywordNames[ export ]         := "EXPORT";
+    keywordNames[ procedure ]      := "PROCEDURE";
+    keywordNames[ type ]           := "TYPE";
+    keywordNames[ var ]            := "VAR";
+    keywordNames[ const ]          := "CONST";
+    keywordNames[ begin ]          := "BEGIN";
+    keywordNames[ end ]            := "END";
+    keywordNames[ for ]            := "FOR";
+    keywordNames[ c ]              := "C";
+    keywordNames[ otherKeyword ]   := "";
+
+END M2Scanner.
+
+

@@ -1,0 +1,136 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE M2Scanner;
+(*
+ * A very simple scanner for modula-2.  It only understands comments,
+ * strings, identifiers, and some keywords.  The purpose is to support
+ * a simple file search to generate the modules which a module is 
+ * dependent upon.
+ *
+ * HISTORY:
+ *     Please see SCCS history. [TB].
+ *     30.09.86 [Rico Cozzio] ported to Sun.
+ *)
+
+
+EXPORT QUALIFIED
+    Instance,           Create,         Destroy,        maxIdentifierLen,
+    maxStringLen,       Identifier,     AString,        Tokens,
+    Token,              Keywords,       Read,           PrintError;
+
+TYPE
+    Instance;
+
+PROCEDURE Create( VAR instance : Instance;
+		      name     : ARRAY OF CHAR )
+			       : BOOLEAN;
+    (* 
+     * Create an instance of this module which will scan the
+     * specified file.
+     *
+     * INPUT:
+     *    name     = the modula-2 file to be scanned.
+     *
+     * OUTPUT:
+     *    instance = a scanner instance, valid only if <result> is TRUE.
+     *    <result> = TRUE, if the instance was successfully created.
+     *               FALSE, if the file couldn't be found or....
+     *)
+
+PROCEDURE Destroy( VAR instance : Instance )
+				: BOOLEAN;
+    (*
+     * Destroys the scanner instance.
+     *
+     * INPUT:
+     *    instance = valid scanner instance.
+     *
+     * OUTPUT:
+     *    instance = invalid scanner instance.
+     *    <result> = TRUE, if there were no problems during destruction.
+     *               FALSE, if the instance wasn't destroyed gracefully.
+     *)
+
+
+CONST
+    (* Two random values *)
+    maxIdentifierLen = 32;
+    maxStringLen     = 128;
+TYPE
+    (* The following two strings are always returned null terminated *)
+    Identifier      = ARRAY [ 0 .. maxIdentifierLen ] OF CHAR;
+    AString         = ARRAY [ 0 .. maxStringLen     ] OF CHAR;
+
+TYPE
+    Tokens   = ( keyword, identifier, string, otherToken );
+    Keywords = ( definition, implementation, module, from, import,
+		 export, procedure, type, var, const, begin, end,
+		 for, c, otherKeyword );
+
+    Token  = RECORD
+	CASE type : Tokens OF
+	    keyword:
+		keyword    : Keywords;
+	    |
+	    identifier:
+		identifier : Identifier;
+	    |
+	    string:
+		string     : AString;
+	    |
+	    otherToken:
+	END;
+    END;
+
+PROCEDURE Read(     instance : Instance;
+		VAR token    : Token )
+			     : BOOLEAN;
+    (*
+     * Reads a single token from the file.  Does not output error messages
+     * if there are errors.
+     *
+     * INPUT:
+     *    instance = valid scanner instance.
+     *
+     * OUTPUT:
+     *    token    = token from the file, valid only if <result> is TRUE.
+     *    <result> = TRUE, if a token was successfully read.
+     *               FALSE, in the event of file errors or EOF.
+     *)
+
+
+PROCEDURE PrintError( instance : Instance;
+		      fileName : ARRAY OF CHAR;
+		      msg      : ARRAY OF CHAR );
+    (*
+     * Print out an aesthically pleasing display with the
+     * fileName, msg, line number, etc.  
+     *
+     * INPUT:
+     *    instance = a valid scanner instance.
+     *    fileName = name of the file which is associated with instance.
+     *    msg      = something informative, but not too long....
+     *)
+
+
+END M2Scanner.

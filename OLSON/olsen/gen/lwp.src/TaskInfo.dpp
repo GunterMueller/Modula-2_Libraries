@@ -1,0 +1,193 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskInfo;
+(*
+ * Facilitates "private" variables for Tasks.
+ *
+ * Each task has a pre-allocated (initialized to NIL) data area for
+ * a maximum number of information "groups". A group is a list of
+ * data items which are all of the same type, e. g. message buffers.
+ * The (groupID,task) tuple specifies a unique location in a logical
+ * two dimensional table. Group managers (e. g. TaskMessages) can
+ * set and get the information in this table, because they hold the
+ * unique key for the specific type of data and can find out the
+ * other dimension by calling Tasks.GetCurrent.
+ *
+ * Also provides a Print facility for all of the task information
+ * in the system. Each groupID has an associated "print" procedure.
+ * When the Print procedure in this module is called, it prints a
+ * task name, a state, and then calls the different registered
+ * procedures with the "taskInfo" associated with the task. The
+ * registered print procedure should then output its information
+ * in human readable form (without WriteLn).
+ *
+ * This module provides a method of creating and destroying per task 
+ * information. If you are interested in finding out about the birth
+ * and death of tasks, please consult the module TaskNotices.
+ *
+ * WARNING:
+ *     Mutual exclusion is not provided by this module. It is assumed
+ *     that the owner is the modifier of these values. If information
+ *     group classification requires concurrent access to a Task's
+ *     datum, the information group manager should provide mutual
+ *     exclusion. The set is done during the task's birth BEFORE
+ *     Tasks.Create returns, thus it is highly unlikely that mutual
+ *     exclusion will be needed for the datum passed to this module.
+ *)
+IMPORT
+    SysTypes,
+    Tasks;
+
+EXPORT QUALIFIED
+    Object,    BirthProc,    DeathProc,    PrintProc,      
+    Create,    Destroy,      SetInvalid,   SetCurrent,     
+    Set,       GetCurrent,   Get,          Print;
+
+TYPE
+    Object;
+
+    (* 
+     * The following two procedures are called on task creation and
+     * normal deaths, respectively. When an info group is created,
+     * the BirthProc is called for all tasks which are alive at the
+     * time. Note that since BirthProc and DeathProc are called by
+     * any task, one must be careful not to call too many procedures.
+     * If there is a complicated birthing or death, then one should
+     * communicate the information to another task and have that task
+     * manage the operation. The PrintProc is called by a task which
+     * knows that the printing is going to occur, thus it will
+     * probably have a large enough stack.
+     *)
+    BirthProc = PROCEDURE(
+        Tasks.Object     (* New task for which info is to be initialized *)
+    ) : SysTypes.ANYPTR; (* Non-NIL set to the current val of data *)
+    (*
+     * Initializes the datum for the task information group
+     * with which it is registered.
+     *
+     * Warning: this procedure must not call Tasks.Create.
+     *)
+
+    DeathProc = PROCEDURE ( 
+        Tasks.Object,   (* Dead task (just died) *)
+        SysTypes.ANYPTR (* Data associated with dead task *)
+    );
+    (*
+     * Deallocates the datum for the task information group
+     * with which it is registered.
+     *
+     * Warning: this procedure must not call Tasks.Create.
+     *)
+
+    PrintProc = PROCEDURE ( 
+        SysTypes.ANYPTR (* Data to be printed *)
+    );
+    (*
+     * Used for debugging output: outputs the specified
+     * information to ProgErrOutput.WriteString.
+     *
+     * To support nice formatting, this procedure should not
+     * call ProgErrOutput.WriteLn. This procedure is called from
+     * a non-preemptable section. It must not Suspend; thus it
+     * should not call other modules which might call Suspend.
+     * ProgErrOutput is however safe to call.
+     *
+     * Warning: this procedure must not call Tasks.Create.
+     *)
+
+PROCEDURE Create(
+    VAR groupID   : Object;     (* In any state, will be valid *)
+        birthProc : BirthProc;  (* Called on Task.Create by this proc *)
+        deathProc : DeathProc;  (* Called on normal deaths only *)
+        printProc : PrintProc   (* Called by Print to print info *)
+    );
+    (*
+     * Allocates a new information group.
+     *
+     * After the info group is created, BirthProc is called with
+     * the task identifiers for all currently "living" tasks.
+     *)
+
+PROCEDURE Destroy(
+    VAR groupID : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Deallocates the specified information group.
+     *
+     * If there are "living" tasks when this procedure is called,
+     * "deathProc" will be called for all tasks which are alive.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR groupID : Object  (* In any state, will be invalid *)
+    );
+    (* 
+     * Set the groupID variable to an invalid object.
+     *)
+
+PROCEDURE SetCurrent(
+    groupID : Object;         (* Data classification *)
+    datum   : SysTypes.ANYPTR (* Can be retrieved by GetDatum, not NIL *)
+    );
+
+PROCEDURE Set(
+    groupID : Object;         (* Data classification *)
+    task    : Tasks.Object;   (* Index within classification *)
+    datum   : SysTypes.ANYPTR (* Can be retrieved by GetDatum, not NIL *)
+    );
+    (* 
+     * Sets the datum for the specified (groupID,task) tuple.
+     * SetCurrent uses Tasks.GetCurrent( ) as the task.
+     *
+     * Warning: mutual exclusion is not provided.
+     *)
+
+PROCEDURE GetCurrent(
+    groupID : Object           (* Data classification *)
+    )       : SysTypes.ANYPTR; (* Current value of datum *)
+
+PROCEDURE Get(
+    groupID : Object;          (* Data classification *)
+    task    : Tasks.Object     (* Index withing classification *)
+    )       : SysTypes.ANYPTR; (* Current value of datum *)
+    (* 
+     * Retrieves the datum for the specified (groupID,task) tuple.
+     * The GetCurrent uses Tasks.GetCurrent( ) as the task.
+     *
+     * Warning: mutual exclusion is not provided.
+     *)
+
+PROCEDURE Print(
+    toBePrinted : Tasks.Object  (* Must be a valid task *)
+    );
+    (*
+     * Dumps the tasking information for the task to ProgErrOutput.
+     *
+     * This procedure can be called during termination and
+     * the tasking system's state will be dumped as a result.
+     *
+     * Format of this output is very simply a line-by-line
+     * listing of the per task information, indented slightly.
+     *)
+
+END TaskInfo.

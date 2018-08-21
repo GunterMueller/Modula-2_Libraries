@@ -1,0 +1,215 @@
+Modula-2 Software Component Library Source Code ùReadMe file
+
+Version 1.0a2		Thursday, May 4, 1989 10:21:43 PM
+
+These disks contain the source code for the Modula-2 Software Component
+Library, Volume 1, covering Stack, String, Set, and Bag abstractions
+as well as the utility modules encompassing the whole series. These
+versions have been written for and compiled with JPI's TopSpeed
+Modula-2 compiler (version 1.15) for the IBM pc under MS-DOS.
+
+
+<<<<<<<<<<<<<<<<<<<<  PREREQUISITES  >>>>>>>>>>>>>>>>>>>>
+
+You must have the following software and documentation:
+
+ù JPI's TopSpeed Modula-2 compiler (or something similar)
+ù The Modula-2 Software Component Library, Volume 1 (the book)
+ù A hard disk is recommended.
+
+
+<<<<<<<<<<<<<<<<<<<<  INSTALLATION  >>>>>>>>>>>>>>>>>>>>
+
+Selectively transfer the components of interest onto your system.
+
+
+<<<<<<<<<<<<<<<<<<<<  MODULES NOT IN THE BOOK  >>>>>>>>>>>>>>>>>>>>
+
+A brief list follows of the modules contained on the disks
+that weren't covered in the book, or whose contents were expanded.
+
+ù	Errors:
+	The error/exception handling mechanism has been greatly enhanced.
+	Supported are Macintosh alerts identifying the module, operation,
+	and error condition. This uses the custom resource type defined
+	in the file 'ExceptionTypes.r'.
+
+	ù Alerts
+		Provides simplified access to the Macintosh ROM Alert routines.
+	ù AlertParams
+		This module parameterizes the standard alert with strings for the module
+		name, the operation name, and the exception name.
+	ù ErrorHandling
+		An expanded error handling module.
+	ù ErrorStrings
+		This module maps ModuleIDs, and the Operations and Exceptions enumerations
+		into strings. It uses a custom resource type 'ModR' to accomplish this
+		mapping on a module-by-module basis.
+	ù FailureUtility
+		This module provides a standard interface for actions to be initiated when
+		a failure condition (possibly causing program termination) is encountered.
+		There are differences between each compiler (and hardware machine) as to
+		how this is accomplished. There are also differences in compilers between
+		the semantics of the standard procedure HALT. This module therefore attempts
+		to encapsulate these variations, minimizing changes when porting the software
+		to another vendor's compiler or another target hardware system. The reader
+		is referred to the three page discussion at the front of the definition
+		module.
+
+ù	Resources:
+	ù This folder includes all the resource files used by the exception reporting
+	  mechanism.
+
+ù	Sets:
+	ù Many additional component forms are included covering non-iterator and
+	  unmanaged forms.
+
+ù	Stacks:
+	ù Many additional component forms are included covering non-iterator and
+	  unmanaged forms.
+
+ù	Strings:
+	ù Many additional component forms are included covering non-iterator and
+	  unmanaged forms.
+
+ù	Utilities:
+	ù Arguments.DEF
+		Simplified access to the command line arguments.
+	ù CardUtils.DEF
+		Provides the mathematical functions Min and Max for LONGCARDs and on
+		arrays of CARDINALs and LONGCARDs.
+	ù CharUtils.DEF
+		Character utilities borrowed from the C language library and Booch's
+		Software Components With Ada.
+	ù InOutUtils.DEF
+		Utilities for InOut.
+	ù IntUtils.DEF
+		Provides the mathematical functions Min and Max for LONGINTs and on
+		arrays of INTEGERs and LONGINTs.
+	ù LongRealUtils.DEF
+		Provides the mathematical functions Min and Max for LONGREALs and on
+		arrays of LONGREALs.
+	ù RealUtils.DEF
+		Provides the mathematical functions Min and Max for REALs and on
+		arrays of REALs.
+	ù String.DEF
+		A string module similar to that provided with TML Modula-2.
+	ù StringUtils.DEF
+		Routines similar to those in CharUtils but for Strings (the Modula-2
+		variety).
+
+
+<<<<<<<<<<<<<<<<<<<<  BUG FIXES  >>>>>>>>>>>>>>>>>>>>
+
+Fixed an error in the managed components for Stacks, Sets, and Bags in the
+routine IsEqual. These routines needed to use the comparison routine for
+the given TypeID instead of simple (in)equality. For generic items formed
+of pointers (anything that was greater than 4 bytes in size), simple
+comparison examined the pointers instead of the data values.
+
+
+<<<<<<<<<<<<<<<<<<<<  CONVERSION To Other Modula-2 Compilers  >>>>>>>>>>>>>>>>>>>>
+
+This section discusses some of the problems you may encounter when attempting
+to compile these modules using other Modula-2 compilers, especially for those
+residing on a different hardware platform.
+
+ù   Conversion of file formats:
+The Macintosh terminates a line with a carriage return, while the PC uses a
+carriage return/line feed combination, and the Amiga uses line feeds. Included
+on this disk is an MPW tool for converting text files between the different
+file formats. In addition, special Macintosh symbols (such as, <= and #) are
+converted to their standard ASCII equivalents.
+
+ù   General Conversion Notes
+The TML Modula-2 compiler is based on a compiler from ETH Zrich. There are
+a few differences between the compiler's implementation and the syntax
+given by Wirth in Programming in Modula-2. The three most important changes are:
+1. use of VAL for all type transfer operations;
+2. standard operations such as SIZE and HIGH returning INTEGER values instead
+   of CARDINALs; and
+3. Deallocate has only a single parameter, the dynamic memeory pointer being
+   released, as the memory management system remembers how much space was
+   originally allocated and automatically releases the proper amount.
+
+The specific places where these differences in syntax may cause compile-time
+errors are:
+
+ù CONST Null. = VAL(., NIL);
+  As used in defining a null abstract data type object. Replace the use of
+  VAL with the 'old style' type transfer function.
+  CONST Null. = .(NIL);
+
+ù There are places in expressions where HIGH or SIZE is coerced into an INTEGER,
+  e.g., VAL(INTEGER, HIGH(somearray)). Remove the use of VAL.
+
+ù Calls to Deallocate may have to have a specific size parameter added. For
+  unbounded components, the following statement suffices to fix the problem:
+  	Deallocate(somePointer, SIZE(somePointer^));
+  For bounded components, the problem cannot be fixed as easily since the modules
+  initially allocated a variable amount of space that does not match the type
+  declarations. This shows up in the Destroy operation. The solution is to copy
+  the constant declarations from the Create operation and use the same calculation
+  for the amount of space to be deallocated. Of course, one must use the "size"
+  variable of the abstract data type.
+  
+  An example of the modified Destroy operation using the StackSBMI module follows.
+  
+  PROCEDURE Destroy (VAR theStack : Stack);
+  CONST minStackSize = SIZE(BoundedStack) - SIZE(ItemsArray);
+  BEGIN
+    Clear(theStack);
+	IF (stackError = noerr) THEN
+	  Deallocate(theStack, minStackSize + SIZE(Item) * theStack^.size);
+	  theStack := NullStack;
+	END;
+  END Destroy;
+  
+  The various unbounded string components are also affected by this difference
+  nut in a different manner. In these modules, the field "length" holds the
+  current length of the string. This will be the size of the dynamically
+  allocated array except when the string is contracted. In this case, the
+  length of the string is reduced by the allocated size remains unchanged.
+  Thus, a new field, "size", is needed in the UnboundedString record which
+  is updated whenever the string changes size and is used to calculate the
+  amount of space to deallocate.
+
+
+ù Specifics for JPI's TopSpeed Modula-2
+
+The above general comments hold for JPI's TopSpeed Modula-2 compiler. In
+addition, the NoAssignProc, NoCompareProc, and NoDisposeProc procedure
+variable constants should be changed to reference the predefined procedure
+constant, NULLPROC, instead of using the type transfer of NIL.
+
+
+<<<<<<<<<<<<<<<<<<<<  OTHER INFORMATION  >>>>>>>>>>>>>>>>>>>>
+
+ù		The sources all compile using version 1.15 of JPI's TopSpeed
+		Modula-2 compiler.
+
+
+<<<<<<<<<<<<<<<<<<<<  PROBLEMS, BUGS, COMPLAINTS?  >>>>>>>>>>>>>>>>>>>>
+
+I am REALLY interested in knowing of any problems you encounter in using
+this library. I've tested the modules quite extensively and I don't believe
+there are any errors lurking in the code. There's still no quarantee that
+a bug hasn't slipped through. Please report any errors you find so I can
+get them fixed. I'll supply a free update to the first person reporting
+a given error.
+
+Report errors, comments, and suggestions for improving the library to:
+
+Chuck Lins
+Apple Computer, Inc.
+20300 Stevens Creek Blvd. #345
+M/S: 41-K
+Cupertino, CA  95014
+
+
+Applelink: LINS
+e-mail:    lins@apple.com
+
+
+Just because I work at Apple doesn't mean that the book or software is in any
+way, shape, or form associated with Apple Computer, Inc.

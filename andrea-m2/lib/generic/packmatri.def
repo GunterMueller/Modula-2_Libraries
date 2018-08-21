@@ -1,0 +1,83 @@
+DEFINITION MODULE PackMatrix;
+
+(* Operations on matrices of cardinals using dynamic memory,
+   the cardinals should be small so that they can be effectively packed into
+   word items in order to save memory space. *)
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Jun.15/93 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant array.
+* If 'ok' is FALSE, then the resultant will not exist.
+*)
+
+EXPORT QUALIFIED Matrix,                           (* the type *)
+                 Build, Destroy,                   (* matrix creation/deletion *)
+                 Put, Get,                         (* element access *)
+                 Size, Min, Max, Compare,          (* status *)
+                 Assign,                           (* modify all elements *)
+                 Copy,                             (* copy every element *)
+                 Duplicate;                        (* new copy *)
+
+TYPE Matrix;   (* opaque *)
+
+PROCEDURE Build( VAR a :Matrix; minimum, maximum :CARDINAL;
+                 rows, cols :CARDINAL );
+(*
+ Create a matrix of the specified size,
+ also supply the minimum and maximum values for the data items.
+   This is intended to be used for small values ( say 0 to 8 or so ) so that
+ those values (taking 3 or 4 bits to represent) could be packed together into
+ larger data items in order to save memory space. Large values can be used
+ but if course the space saving efficiency will be lessened.
+   It's not really the absolute values that are wanted, but the difference
+ between them. For instance picking 100, 107 as the values is a difference of
+ 8 which will fit in 4 bits.
+*)
+
+PROCEDURE Destroy( VAR a :Matrix );
+(* Get rid for the specified object *)
+
+PROCEDURE Put( a :Matrix; row, col :CARDINAL; value :CARDINAL );
+(*
+ Put the specified value into the array at 'row, col'.
+ Trying to putting a value outside the specified range will cause the value
+ to be set to the range end (minimum or maximum).
+*)
+
+PROCEDURE Get( a :Matrix; row, col :CARDINAL ) :CARDINAL;
+(*
+ Return the value at 'element'.
+ Trying to get an element outside the matrix will result in a zero returned.
+*)
+
+PROCEDURE Size( a :Matrix; VAR bits, bytes, rows, cols :CARDINAL );
+(*
+ Return the specifics about how the matrix is implemented.
+ bits  = number of bits used to implement the packed value,
+ bytes = number of bytes in the whole array (overhead excluded),
+ rows,cols = size of matrix.
+*)
+
+PROCEDURE Min( a :Matrix ) :CARDINAL;
+(* Return the minimum value *)
+
+PROCEDURE Max( a :Matrix ) :CARDINAL;
+(* Return the maximum value *)
+
+PROCEDURE Compare( a, b :Matrix ) :BOOLEAN;
+(* Compare two, return TRUE if they are the same *)
+
+PROCEDURE Assign( a :Matrix; x :CARDINAL );
+(* Set all elements to 'x' *)
+
+PROCEDURE Copy( a, b :Matrix );
+(* Copy all of 'a' into 'b', iff the sizes, etc. are exactly the same *)
+
+PROCEDURE Duplicate( a :Matrix; VAR b :Matrix );
+(* Copy 'a' into a new 'b' *)
+
+END PackMatrix.

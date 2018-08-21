@@ -1,0 +1,93 @@
+DEFINITION FOR C MODULE UnixCsys_resource;
+(* 
+ * See the files:
+ *    /usr/include/sys/resource.h,
+ *    /usr/include/sys/time.h
+ * 
+ * See the man pages:
+ *    getrusage(2), getpriority(2).
+ *)
+IMPORT
+    UnixCsys_time,
+    UnixCtypes;
+
+CONST
+    PRIO_MIN		= -20;
+    PRIO_MAX		= 20;
+
+    PRIO_PROCESS	= 0;
+    PRIO_PGRP		= 1;
+    PRIO_USER		= 2;
+
+CONST
+    RUSAGE_SELF		= 0;
+    RUSAGE_CHILDREN	= -1;
+
+TYPE
+    struct_rusage = RECORD
+	ru_utime  : UnixCsys_time.struct_timeval;  
+	ru_stime  : UnixCsys_time.struct_timeval;  
+	ru_maxrss : UnixCtypes.long;
+	CASE : INTEGER OF
+	    1:
+	        ru_ixrss : UnixCtypes.long;     
+	    |
+	    2:
+	        ru_first : UnixCtypes.long;
+	END;
+	ru_idrss    : UnixCtypes.long;	
+	ru_isrss    : UnixCtypes.long;	
+	ru_minflt   : UnixCtypes.long;	
+	ru_majflt   : UnixCtypes.long;	
+	ru_nswap    : UnixCtypes.long;	
+	ru_inblock  : UnixCtypes.long;	
+	ru_oublock  : UnixCtypes.long;	
+	ru_msgsnd   : UnixCtypes.long;	
+	ru_msgrcv   : UnixCtypes.long;	
+	ru_nsignals : UnixCtypes.long;	
+	ru_nvcsw    : UnixCtypes.long;	
+	CASE : INTEGER OF
+	    1:
+	        ru_nivcsw : UnixCtypes.long;   
+	    |
+	    2:
+	        ru_last : UnixCtypes.long;
+	END;
+    END;
+    rusage = POINTER TO struct_rusage;
+
+CONST
+    RLIMIT_CPU		= 0;		
+    RLIMIT_FSIZE	= 1;		
+    RLIMIT_DATA		= 2;		
+    RLIMIT_STACK	= 3;		
+    RLIMIT_CORE		= 4;		
+    RLIMIT_RSS		= 5;		
+    RLIM_NLIMITS	= 6;		
+
+    RLIM_INFINITY	= 7fffffffH;
+
+TYPE
+    struct_rlimit = RECORD
+	rlim_cur : INTEGER;		
+	rlim_max : INTEGER;		
+    END;
+    rlimit = POINTER TO struct_rlimit;
+
+PROCEDURE getrusage(
+    who   : INTEGER;
+    rusag : rusage
+    )     : INTEGER;
+
+PROCEDURE getpriority(
+    which : INTEGER;
+    who   : INTEGER
+    )     : INTEGER;
+
+PROCEDURE setpriority(
+    which : INTEGER;
+    who   : INTEGER;
+    prio  : INTEGER
+    )     : INTEGER;
+
+END UnixCsys_resource.

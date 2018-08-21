@@ -1,0 +1,434 @@
+GenTestIO.sym: 
+GenTestIO.o: GenTestIO.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+             ../bin/ProgErrOutput.sym ../bin/UnixCfcntl.sym  \
+             ../bin/UnixCsys_file.sym 
+IntTasks.o: ../lwp.bin/Interrupts.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+            ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+            ../lwp.bin/Tasks.sym ../bin/UnixCsignal.sym 
+IntTasks: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+          ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+          ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+          ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+          ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+          ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+          ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+          ../lwp.bin/UnixMonitor.o IntTasks.o 
+PingPong.o: ../bin/ProgArgs.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+            ../lwp.bin/TaskConsts.sym ../lwp.bin/Tasks.sym 
+PingPong: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+          ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+          ../bin/Lists.o ../bin/NameLists.o ../lwp.bin/Notices.o  \
+          ../lwp.bin/Objects.o ../bin/ProgArgs.o ../bin/ProgErr.o  \
+          ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o ../bin/Strings.o  \
+          ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+          ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+          ../lwp.bin/UnixMonitor.o PingPong.o 
+StringLib.sym: GenTestIO.sym TestIO.sym 
+StringLib.o: GenTestIO.sym StringLib.sym TestIO.sym 
+TestCRC16.o: ../bin/CRC16.sym ../bin/CardConvert.sym ../bin/ProgErrOutput.sym 
+TestCRC16: ../bin/ASCII.o ../bin/Bytes.o ../bin/CRC16.o ../bin/CardConvert.o  \
+           ../bin/Chars.o ../bin/GenConsts.o ../bin/IntConvert.o  \
+           ../bin/Intrinsics.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+           ../bin/Strings.o ../bin/SysTypes.o ../bin/UnixError.o TestCRC16.o 
+TestCardConv.o: ../bin/CardConvert.sym ../bin/Chars.sym GenTestIO.sym  \
+                ../bin/Objects.sym StringLib.sym TestIO.sym TestSystem.sym 
+TestCardConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+              ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+              ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+              ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../lwp.bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+              ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+              ../lwp.bin/TasksPRIVATE.o TestIO.o TestSystem.o  \
+              ../bin/UnixError.o ../lwp.bin/UnixMonitor.o TestCardConv.o 
+TestDate.sym: ../bin/UnixCsys_time.sym 
+TestIO.sym: GenTestIO.sym 
+TestIO.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/ProgErr.sym  \
+          ../bin/SafeStorage.sym ../bin/Strings.sym TestIO.sym 
+TestIntConv.o: GenTestIO.sym ../bin/IntConvert.sym ../bin/Objects.sym  \
+               StringLib.sym TestIO.sym TestSystem.sym 
+TestIntConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../lwp.bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+             ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+             ../lwp.bin/TasksPRIVATE.o TestIO.o TestSystem.o  \
+             ../bin/UnixError.o ../lwp.bin/UnixMonitor.o TestIntConv.o 
+TestNameLists.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/NameLists.sym  \
+                 ../bin/Objects.sym StringLib.sym TestIO.sym TestSystem.sym 
+TestNameLists: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+               ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+               ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+               ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+               ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+               ../lwp.bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+               ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+               ../lwp.bin/TasksPRIVATE.o TestIO.o TestSystem.o  \
+               ../bin/UnixError.o ../lwp.bin/UnixMonitor.o TestNameLists.o 
+TestRealConv.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/Objects.sym  \
+                ../bin/RealConvert.sym StringLib.sym ../bin/SysTypes.sym  \
+                TestIO.sym TestSystem.sym 
+TestRealConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+              ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+              ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+              ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../bin/RealConvert.o ../lwp.bin/SafeStorage.o StringLib.o  \
+              ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+              ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o TestIO.o  \
+              TestSystem.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+              TestRealConv.o 
+TestStrings.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/Intrinsics.sym  \
+               ../bin/Objects.sym StringLib.sym ../bin/Strings.sym TestIO.sym  \
+               TestSystem.sym 
+TestStrings: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../lwp.bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+             ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+             ../lwp.bin/TasksPRIVATE.o TestIO.o TestSystem.o  \
+             ../bin/UnixError.o ../lwp.bin/UnixMonitor.o TestStrings.o 
+TestSystem.sym: TestIO.sym 
+TestSystem.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/NameLists.sym  \
+              ../bin/Notices.sym ../bin/Objects.sym ../bin/ProgArgs.sym  \
+              ../bin/ProgErr.sym ../bin/Strings.sym TestIO.sym TestSystem.sym 
+tBytes.o: ../bin/Bytes.sym ../bin/Intrinsics.sym ../bin/ProgErr.sym  \
+          ../bin/ProgErrOutput.sym ../bin/SysTypes.sym 
+tBytes: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../bin/ProgErr.o ../bin/ProgErrOutput.o ../bin/Strings.o  \
+        ../bin/SysTypes.o ../bin/UnixError.o tBytes.o 
+tCrash.o: ../bin/Notices.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+          ../lwp.bin/Tasks.sym 
+tCrash: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgErr.o  \
+        ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o ../bin/Strings.o  \
+        ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+        ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+        tCrash.o 
+tDebugFlags.o: ../bin/DebugFlags.sym ../bin/ProgErr.sym  \
+               ../bin/ProgErrOutput.sym 
+tDebugFlags: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/DebugFlags.o ../bin/GenConsts.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../lwp.bin/Notices.o ../lwp.bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../lwp.bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+             ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+             ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+             ../lwp.bin/UnixMonitor.o tDebugFlags.o 
+tHello.o: ../bin/ProgErrOutput.sym ../lwp.bin/Tasks.sym 
+tHello: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../lwp.bin/Objects.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+        ../lwp.bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+        ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o  \
+        ../bin/UnixError.o ../lwp.bin/UnixMonitor.o tHello.o 
+tInt1.o: ../lwp.bin/Interrupts.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/Tasks.sym ../bin/UnixCsignal.sym 
+tInt1: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+       ../lwp.bin/UnixMonitor.o tInt1.o 
+tInt2.o: ../lwp.bin/Interrupts.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/Tasks.sym ../bin/UnixCsignal.sym 
+tInt2: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+       ../lwp.bin/UnixMonitor.o tInt2.o 
+tMess1.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+          ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+          ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskMessages.sym  \
+          ../lwp.bin/TaskNotices.sym ../lwp.bin/Tasks.sym 
+tMess1: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+        ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+        ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+        ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+        ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+        ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+        ../lwp.bin/TaskMessages.o ../lwp.bin/TaskNotices.o  \
+        ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o  \
+        ../bin/UnixError.o ../lwp.bin/UnixMonitor.o tMess1.o 
+tMon1.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskMonitors.sym  \
+         ../lwp.bin/TaskNotices.sym ../lwp.bin/Tasks.sym 
+tMon1: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon1.o 
+tMon2.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/Tasks.sym 
+tMon2: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon2.o 
+tMon3.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tMon3: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon3.o 
+tMon4.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/Tasks.sym 
+tMon4: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon4.o 
+tMon5.o: ../bin/CardConvert.sym ../bin/Notices.sym ../bin/Objects.sym  \
+         ../bin/ProgArgs.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+         ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskDebug.sym  \
+         ../lwp.bin/TaskInfo.sym ../lwp.bin/TaskMonitors.sym  \
+         ../lwp.bin/TaskNotices.sym ../lwp.bin/TaskTime.sym  \
+         ../lwp.bin/Tasks.sym ../lwp.bin/TasksPRIVATE.sym 
+tMon5: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon5.o 
+tMon6.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tMon6: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon6.o 
+tMon7.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tMon7: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon7.o 
+tMon8.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tMon8: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon8.o 
+tMon9.o: ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+         ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+         ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskInfo.sym  \
+         ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+         ../lwp.bin/Tasks.sym 
+tMon9: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+       ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+       ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+       ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+       ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+       ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+       ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o ../lwp.bin/TaskMonitors.o  \
+       ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+       ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+       tMon9.o 
+tMonitor.o: ../bin/Intrinsics.sym ../bin/NameLists.sym ../bin/Notices.sym  \
+            ../bin/Objects.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+            ../bin/ProgErrOutput.sym ../bin/Strings.sym  \
+            ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskDebug.sym  \
+            ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+            ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tMonitor: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+          ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+          ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+          ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+          ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+          ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+          ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+          ../lwp.bin/TaskMonitors.o ../lwp.bin/TaskNotices.o  \
+          ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o ../lwp.bin/TasksPRIVATE.o  \
+          ../bin/UnixError.o ../lwp.bin/UnixMonitor.o tMonitor.o 
+tProgArgs.o: ../bin/CardConvert.sym ../bin/NameLists.sym ../bin/ProgArgs.sym  \
+             ../bin/ProgErrOutput.sym 
+tProgArgs: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+           ../bin/Lists.o ../bin/NameLists.o ../lwp.bin/Notices.o  \
+           ../lwp.bin/Objects.o ../bin/ProgArgs.o ../bin/ProgErr.o  \
+           ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o ../bin/Strings.o  \
+           ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+           ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+           ../lwp.bin/UnixMonitor.o tProgArgs.o 
+tProgEnviron.o: ../bin/NameLists.sym ../bin/ProgArgs.sym  \
+                ../bin/ProgEnviron.sym ../bin/ProgErrOutput.sym 
+tProgEnviron: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o ../bin/IntConvert.o  \
+              ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+              ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+              ../bin/ProgEnviron.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../lwp.bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+              ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+              ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+              ../lwp.bin/UnixMonitor.o tProgEnviron.o 
+tQStrings.o: ../bin/ProgErrOutput.sym ../bin/QStrings.sym ../bin/Strings.sym 
+tQStrings: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+           ../lwp.bin/Objects.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+           ../bin/QStrings.o ../lwp.bin/SafeStorage.o ../bin/Strings.o  \
+           ../bin/SysTypes.o ../lwp.bin/TaskConsts.o ../lwp.bin/Tasks.o  \
+           ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+           ../lwp.bin/UnixMonitor.o tQStrings.o 
+tSemaphore.o: ../bin/Intrinsics.sym ../bin/NameLists.sym ../bin/Notices.sym  \
+              ../bin/Objects.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+              ../bin/ProgErrOutput.sym ../bin/Strings.sym  \
+              ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskDebug.sym  \
+              ../lwp.bin/TaskNotices.sym ../lwp.bin/TaskSemaphores.sym  \
+              ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tSemaphore: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+            ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+            ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+            ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+            ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+            ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+            ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+            ../lwp.bin/TaskNotices.o ../lwp.bin/TaskSemaphores.o  \
+            ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+            ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+            ../lwp.bin/UnixMonitor.o tSemaphore.o 
+tStack.o: ../lwp.bin/TaskInfo.sym ../lwp.bin/Tasks.sym 
+tStack: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../lwp.bin/Objects.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+        ../lwp.bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+        ../lwp.bin/TaskConsts.o ../lwp.bin/TaskInfo.o ../lwp.bin/Tasks.o  \
+        ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o ../lwp.bin/UnixMonitor.o  \
+        tStack.o 
+tSysTypes.o: ../bin/SysTypes.sym 
+tSysTypes: ../bin/SysTypes.o tSysTypes.o 
+tTaskInfo.o: ../bin/Objects.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+             ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskInfo.sym  \
+             ../lwp.bin/Tasks.sym 
+tTaskInfo: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+           ../lwp.bin/Objects.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+           ../lwp.bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+           ../lwp.bin/TaskConsts.o ../lwp.bin/TaskInfo.o ../lwp.bin/Tasks.o  \
+           ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+           ../lwp.bin/UnixMonitor.o tTaskInfo.o 
+tTaskTime.o: ../bin/CardConvert.sym ../bin/Notices.sym ../bin/ProgArgs.sym  \
+             ../bin/ProgErr.sym ../bin/ProgErrOutput.sym ../bin/Strings.sym  \
+             ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskDebug.sym  \
+             ../lwp.bin/TaskNotices.sym ../lwp.bin/TaskTime.sym  \
+             ../lwp.bin/Tasks.sym 
+tTaskTime: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+           ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+           ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+           ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+           ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+           ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+           ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+           ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+           ../lwp.bin/UnixMonitor.o tTaskTime.o 
+tdebug1.o: ../bin/CardConvert.sym ../bin/Intrinsics.sym ../bin/Notices.sym  \
+           ../bin/Objects.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+           ../bin/ProgErrOutput.sym ../bin/Strings.sym  \
+           ../lwp.bin/TaskConsts.sym ../lwp.bin/TaskDebug.sym  \
+           ../lwp.bin/TaskInfo.sym ../lwp.bin/TaskMessages.sym  \
+           ../lwp.bin/TaskMonitors.sym ../lwp.bin/TaskNotices.sym  \
+           ../lwp.bin/TaskTime.sym ../lwp.bin/Tasks.sym 
+tdebug1: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+         ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+         ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+         ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+         ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+         ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+         ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+         ../lwp.bin/TaskMessages.o ../lwp.bin/TaskMonitors.o  \
+         ../lwp.bin/TaskNotices.o ../lwp.bin/TaskTime.o ../lwp.bin/Tasks.o  \
+         ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+         ../lwp.bin/UnixMonitor.o tdebug1.o 
+tdebug2.o: ../bin/CardConvert.sym ../lwp.bin/Interrupts.sym  \
+           ../bin/Notices.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+           ../bin/ProgErrOutput.sym ../lwp.bin/TaskConsts.sym  \
+           ../lwp.bin/TaskDebug.sym ../lwp.bin/TaskNotices.sym  \
+           ../lwp.bin/Tasks.sym ../bin/UnixCsignal.sym 
+tdebug2: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+         ../bin/GenConsts.o ../bin/IntConvert.o ../lwp.bin/Interrupts.o  \
+         ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+         ../lwp.bin/Notices.o ../lwp.bin/Objects.o ../bin/ProgArgs.o  \
+         ../bin/ProgErr.o ../bin/ProgErrOutput.o ../lwp.bin/SafeStorage.o  \
+         ../bin/Strings.o ../bin/SysTypes.o ../lwp.bin/TaskConsts.o  \
+         ../lwp.bin/TaskDebug.o ../lwp.bin/TaskInfo.o  \
+         ../lwp.bin/TaskNotices.o ../lwp.bin/Tasks.o  \
+         ../lwp.bin/TasksPRIVATE.o ../bin/UnixError.o  \
+         ../lwp.bin/UnixMonitor.o tdebug2.o 
+${M2Programs}: 
+	${StandardM2link}

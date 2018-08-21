@@ -1,0 +1,466 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%                   All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Procedure Variables}
+
+\section{Purpose}
+
+In the object-oriented programming philosophy upon which the \library is based,
+procedure variables play an important role in relation to generic objects.
+For details on object-oriented programming, see Chapter~\ref{ObjectsChapter}.
+
+Any procedure can be assigned to a procedure variable; when the procedure is 
+later needed, the procedure variable is called in its place.
+
+The library uses many procedure variables.  This chapter explains how the 
+use of
+procedure variables can aid in the construction of
+more independent, more reusable, and more general modules.  It also
+connects procedure variables both to the Modula-2 language and
+to common real-world applications of procedure variables.
+
+\section{Procedure Variables in Modula-2}
+
+A procedure variable is a variable or a parameter to a procedure. 
+The main features of procedure variables are the same in both cases. 
+
+A variable has no defined value until it is assigned a value by some
+code inside the initialization body
+of an implementation module or inside the implementation code of a procedure
+call.  The value of a variable can be reassigned at any time
+during runtime.  During the execution of a program, a variable may take on many
+different values.
+
+Like all variables, a procedure variable has a type. Its type must be a 
+procedure
+type.  A procedure type specifies which parameters and return value a procedure
+must have in order for Modula-2 to permit its assignment to a procedure
+variable or its use as a procedure parameter.
+
+The procedure type declaration is like a record type declaration in that it
+combines other declarations which a variety of different modules may have
+exported.  It differs in the access protection available to it and in the scope
+of its parameters.
+
+\subsection{Procedures as Procedure Variable Values}
+
+An assigned procedure variable always has a procedure as its value.  The
+procedure does not have to have been exported, nor does any module other
+than the implementation module
+in which it was named and coded have to have access to its name.
+
+Code can reassign any procedure which is the value of one procedure variable to
+another procedure variable.  Code can also call this procedure --- even from
+outside the implementation module in which it was named and coded and even if its
+name was never made part of a definition module.
+
+\section{Special Features of Procedure Variables}
+
+The procedure variable combines
+\begin{itemize}
+ \item
+  tighter control over data, by virtue of allowing mixes of read-only,
+  read-write, and write-only data;
+ \item
+  tighter control over scope of access to parameters, because only a procedure
+  of the right type will ever get a chance;
+ \item
+  looser control over information hiding, because assignment to a procedure
+  variable or procedure parameter means that a module can call a procedure
+  which it never imported; and
+ \item
+  the ability to take on many different values, from many different modules,
+  in the course of execution of the same program.
+\end{itemize}
+
+The library frequently uses procedure variables to improve the reusability of
+its modules.  It also often associates procedure variables with generic
+objects.  The role of procedure variables and generic objects in improving
+module reusability is so great that it adds a special dimension to procedure
+variables in general.  This role is explained in the next subsections.
+
+\subsection{Procedure Variables and Reusability}
+
+A \newterm{reusable component} is a module or set of modules designed
+for ``general'' use; it is designed without prior knowledge of by whom 
+it will be \code{IMPORT}ed.
+
+Truly reusable components may supply only a scaffold of support for a given
+task; the details are filled in subsequently.  One way to fill in the details 
+is
+to pass procedures and other parameters to the component.  The component will
+export initialization procedures for variables and \newterm{registration
+procedures} for procedures. The procedures are then called to fill in the 
+details.
+
+The component uses its parameters to start and guide itself.  If it gets lost,
+can't make further progress, or should make a decision, the component calls
+procedures which its \code{IMPORT}er registered.  The
+component might even call procedures registered with other parameters
+{\em also\/} registered by its \code{IMPORT}er.
+
+The activity of registering a procedure, which a component calls at some later
+moment of execution, is called \newterm{registration}.  The procedure
+registered is often called a \newterm{handler} or an \newterm{upcall}.
+
+Procedure variables are especially important for reusable components.
+When procedure variables are used, the reusable component will not have to be
+modified for subsequent uses.
+The required procedure variables are coded in their own module or modules,
+separate from the completed, unchanging component modules. 
+The new procedures are then registered with the old component at runtime.  
+In this way,
+the old component works on the new domain defined via
+the new procedures.
+
+\subsection{Procedure Variables and Generic Objects}
+The procedure which a reusable component calls may need more information
+than the reusable component has.  The reusable component
+can pass this strange information to the procedure as a \newterm{generic
+object}.  A module external to the reusable component passes the generic
+object to the reusable component.
+
+The chapter on objects discusses generic objects; essentially, they are
+chameleons which can change their type.
+
+The library uses a convention whereby any generic object which is a parameter
+in a registration procedure has the name \code{importerObject}. 
+
+The idea behind the \code{importerObject} is that the module which implements
+the handler registered with
+the reusable component normally will also implement code which supports the
+generic object passed to the reusable component.  The assumption usually
+holds true because the generic object is a Modula-2 opaque type%
+\footnote{See Chapter~\ref{ObjectsChapter}.}.
+
+In order to register the handler and pass the generic object,
+the module implementing code for the handler and generic object must
+\code{IMPORT} the reusable component.  So the generic object is an ``importer
+object''.
+
+
+\subsubsection{Registration Time Generic Objects}
+
+The generic object may contain additional information needed by the handler
+to execute in the right domain.  In this case, the generic object
+is passed as a second
+parameter to the same registration procedure called to register a handler.
+
+A registration procedure according to this model would look like the following.
+\begin{verbatim}
+            TYPE
+                HandlerProc= PROCEDURE( SysTypes.ANYPTR );
+
+            PROCEDURE Register( 
+                    handler        : HandlerProc;
+                    importerObject : SYSTEM.ADDRESS 
+                );
+\end{verbatim}
+
+When \code{handler} is called, it is called with \code{importerObject}
+as its generic object parameter.  The call to \code{handler} might 
+occur at some interrupt level.
+
+\subsubsection{Calling Time Generic Objects}
+
+The generic object may be passed to the reusable component immediately before 
+the component calls an upcall, to communicate information about an event 
+which has just
+occurred and to prod the reusable component to call the upcall.
+
+In this case, code such as the following might appear:
+\begin{verbatim}
+            TYPE
+                Object;
+                UpcallProc= PROCEDURE( SysTypes.ANYPTR );
+
+            PROCEDURE Register( 
+                    object : Object;
+                    upcall : UpcallProc 
+                );
+
+            PROCEDURE Call(    
+                    object         : Object;
+                    importerObject : SysTypes.ANYPTR 
+                );
+\end{verbatim}
+
+Upcall \code{upcall} is registered with a particular object, \code{object}.
+When an event occurs, \proc{Call} is called with the special event object
+\code{importerObject}.  \proc{Call} then calls \code{upcall} with
+\code{importerObject} as the \code{SysTpes.ANYPTR} parameter.
+
+\section{Uses of Procedure Variables}
+
+The uses of procedure variables fall into several distinct categories.
+The categories are based roughly upon the function of the procedure variable 
+and the frequency of its reassignment.  A short discussion of these categories 
+follows.
+
+\subsection{Handlers}
+
+\newterm{Handlers} are stored in individual variables, arrays, or linear
+lists.  Examples of this type include interrupt handlers and handlers for 
+pre-specified categories of
+events.
+
+A handler is \newterm{install}ed by calling a procedure dedicated to
+installing the handler, and passing the procedure desired to be the handler as
+a procedure parameter.  In the library, the term \code{Register} is
+frequently used for the installation operation.
+
+Handlers have the following common characteristics:
+\begin{itemize}
+\item
+   A handler is not called by the procedure which installs it.
+\item
+   A handler is called to handle a specific event or to react to a new
+    state of affairs.  Usually this event relates to the program as a
+    whole (e.g. termination) or to the system inside which the
+    program runs (e.g. interrupts).
+\item
+   Handlers are normally installed during initialization; the events
+    they respond to can occur at any time.  The normal procedure 
+    follows:
+   \begin{itemize}
+   \item
+    The module exporting a registration procedure installs a default, or
+    \newterm{bootstrap} handler.  This handler is installed only so that
+    callers of the module will never find an undefined procedure variable
+    as the handler.  If called, it often causes abnormal termination.
+   \item
+    A module \code{IMPORT}ing the registration procedure installs a handler
+    by calling the registration procedure from its initialization body.
+
+    This module also registers a \newterm{termination handler} to de-install
+    the handler at termination.
+   \item
+    The handler installed by the \code{IMPORT}ing procedure remains until
+    program termination, at which point the termination handler de-installs
+    it.
+   \end{itemize}
+\item
+   The handler may take one or more of the following parameters:
+   \begin{itemize}
+   \item
+         An object passed at the time of its installation.  See the module
+         \module{ProgArgs} for examples.
+
+         This object usually holds data defined in the module which implements
+         the handler.  It is passed as an additional parameter of the call
+         which installs the handler.
+   \item
+         An object generated when the event or condition is detected.
+         
+         For instance, if a notice has been established to handle an event,
+         then the module which detects the event will call \proc{Notices.Call},
+         and pass the generic object \code{importerObject}. \proc{Call}
+         will pass this as a parameter to each handler.
+   \end{itemize}
+\end{itemize}
+
+Handlers are often \newterm{chained}.  In this case, all handlers which
+have been installed to handle an event or to react to a new state of affairs
+are called.
+
+A module may chain modules explicitly; in this case, the module calls all
+handlers.  The calling order may be set by the user to first installed,
+first called or to last installed, first called.  See the \module{Notices}
+module for an example.
+
+As an alternative, a module may recommend chaining.  In this case, the
+module calls the most recently installed handler; this handler should call
+the next most recently installed handler, and so on.
+See the low-level termination module \module{ProgErrs} for
+an example.
+
+\subsection{Actions}
+
+An \newterm{action} is called in response to an event.  Handlers are also
+called in response to events. What differentiates an action is that
+the event to which it responds is not always recognized by the program and
+may not be fixed as a possibility before runtime.  The action chosen to
+respond to an event may change frequently, even after program initialization
+is complete.
+
+Actions depend on the runtime history of a program; handlers persist more or
+less throughout.
+
+Actions are often associated with parsing tables, user interface event
+management, and extendible formats.
+\begin{itemize}
+\item
+ In the parsing table case, an action is tied to a token recognized during
+ parsing.  When recognized, the action corresponding to the token is called.
+\item
+ In the user interface event management case, the model is that of a finite
+ state machine driven by external events.  When a new external event occurs,
+ an action is called; the action may reset which actions will occur
+ upon the next external event.
+\item
+ In the extendible format case, a dispatch table contains format commands and
+ corresponding actions.  When a string or file is read and a formatting
+ command is called, the table is searched for the command; if the command
+ is found, its corresponding action is called.  New (command, action) pairs
+ may be added to the table at any time.
+
+ The \module{FIOBase} module uses the (command, action) model to let users
+ extend format I/O functionality.
+\end{itemize}
+
+As indicated by the table and format cases, the installation of actions
+takes on more features than does the installation of handlers, because
+the event is more often specified with the action.
+
+Neither a handler nor an action is called by the procedure which installs it.
+
+\subsection{Upcalls}
+
+One application of upcalls occurs when one part of a system implicitly 
+communicates with another
+level, but can't know about the character of that other level.
+
+The higher level, which knows about the lower level, should \newterm{register}
+a procedure with the lower level which remains ignorant of the higher level.
+The registration procedure exported by the lower level should take a procedure
+as a parameter.  The procedure it receives and stores in a procedure
+variable is called an \newterm{upcall}. 
+
+By calling the upcall, the lower level can get information from the higher level, even though it is designed and coded independently.
+
+In network protocols, a typical upcall retrieves the address of a buffer.
+
+Since the upcall returns the information the lower level desires, the lower
+level does not have to declare explicitly a common area in which it and a higher
+level must share information.  This improves protocol efficiency, as the 
+elimination of this common area eliminates the need for the higher level to
+copy data for the use of the lower level.
+
+Upcalls also improve the reusability of higher levels.  With upcalls, binding  
+an arbitrary higher level to an arbitrary lower level
+becomes a matter of a few calls by the higher level to registration procedures.
+Without upcalls, this binding can involve serious code modification at the 
+higher
+level.
+
+Notable characteristics of upcalls are:
+\begin{itemize}
+ \item
+   An upcall helps in the response to an event, but doesn't carry out the
+   full response.  It mostly gets needed information.
+ \item
+   Upcalls are not called by the procedures which install them.
+ \item
+   Upcalls are usually called by interrupt handlers.
+\item
+   Upcalls are usually installed during initialization.
+ \item
+   Upcalls are most useful in network and data transfer protocols, which
+   have strict layering requirements.
+\end{itemize}
+
+\subsection{Generalized ``Upcall''}
+
+The ``upcall'' analogy can be extended to characterize any use of procedure
+variables which involves registration.
+
+Most calls to registration procedures are made by code in modules which
+\code{IMPORT} the registration procedure.  The module which exports the
+registration procedure can usually be considered a ``lower level'' module
+and the module which \code{IMPORT}s the registration procedure a ``higher
+level'' module --- in this way, a registered procedure can usually be considered
+an ``upcall''.
+
+The term ``upcall'' is more specific than the term ``procedure variable;''
+``upcall'' always refers to the \code{IMPORT}ation process and 
+to the idea of a lower level calling an upper level.  The idea
+is, in general,very powerful.
+
+\subsection{Apply Procedures}
+
+An \newterm{apply procedure} is a procedure parameter which is repeatedly
+called by the procedure to which it is passed.  Each time this procedure calls
+the apply procedure, it passes different parameters.  The idea is that the apply
+procedure will ``apply'' its operation to the ``subparts'' or ``subelements''
+of an underlying object.
+
+Apply procedures can be used to interpret sets of strings, as in the case of
+\proc{DirIO.List}.  An apply procedure is passed to \proc{DirIO.List}, which  
+passes 
+a different
+directory entry to the apply procedure each time it calls the apply
+procedure.
+
+Apply procedures can be used to parse parts of structured files.  In this
+model, the file has a general structure.  An \newterm{envelope procedure} is
+called and the apply procedure is passed to it.  The envelope procedure opens 
+the file.
+The envelope procedure and the apply procedure parse the file together.  The
+envelope procedure parses as much as it can, covering ``general'' rules.  It
+then calls the apply procedure, which continues.  The apply procedure returns,
+and the envelope procedure again takes control, finding the end of file or
+continuing until it needs to call the apply procedure again.
+This technique can be used to efficiently parse files of very rich structures.
+
+\subsection{Methods}
+
+As described in Chapter~\ref{ObjectsChapter}, a \newterm{method} implements an
+operation whose arguments and semantics are described by the defined
+interface to the object.
+
+Some objects allow a choice of the set of methods which will react to calls
+using
+the object and its interface.  The set of methods chosen is
+contained in the private data records of the object as a group of procedure 
+variables.
+A call to the object and its interface sets off a call
+to one of these procedure variables.  The object's \code{Create} procedure 
+sets these procedure variables to values which fit the set of methods
+chosen.
+
+\section{Dangers of Using Procedure Variables}
+
+Procedure variables are a powerful addition to the programming environment.
+As such, there are dangers associated with their use.
+
+
+One danger is uninitialized variables.  If an uninitialized procedure variable
+is called, the system may go crazy.
+
+Uninitialized procedure pointers in C, when set to null and then called, have
+been known to re-execute the C procedure \code{main()}, which starts the main
+program.  If this repeats itself a few times, a very interesting stack trace
+is generated for the post-mortem debugger to read.
+What happened in C may not happen in Modula-2, but the possibility exists.
+
+
+A second danger is that you may become more confused about what procedures
+your program has executed and will execute.
+
+A third danger is the overuse of procedure pointers. 
+Procedure pointers should not be used when the case statement is simple 
+enough to put in code.  Procedure pointers should also not be used when 
+a procedure
+would suffice.
+
+

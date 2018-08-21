@@ -1,0 +1,795 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Strings;
+(*
+ * Most of the code in this module is dedicated to range checking, sorry.
+ * I hate Modula-2 strings!
+ *
+ * We use the fact that EOS is always the maximum length string.
+ *)
+
+IMPORT 
+    Intrinsics,
+    ProgErr,
+    SysTypes,
+    SYSTEM;
+
+PROCEDURE Length(
+    source : ARRAY OF CHAR
+    )      : SysTypes.Card;
+    VAR
+	lengthSource : SysTypes.Card;
+    BEGIN (* Length *)
+	FOR lengthSource := 0 TO HIGH( source ) DO
+	    IF source[ lengthSource ] = 0C THEN 
+		RETURN lengthSource; 
+	    END;
+	END;
+	RETURN HIGH( source ) + 1;	(* A null wasn't found *)
+    END Length;
+
+
+PROCEDURE LengthAdr(
+    source : SYSTEM.ADDRESS;
+    high   : SysTypes.Card
+    )      : SysTypes.Card;
+    (*
+     * This procedure uses an array (vs. address arithmetic) so it should 
+     * be portable to all implementations.   The "Range" and "FOR" will
+     * hopefully make things go fast enough. 
+     * 
+     * IMPLEMENATION NOTE: 
+     *     The $T and $R will work on some systems. Given that we don't
+     *     have any possibility of range checking.
+     *)
+    TYPE
+	Range = [ 0 .. SysTypes.maxArrayIndexCHAR ];
+    VAR
+	s            : POINTER TO ARRAY Range OF CHAR;
+	lengthSource : Range;
+    BEGIN (* LengthAdr *)
+	s := source;
+(* Leave pointer checking on here, just in case *)
+	IF s^[ 0 ] = 0C THEN
+	    RETURN 0;
+	END;
+	FOR lengthSource := 1 TO high DO
+(*$T-*)(*$R-*)
+	    IF s^[ lengthSource ] = 0C THEN 
+		RETURN lengthSource;
+	    END;
+(*$T=*)(*$R=*)
+	END;
+	RETURN high + 1;
+    END LengthAdr;
+
+
+
+PROCEDURE Assign(
+        source : ARRAY OF CHAR;
+    VAR dest   : ARRAY OF CHAR
+    );
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* Assign *)
+	DONTCARE := AssignOK(source, dest);
+    END Assign;
+
+
+PROCEDURE AssignOK(
+        source : ARRAY OF CHAR;
+    VAR dest   : ARRAY OF CHAR
+    )          : BOOLEAN;
+    VAR
+	lengthSource : SysTypes.Card;
+	i            : SysTypes.Card;
+    BEGIN (* AssignOK *)
+
+	lengthSource := Length(source);
+	IF lengthSource = 0 THEN
+	    dest[ 0 ] := 0C;
+	    RETURN TRUE;
+	END;
+
+	FOR i := 0 TO Intrinsics.MinCard( lengthSource - 1, HIGH( dest ) ) DO
+	    dest[ i ] := source[ i ]; 
+	END;
+	IF lengthSource <= HIGH( dest ) THEN
+	    dest[ lengthSource ] := 0C; 
+	END;
+
+	RETURN HIGH( dest ) >= lengthSource - 1;
+    END AssignOK;
+
+
+PROCEDURE Concat(
+        leftSource  : ARRAY OF CHAR;
+	rightSource : ARRAY OF CHAR;
+    VAR dest        : ARRAY OF CHAR
+    );
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* Concat *)
+	DONTCARE := ConcatOK( leftSource, rightSource, dest );
+    END Concat;
+
+
+PROCEDURE ConcatOK(
+        leftSource  : ARRAY OF CHAR;
+	rightSource : ARRAY OF CHAR;
+    VAR dest        : ARRAY OF CHAR
+    )               : BOOLEAN;
+    VAR
+	lengthLeft   : SysTypes.Card;
+	lengthRight  : SysTypes.Card;
+	staticLength : SysTypes.Card;
+	sourceIndex  : SysTypes.Card;
+	copyLength   : SysTypes.Card;
+	destIndex    : SysTypes.Card;
+
+    BEGIN (* ConcatOK *)
+
+	lengthLeft   := Length( leftSource );
+	lengthRight  := Length( rightSource );
+	staticLength := HIGH( dest ) + 1;
+
+
+	(* Copy the left side *)
+	copyLength := Intrinsics.MinCard( lengthLeft, staticLength );
+	IF copyLength > 0 THEN
+	    FOR sourceIndex := 0 TO copyLength - 1 DO 
+		(* First copy, source and dest indices are the same *)
+		dest[ sourceIndex ] := leftSource[ sourceIndex ]; 
+	    END;
+	END;
+
+	(* No more room, but it still could have been successful *)
+	IF copyLength >= staticLength THEN
+	    RETURN ( lengthLeft = copyLength ) AND ( lengthRight = 0 );
+	END;
+	    
+	(* Copy the right side *)
+	copyLength := Intrinsics.MinCard( staticLength - lengthLeft, 
+					  lengthRight );
+	destIndex := lengthLeft; (* used below *)
+	IF copyLength > 0 THEN
+	    FOR sourceIndex := 0 TO copyLength - 1 DO 
+		dest[ destIndex ] := rightSource[ sourceIndex ];
+		INC( destIndex );
+	    END;
+	END;
+
+	(* Do we need to null terminate? *)
+	IF destIndex <= HIGH( dest ) THEN
+	    dest[ destIndex ] := 0C;
+	END;
+
+	(* Did we copy all that we were interested in? *)
+	RETURN destIndex <= staticLength;
+    END ConcatOK;
+
+
+PROCEDURE Insert(
+    VAR sourceDest : ARRAY OF CHAR;
+        startIndex : SysTypes.Card;
+        toInsert   : ARRAY OF CHAR
+    );
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* Insert *)
+	DONTCARE := InsertOK( sourceDest, startIndex, toInsert );
+    END Insert;
+
+
+PROCEDURE InsertOK(
+    VAR sourceDest : ARRAY OF CHAR;
+        startIndex : SysTypes.Card;
+	toInsert   : ARRAY OF CHAR
+    )              : BOOLEAN;
+    VAR
+	lengthSource   : SysTypes.Card;
+	staticLength   : SysTypes.Card;	(* HIGH( sourceDest ) + 1 *)
+	lengthToInsert : SysTypes.Card;
+	sourceIndex    : SysTypes.Card;
+	destIndex      : SysTypes.Card;
+	finalLength    : SysTypes.Card;	(* What we hope to get... *)
+    BEGIN (* InsertOK *)
+	
+	(* Is startIndex ok? *)
+	lengthSource  := Length( sourceDest );
+	IF startIndex = EOS THEN
+	    startIndex := lengthSource;
+	ELSE
+	    @IF Assert THEN
+		IF startIndex > lengthSource THEN
+		    RangeError;
+		END;
+	    @END (* Assert *)
+	END;
+
+	(* Is it possible to insert anything? *)
+	staticLength := HIGH( sourceDest ) + 1;
+	IF startIndex >= staticLength THEN
+	    RETURN FALSE;   (* Makes life easier later on, if we get out now *)
+	END;
+
+	(* Do we have to do anything to insert? *)
+	lengthToInsert := Length( toInsert );
+	IF lengthToInsert = 0 THEN
+	    RETURN TRUE;
+	END;
+
+	finalLength := lengthSource + lengthToInsert;
+
+	(*
+	 * Determine if there are any characters from startIndex
+	 * to lengthSource which need to be moved.  The string is
+	 * treated as if it is split at "startIndex".  This check
+	 * figures out if the any part of right side of the split 
+	 * is going to exist after "toInsert" has been inserted.
+	 *)
+	IF startIndex + lengthToInsert < staticLength THEN
+	    IF lengthSource # 0 THEN
+		(*
+		 * Have to make a hole in the "dest" by moving the
+		 * characters from right to left.  Note that we know
+		 * that there are some characters which have to be moved.
+		 *)
+		destIndex := Intrinsics.MinCard( finalLength, staticLength ) 
+			     - 1;
+		FOR sourceIndex := destIndex - lengthToInsert TO startIndex 
+		  BY -1 DO
+		    sourceDest[ destIndex ] := sourceDest[ sourceIndex ];
+		    DEC( destIndex );
+		END; (* FOR *)
+	    END;
+	ELSE
+	    (* 
+	     * There are two cases at this point:
+	     *    - toInsert will exactly fit.
+	     *    - toInsert is too big.
+	     *)
+	    lengthToInsert := staticLength - startIndex;
+	END; (* IF *)
+
+	(*
+	 * Copy the toInsert string which we know is non-zero in length.
+	 *)
+	destIndex := startIndex;
+	FOR sourceIndex := 0 TO lengthToInsert - 1 DO
+	    sourceDest[ destIndex ] := toInsert[ sourceIndex ];
+	    INC( destIndex );
+	END;
+
+	IF finalLength < staticLength THEN
+	    sourceDest[ finalLength ] := 0C;	(* null terminate *)
+	END;
+	    
+	RETURN finalLength <= staticLength;
+
+    END InsertOK;
+
+
+PROCEDURE Substring(
+        source     : ARRAY OF CHAR;
+        startIndex : SysTypes.Card;
+        stopIndex  : SysTypes.Card;
+    VAR dest       : ARRAY OF CHAR
+    );
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* Substring *)
+	DONTCARE := SubstringOK(source, startIndex, stopIndex, dest);
+    END Substring;
+
+
+PROCEDURE SubstringOK(
+        source     : ARRAY OF CHAR;
+        startIndex : SysTypes.Card;
+        stopIndex  : SysTypes.Card;
+    VAR dest       : ARRAY OF CHAR
+    )              : BOOLEAN;
+    VAR
+	lengthSource : SysTypes.Card;
+	sourceIndex  : SysTypes.Card;
+	destIndex    : SysTypes.Card;
+    BEGIN (* SubstringOK *)
+
+	lengthSource := Length( source );
+
+	@IF Assert THEN
+	    IF ( ( startIndex > lengthSource ) AND ( startIndex # EOS ) ) OR
+	       ( ( stopIndex > lengthSource ) AND ( stopIndex # EOS ) ) THEN
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	IF lengthSource = 0 THEN
+	    dest[ 0 ] := 0C;	(* Empty string returned *)
+	    RETURN TRUE;	(* Nothing to do *)
+	END;
+
+	(* Check for passing EOS and Length. *)
+	IF startIndex >= lengthSource THEN 
+	    @IF Assert THEN
+		(* 
+		 * Only valid if stopIndex is equal to startIndex, that is,
+		 * EOS or Length had to be passed for both indices.
+		 *)
+		IF stopIndex < lengthSource THEN
+		    RangeError;
+		END;
+	    @END (* Assert *)
+
+	    (* starting at the end of the string yields nothing! *)
+	    dest[ 0 ] := 0C;
+	    RETURN TRUE;
+	END;
+
+	(* 
+	 * At this point, startIndex < lengthSource, but we need to
+	 * make stopIndex < lengthSource.
+	 *)
+	IF stopIndex >= lengthSource THEN   (* covers passing EOS and Length *)
+	    stopIndex := lengthSource - 1;
+	END;
+
+	@IF Assert THEN
+	    (* Start must be less than stop *)
+	    IF stopIndex < startIndex THEN
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	(* 
+	 * Copy characters from stopIndex to startIndex inclusive.
+	 *)
+	destIndex := 0;
+	FOR sourceIndex := startIndex TO stopIndex DO
+	    dest[ destIndex ] := source[ sourceIndex ];
+	    INC( destIndex );
+	    IF destIndex > HIGH( dest ) THEN
+		(* only OK if we copied last character *)
+		RETURN sourceIndex = stopIndex;  
+	    END;
+	END;
+
+	dest[ destIndex ] := 0C; 
+
+	RETURN TRUE;
+    END SubstringOK;
+
+
+PROCEDURE Delete(
+    VAR sourceDest : ARRAY OF CHAR;
+	startIndex : SysTypes.Card;
+	stopIndex  : SysTypes.Card
+    );
+    VAR
+	lengthSource : SysTypes.Card;
+	sourceIndex  : SysTypes.Card;
+	destIndex    : SysTypes.Card;
+    BEGIN (* Delete *)
+
+	lengthSource := Length( sourceDest );
+
+	@IF Assert THEN
+	    IF ( ( startIndex > lengthSource ) AND ( startIndex # EOS ) ) OR
+	       ( ( stopIndex > lengthSource ) AND ( stopIndex # EOS ) ) THEN
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	IF lengthSource = 0 THEN
+	    RETURN;	(* nothing to do *)
+	END;
+
+	IF stopIndex > lengthSource THEN   (* covers passing EOS and Length *)
+	    stopIndex := lengthSource;
+	END;
+
+	(* Check for passing EOS and Length. *)
+	IF startIndex >= lengthSource THEN 
+	    @IF Assert THEN
+		(* 
+		 * Only valid if stopIndex is equal to startIndex, that is,
+		 * EOS or Length had to be passed for both indices.
+		 *)
+		IF stopIndex < lengthSource THEN
+		    RangeError;
+		END;
+	    @END (* Assert *)
+
+	    (* starting at the end of the string does nothing! *)
+	    RETURN;
+	END;
+
+	(* 
+	 * At this point, stopIndex < lengthSource, but we need to
+	 * make stopIndex < lengthSource.
+	 *)
+	IF stopIndex >= lengthSource THEN   (* covers passing EOS and Length *)
+	    stopIndex := lengthSource - 1;
+	END;
+
+	@IF Assert THEN
+	    (* Start must be less than or equal to stop *)
+	    IF stopIndex < startIndex THEN
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	(* 
+	 * Do the operation 
+	 * Note that this must be a "left" to "right" copy.
+	 *)
+	destIndex := startIndex;
+	FOR sourceIndex := stopIndex + 1 TO lengthSource - 1 DO
+	    sourceDest[ destIndex ] := sourceDest[ sourceIndex ];
+	    INC( destIndex );
+	END;
+	sourceDest[ destIndex ] := 0C;
+
+    END Delete;
+
+
+PROCEDURE Compare(
+    left  : ARRAY OF CHAR;
+    right : ARRAY OF CHAR
+    )     : Intrinsics.CompareResults;
+    VAR
+	lengthLeft  : SysTypes.Card;
+	lengthRight : SysTypes.Card;
+	minLength   : SysTypes.Card;
+	index       : SysTypes.Card;
+
+    BEGIN (* Compare *)
+
+	lengthLeft  := Length( left );
+	lengthRight := Length( right );
+
+	minLength   := Intrinsics.MinCard( lengthLeft, lengthRight );
+
+	IF minLength > 0 THEN
+	    (*
+	     * Do the partial comparison
+	     *)
+	    FOR index := 0 TO minLength - 1 DO
+
+		IF left[ index ] # right[ index ] THEN
+		    IF left[ index ] > right[ index ] THEN
+			RETURN Intrinsics.greater;
+		    ELSE
+			RETURN Intrinsics.less;
+		    END;
+		END;
+
+	    END; (* FOR *)
+	END; (* IF *)
+
+	(*
+	 * The shorter string is the lesser.
+	 *)
+	IF lengthLeft = lengthRight THEN 
+	    RETURN Intrinsics.equal;
+	END;
+
+	IF lengthLeft < lengthRight THEN 
+	    RETURN Intrinsics.less;
+	END;
+
+	RETURN Intrinsics.greater;
+
+    END Compare;
+
+
+PROCEDURE Position(
+        source        : ARRAY OF CHAR;
+        startIndex    : SysTypes.Card;
+        stopIndex     : SysTypes.Card;
+	searchPattern : ARRAY OF CHAR;
+    VAR foundIndex    : SysTypes.Card
+    )                 : BOOLEAN;
+    VAR
+	lengthPattern     : SysTypes.Card;
+	lengthSource      : SysTypes.Card;
+	sourceIndex       : SysTypes.Card;
+	patternIndex      : SysTypes.Card;
+	lastPossibleIndex : SysTypes.Card;
+	firstCharToMatch  : CHAR;
+	isForwardSearch   : BOOLEAN;
+    BEGIN (* Position *)
+
+	lengthPattern := Length( searchPattern );
+	lengthSource  := Length( source );
+
+	(* 
+	 * The following two checks test all the special cases.
+	 *)
+	IF lengthPattern = 0 THEN
+	    (* Base case defined in def mod *)
+	    RETURN TRUE;
+	END;
+	IF lengthSource < lengthPattern THEN  
+	    (* Couldn't possibly fit *)
+	    RETURN FALSE;
+	END;
+	lastPossibleIndex := lengthSource - lengthPattern;
+
+	@IF Assert THEN
+	    IF ( startIndex > lengthSource ) AND ( startIndex # EOS ) THEN   
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	IF startIndex > lastPossibleIndex THEN
+	    IF stopIndex >= startIndex THEN
+		RETURN FALSE;
+	    END;
+	    startIndex := lastPossibleIndex;
+	END;
+
+	@IF Assert THEN
+	    IF ( stopIndex > lengthSource ) AND ( stopIndex # EOS ) THEN   
+		RangeError;
+	    END;
+	@END (* Assert *)
+
+	IF stopIndex > lastPossibleIndex THEN
+	    IF startIndex >= stopIndex THEN
+		RETURN FALSE;
+	    END;
+	    stopIndex := lastPossibleIndex;
+	END;
+
+
+        (* Because the "BY" clause of FOR statement doesn't take
+           a variable (i. e. it can only be a constant), we must
+           do an obscure LOOP contstruct *)
+	isForwardSearch  := startIndex <= stopIndex;
+	sourceIndex      := startIndex;
+        firstCharToMatch := searchPattern[ 0 ];
+	LOOP
+	    IF firstCharToMatch = source[ sourceIndex ] THEN 
+		foundIndex   := sourceIndex;
+		patternIndex := 1;
+		LOOP 
+		    IF patternIndex >= lengthPattern THEN
+			RETURN TRUE;	(* foundIndex already set *)
+		    END;
+
+		    INC( sourceIndex );
+		    IF source[ sourceIndex ] # searchPattern[ patternIndex ] 
+		      THEN EXIT;
+		    END;
+
+		    INC( patternIndex );
+		END;
+
+		(* Didn't find it *)
+		sourceIndex := foundIndex;	(* start from before *)
+
+	    END; (* IF firstCharToMatch *)
+
+	    IF sourceIndex = stopIndex THEN
+		EXIT;
+	    END;
+
+	    IF isForwardSearch THEN
+		INC( sourceIndex );
+	    ELSE
+		DEC( sourceIndex );
+	    END;
+	END; (* LOOP *)
+
+	RETURN FALSE;
+    END Position;
+
+
+PROCEDURE Justify(
+    VAR sourceDest    : ARRAY OF CHAR;    
+	justification : Justifications;
+        finalLength   : SysTypes.Card;
+	fillPattern   : ARRAY OF CHAR
+    );
+    (*
+     * This procedure treats Length( fillPattern ) = 1 as a special
+     * case.  On centering (as specified in the def mod), we round
+     * towards the left.  This means that we just "DIV 2" and forget
+     * about the odd amount.
+     *)
+    VAR
+	lengthPattern : SysTypes.Card;	(* Turns into HIGH halfway thru *)
+	lengthSource  : SysTypes.Card;
+	sourceIndex   : SysTypes.Card;
+	destIndex     : SysTypes.Card;
+	patternIndex  : SysTypes.Card;
+	needOnLeft    : SysTypes.Card;	(* characters to be filled on left *)
+	needOnRight   : SysTypes.Card;
+	firstFillChar : CHAR;
+    BEGIN (* Justify *)
+
+	lengthPattern := Length( fillPattern );
+
+	@IF Assert THEN
+	    IF ( finalLength > HIGH( sourceDest ) + 1 ) OR 
+	      ( lengthPattern = 0 ) THEN 
+		RangeError;	(* reasonable way to treat the error *)
+	    END;
+	@END (* Assert *)
+
+	lengthSource  := Length( sourceDest );
+
+	(* 
+	 * Do we even have to do padding? 
+	 *)
+	IF lengthSource >= finalLength THEN
+
+	    (* Do we have to do anything? *)
+	    IF lengthSource = finalLength THEN
+		RETURN;	(* This check helps us out later on. *)
+	    END;
+
+	    (* Just truncate the string according to the justification *)
+	    CASE justification OF
+		justifyLeft:	(* "BEFORE" --> "BEF" *)
+		    sourceDest[ finalLength ] := 0C;	(* Delete right part *)
+		|
+		justifyCenter:	(* "BEFORE" --> "EFO" *)
+     		    sourceIndex := ( lengthSource - finalLength ) DIV 2;
+		    IF sourceIndex >= 1 THEN
+			DEC( sourceIndex );
+		    END;
+	            Delete( sourceDest, BOS, sourceIndex );
+		    sourceDest[ finalLength ] := 0C;	(* Delete right part *)
+		|
+		justifyRight:	(* "BEFORE" --> "ORE" *)
+		    Delete( sourceDest, BOS, lengthSource - finalLength - 1 );
+	    END; (* CASE *)
+
+	    RETURN;	 (* all done *)
+
+	END; (* IF lengthSource *)
+
+	(* 
+	 * The source is shorter than the finalLength, so
+	 * we will need to figure out how many characters
+	 * go on the left and how many characters go on the right.
+	 *)
+	needOnRight := finalLength - lengthSource;
+	CASE justification OF
+	    justifyRight:
+		needOnLeft  := needOnRight;
+		needOnRight := 0;
+	    |
+	    justifyLeft:
+		needOnLeft := 0;
+	    |
+	    justifyCenter:
+		needOnLeft := needOnRight DIV 2;
+		DEC( needOnRight, needOnLeft );
+	END; (* CASE *)
+
+	(* Do we have a source to shift? *)
+	IF lengthSource # 0 THEN
+	    (*
+	     * Shift the source, if justifyRight or
+             * justifyCenter require it.
+	     *)
+	    destIndex := needOnLeft + lengthSource;
+            (* destIndex always > 0: have to shift
+               the source to the right *)
+	    FOR sourceIndex := lengthSource - 1 TO 0 BY -1 DO
+	        DEC( destIndex );
+	        sourceDest[ destIndex ] := sourceDest[ sourceIndex ];
+	    END;
+	END;
+
+	(*
+	 * We null terminate here, because we have a forward exit below.
+	 *)
+	IF finalLength <= HIGH( sourceDest ) THEN
+	    sourceDest[ finalLength ] := 0C;
+	END;
+
+	(*
+	 * We treat single character padding as a special case,
+	 * because it is so common.
+	 *)
+	IF lengthPattern = 1 THEN
+	    firstFillChar := fillPattern[ 0 ];
+
+	    IF needOnLeft > 0 THEN
+		FOR destIndex := 0 TO needOnLeft - 1 DO
+		    sourceDest[ destIndex ] := firstFillChar;
+		END;
+	    END;
+
+	    IF needOnRight > 0 THEN
+		FOR destIndex := lengthSource + needOnLeft TO 
+				   finalLength - 1 DO
+		    sourceDest[ destIndex ] := firstFillChar;
+		END;
+	    END;
+
+	    RETURN;	(* sourceDest has been null terminated already *)
+
+	END;
+
+	(*
+	 * NOTE: turning lengthPattern into highPattern.
+	 *)
+	DEC( lengthPattern );
+
+	(*
+	 * We have a multi-character pattern to fill.  The left
+	 * side is easy, so we will do that first.
+	 *)
+	IF needOnLeft > 0 THEN
+	    patternIndex := 0;
+	    FOR destIndex := 0 TO needOnLeft - 1 DO
+		sourceDest[ destIndex ] := fillPattern[ patternIndex ];
+		IF patternIndex < (* HIGH *) lengthPattern THEN
+		    INC( patternIndex );
+		ELSE
+		    patternIndex := 0;	(* wrap the pattern around*)
+		END;
+	    END; (* FOR *)
+	END;
+
+	(*
+	 * Now we have to fill the right side, but we have to match
+	 * the requirements in the def mod.  The pattern is to be
+	 * laid first, then the source put on top of it.  This means
+	 * we have to compute the modulus of the pattern length to
+	 * figure out which foot to start on.
+	 *)
+        IF needOnRight > 0 THEN
+
+	    (* Using sourceIndex as a temporary *)
+	    destIndex   := lengthSource + needOnLeft;
+	    patternIndex := destIndex MOD ( (* HIGH *) lengthPattern + 1 );
+
+	    FOR destIndex := destIndex TO finalLength - 1 DO
+		sourceDest[ destIndex ] := fillPattern[ patternIndex ];
+		IF patternIndex < (* HIGH *) lengthPattern THEN
+		    INC( patternIndex );
+		ELSE
+		    patternIndex := 0;	(* wrap the pattern around*)
+		END;
+	    END; (* FOR *)
+	 END;
+
+    END Justify;
+
+
+@IF Assert THEN
+    PROCEDURE RangeError;
+	BEGIN
+	    ProgErr.Terminate( 'Strings: range error.' );
+	END RangeError;
+@END (* Assert *)
+
+
+END Strings.
+

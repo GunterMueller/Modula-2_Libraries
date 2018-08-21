@@ -1,0 +1,26 @@
+DEFINITION MODULE Serial;
+
+(* This is a module to simplify RS232 com port operations. *)
+(* V1.0, J.Andrea, Jun.3/93 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED InitPort, ClosePort, Get, Put, PutString;
+
+PROCEDURE InitPort( VAR done :BOOLEAN );
+(* Initialize the port to the standard settings, COM1, 9600 baud, etc. *)
+(* This must be called before any Gets or Puts, and the device should
+   be turned on. *)
+
+PROCEDURE Get( VAR ch :CHAR );
+(* Get a single character from the serial port. *)
+
+PROCEDURE Put( ch :CHAR );
+(* Write a single character to the serial port. *)
+
+PROCEDURE PutString( s :ARRAY OF CHAR );
+(* Write a string to the serial port. *)
+
+PROCEDURE ClosePort;
+(* Finish using the serial port. *)
+
+END Serial.

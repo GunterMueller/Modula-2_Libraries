@@ -1,0 +1,522 @@
+Logitech 2.0 requires a modified version of the run-time system.  You
+will find an assembled version in the main "bin" directory.  The changes
+to the run-time are listed below.  Logitech 3.0 does not require any
+such changes.
+
+diff ./dbug.asm /software/logitech/m2rts.unix/dbug.asm
+30,39d29
+< ;               15-May-87 [RJN]:
+< ;                   - Added change to END_OF_MEMORY so that we always
+< ;                     free up memory after the program is loaded.  This
+< ;                     allows a clean model to Storage which can use
+< ;                     DOS as the run-time system.
+< ;		      This only affects PMDs.  See the code to figure
+< ;		      out how much to dump.
+< ;               01-Nov-87 [RJN]:
+< ;		    - If we crash during termination, it now writes
+< ;		      a dump called MEMORY.PM2.  This helps when debugging.
+66,67d55
+< ; 15-May-87 [RJN] MEM_SIZE isn't valid after the program starts.
+< 	extrn END_OF_MEMORY:word		; RJN new import
+112,116c100
+< ; BEGIN 01-Nov-87 [RJN]
+< DUMP_NAME1	DB	'MEMORY.PMD',0	; first dump
+< DUMP_NAME2	DB	'MEMORY.PM2',0	; second dump
+< DUMP_NAME	DW	DUMP_NAME1	; which dump is which
+< ; END 01-Nov-87 [RJN]
+---
+> DUMP_NAME	DB	'MEMORY.PMD',0
+444,486c428,443
+< 
+< ; BEGIN 15-May-87 [RJN]
+< 	; The current value of the variables is:
+< 	;	RTS_DS .. START_MEM -> code of main program and initial stack.
+< 	;	START_MEM .. ???    -> dynamically allocated program memory.
+< 	; We have to figure out ??? we do know that DUMP_HIGH_START and
+< 	; DUMP_LOW_END are START_MEM so we just use that.  Note that we
+< 	; have a continuous memory area, but it is split into two parts.
+< 	MOV	BX, START_MEM
+< 	MOV	DUMP_HIGH_START, BX	; Start of high area of memory.
+< 	MOV	DUMP_LOW_END,	BX	; End of low area of memory.
+< 
+< 	; Now the tricky part is to figure out high end of memory.
+< 	; We know that END_OF_MEMORY is the absolute top end of memory,
+< 	; so we use that in case we can't figure out how much is really
+< 	; used.  We make a "guess" by allocating the largest memory area
+< 	; available from DOS 0FFFFH.  This will fail and will return the
+< 	; actual amount available.  We then allocate to get the base address
+< 	; of this area.  We add the base address and get the result which
+< 	; should be around END_OF_MEMORY.  If this is not, then we must
+< 	; just dump all of memory that we know about.
+< 	MOV	BX,	END_OF_MEMORY	; Something very large
+< 	MOV	AH,	48H;		; Allocate Memory
+< 	INT 	OS			; BX gets actual amount.
+< 	MOV	AH,	48H;		; Allocate Memory (BX already set)
+< 	INT	OS			; Ask for largest amount.
+< 					; No one else seems to check error
+< 					;    codes so why should I...
+< 	PUSH	ES			; Need to use as parameter.
+< 	MOV	ES,	AX		; address of block just allocated
+< 	MOV	CX,	AX		; AX gets smashed function calls
+< 	MOV	AH,	49H		; free function call (in ES)
+< 	INT	OS
+< 	POP	ES			; only needed for the DOS call.
+< 
+< 	; CX contains base address of memory and BX contains size
+< 	ADD	BX,	CX		; Get DOS's idea of end of memory
+< 	CMP	BX,	END_OF_MEMORY	; See if our ideas match.
+< 	JGE	SetHighEnd		; Do we need to dump all of memory?
+< 	MOV	CX,	END_OF_MEMORY 	; All of memory needed.
+< SetHighEnd:
+< 	MOV	DUMP_HIGH_END,	CX	; Save conservative guess of size.
+< ; END 15-May-87 [RJN]
+---
+> 	; end of lower memory area:
+> 	MOV	BX,word ptr RTS_PROCESS.PD_HEAP_TOP	+ 2
+> 	MOV	AX,word ptr RTS_PROCESS.PD_HEAP_TOP
+> 	CALL	NORM_ADDR
+> 	INC	BX			; next paragraph
+> 	MOV	DUMP_LOW_END,	BX	; just save it
+> 	; start of higher memory area:
+> 	MOV	BX,	RTS_PROCESS.PD_SS
+> 	MOV	AX,	RTS_PROCESS.PD_SP
+> 	CALL	NORM_ADDR
+> 	MOV	DUMP_HIGH_START, BX	; just save it
+> 	; last paragraph of memory:
+> 	mov	bx, START_MEM
+> 	dec	bx
+> 	add	bx, MEM_SIZE
+> 	MOV	DUMP_HIGH_END,	BX	; just save it
+498,501c455
+< ; BEGIN 01-Nov-87 [RJN]
+< 	MOV	SI,	DUMP_NAME			; get current name
+< 	MOV	DUMP_NAME,	OFFSET DUMP_NAME2 	; if we crash twice
+< ; END 01-Nov-87 [RJN]
+---
+> 	MOV	SI,	OFFSET	DUMP_NAME
+diff ./rts.asm /software/logitech/m2rts.unix/rts.asm
+30,39d29
+< ; 		12-May-87 [RJN]: 
+< ;		    - Fixed termination code to allow double errors.
+< ;		    - Changed the phoney program name to something that
+< ;		      can be more easily detected when LOD2EXE is used.
+< ;		15-May-87 [RJN]:
+< ;		    - Added change to MEM_SIZE so that we always
+< ;		      free up memory after the program is loaded.  This
+< ;		      allows a clean model to Storage which can use
+< ;		      DOS as the memory allocator.  We also put in 
+< ;		      minor modifications to support Tasks.
+66d55
+< 	public	END_OF_MEMORY 		; RJN needed by DBUG
+158,165d146
+< ; BEGIN 15-May-87 [RJN]
+< INIT_STACK_SIZE dw	100H	; Initial stack size (in paragraphs)
+< 				; Can be modified by 'w' flag.
+< 
+< ;    m2_end_mark is only valid during program loading.  The only module 
+< ;    which references this variable after load time is DBUG and it has been 
+< ;    modified for this change.  MEM_SIZE is really size at load time.
+< ; END 15-May-87 [RJN]
+228,231d208
+< ; BEGIN 12-May-87 [RJN]
+< TERMPROC_ERR	DB	'Error during termination$'
+< ; END 12-May-87 [RJN]
+< 
+278,280c255
+< ; BEGIN 15-May-87 [RJN]
+< PARAM_EXPCT_MSG	DB	'"w" expected$'
+< ; END 15-May-87 [RJN]
+---
+> PARAM_EXPCT_MSG	DB	'"u" or "f" expected$'
+389,396c364
+< ; BEGIN 12-May-87 [RJN]
+< 	; The previous line was assigning an "a" to the program name.
+< 	; The '*' is better, because it is an illegal file name.  Therefore,
+< 	; a program could *know* if it really was executed as an Lod2exe file
+< 	; and then go to the end of the environment table to find the real
+< 	; program name.
+< 	mov	al,'*'
+< ; END 12-May-87 [RJN]
+---
+> 	mov	al,'a'
+423,425c391,392
+< ; BEGIN 15-May-87 [RJN]
+< ; work_space	     = ("W"|"w")"="amount.
+< ; END 15-May-87 [RJN]
+---
+> ; used_memory	     = ("U"|"u")"="amount.
+> ; free_memory	     = ("F"|"f")"="amount.
+468,469c435
+< ; BEGIN 15-May-87 [RJN]
+< 	CMP	AL,	'W'		; work-space
+---
+> 	CMP	AL,	'U'
+471c437
+< ; END 15-May-87 [RJN]
+---
+> 	CMP	AL,	'F'
+522,525c488,493
+< ; BEGIN 15-May-87 [RJN]
+< 	MOV	INIT_STACK_SIZE, DI	; change default "workspace"
+< 	; Note stack size check is done when we initialize the stack.
+< ; END 15-May-87 [RJN]
+---
+> 	CMP	RTS_PARAM_ID, 'U'
+> 	JNE	SET_FREE_MEM
+> 	MOV	USED_MEM, DI
+> 	JMP	END_MEM_PARAMETERS
+> SET_FREE_MEM:
+> 	MOV	FREE_MEM, DI
+614,619c582,586
+< 
+< ; BEGIN 15-May-87 [RJN]
+< ;	[RJN] - This code is only executed in the "F" case.  I am not
+< ;		sure why, but I think it is a bug.  I couldn't find
+< ;		anything about this subject in the DOS manual.
+< ; END 15-May-87 [RJN]
+---
+> ;	check if RTS memory_parameter used_memory was specified:
+> 	CMP	RTS_PARAM_ID,	'U'
+> 	JE	CHECK_MEMORY
+> 	CMP	RTS_PARAM_ID,	'F'
+> 	JNE	CHECK_MAX_MEM_FOR_M2
+625d591
+< 
+654c620,640
+< 
+---
+> ;	check if RTS memory parameter free_mem was specified:
+> 	CMP	RTS_PARAM_ID,	'F'
+> 	JNE	CORRECT_FREE_MEM
+> ;	check if enough memory available:
+> 	DEC	CX			; for DOS memory control block
+> 	CMP	CX,	FREE_MEM
+> 	JNB	CORRECT_FREE_MEM
+> ;	USED_MEM may also be disposed of:
+> 	ADD	CX,	USED_MEM
+> 	CMP	CX,	FREE_MEM
+> 	JNB	CORRECT_MARKS
+> 	MOV	DX,	OFFSET TOO_FEW_MEM_MSG
+> 	JMP	RTS_PARAM_ERROR		; too few memory left
+> CORRECT_MARKS:
+> 	MOV	AX,	END_OF_MEMORY
+> 	SUB	AX,	FREE_MEM
+> 	DEC	AX			; for DOS memory control block
+> 	MOV	m2_end_mark, AX
+> 	SUB	AX,	m2_start_mark
+> 	MOV	USED_MEM, AX
+> 	JMP	COMPUTE_RTS_SIZE
+664a651,655
+> ;	deallocate from RTS any memory not needed
+> 	ADD	BX,	AX
+> 	MOV	AH,	4AH
+> 	MOV	ES,	CX
+> 	INT	OS
+667d657
+< 
+731d720
+< ;
+736,782c725,731
+< ; BEGIN 15-May-87 [RJN]
+< ; We are going to lie about the amount of free memory and deallocate
+< ; what we don't need.
+< IF FOR_LOD2EXE
+< 	; If the guy who made the lod2exe file actually specified workspace,
+< 	; then the size of memory will be set properly (less than 64K) and
+< 	; we will just use this as the initial stack size.  If it is bigger
+< 	; than 64K, then he didn't set the workspace size and we should just
+< 	; use INIT_STACK_SIZE as the value of MEM_SIZE.
+< 	Mov	AX,	MEM_SIZE	; This is what the guy wants for a stack
+< 	Cmp	AX, 	1000H		; Has he specified it as a stack value?
+< 	Jae	Use_Init_Stack		; No, just use INIT_STACK_SIZE
+< 	Mov	INIT_STACK_SIZE, AX	; Yes, set INIT_STACK_SIZE to MEM_SIZE;
+< Use_Init_Stack:
+< ENDIF
+< 	; If we are here, then INIT_STACK_SIZE specifies the size of the
+< 	; initial stack to be used.  It was either set with the "/w=" option
+< 	; to the run-time system or the "/w=" option to lod2exe.  In either
+< 	; case, we change MEM_SIZE to this new value, because we are going
+< 	; to free up the rest of the memory.
+< 	Mov	AX,	INIT_STACK_SIZE	; We only need initial stack.
+< 	Mov	MEM_SIZE,	AX	; Change concept of MEM_SIZE
+< 	Mov	CX,	WORD PTR DOS+2	; PSP Segment address
+< 	Mov	BX,	START_MEM	; Start computation of BX (real size).
+< 	Add	BX,	AX		; Add in initial stack
+< 	Sub	BX,	CX		; Size of area really used
+< 	Push	ES			; Need to pass param to DOS
+< 	Mov	ES,	CX		; Base of area used.
+< 	Mov	AH,	4AH		; realloc
+< 	Int	OS			; Change memory
+< 	Pop	ES			; Restore state that was saved.
+< 	Jc	MemSizeFailure		; If realloc failed, then tell user.
+< 
+< ; The only thing left to check is the size of the initial stack.
+< ; If the user requested too small of a stack, we must tell 'em.
+< 	Mov	BX,	START_MEM	; Optimistic: this will be stack seg.
+< 	Mov	AX,	INIT_STACK_SIZE	; Get user's request of stack size.
+< 	Mov	CL,	4		; Change paragraphs into bytes by
+< 	Shl	AX,	CL		; multipling by 16.
+< 	Cmp	AX,	SP_INI_SIZE + SP_RESERVE + 4  ; Is there enough space?
+< 				; 4 is for the call of the Modula program
+< 	Jae	stack_ok		; Yes, AX contains SP and BX contains SS
+< 
+< MemSizeFailure:
+< 	; Realloc failed, i.e. the size of the stack requested was too large.
+< 	; Or the size of the stack requested was too small.  Either way,
+< 	; we can't continue.
+---
+> ; Switch to real run-time stack. The stack of the main process is set
+> ; to the end of the free memory:
+> 	MOV	AX,	MEM_SIZE
+> 	MOV	BX,	START_MEM
+> 	CALL	COMP_STACK		; BX becomes SS, AX becomes SP
+> 	cmp	bx,	0
+> 	jnz	stack_ok
+794,796d742
+< 
+< ; END 15-May-87 [RJN]
+< 
+803,812d748
+< ; BEGIN 15-May-87 [RJN]
+< ; We need to set the stack base word to SP so that it works properly with
+< ; the stack checking code.  See SERVICES for more details.  Note that
+< ; we don't need to set stackType, because Tasks is the first module to
+< ; reference it so it does the necessary modification.  However, we
+< ; do need to tell Tasks how big the stack size is so the second word
+< ; is set to this amount.
+< 	MOV	SS:[0], SP		; Set "lowestSP" in the stack base.
+< 	MOV	SS:[2], SP		; Set the stack size for Tasks to get.
+< ; END 15-May-87 [RJN]
+814d749
+< 
+1020,1050d954
+< ;
+< ; BEGIN 12-May-87 [RJN]
+< 	; Logitech code to call termination procedures is incorrect.
+< 	; The proper way to chain installed procedures is the same as
+< 	; it is for interrupts: the one being called calls the previous one.
+< 	; We replaced this code with a simple call (below) which does the
+< 	; proper thing.  This fix doesn't affect anything in the Logitech
+< 	; library, since System seems to be the only one to install a
+< 	; termination procedure.
+< 	;
+< 	; mov	ds,rts_ds		; set data segment
+< 	; mov	ax,word ptr term_proc_addr + 2	; segement addr
+< 	; mov	bx,cs
+< 	; cmp	ax,bx
+< 	; je	CallTermProc_end	; OwnTermProc
+< 	; call	term_proc_addr		; invoke termination procedure
+< 	; jmp	CallTermProc
+< 	; When we call user code "term_proc_addr", we must be prepared
+< 	; for an error.  The original Logitech code gets blown away in
+< 	; the case that the termination code gets an error (and the
+< 	; original reason for termination was an error).  To prevent these
+< 	; problems, we must clean the stack up so that if we get an error
+< 	; it will go to the code ErrorDuringTermProc instead of back to
+< 	; this termination code.  Note that we can blow the stack away
+< 	; since it has been saved in the dump already (if we had an error).
+< 	MOV	SS, MAIN_SS	; Clear the "main" stack for terminates.
+< 	MOV	SP, MAIN_SP	; Processor disables interrupts here.
+< 	PUSHF						; save current flags.
+< 	PUSH	CS					; save RTS code seg.
+< 	MOV	AX,	OFFSET	ErrorDuringTermProc	; where to go on a
+< 	PUSH	AX					; double error.
+1052,1097c956,962
+< 	; The code inside services.TERMINATE requires that BP is on the stack.
+< 	PUSH	BP
+< 
+< 	; Call the termination procedure no matter what.  You pay for 
+< 	; the extra "call far" for the case where no one has installed 
+< 	; themselves (e.g. term_proc_addr is term_procedure).  
+< 	call	term_proc_addr		; invoke termination procedure
+< 
+< 	; If we get here, then there wasn't a double termination.  The
+< 	; stack is setup with the stuff as if it were a "normal" termination,
+< 	; so everything is kosher.
+< 	CLI				; Caller may have enabled interrupts.
+< 	mov	ds,rts_ds		; restore our data segment
+< 	jmp	CallTermProc_end	; All done with term procedures.
+< 
+< ErrorDuringTermProc:
+< ; Only get here if we were already in the termination code and we 
+< ; got an error.  We will have taken a dump already.  However, we
+< ; haven't printed an error message.  The message should be more
+< ; descriptive than the previous one, because we got another error.
+< 	MOV	DS, RTS_DS			; restore data segment
+< 
+< 	; set break vector to a dummy interrupt service routine,
+< 	; because the following write functions will enable
+< 	; interrupts; we don't want to be interrupted by a ^break
+< 	mov	ax, 0
+< 	mov	es, ax
+< 	mov	bx, 4 * 1BH
+< 	mov	ES:word ptr [bx], offset DUMMY_ISR
+< 	mov	ES:word ptr 2[bx], CS		; Set the new-one
+< 
+< 	; It is safer to return to DOS and possibly reload the
+< 	call	WRITE_LN			; Put our message on a new line
+< 	mov	DX,OFFSET TERMPROC_ERR		; Indicate double error.
+< 	call	WRITE_MSG
+< 	mov	DX,OFFSET SOME_ERROR		; Print separator.
+< 	call	WRITE_MSG
+< 	mov	ax,word ptr cur_proc_addr + 2	; Get the PD.
+< 	mov	es,ax				; 
+< 	mov	BX,ES:CUR_PROCESS.PD_STATUS	; Get the error out of PD.
+< 	call	WRITE_STATUS			; Print specific error.
+< 	call	WRITE_LN			; Make it pretty.
+< 	mov	error_code, 1			; Tell Dos we got an error.
+< 
+< ; END 12-May-87 [RJN]
+< 	
+---
+> 	mov	ds,rts_ds	; set data segment
+> 	mov	ax,word ptr term_proc_addr + 2	; segement addr
+> 	mov	bx,cs
+> 	cmp	ax,bx
+> 	je	CallTermProc_end	; OwnTermProc
+> 	call	term_proc_addr	; invoke termination procedure
+> 	jmp	CallTermProc
+1137a1003
+> 
+diff ./rts.inc /software/logitech/m2rts.unix/rts.inc
+99,105c99
+< ; BEGIN 15-May-87 [RJN]
+< ; We increase the size of SP_RESERVE, because we insert stuff in the stack
+< ; base and also save the registers on the top when we use Tasks and Interrupts.
+< ; See TasksPRIVATE for a more detailed discussion of Stacks.
+< SP_RESERVE	EQU	76	; Reserve for 25 PUSHes + Registers + some
+< ; END 15-May-87 [RJN]
+< 
+---
+> SP_RESERVE	EQU	50	; Reserve for 25 PUSHes
+diff ./services.asm /software/logitech/m2rts.unix/services.asm
+32,34d31
+< ;		15-May-87 [RJN]:
+< ;		    - Change stack checking to support Tasks.
+< ;			
+301d297
+< ; BEGIN 15-May-87 [RJN]
+305,307d300
+< ; Temporary Registers Used:
+< ; 	BX = value of new stack pointer after stack clearance is checked.
+< ;	AX = temporary.
+309,332c302,311
+< ; Basically, we don't need such fancy checks if we are using 
+< ; Tasks.  All stacks end at "0" offset (with some reserve).
+< ; We don't care about DOS, because its stack should have a reasonable
+< ; reserve too.  Also, if the clown isn't smart enough to turn off
+< ; stack checking when he is called from DOS, he probably shouldn't be
+< ; writing upcall catching routines.
+< 	Mov	AX , BX			; Save amount requested (see below)
+<         Add     BX , SP_RESERVE         ; Make sure there is slack space
+<         Cmp     BX , SP                 ; Is there enough room?
+<         Ja      STACK_BOO               ; No.  Report stack overflow
+< 	; The following section of code is useful for optimizing the
+< 	; amount of stack space used by a task or interrupt handler.
+< 	; It can be removed, but since it takes so little time next
+< 	; compared to the software interrupt, why bother?  If you
+< 	; look inside TasksPRIVATE, you will see how a stack is structured.
+< 	; The first word in the base of the stack is an area reserved
+< 	; to indicate the lowest point that the SP had reached.  Seems
+< 	; logical to update it here.
+< 	Mov	BX, SP			; Get the value of the new SP.
+< 	Sub	BX, AX			; Subtract off the amount requested.
+< 	Mov	AX, SS:[0]		; Get current value of "lowestSP" 
+< 	Cmp 	BX, AX			; Do we have a new minimum?
+< 	Jnb	Stack_Not_Bigger	; No, just return to caller
+< 	Mov 	SS:[0], BX		; Yes, change stack size.
+---
+> ; we first have to check, if the current stack is the one
+> ; of the modula program. If we are interrupted inside MS-DOS,
+> ; the stack points to an area inside MS-DOS and the test for
+> ; stack-overflow we make here has no sense.
+> 	mov	dx,ds	; save ds
+> 	mov	ax,ES:word ptr cur_proc_addr + 2
+> 	mov	ds,ax
+> 	mov	ax, ss
+> 	cmp	ax,rts_ds
+> 	jb	SP_OK
+334,336c313,327
+< Stack_Not_Bigger:  
+< 	IRet                            ; Return to caller.
+< ; END 15-May-87 [RJN]
+---
+> 	add	bx, sp_reserve		; BX is space required on stack
+> 	mov	ax, sp
+> 	sub	ax, bx			; compute new limit
+> 	jb	STACK_BOO		;    oops, wrap thru 0
+> 	mov	bx, ss
+> 	mov	cl,4
+> 	shr	ax,cl
+> 	add	bx,ax			; convert SP to paragraph pointer
+> 	mov	ax,word ptr CUR_PROCESS.PD_HEAP_TOP
+> 	shr	ax,cl
+> 	add	ax,word ptr CUR_PROCESS.PD_HEAP_TOP+2 ;ditto with heap top ptr
+> 	sub	bx,ax				; stack below HeapTop?
+> 	jbe	STACK_BOO			;   yup
+> SP_OK:	mov	ds,dx	; restore ds
+> 	IRET
+806d796
+< ; BEGIN 15-May-87 [RJN]
+809,832c799,823
+<         ; Used registers: AX , BX
+<         ; BX holds the required size.  SP is checked for room
+<         ; to grow by the required number of bytes + some reserve.  AX
+<         ; returns 0 if ok and 0FFH if overflow occurs.
+<         ;
+< 	; See the comments in stack check about saving "lowestSP" in 
+< 	; STACK_CHECK.
+< 	Mov	AX , BX			; Save amount requested (see below)
+<         Add     BX , SP_RESERVE         ; Make sure there is slack space
+<         Cmp     BX , SP                 ; Is there enough room?
+<         Ja      STACK_BAD               ; No.  Report stack overflow
+< 
+< 	; Check "lowestSP" to see if has gotten lower.
+< 	Mov	BX, SP			; Get the value of the new SP.
+< 	Sub	BX, AX			; Subtract off the amount requested.
+< 	Mov	AX, SS:[0]		; Get current value of "lowestSP" 
+< 	Cmp 	BX, AX			; Do we have a new minimum?
+< 	Jnb	No_Change		; No, just return to caller
+< 	Mov 	SS:[0], BX		; Yes, change stack size.
+< 
+< No_Change:
+<         Xor     AX , AX                 ; Set AX to zero as success.
+<         Ret				; 
+< 
+---
+> 	; Used registers: AX, BX, CX, DX, SI, DI
+> 	; BX holds the required size. SP is checked for room to grow by
+> 	; the required number of bytes + some reserve. AX returns 0 if ok
+> 	; and 0FFH if overflow occurs.
+> 	mov	ax,ss
+> 	cmp	ax,rts_ds
+> 	jb	stack_ok
+> 	ADD	BX,	SP_RESERVE
+> 		; first check, if SP does not go through zero:
+> 	CMP	BX,	SP
+> 	JA	STACK_BAD
+> 	MOV	AX,	SP
+> 	SUB	AX,	BX		; that's the new stack limit
+> 	MOV	BX,	SS
+> 	CALL	NORM_ADDR		; Returns: BX=seg, AX=offset (<16)
+> 	MOV	cx,	AX
+> 	MOV	DI,	BX
+> 	MOV	AX,word ptr CUR_PROCESS.PD_HEAP_TOP	; DS: --> P.D.
+> 	MOV	BX,word ptr CUR_PROCESS.PD_HEAP_TOP	+ 2
+> 	CALL	NORM_ADDR		; Returns: BX=seg, AX=offset (<16)
+> 	CMP	DI,	BX		; test segment
+> 	JA	STACK_OK
+> 	JB	STACK_BAD
+> 	CMP	cx,	AX		; test offset
+> 	JA	STACK_OK
+834,835c825,829
+<         Mov     AX , 0FFH               ; Put error value into AX
+<         Ret
+---
+> 	MOV	AX,	0FFH		; means: error
+> 	RET
+> STACK_OK:
+> 	MOV	AX,	0		; means: no error
+> 	RET
+838d831
+< ; END 15-May-87 [RJN]

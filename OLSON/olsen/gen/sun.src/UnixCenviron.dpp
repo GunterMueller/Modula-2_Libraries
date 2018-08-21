@@ -1,0 +1,20 @@
+DEFINITION FOR C MODULE UnixCenviron;
+(*
+ * See the man pages: 
+ *     environ(5), getenv(3), and putenv(3).
+ *)
+IMPORT 
+    UnixCtypes;
+
+VAR
+    environ : UnixCtypes.pp_char;
+
+PROCEDURE getenv(
+    name : ARRAY OF CHAR
+    )    : UnixCtypes.p_char;
+    
+PROCEDURE putenv(
+    string : ARRAY OF CHAR
+    )      : INTEGER;
+
+END UnixCenviron.

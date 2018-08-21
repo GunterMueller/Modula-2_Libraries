@@ -1,0 +1,593 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Installation}
+
+\input{Copyright.tex}
+
+\section{Requirements}
+
+The \Library\ consumes five megabytes of disk space in its 
+source form.
+When it is pre-processed and compiled, it takes nearly double that amount,
+as
+the preprocessed sources are nearly identical in size to the unprocessed
+sources.\footnote{There is an option to strip comments when 
+	preprocessing which
+	cuts out a considerable amount of overhead but makes 
+	it slightly inconvenient 
+	to debug.  On the PC, with the strip option you need 7.5 megabytes
+	to compile and install the library in one go.}
+To be safe, 10 megabytes of disk space should be allocated to the task
+of compiling the library.  You can get by with less space, but it means
+compiling and installing the library in stages.  In either case, you must select
+a home directory for sources of the library and the installed version.
+Once the library has been installed, it consumes 1.5
+megabytes.
+
+You must be familiar with your particular compiler installation. 
+Specifically, you should know where its libraries and, in certain cases, 
+the executables are located.  
+
+You should be familiar with
+the program called {\em make}.  If you don't know about this program,
+consult a Unix manual.  The library comes with
+a public domain version of make written in C.  If you are using
+a PC, you will find an executable version in the distribution.
+
+\important{ 
+The installation instructions and procedures are
+provided to help the programmer install the library and tools.
+Given that this is not an official product, be very careful
+to read the installation scripts before executing them.  This
+may save you time and energy during the installation process.
+Remember, you get what you pay for!
+}
+\section{Outline}
+The process of installing the library is outlined below:
+
+\begin{enumerate}
+\item
+    Get files from distribution media to disk in host operating system
+    format.
+\item
+    Run an installation program to distribute the files in the proper
+    configuration for the particular language processor.  At this stage,
+    files not required by the particular language
+    processor used may be trimmed away.
+\item
+    Set up the compiling environment.
+\item
+    Compile the library.  It is a good idea to also compile a few 
+    test programs to make sure
+    that everything is ok.
+\item
+    Install the library in a public place.
+\item
+    Try the installed version.
+    
+\end{enumerate}
+
+\section{File and Directory Structure}
+\label{FileStructure}
+
+The library source distribution consists of many files and directories.
+This setup makes it easy for us to develop and to distribute the library.
+In this section, we describe the structure of the directories and some
+of the files (including makefiles).
+
+\subsection{Keywords}
+\label{FileKeywords}
+
+There is a single source distribution for all versions of the library.
+An install procedure is provided to configure the library directories
+for a particular language processor.   The files or directories that are 
+language
+processor or host operating system specific are identified by a 
+code word in their name.  This keyword may appear directly in the file name
+or in the name of the directory in which the file lives.  The current 
+list of keywords follows:
+\index{\code{sun}} \index{\code{pc}} \index{\code{lg2}} \index{\code{lg3}}
+
+\medskip
+{\centering
+\begin{tabular}{|l|l|}
+    \hline
+
+    \code{sun}	   &Sun Modula-2, Sun Operating System, Sun Architecture 
+			\\ \hline
+    \code{pc}	   &IBM PC Architecure and/or MS-DOS
+			\\ \hline
+    \code{lg2}	   &Logitech-2/86 Version 2.X
+			\\ \hline
+    \code{lg3}	   &Logitech-2/86 Version 3.X
+			\\ \hline
+\end{tabular}
+}
+
+\subsection{First Level Directories}
+
+
+\label{FirstLevelDirectories}
+
+The directories are at most two levels deep.  The top level directories are:
+
+\medskip
+{\centering
+\begin{tabular}{|l|l|}
+    \hline
+
+    \code{bin}		& Default installed home for tools  	
+			\\ \hline
+    \code{conf}		& Special files for installation 		
+				    (it doesn't follow all the rules)
+			\\ \hline
+    \code{demo}		& Stuff which makes the library look good 
+			\\ \hline
+    \code{examples}	& Stuff to show that everything isn't so obvious 
+			\\ \hline
+    \code{doc}		& \LaTeX\ and Unix ``man'' page documentation 	
+			\\ \hline
+    \code{fio}		& Formatted I/O modules  
+			\\ \hline
+    \code{gen}		& General library modules
+			\\ \hline
+    \code{io}		& Fundamental I/O modules
+			\\ \hline
+    \code{lib}		& Default installed home for the library 
+			\\ \hline
+    \code{lwp.lib}	& Ditto for lightweight process library 
+			\\ \hline
+    \code{misc}		& Possibly useful information  
+			\\ \hline
+    \code{porting}	& Help to port the library
+			\\ \hline
+    \code{tools}	& Tools used by the library (e.g. preprocessor) 
+			\\ \hline
+\end{tabular}
+}
+
+\subsection{Second Level Directories}
+\label{SecondLevelDirectories}
+
+The second level of directories is designed to separate modules with
+like names but different implementations.  It also reduces the number
+of files in the compilation directories.  One or more of the following
+directories exists at the second level depending upon the particular
+requirements of the first level directory.  Note that the appearance of
+\code{XXX} in this list should be replaced with one of the implementation
+specific keywords (e.g. \code{sun}, \code{pc}) described in 
+section~\ref{FileKeywords}.
+
+%RJN - is this necessary?
+\index{\code{shared.src}} \index{\code{pc.src}} \index{\code{lg2.src}}
+\index{\code{lg3.src}} \index{\code{sun.src}} \index{\code{lwp.src}}
+\index{\code{pc\_lwp.src}} \index{\code{sun\_lwp.src}} \index{\code{test.src}}
+\index{\code{test\_sun.src}} \index{\code{test\_pc.src}} 
+\index{\code{test\_sun\_lwp.src}} \index{\code{test\_pc\_lwp.src}}
+\index{\code{bin}} \index{\code{lwp.bin}} \index{\code{test.bin}}
+\index{\code{test.bin}}
+
+\medskip
+{\centering
+\begin{tabular}{|l|l|}
+    \hline
+    \code{shared.src}	    	& Source common to many implementations  
+			\\ \hline
+    \code{XXX.src}		& Implementation specific source  
+			\\ \hline
+    \code{lwp.src}		& Common to many implementations 
+				  of lightweight processes  
+			\\ \hline
+    \code{XXX\_lwp.src}		& Implementation specific LWP source 
+			\\ \hline
+    \code{test.src}		& Source for test programs  
+			\\ \hline
+    \code{test\_XXX.src}	& Implementation specific tests
+			\\ \hline
+    \code{test\_XXX\_lwp.src}	& Guess  
+			\\ \hline
+    \code{bin}			& Compilation directory for non-LWP binaries
+			\\ \hline
+    \code{lwp.bin}		& Compilation directory for LWP binaries  
+			\\ \hline
+    \code{test.bin}		& Test program compilation directory 
+			\\ \hline
+    \code{test\_lwp.bin}	& LWP test program compilation directories
+			\\ \hline
+\end{tabular}
+}
+
+\medskip
+On the PC, some of the \code{test} directory names have been
+compressed to fit in 8 characters.
+
+\subsection{Make File Structure}
+\index{Make} \index{Makefile} \index{m2depend}
+\label{Make}
+
+The \code{bin} directories contain many makefiles.  The structure
+was designed to be centrally configurable and to allow for automatic
+dependency generation.  The purpose
+of these individual makefiles is described below.  Standard
+Sun and System V {\em make} has an include file facility which we have implemented
+in the public domain make supplied on this disk.  If your own implementation
+doesn't have include files, use this version.
+
+\begin{description}
+
+\item[\code{makefile}]\index{\code{makefile}}
+    is the main makefile.  It specifies the traditional targets:
+    \code{all}, \code{install}, \code{clean}, and \code{depend}.
+    All \code{bin} directories have identical versions of this file.
+    The \code{makefile} includes \code{environ.mak} at its top
+    and \code{depend.mak} at its bottom.
+
+\item[\code{environ.mak}]\index{\code{environ.mak}}
+    describes the non-automatically generated target lists and
+    unique features of the particular \code{bin} directory.  This list is
+    kept to a minimum.  The \code{environ.mak} file includes
+    two other files at its top: \code{rules.mak} and \code{m2source.mak}.
+    
+\item[\code{rules.mak}]\index{\code{rules.mak}}
+    is located in the installed tools directory.
+    This file contains as many of the implementation peculiarities
+    as possible.
+    
+\item[\code{m2source.mak}]\index{\code{m2source.mak}}
+    is the list of {\em preprocessed} source files to be compiled.
+    It defines the three {\em make} macros: \code{M2Defs}, \code{M2Imps},
+    and \code{M2Mods}.  These macros are transformed in \code{rules.\-mak}
+    (using special {\em make} macro magic) into the {\em tar\-gets} for this 
+    particular directory.
+    
+\item[\code{depend.mak}]\index{\code{depend.mak}}
+    lists the hand-made target dependencies.  These dependencies
+    typically tell which source file is to be preprocessed into which
+    preprocessed file, e.g.
+\begin{verbatim}
+	SysTypes.def: ../sun.src/SysTypes.dpp
+		${StandardM2pp}
+\end{verbatim}
+    This file includes \code{m2depend.\-mak}.
+
+\item[\code{m2depend.mak}]\index{\code{m2depend.\-mak}}
+    is an automatically generated dependency list for the modules
+    specified in \code{m2source.\-mak}.  It also contains some
+    {\em make rules} if these are required.
+\end{description}
+\medskip
+
+Before the installation procedure is executed, there are N copies of each 
+of these files (except \code{rules.mak}) in each \code{bin} directory.  
+The files for a particular
+implementation have a special keyword affixed to identify the
+file (see section \ref{FileKeywords}).  After the installation
+procedure, the files are named as defined above.  \code{rules.mak}
+for each of the implementations is located in the directory \code{conf}.
+For examples of all the files listed above, look in the \code{conf}
+directory for your particular implementation.  They will also be
+copied to the main \code{bin} directory after the installation
+procedure.
+
+
+In the root (home) directory of the library, you will find either
+a \code{makefile} or a batch file called \code{make}.  This file
+contains the correct compilation order for the directories listed
+in section \ref{FirstLevelDirectories} and \ref{SecondLevelDirectories}.
+
+\section{Getting It On Disk}
+
+\subsection{Sun from Tape}
+\label{SunCopy}
+
+The library is distributed in {\em tar} format.  For further information,
+type: \code{man tar}.  The typical home for the library is
+something like: \code{/usr/\-local/\-yaml}.   If you don't like this
+location, pick another.  We will use it in the example, however.
+Put the tape in the tape drive and type:
+
+\begin{verbatim}
+% mkdir /usr/local/yaml
+% cd /usr/local/yaml
+% tar xvp
+\end{verbatim}
+
+If this doesn't work, you may need to specify a particular tape
+\code{/dev} name.  
+If it works, proceed to section \ref{FileStructure}.
+
+\subsection{PC from Floppy}
+\label{PCCopy}
+
+The distribution comes in a series of numbered floppies.  There is a
+batch file called \code{xfer} on the first disk which is used to 
+get the files from the floppies to the disk.  The home directory of the
+library must be the current directory on the destination disk.  Typically,
+this is \code{\\yaml}, but it can be anything.  Put the first disk
+in the drive and type:
+\begin{verbatim}
+C> mkdir \yaml
+C> cd \yaml
+C> a:
+A> xfer a c
+\end{verbatim}
+
+The script will prompt you for floppies.  Do what it says.  If it doesn't
+work, read the script.  The files on the floppies are structured exactly
+as they would be on the disk, so you can do this process by hand if necessary.
+
+The script should end with the message \code{batch file missing} and the current
+drive should be the hard disk.
+If all went well, proceed to section \ref{FileStructure}.
+
+\subsection{Sun from Floppy}
+If you get a floppy distribution and want to transfer it to a Sun,
+the installation procedure in section \ref{PCCopy} 
+can be used to get the files from
+floppies to a PC.  If you have PC-NFS, this can be transferred directly to an
+NFS partition to which you have access.  Once the files are on the
+Sun, type:
+
+\begin{verbatim}
+% cd /usr/local/yaml
+% sh conf/distrib/dos\_unix.sh
+\end{verbatim}
+Note: (\code{/usr/local/yaml} is the presumed home
+of the library; see section \ref{SunCopy})
+
+\section{Installation Procedure}
+\label{InstallProcedure}
+\index{\code{lg2\_inst.bat}}\index{\code{lg3\_inst.bat}}
+\index{\code{sun\_inst.sh}}
+
+Each language processor has its own installation procedure which can be
+found in the directory \code{conf/\-distrib} 
+or \code{conf$\backslash$\-distrib}.
+You should identify your implementation keyword 
+(see section \ref{FileKeywords})to locate a script or batch file
+named \code{XXX\_inst}.  Copy this batch file to the home directory
+of the library and execute it.  This will move files around and
+create some new directories for installing the library and tools.
+
+For Sun,
+
+\begin{verbatim}
+% cd /usr/local/yaml
+% sh conf/distrib/sun_inst.sh
+\end{verbatim}
+
+For Logitech 2.0,
+\begin{verbatim}
+C> cd \yaml
+C> conf\distrib\lg2_inst
+\end{verbatim}
+
+For Logitech 3.0,
+\begin{verbatim}
+C> cd \yaml
+C> conf\distrib\lg3_inst
+\end{verbatim}
+
+If this script prints any errors, figure out what's wrong and fix it.
+
+\subsection{Optional Part}
+\index{\code{lg2\_only.bat}}\index{\code{lg3\_only.bat}}
+\index{\code{sun\_only.sh}}
+
+
+A trimming script or batch file for each implementation is located
+in the same directory as \code{XXX\_inst}.
+This script deletes files and directories not required for the particular
+implementation.  It is named \code{XXX\_only} where \code{XXX} is the
+same keyword as used in the installation script.  Copy this script
+and execute it in the root directory of the library.  
+
+\newpage
+For Sun,
+\begin{verbatim}
+% cd /usr/local/yaml
+% sh conf/distrib/sun_only.sh
+\end{verbatim}
+
+For Logitech 2.0,
+\begin{verbatim}
+C> cd \yaml
+C> conf\distrib\lg2_only
+\end{verbatim}
+
+For Logitech 3.0,
+\begin{verbatim}
+C> cd \yaml
+C> conf\distrib\lg3_only
+\end{verbatim}
+
+\porting{
+You probably don't want to delete anything.  
+It is useful to have as many examples as possible when figuring 
+out what to do.
+}
+
+\section{Configuring}
+\index{Environment} \index{Configuration}
+\index{\code{Root}}
+
+If the installation procedure went according to plan, the
+\code{bin} directory in the root directory of the library should
+contain several files.  The only file you should need to configure
+is \code{rules.mak} (see section \ref{Make}).
+This is the main configuration file.  Unless you like
+adventure, restrict the changes to this file to the top sections.
+The lower in the file you have to go, the deeper in the myre.\footnote{
+    Remember, you can always get a fresh copy in 
+    \code{conf/\-XXX/\-rules.mak}.
+    }
+
+The primary variable to configure is \code{Root}, which identifies
+the absolute location of the library.  If you change this variable,
+there should be no external effects.  The other variables are 
+commented sufficiently so that you should be able to figure them out.  
+
+\portings{ 
+    You should look at the files in the \code{porting} 
+    directory at this point.
+
+    You may want to add \code{SysTypesCheck} to the list
+    of true preprocessor variables.  See the make macro
+    \code{M2PPVARS} or \code{M2ppFlags}.
+}
+\newpage
+\msdoss{ 
+    MS-DOS names must be kept short.  Therefore,
+    you should not change the \code{Root} to be very long.   This problem
+    is particularly acute on Logitech 3.0 which requires absolute
+    directories in the environment variable \code{M2OBJ}.
+}
+
+\index{\code{Strip} Comments}
+    You may want to modify the make macro
+    \code{M2pp} in \code{rules.mak} to be:
+\begin{verbatim}
+    M2pp = m2pp/Strip
+\end{verbatim}
+\begin{quote}
+    This will
+    save a megabyte or two of disk space.  
+    
+    {\em WARNING: DO NOT REDISTRIBUTE
+    STRIPPED SOURCES; YOU WILL BE IN VIOLATION OF THE COPYRIGHT.}
+\end{quote}   
+
+\subsection{\code{PATH} Environment Variable}
+\index{\code{PATH} Environment Variable}
+
+In the root \code{bin} directory, you will find a compiled version of
+the Modula-2 preprocessor as well as \code{make} if you are running
+on the PC.  For the compile to work, you will need to add this directory
+to your \code{PATH} environment variable.  For further information on the
+\code{PATH} environment variable,
+see the manual for your particular
+command interpreter.
+
+\section{Compiling}
+
+If the configuration is correct, you should go to the root
+directory of the library and type: \code{make}.  However, a more 
+prudent approach is to go to the directory \code{gen/\-bin}
+or \code{gen$\backslash$\-bin} and execute \code{make -n}.  This prints
+out interesting error messages if you have done something wrong.
+Otherwise, it lists a myriad of preprocessing and 
+compiling commands.
+
+Here is a quick trouble shooting guide:
+\begin{description} \index{\code{make} errors}
+\item[{\tt Command not found}] ---
+    Your \code{PATH} is set incorrectly.
+
+\item[{\tt rules.mak: include file not found}] ---
+    The root \code{bin} directory is not in the same place as the
+    makefile expects.  Edit {\em all} the \code{environ.mak} files.
+
+\item[{\tt Don't know how to make.}] ---
+    This may mean that all the files didn't get on the disk or that
+    you have removed some accidently.  The name printed by make should
+    give you a good clue as to the problem.  If this is not the case,
+    perhaps you should read up on make...
+    
+\item[{\tt xxx: is up to date}] ---
+    Check the clock on your computer.  If it is wrong, you will
+    need to set it and start again.
+
+\item[Other messages] ---
+    Your guess is as good as mine.
+
+\end{description}
+
+\subsection{Testing}
+
+When you type \code{make} in the root directory of the library,
+nothing will be compiled in the \code{test} directories.  This
+is to conserve disk space (there were 76 test programs at
+last count).  To test the library, you can go into any one of
+the test directories and type \code{make}.  
+A more appropriate method is to look at some of the test programs and
+compile those which you find to be interesting.  The
+test programs also serve as poorly written examples of the library.
+
+The \code{demo} directory has a program called \code{Solver}, which
+is a multi-tasking automatic maze solver.  It is an unintelligent algorithm
+but works the lightweight process environment thoroughly.  If this program runs,
+most other programs will probably run as well.
+
+
+\section{Installing the Library}
+\index{Installing} \index{\code{bin} directory} \index{\code{lib} directory}
+\index{\code{lwp.lib} directory}
+
+By now you should be a \code{make} expert and possibly have a little
+less hair.  Some of the test programs should have been compiled,
+run, and work to your satisfaction.  It is time to install the library.
+Do this by typing: \code{make install} in the root directory.  This will run a
+script or batch file called \code{mk\_install} or \code{mk\_inst} in each
+of the compilation directories.  The script copies the binaries to the 
+install directories listed in {\tt rules.mak}.
+
+The makefiles have been set up to install files in three locations.
+The default names are listed below.
+
+\begin{description}
+\item[{\tt bin}] is the installed home of the executable files from 
+	the \code{tools} directory.
+	
+\item[{\tt lib}] is the home of the non-LWP version of the library.
+
+\item[{\tt lwp.lib}] is the home of the LWP binaries.
+
+\end{description}
+
+\code{lib} and \code{lwp.lib} have been separated for the following reasons:
+\begin{itemize}
+\item
+    Lightweight processes are not required for the majority of programs.
+\item
+    Some modules have different implementations for LWP and non-LWP
+    worlds, thus the separation is necessary to avoid naming confusion.
+\end{itemize}
+
+\index{Linking Lightweight Processes}
+\index{Lightweight Processes, Linking}
+If you would like to use LWPs, put the \code{lwp.lib} directory {\em before}
+the \code{lib} directory in your module search path.  
+This tells the compiler and linker to use the LWP versions
+of the modules.  Doing the reverse will cause strange bugs at unpredictable
+times.  Look in any of the \code{lwp.bin} directories in the library for
+examples of how to set up your path.
+
+\section{Final Test}
+
+After installing the library, try to compile a test program
+in your normal working directory.
+If all goes well, you may want to archive
+the sources and non-installed binaries to free up the disk space.
+
+

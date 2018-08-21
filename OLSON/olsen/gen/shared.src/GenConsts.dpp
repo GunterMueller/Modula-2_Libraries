@@ -1,0 +1,66 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE GenConsts;
+(*
+ * Provides general constants and types to aid portable programs.
+ *
+ * The values defined here should remain portable.
+ * The constants are string lengths and their respective types.  
+ * Alas, Modula-2 is not a language of convenient strings (see doc).
+ *)
+EXPORT QUALIFIED
+    maxIdentifierLength,
+    Identifier,
+    maxLineLength,
+    Line;
+   
+CONST
+    maxIdentifierLength = 32;
+TYPE
+    Identifier = ARRAY[ 0 .. maxIdentifierLength - 1 ] OF CHAR;
+    (*
+     * Designed for reasonableness of names.
+     *
+     * Many modules provide services which can be tagged with
+     * identifiers and thus a common size seems to be a good idea.
+     * This number is not necessarily system specific, but can 
+     * vary from implementation to implementation.
+     *)
+
+CONST
+    maxLineLength = 100;
+TYPE
+    Line = ARRAY[ 0 .. maxLineLength - 1 ] OF CHAR;
+    (*
+     * Designed for reasonableness of error messages and input
+     * buffering. The idea is that if you output a line with this
+     * length to a standard text file, you probably won't get
+     * the user too angry with you. For those of you who still
+     * don't understand, another name for this variable might
+     * be: ZeroDotDotSeventyNine, ZeroPointPointSoixanteDixNeuf
+     * ou NullDoppelPunktNeunundsiebzig, usw. This number is not 
+     * necessarily system specific, but will probably vary with
+     * the type of implementation (i.e. micro to maxi).
+     *)
+
+END GenConsts.

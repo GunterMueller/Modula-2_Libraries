@@ -1,0 +1,73 @@
+DEFINITION MODULE BagEnum;
+(*==============================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Bag Enumerations Utility
+
+    THE ABSTRACTION
+    This module provides definitions of the standard bag exceptions
+    and operations.
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins:
+        Initial TopSpeed implementation.
+
+    (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+CONST ComponentID = 1024;	(*-- must be a multiple of 256 *)
+
+    (*---------------------------------*)
+    (*--        BAG OPERATIONS       --*)
+
+TYPE  Operations = (
+                    (*-- Module Initialization *)
+                    modinit,
+
+                    (*-- Constructors *)
+                    create, destroy, clear, assign, include, exclude,
+                    union, intersection, difference, symdifference,
+
+
+                    (*-- Selectors *)
+                    isdefined, isempty, isequal, sizeof, typeof,
+                    ismember, issubset, ispropersubset,
+					nummembers, uniquemembers, numberof,
+
+                    (*-- Iterators *)
+                    loopover, traverse,
+
+                    (*-- Guarded Concurrent Operations *)
+                    seize, release
+                   );
+
+TYPE  Constructors = Operations [ create    .. symdifference ];
+TYPE  Selectors    = Operations [ isdefined .. numberof ];
+TYPE  Iterators    = Operations [ loopover  .. traverse ];
+TYPE  GuardedOps   = Operations [ seize     .. release ];
+
+
+    (*---------------------------------*)
+    (*--       BAG EXCEPTIONS        --*)
+
+TYPE  Exceptions = (noerr,      (*-- Nothing went wrong, all's well. *)
+                    initfailed, (*-- Module initialization failure. *)
+
+                    domainerr,  (*-- Item outside the Universe, or
+                                  -- Bag Universes mismatched, or
+                                  -- Invalid Universe definition *)
+
+                    notinbag,   (*-- Item does not exist in bag *)
+
+                    overflow,   (*-- Bag cannot grow big enough for
+                                  -- the requested operation. *)
+
+                    typeerror,  (*-- TypeID mismatch between bags *)
+
+                    undefined   (*-- Bag has not been Created, or
+                                  -- bag has been Destroyed. *)
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END BagEnum.

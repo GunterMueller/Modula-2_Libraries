@@ -1,0 +1,177 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TaskNotices;
+(*
+ * Creates the notices and initializes exitRequested to FALSE.
+ * We need to get inside TasksPRIVATE for the callOnBirth and callOnDeath
+ * procedure variables.  Since there are only two possible registrants
+ * (TaskInfo and this module), a generalized install mechanism was not
+ * required.  Note that this procedure is only called for tasks which
+ * are newly created not by ones which exist already.
+ *
+ * This module also supports notices which can be useful in the event
+ *)
+IMPORT 
+    Notices,
+    SYSTEM,
+    SysTypes,
+    Tasks,
+    TasksPRIVATE;
+
+IMPORT
+    TaskInfo;	(* Must be here to guarantee import order *)
+
+VAR
+    birthNotice    : Notices.Object;	(* firstRegisteredFirstCalled *)
+    birthInstalled : BOOLEAN;		(* Only true if BirthProc installed *)
+    deathNotice    : Notices.Object;	(* firstRegisteredLastCalled *)
+    deathInstalled : BOOLEAN;		(* Only true if DeathProc installed *)
+    exitNotice     : Notices.Object;	(* firstRegisteredFirstCalled *)
+
+PROCEDURE GetBirth(
+    ) : Notices.Object;
+    BEGIN (* GetBirth *)
+
+	(* 
+	 * Register with TasksPRIVATE, if required 
+	 * must be a in a protected section and this is easy.
+	 *)
+	Tasks.DisallowPreemption;
+	    IF NOT birthInstalled THEN
+		oldCallOnBirth := TasksPRIVATE.callOnBirth;
+		TasksPRIVATE.callOnBirth := BirthProc;
+		birthInstalled := TRUE;
+	    END;
+	Tasks.AllowPreemption;
+
+	RETURN birthNotice;
+    END GetBirth;
+
+
+PROCEDURE GetDeath(
+    ) : Notices.Object;
+    BEGIN (* GetDeath *)
+
+	(* 
+	 * Register with TasksPRIVATE, if required 
+	 * must be a in a protected section and this is easy.
+	 *)
+	Tasks.DisallowPreemption;
+	    IF NOT deathInstalled THEN
+		oldCallOnDeath := TasksPRIVATE.callOnDeath;
+		TasksPRIVATE.callOnDeath := DeathProc;
+		deathInstalled := TRUE;
+	    END;
+	Tasks.AllowPreemption;
+
+	RETURN deathNotice;
+    END GetDeath;
+
+
+PROCEDURE GetExitRequest(
+    ) : Notices.Object;
+    BEGIN (* GetExitRequest *)
+
+	RETURN exitNotice;
+
+    END GetExitRequest;
+
+VAR
+    exitRequested : BOOLEAN;	(* Initialized to false and set to true
+				   by ExitProc *)
+
+    
+PROCEDURE WasExitRequested(
+    ) : BOOLEAN;
+    BEGIN (* WasExitRequested *)
+
+	RETURN exitRequested;
+
+    END WasExitRequested;
+
+(*
+ * The rest of this code really does the work.
+ *)
+VAR
+    notifier : Tasks.Object;
+PROCEDURE ExitProc(
+    DONTCARE : SysTypes.ANYPTR
+    );
+    (*
+     * This procedure is firstRegistered with the ExitRequest notice
+     * so that we may set the exitRequested variable to true.  It is
+     * never reset. 
+     *)
+    BEGIN (* ExitProc *)
+
+	exitRequested := TRUE;
+
+    END ExitProc;
+
+(*
+ * The following procedure variables will be initialized to 
+ * TaskInfo's internal Birth/Death procedures.  When we call the
+ * notices we must make sure that task is intact, that is,
+ * the old birth proc is called before the birthNotice and
+ * the deathNotice is called before the old death proc.
+ *)
+VAR
+    oldCallOnBirth : PROC;	(* Will be TaskInfo.BirthProc *)
+    oldCallOnDeath : PROC;	(* Will be TaskInfo.DeathProc *)
+
+PROCEDURE BirthProc;
+    BEGIN (* BirthProc *)
+
+	(* Initialize the task first *)
+	oldCallOnBirth;
+
+	Notices.Call( birthNotice, SysTypes.ANYPTR( Tasks.GetCurrent() ) );
+
+    END BirthProc;
+
+
+PROCEDURE DeathProc;
+    BEGIN (* DeathProc *)
+
+	(* Call the notice, then deinitialize the task information *)
+	Notices.Call( deathNotice, SysTypes.ANYPTR( Tasks.GetCurrent() ) );
+
+	oldCallOnDeath;
+
+    END DeathProc;
+
+
+BEGIN (* TaskNotices *)
+    
+    (* Set up the local variables before registering *)
+    exitRequested := FALSE;
+    Notices.Create( exitNotice, Notices.firstRegisteredFirstCalled );
+    (* Set up the ExitProc to be called first *)
+    Notices.Register( exitNotice, ExitProc );
+
+    birthInstalled := FALSE;
+    deathInstalled := FALSE;
+    Notices.Create( birthNotice, Notices.firstRegisteredFirstCalled );
+    Notices.Create( deathNotice, Notices.firstRegisteredLastCalled );
+
+END TaskNotices.

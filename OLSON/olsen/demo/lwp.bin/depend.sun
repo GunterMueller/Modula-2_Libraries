@@ -1,0 +1,22 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+KeyInput.def: ../lwp.src/KeyInput.dpp 
+	${StandardM2pp}
+Maze.def: ../lwp.src/Maze.dpp 
+	${StandardM2pp}
+Screen.def: ../lwp.src/Screen.dpp 
+	${StandardM2pp}
+KeyInput.mod: ../lwp.src/KeyInput.mpp 
+	${StandardM2pp}
+Maze.mod: ../lwp.src/Maze.mpp 
+	${StandardM2pp}
+Screen.mod: ../lwp.src/Screen.mpp 
+	${StandardM2pp}
+Solver.mod: ../lwp.src/Solver.mpp 
+	${StandardM2pp}

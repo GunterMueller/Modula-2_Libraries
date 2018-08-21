@@ -1,0 +1,123 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Bytes;
+(*
+ * Low-level memory manipulation facilities.
+ *
+ * Provides copy, comparison, searching, and positioning of SysTypes.SAUs
+ * with arbitrary blocks of memory. Aides Modula-2 string games by providing 
+ * a routine called CopyAsString that treats blocks of memory as strings.
+ *
+ * Some of these procedures require a single SAU (as opposed to a pointer).
+ * An SAU is not a magic type like SysTypes.ANY, so the value must be coerced.
+ * For example, to fill memory with zeros portably, one should use:
+ * 	Fill( SYSTEM.ADR( foo ), SYSTEM.TSIZE( FooType ), 
+ * 	      VAL( SysTypes.SAU, 0 ) );
+ * SAUs are scalar types on the majority of implementations, so this code
+ * fragment should be portable. 
+ *
+ * IMPORTANT:
+ *     This module may not be provided on all systems, but
+ *     if it is provided, the semantics will be identical.
+ *)
+IMPORT
+    Intrinsics,
+    SYSTEM,
+    SysTypes;
+
+EXPORT QUALIFIED
+    Copy, 	CopyAsString, 	Fill,	Compare, 	Position;
+
+PROCEDURE Copy(
+    source : SysTypes.SAUPTR; (* Base address of SAUs to copy *)
+    dest   : SysTypes.SAUPTR; (* Base address of where to copy *)
+    length : SysTypes.Card    (* Number of SAUs to be copied *)
+    );
+    (*
+     * Copies "length" SAUs from "source" to "dest",
+     * taking into account overlapping areas properly.
+     *)
+
+PROCEDURE Fill(
+    dest   : SysTypes.SAUPTR;   (* Base address of where to copy *)
+    length : SysTypes.Card;	(* Number of SAUs to copy *)
+    value  : SysTypes.SAU	(* Some value to fill *)
+    );
+    (* 
+     * Repetitive copy of the "value" into "dest".  
+     *)
+
+PROCEDURE CopyAsString(
+    sourceString : SYSTEM.ADDRESS;  (* Base address of string to copy *)
+    sourceLength : SysTypes.Card;   (* Length of source (HIGH+1) *)
+    destString   : SYSTEM.ADDRESS;  (* Base address of where to copy *)
+    destLength   : SysTypes.Card    (* Length of des (HIGH+1) *)
+    )            : SysTypes.Card;   (* Number of non-null SAUs copied *)
+    (*
+     * Copy source to dest treating both source and dest as
+     * addresses to modula-2 strings i.e. POINTER TO ARRAY OF CHAR.
+     *
+     * If a null is encountered in source, it is copied to dest and
+     * no other characters will be copied. If "destLength" is less than
+     * the dynamic length of the source (see Strings), only "destLength"
+     * characters are copied and the string is not null-terminated.
+     *)
+
+PROCEDURE Compare(
+    left   : SysTypes.SAUPTR;            (* Left side of equation *)
+    right  : SysTypes.SAUPTR;            (* Right side of equation *)
+    length : SysTypes.Card               (* Number of SAUs to compare *)
+    )      : Intrinsics.CompareResults;  (* Result: see module *)
+    (*
+     * Makes a byte-by-byte comparison of left and right for length
+     * (or fewer) SAUs. This defines an absolute ordering of all
+     * byte arrays.
+     *)
+
+PROCEDURE Position(
+        source     : SysTypes.SAUPTR; (* Base address of where to search *)
+        startIndex : SysTypes.Card;   (* Where to start search *)
+        stopIndex  : SysTypes.Card;   (* Where to stop search *)
+        toFind     : SysTypes.SAU;    (* What is to be found *)
+    VAR foundIndex : SysTypes.Card    (* Index of first matching SAU *)
+    )              : BOOLEAN;         (* toFind found => TRUE *)
+    (*
+     * Provides simple SAU scanning.  If the "toFind" occurs in the
+     * region of "source" + "startIndex" to "source" + "stopIndex",
+     * the operation succeeds and "foundIndex" points to index of
+     * the SAU found.
+     *
+     * Direction of search:
+     *     This procedure provides both forward and backward searching
+     *     of memory. The order of searching is dependent upon the values
+     *     of "startIndex" and "stopIndex".
+     *
+     *     If "startIndex" is less than "stopIndex", the source will
+     *     be searched in a left to right order.
+     *
+     *     If "startIndex" is greater than "stopIndex", the search will
+     *     proceed backwards from right to left.
+     *)
+
+END Bytes.
+

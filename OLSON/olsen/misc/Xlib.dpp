@@ -1,0 +1,707 @@
+(*$Copyright************************************************
+Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts,
+and the Massachusetts Institute of Technology, Cambridge, Massachusetts.
+
+                        All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its 
+documentation for any purpose and without fee is hereby granted, 
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in 
+supporting documentation, and that the names of Digital or MIT not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  
+
+DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+DIGITAL BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+SOFTWARE.
+
+******************************************************************)
+
+DEFINITION FOR C MODULE Xlib;
+(*
+ * Structures and functions of Xlib.
+ *)
+FROM UnixCtypes IMPORT
+    p_char,
+    pp_char,
+    short;
+
+FROM UnixCsys_types IMPORT
+    u_short;
+
+IMPORT
+    X;
+
+(*
+ * WARNING:
+ *     For some of the structures, I defined only the pointer
+ *     (as an opaque type), as I'm using associated vars as
+ *     IDs only (this is the case for XExtData for example).
+ *)
+
+(*
+ * The macros has obviously not been defined.
+ *)
+
+TYPE
+
+(*
+ * Extensions need a way to hang private data on some structures.
+ *)
+    XExtData;
+
+(*
+ * This file contains structures used by the extension mechanism.
+ *     XExtData
+ *)
+
+(*
+ * This structure is private to the library.
+ *     _XExtension
+ *)
+
+(*
+ * Data structure for setting graphics context.
+ *)
+    struct_XGCValues = RECORD
+        function           : INTEGER;
+        plane_mask         : CARDINAL;
+        foreground         : CARDINAL;
+        background         : CARDINAL;
+        line_width         : INTEGER;
+        line_style         : INTEGER;
+        cap_style          : INTEGER;
+        join_style         : INTEGER;
+        fill_style         : INTEGER;
+        fill_rule          : INTEGER;
+        arc_mode           : INTEGER;
+        tile               : X.Pixmap;
+        stipple            : X.Pixmap;
+        ts_x_origin        : INTEGER;
+        ts_y_origin        : INTEGER;
+        font               : X.Font;
+        subwindow_mode     : INTEGER;
+        graphics_exposures : BOOLEAN;
+        clip_x_origin      : INTEGER;
+        clip_y_origin      : INTEGER;
+        clip_mask          : X.Pixmap;
+        dash_offset        : INTEGER;
+        dashes             : CHAR;
+    END;
+    XGCValues = POINTER TO struct_XGCValues;
+
+(*
+ * Graphics context. All Xlib routines deal in this rather than
+ * in raw protocol GContext ID's. This is so that the library can
+ * keep a "shadow" set of values, and thus avoid passing values
+ * over the wire which are not in fact changing. 
+ *)
+    struct_GC = RECORD
+        ext_data : XExtData;
+        gid      : X.GContext;
+        rects    : BOOLEAN;
+        dashes   : BOOLEAN;
+        dirty    : CARDINAL;
+        values   : struct_XGCValues;
+    END;
+    GC = POINTER TO struct_GC;
+
+(*
+ * Visual structure; contains information about colormapping possible.
+ *)
+    Visual;
+
+(*
+ * Depth structure; contains information for each possible depth.
+ *)
+    Depth;
+
+(*
+ * Information about the screen.
+ *)
+    Screen;
+
+(*
+ * Format structure; describes ZFormat data the screen will understand.
+ *     ScreenFormat
+ *)
+
+(*
+ * Data structure for setting window attributes.
+ *)
+    struct_XSetWindowAttributes = RECORD
+        background_pixmap     : X.Pixmap;
+        background_pixel      : CARDINAL;
+        border_pixmap         : X.Pixmap;
+        border_pixel          : CARDINAL;
+        bit_gravity           : INTEGER;
+        win_gravity           : INTEGER;
+        backing_store         : INTEGER;
+        backing_planes        : CARDINAL;
+        backing_pixel         : CARDINAL;
+        save_under            : BOOLEAN;
+        event_mask            : INTEGER;
+        do_not_propagate_mask : INTEGER;
+        override_redirect     : BOOLEAN;
+        colormap              : X.Colormap;
+        cursor                : X.Cursor;
+    END;
+    XSetWindowAttributes = POINTER TO struct_XSetWindowAttributes;
+
+    XWindowAttributes= RECORD
+        x                     : INTEGER;
+        y                     : INTEGER;
+        width, height         : INTEGER;
+        border_width          : INTEGER;
+        depth                 : INTEGER;
+        visual                : Visual;
+        root                  : X.Window;
+        class                 : INTEGER;
+        bit_gravity           : INTEGER;
+        win_gravity           : INTEGER;
+        backing_store         : INTEGER;
+        backing_planes        : CARDINAL;
+        backing_pixel         : CARDINAL;
+        save_under            : BOOLEAN;
+        colormap              : X.Colormap;
+        map_installed         : BOOLEAN;
+        map_state             : INTEGER;
+        all_event_masks       : INTEGER;
+        your_event_mask       : INTEGER;
+        do_not_propagate_mask : INTEGER;
+        override_redirect     : BOOLEAN;
+        screen                : Screen;
+    END;
+
+(*
+ * Data structure for host setting; getting routines.
+ *     XHostAddress
+ *)
+
+(*
+ * Data structure for "image" data, used by image manipulation routines.
+ *)
+    XImage;
+
+(* 
+ * Data structure for XReconfigureWindow.
+ *     XWindowChanges
+ *)
+
+(*
+ * Data structure used by color operations.
+ *     XColor
+ *)
+
+(* 
+ * Data structures for graphics operations. On most machines,
+ * these are congruent with the wire protocol structures, so
+ * reformatting the data can be avoided on these architectures.
+ *     XSegment
+ *     XPoint
+ *     XRectangle
+ *     XArc
+ *)
+
+(*
+ * Data structure for XChangeKeyboardControl.
+ *     XKeyboardControl
+ *)
+
+(*
+ * Data structure for XGetKeyboardControl.
+ *     XKeyboardState
+ *)
+
+(*
+ * Data structure for XGetMotionEvents.
+ *     XTimeCoord
+ *)
+
+(*
+ * Data structure for X{Set,Get}ModifierMapping.
+ *     XModifierKeymap
+ *)
+
+(*
+ * Display datatype maintaining display specific data.
+ *)
+    Display;
+
+(*
+ * "XEvent" structure always has type as the first entry. This 
+ * uniquely identifies what kind of event it is. Second entry
+ * is always a pointer to the display the event was read from.
+ * The third entry is always a window of one type or another,
+ * carefully selected to be useful to toolkit dispatchers.
+ * (Except for keymap events, which have no window.) You must
+ * not change the order of the three elements or toolkits will
+ * break! The pointer to the generic event must be cast before
+ * use to access any other information in the structure.
+ *)
+
+(*
+ * Definitions of specific events.
+ *)
+    XKeyEvent = RECORD
+	type        : INTEGER;	 (* of event *)
+	serial      : CARDINAL;	 (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from a SendEvent *)
+	display     : Display;   (* Display the event was read from *)
+	window      : X.Window;	 (* "event" window it is reported relative to *)
+	root        : X.Window;	 (* root window that the event occured on *)
+	subwindow   : X.Window;	 (* child window *)
+	time        : X.Time;	 (* milliseconds *)
+	x           : INTEGER;	 (* pointer x, y coord in window *)
+	y           : INTEGER;	 (* pointer x, y coord in window *)
+	x_root      : INTEGER;	 (* coordinates relative to root *)
+	y_root      : INTEGER;	 (* coordinates relative to root *)
+	state       : CARDINAL;	 (* key or button mask *)
+	keycode     : CARDINAL;	 (* detail *)
+	same_screen : BOOLEAN;	 (* same screen flag *)
+    END;
+
+    XKeyPressedEvent  = XKeyEvent;
+    XKeyReleasedEvent = XKeyEvent;
+
+    XButtonEvent = RECORD
+	type        : INTEGER;	 (* of event *)
+	serial      : CARDINAL;	 (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from a SendEvent *)
+	display     : Display;	 (* Display the event was read from *)
+	window      : X.Window;	 (* "event" window reported relative to *)
+	root        : X.Window;  (* root window that the event occured on *)
+	subwindow   : X.Window;  (* child window *)
+	time        : X.Time;	 (* milliseconds *)
+	x           : INTEGER;	 (* pointer x, y coord in window *)
+	y           : INTEGER;	 (* pointer x, y coord in window *)
+	x_root      : INTEGER; 	 (* coord relative to root *)
+	y_root      : INTEGER;	 (* coord relative to root *)
+	state       : CARDINAL;	 (* key or button mask *)
+	button      : CARDINAL;	 (* detail *)
+	same_screen : BOOLEAN;	 (* same screen flag *)
+    END;
+
+    XButtonPressedEvent  = XButtonEvent;
+    XButtonReleasedEvent = XButtonEvent;
+
+    XMotionEvent = RECORD
+	type        : INTEGER;	 (* of event *)
+	serial      : CARDINAL;	 (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from SendEvent *)
+	display     : Display;	 (* Display the event was read from *)
+	window      : X.Window;	 (* "event" window reported relative to *)
+	root        : X.Window;	 (* root window that the event occured on *)
+	subwindow   : X.Window;	 (* child window *)
+	time        : X.Time;	 (* milliseconds *)
+	x           : INTEGER;	 (* pointer x, y coord in window *)
+	y           : INTEGER;	 (* pointer x, y coord in window *)
+	x_root      : INTEGER;	 (* coord relative to root *)
+	y_root      : INTEGER;	 (* coord relative to root *)
+	state       : CARDINAL;	 (* key or button mask *)
+	is_hint     : CHAR;	 (* detail *)
+	same_screen : BOOLEAN;	 (* same screen flag *)
+    END;
+
+    XPointerMovedEvent = XMotionEvent;
+
+    XCrossingEvent = RECORD
+	type        : INTEGER;	 (* of event *)
+	serial      : CARDINAL;  (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from SendEvent *)
+	display     : Display;	 (* Display the event was read from *)
+	window      : X.Window;  (* "event" window reported relative to *)
+	root        : X.Window;  (* root window that the event occured on *)
+	subwindow   : X.Window;  (* child window *)
+	time        : X.Time;	 (* milliseconds *)
+	x           : INTEGER;	 (* pointer x, y coord in event window *)
+	y           : INTEGER;	 (* pointer x, y coord in event window *)
+	x_root      : INTEGER;	 (* coord relative to root *)
+	y_root      : INTEGER;	 (* coord relative to root *)
+	mode        : INTEGER;	 (* NotifyNormal, NotifyGrab, NotifyUngrab *)
+	detail      : INTEGER;   (* NotifyAncestor, ... *)
+	same_screen : BOOLEAN;	 (* same screen flag *)
+	focus       : BOOLEAN;	 (* boolean focus *)
+	state       : CARDINAL;  (* key or button mask *)
+    END;
+
+    XEnterWindowEvent = XCrossingEvent;
+    XLeaveWindowEvent = XCrossingEvent;
+
+    XFocusChangeEvent = RECORD
+	type       : INTEGER;	(* FocusIn or FocusOut *)
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;	(* window of event *)
+	mode       : INTEGER;	(* NotifyNormal, NotifyGrab, NotifyUngrab *)
+	detail     : INTEGER;   (* NotifyAncestor, NotifyVirtual ... *)
+    END;
+
+    XFocusInEvent  = XFocusChangeEvent;
+    XFocusOutEvent = XFocusChangeEvent;
+
+    (* generated on EnterWindow and FocusIn when KeyMapState selected *)
+    XKeymapEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	key_vector : ARRAY [ 0 .. 31 ] OF CHAR;
+    END;
+
+    XExposeEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	x          : INTEGER;
+	y          : INTEGER;
+	width      : INTEGER;
+	height     : INTEGER;
+	count      : INTEGER;	(* if non-zero, at least this many more *)
+    END;
+
+    XGraphicsExposeEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	drawable   : X.Drawable;
+	x          : INTEGER;
+	y          : INTEGER;
+	width      : INTEGER;
+	height     : INTEGER;
+	count      : INTEGER;	(* if non-zero, at least this many more *)
+	major_code : INTEGER;	(* core is CopyArea or CopyPlane *)
+	minor_code : INTEGER;	(* not defined in the core *)
+    END;
+
+    XNoExposeEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	drawable   : X.Drawable;
+	major_code : INTEGER;	(* core is CopyArea or CopyPlane *)
+	minor_code : INTEGER;	(* not defined in the core *)
+    END;
+
+    XVisibilityEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	state      : INTEGER;	(* either Obscured or UnObscured *)
+    END;
+
+    XCreateWindowEvent = RECORD
+	type         : INTEGER;
+	serial       : CARDINAL;  (* # of last request processed *)
+	send_event   : BOOLEAN;	  (* true if came from SendEvent *)
+	display      : Display;	  (* Display the event was read from *)
+	parent       : X.Window;  (* parent of the window *)
+	window       : X.Window;  (* window id of window created *)
+	x            : INTEGER;	  (* window location *)
+	y            : INTEGER;	  (* window location *)
+	width        : INTEGER;	  (* size of window *)
+	height       : INTEGER;	  (* size of window *)
+	border_width : INTEGER;
+	o_redirect   : BOOLEAN;
+    END;
+
+    XDestroyWindowEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	event      : X.Window;
+	window     : X.Window;
+    END;
+
+    XUnmapEvent = RECORD
+	type        : INTEGER;
+	serial      : CARDINAL;	 (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from SendEvent *)
+	display     : Display;	 (* Display the event was read from *)
+	event       : X.Window;
+	window      : X.Window;
+	f_configure : BOOLEAN;
+    END;
+
+    XMapEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	event      : X.Window;
+	window     : X.Window;
+	o_redirect : BOOLEAN;
+    END;
+
+    XMapRequestEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	parent     : X.Window;
+	window     : X.Window;
+    END;
+
+    XReparentEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	event      : X.Window;
+	window     : X.Window;
+	parent     : X.Window;
+	x          : INTEGER;
+	y          : INTEGER;
+	o_redirect : BOOLEAN;
+    END;
+
+    XConfigureEvent = RECORD
+	type         : INTEGER;
+	serial       : CARDINAL;  (* # of last request processed *)
+	send_event   : BOOLEAN;	  (* true if came from SendEvent *)
+	display      : Display;	  (* Display the event was read from *)
+	event        : X.Window;
+	window       : X.Window;
+	x            : INTEGER;
+	y            : INTEGER;
+	width        : INTEGER;
+	height       : INTEGER;
+	border_width : INTEGER;
+	above        : X.Window;
+	o_redirect   : BOOLEAN;
+    END;
+
+    XGravityEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	event      : X.Window;
+	window     : X.Window;
+	x          : INTEGER;
+	y          : INTEGER;
+    END;
+
+    XResizeRequestEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	width      : INTEGER;
+	height     : INTEGER;
+    END;
+
+    XConfigureRequestEvent = RECORD
+	type         : INTEGER;
+	serial       : CARDINAL;  (* # of last request processed *)
+	send_event   : BOOLEAN;	  (* true if came from SendEvent *)
+	display      : Display;	  (* Display the event was read from *)
+	parent       : X.Window;
+	window       : X.Window;
+	x            : INTEGER;
+	y            : INTEGER;
+	width        : INTEGER;
+	height       : INTEGER;
+	border_width : INTEGER;
+	above        : X.Window;
+	detail       : INTEGER;	  (* Above, Below, TopIf... *)
+	value_mask   : CARDINAL;
+    END;
+
+    XCirculateEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;  (* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	event      : X.Window;
+	window     : X.Window;
+	place      : INTEGER;	(* PlaceOnTop, PlaceOnBottom *)
+    END;
+
+    XCirculateRequestEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	parent     : X.Window;
+	window     : X.Window;
+	place      : INTEGER;	(* PlaceOnTop, PlaceOnBottom *)
+    END;
+
+    XPropertyEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	atom       : X.Atom;
+	time       : X.Time;
+	state      : INTEGER;	(* NewValue, Deleted *)
+    END;
+
+    XSelectionClearEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;
+	selection  : X.Atom;
+	time       : X.Time;
+    END;
+
+    XSelectionRequestEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	owner      : X.Window;	(* must be next after type *)
+	requestor  : X.Window;
+	selection  : X.Atom;
+	target     : X.Atom;
+	property   : X.Atom;
+	time       : X.Time;
+    END;
+
+    XSelectionEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	requestor  : X.Window;	(* must be next after type *)
+	selection  : X.Atom;
+	target     : X.Atom;
+	property   : X.Atom; 	(* ATOM or None *)
+	time       : X.Time;
+    END;
+
+    XColormapEvent = RECORD
+	type        : INTEGER;
+	serial      : CARDINAL;	 (* # of last request processed *)
+	send_event  : BOOLEAN;	 (* true if came from SendEvent *)
+	display     : Display;	 (* Display the event was read from *)
+	window      : X.Window;
+	colormap    : X.Colormap;
+	new         : BOOLEAN;
+	state       : INTEGER;	 (* ColormapInstalled, Uninstalled *)
+    END;
+
+    XClientMessageEvent = RECORD
+	type         : INTEGER;
+	serial       : CARDINAL; (* # of last request processed *)
+	send_event   : BOOLEAN;	 (* true if came from SendEvent *)
+	display      : Display;	 (* Display the event was read from *)
+	window       : X.Window;
+	message_type : X.Atom;
+	format       : INTEGER;
+        data : RECORD
+	    b : ARRAY [ 0 .. 19 ] OF CHAR;
+	    s : ARRAY [ 0 .. 9  ] OF short;
+	    l : ARRAY [ 0 .. 14 ] OF INTEGER;
+        END;
+    END;
+
+    XMappingEvent = RECORD
+	type          : INTEGER;
+	serial        : CARDINAL;  (* # of last request processed *)
+	send_event    : BOOLEAN;   (* true if came from SendEvent *)
+	display       : Display;   (* Display the event was read from *)
+	window        : X.Window;  (* unused *)
+	request       : INTEGER;   (* one of MappingModifier, Keyboard... *)
+	first_keycode : INTEGER;   (* first keycode *)
+	count         : INTEGER;   (* defines range of change w. first_keycode*)
+    END;
+
+    XErrorEvent = RECORD
+	type         : INTEGER;
+	display      : Display;	  (* Display the event was read from *)
+	resourceid   : X.XID;	  (* resource id *)
+	serial       : CARDINAL;  (* serial number of failed request *)
+	error_code   : CHAR;	  (* error code of failed request *)
+	request_code : CHAR;	  (* Major op-code of failed request *)
+	minor_code   : CHAR;	  (* Minor op-code of failed request *)
+    END;
+
+    XAnyEvent = RECORD
+	type       : INTEGER;
+	serial     : CARDINAL;	(* # of last request processed *)
+	send_event : BOOLEAN;	(* true if came from SendEvent *)
+	display    : Display;	(* Display the event was read from *)
+	window     : X.Window;	(* on which event was requested *)
+    END;
+
+(*
+ * This union is defined so Xlib can always use the same sized
+ * event structure internally, to avoid memory fragmentation.
+ *)
+    struct_XEvent = RECORD
+        type              : INTEGER;  (* Not be changed: first *)
+	xany              : XAnyEvent;
+	xkey              : XKeyEvent;
+	xbutton           : XButtonEvent;
+	xmotion           : XMotionEvent;
+	xcrossing         : XCrossingEvent;
+	xfocus            : XFocusChangeEvent;
+	xexpose           : XExposeEvent;
+	xgraphicsexpose   : XGraphicsExposeEvent;
+	xnoexpose         : XNoExposeEvent;
+	xvisibility       : XVisibilityEvent;
+	xcreatewindow     : XCreateWindowEvent;
+	xdestroywindow    : XDestroyWindowEvent;
+	xunmap            : XUnmapEvent;
+	xmap              : XMapEvent;
+	xmaprequest       : XMapRequestEvent;
+	xreparent         : XReparentEvent;
+	xconfigure        : XConfigureEvent;
+	xgravity          : XGravityEvent;
+	xresizerequest    : XResizeRequestEvent;
+	xconfigurerequest : XConfigureRequestEvent;
+	xcirculate        : XCirculateEvent;
+	xcirculaterequest : XCirculateRequestEvent;
+	xproperty         : XPropertyEvent;
+	xselectionclear   : XSelectionClearEvent;
+	xselectionrequest : XSelectionRequestEvent;
+	xselection        : XSelectionEvent;
+	xcolormap         : XColormapEvent;
+	xclient           : XClientMessageEvent;
+	xmapping          : XMappingEvent;
+	xerror            : XErrorEvent;
+	xkeymap           : XKeymapEvent;
+	pad               : ARRAY [ 0 .. 23 ] OF INTEGER;
+    END;
+    XEvent = POINTER TO struct_XEvent;
+
+(*
+ * Per character font metric information.
+ *     XCharStruct
+ *)
+
+(*
+ * To allow arbitrary information with fonts,
+ * there are additional properties returned.
+ *     XFontProp
+ *     XFontStruct
+ *)
+
+(*
+ * PolyText routines take these as arguments.
+ *     XTextItem
+ *     XChar2b
+ *     XTextItem16
+ *)
+
+END Xlib.

@@ -1,0 +1,7 @@
+M2Defs= conffio.def convertf.def datafio.def errorfio.def fiobase.def  \
+        fiobool.def fiocard.def fioint.def fiopriva.def fioreal.def  \
+        fioscree.def fiostrin.def formatio.def simplefi.def 
+M2Imps= conffio.mod convertf.mod datafio.mod errorfio.mod fiobase.mod  \
+        fiobool.mod fiocard.mod fioint.mod fiopriva.mod fioreal.mod  \
+        fioscree.mod fiostrin.mod formatio.mod simplefi.mod 
+M2Mods= 

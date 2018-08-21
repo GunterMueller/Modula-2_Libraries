@@ -1,0 +1,52 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+gentesti.def: ..\test.src\gentesti.dpp 
+	${StandardM2pp}
+stringli.def: ..\test.src\stringli.dpp 
+	${StandardM2pp}
+testio.def: ..\test.src\testio.dpp 
+	${StandardM2pp}
+testsyst.def: ..\test.src\testsyst.dpp 
+	${StandardM2pp}
+gentesti.mod: ..\test_pc.src\gentesti.mpp 
+	${StandardM2pp}
+tcrash.mod: ..\test.src\tcrash.mpp 
+	${StandardM2pp}
+stringli.mod: ..\test.src\stringli.mpp 
+	${StandardM2pp}
+testcrc1.mod: ..\test.src\testcrc1.mpp 
+	${StandardM2pp}
+testcard.mod: ..\test.src\testcard.mpp 
+	${StandardM2pp}
+testio.mod: ..\test.src\testio.mpp 
+	${StandardM2pp}
+testintc.mod: ..\test.src\testintc.mpp 
+	${StandardM2pp}
+testname.mod: ..\test.src\testname.mpp 
+	${StandardM2pp}
+testreal.mod: ..\test.src\testreal.mpp 
+	${StandardM2pp}
+teststri.mod: ..\test.src\teststri.mpp 
+	${StandardM2pp}
+testsyst.mod: ..\test.src\testsyst.mpp 
+	${StandardM2pp}
+tbytes.mod: ..\test.src\tbytes.mpp 
+	${StandardM2pp}
+tdebugfl.mod: ..\test.src\tdebugfl.mpp 
+	${StandardM2pp}
+thello.mod: ..\test.src\thello.mpp 
+	${StandardM2pp}
+tprogarg.mod: ..\test.src\tprogarg.mpp 
+	${StandardM2pp}
+tprogenv.mod: ..\test.src\tprogenv.mpp 
+	${StandardM2pp}
+tqstring.mod: ..\test.src\tqstring.mpp 
+	${StandardM2pp}
+tsystype.mod: ..\test.src\tsystype.mpp 
+	${StandardM2pp}

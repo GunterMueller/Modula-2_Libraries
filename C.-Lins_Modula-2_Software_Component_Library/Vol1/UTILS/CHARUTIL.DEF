@@ -1,0 +1,133 @@
+DEFINITION MODULE CharUtils;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tool- Primitive Utility - Character Utilities
+
+    INTRODUCTION
+    This module provides elementary character operations.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    PROPRIETARY NOTICES
+    CharUtils.DEF Copyright (C) 1989 Charles A. Lins.
+====================================================================*)
+
+FROM ASCII IMPORT (*--Cons*) nul, us, del, space, tilde;
+
+       (*--------------------*)
+
+TYPE  AsciiCharacter	 = CHAR [ nul	.. del	 ];
+TYPE  ControlCharacter	 = CHAR [ nul	.. us	 ];
+TYPE  GraphicCharacter	 = CHAR [ space .. tilde ];
+
+TYPE  UppercaseCharacter = CHAR [ 'A' .. 'Z' ];
+TYPE  LowercaseCharacter = CHAR [ 'a' .. 'z' ];
+
+TYPE  BinaryCharacter	 = CHAR [ '0' .. '1' ];
+TYPE  OctalCharacter	 = CHAR [ '0' .. '7' ];
+TYPE  DigitCharacter	 = CHAR [ '0' .. '9' ];
+TYPE  HexCharacter	 = CHAR [ 'A' .. 'F' ];
+
+
+TYPE  Digit = CARDINAL [ 0 .. 15 ];
+
+TYPE  BinaryDigit  = CARDINAL [ 0 .. 1 ];
+TYPE  OctalDigit   = CARDINAL [ 0 .. 7 ];
+TYPE  DecimalDigit = CARDINAL [ 0 .. 9 ];
+TYPE  HexDigit	   = Digit;
+
+TYPE  Letter = CARDINAL [ 1 .. 26 ];
+
+       (*--------------------*)
+
+PROCEDURE MakeUppercase  (VAR theChar : CHAR	(*-- inout *));
+
+PROCEDURE MakeLowercase  (VAR theChar : CHAR	(*-- inout *));
+
+
+PROCEDURE Uppercase	 (    theChar : CHAR	(*-- in    *))
+				      : CHAR	(*-- out   *);
+
+PROCEDURE Lowercase	 (    theChar : CHAR	(*-- in    *))
+				      : CHAR	(*-- out   *);
+
+
+PROCEDURE IsAscii	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsControl	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsGraphic	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+
+PROCEDURE IsLowercase	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsUppercase	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsAlphabetic	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+
+PROCEDURE IsDigit	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsBinaryDigit  (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsOctalDigit	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsDecimalDigit (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsHexDigit	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+
+PROCEDURE IsAlphanumeric (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+PROCEDURE IsSpecial	 (    theChar : CHAR	(*-- in    *))
+				      : BOOLEAN (*-- out   *);
+
+
+PROCEDURE ValueOf	 (    theChar : CHAR	(*-- in    *))
+				      : Digit	(*-- out   *);
+
+PROCEDURE ImageOf	 (    theDigit: Digit	(*-- in    *))
+				      : CHAR	(*-- out   *);
+
+
+PROCEDURE IndexOf	 (    theChar : CHAR	(*-- in    *))
+				      : Letter	(*-- out   *);
+
+PROCEDURE UppercaseOf	 (    theLetter: Letter (*-- in    *))
+				       : CHAR	(*-- out   *);
+
+PROCEDURE LowercaseOf	 (    theLetter: Letter (*-- in    *))
+				       : CHAR	(*-- out   *);
+
+
+PROCEDURE IsEqual	 (    left	   : CHAR     (*-- in	 *);
+			      right	   : CHAR     (*-- in	 *);
+			      caseSensitive: BOOLEAN  (*-- in	 *))
+					   : BOOLEAN  (*-- out	 *);
+
+PROCEDURE IsLessThan	 (    left	   : CHAR     (*-- in	 *);
+			      right	   : CHAR     (*-- in	 *);
+			      caseSensitive: BOOLEAN  (*-- in	 *))
+					   : BOOLEAN  (*-- out	 *);
+
+PROCEDURE IsGreaterThan  (    left	   : CHAR     (*-- in	 *);
+			      right	   : CHAR     (*-- in	 *);
+			      caseSensitive: BOOLEAN  (*-- in	 *))
+					   : BOOLEAN  (*-- out	 *);
+
+END CharUtils.

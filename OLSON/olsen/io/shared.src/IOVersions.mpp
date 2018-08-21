@@ -1,0 +1,303 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE IOVersions;
+(*
+ * Unix implementation.  We don't have version numbers, but invent
+ * them is easy.  We use "#" as the separator (more reasonable than
+ * other alternatives such as ";" and "!".  Basically, this all comes
+ * down to string manipulations.
+ *)
+IMPORT
+    CardConvert,
+    Chars,
+    DirIO,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    IONames,
+    ProgErr,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+CONST
+    (* Fatal errors *)
+    maxLessThanMin = "IOVersions.Find: max is less than min.";
+    
+CONST
+    versionSep    = "#";    (* always last thing in entry *)
+    versionSepLen = 1;	  
+
+    
+TYPE
+    String = ARRAY [ 0 .. 16 DIV 3 ] OF CHAR;	 (* bitsPerCARDINAL16 *)
+CONST
+    convBase = 10;
+
+    
+PROCEDURE Extract(
+	path    : ARRAY OF CHAR;  (* From where to extract version *)
+    VAR version : Number;	  (* path's version *)
+    VAR result  : ARRAY OF CHAR	  (* path without version *)
+    )	        : BOOLEAN;	  (* TRUE => path has version and is valid *)
+    (*
+     * Version numbers are at the end of the file name.  We can have files
+     * without suffices but with versions.  We check the suffix if exists,
+     * otherwise the base.  "which" points to the suffix in the former case
+     * or base in the latter.  The "make" procedure takes care of the rest.
+     *)
+    VAR
+	dir        : IOConsts.Path;
+	base       : IOConsts.Base;  
+	suffix	   : IOConsts.Suffix;
+	tail	   : IOConsts.Entry;(* big enough to hold base or suffix *)
+	hasSuffix  : BOOLEAN;
+	str	   : String;
+	card       : SysTypes.Card;
+	index      : SysTypes.Card;
+    BEGIN (* Extract *)
+    
+	IONames.Separate( path, dir, base, suffix );
+
+	hasSuffix := suffix[ 0 ] # 0C;
+	IF hasSuffix THEN
+	    Strings.Assign( suffix, tail );
+	ELSIF base[ 0 ] # 0C THEN
+	    Strings.Assign( base, tail );
+	ELSE
+	    RETURN FALSE;
+        END;
+	
+	(*
+	 * Checks to make sure version exists and is in range.
+	 * If not we return failure
+	 *)
+	IF NOT Strings.Position( tail, Strings.EOS, Strings.BOS, 
+				 versionSep, index )
+	   OR NOT Strings.SubstringOK( tail, index + versionSepLen, 
+				       Strings.EOS, str ) 
+	   OR NOT CardConvert.FromString( str, convBase, card ) 
+	   OR ( card < minNumber ) OR ( card > maxNumber ) THEN
+	     RETURN FALSE;
+	END;
+	
+	tail[ index ] := 0C;	  (* Get rid of version in "path" *)
+	
+	IF hasSuffix THEN
+	    IONames.Make( dir, base, tail, dir );
+	ELSE
+	    IONames.Make( dir, tail, "", dir );
+	END;
+
+	(* Truncates "result" if too short *)
+	Strings.Assign( dir, result );
+	version := card;
+	    
+	RETURN TRUE;
+	
+    END Extract;
+
+
+PROCEDURE Append(
+	path    : ARRAY OF CHAR;  (* Value to have version appended *)
+	version : Number;	  (* New version (replaces old if exists) *)
+    VAR result  : ARRAY OF CHAR	  (* Path with version appended *)
+    );
+    (*
+     * We take the simple approach here.
+     *)
+    VAR
+	str      : String;
+	DONTCARE : BOOLEAN;
+    BEGIN (* Append *)
+    
+	Strings.Concat( path, versionSep, result );
+	DONTCARE := CardConvert.ToString( version, convBase, 0, str );
+	Strings.Insert( result, Strings.EOS, str );
+	
+    END Append;
+     
+  
+TYPE
+    Info = POINTER TO InfoRec;	  (* importerObject to DirIO.ListXXX *)
+    InfoRec = RECORD
+	firstTime   : BOOLEAN;			  (* Just so we know *)
+	minNum	    : Number;	    
+	maxNum	    : Number;	    
+	toFind	    : IOConsts.Path;		  (* entry w/o version *)
+	compare     : Intrinsics.CompareResults; (* which way is better *)
+	bestDirInfo : DirIO.EntryInfo;		  (* only for ByDate *)
+	bestNumber  : Number;			  (* the number is... *)
+    END;
+
+PROCEDURE FindByDate(
+    infoAdr : SysTypes.ANYPTR;
+    name    : ARRAY OF CHAR;
+    dirInfo : DirIO.EntryInfo
+    )	    : BOOLEAN;
+    (*
+     * Extract the version and verify that the name matches.  If firstTime
+     * or contender beats incumbant, copy info (for later compares) and
+     * copy number.
+     *)
+    VAR
+	info : Info;
+	num  : Number;
+    BEGIN (* FindByDate *)
+    
+	info := infoAdr;
+	WITH info^ DO
+	    IF NOT Extract( name, num, name ) 
+	      OR ( Strings.Compare( name, toFind ) # Intrinsics.equal )
+	      OR ( num < minNum ) OR ( num > maxNum ) THEN
+	        RETURN TRUE;	(* Not ours *)
+	    END;
+	
+	    IF firstTime THEN
+		firstTime := FALSE;
+
+	    ELSIF DirIO.CompareChangeDates( dirInfo, bestDirInfo ) # compare
+	      THEN RETURN TRUE;	   (* Not better *)
+	    END;
+	    
+	    bestDirInfo := dirInfo;
+	    bestNumber  := num;
+
+		
+	END; (* WITH *)
+	
+	RETURN TRUE;
+        
+    END FindByDate;
+    
+
+PROCEDURE FindByNumber(
+    infoAdr : SysTypes.ANYPTR;
+    name    : ARRAY OF CHAR
+    )	    : BOOLEAN;
+    (*
+     * Extract the version and verify that the name matches.  If firstTime
+     * or contender beats incumbant, copy number into bestNumber.
+     *)
+    VAR
+	info : Info;
+	num  : Number;
+    BEGIN (* FindByNumber *)
+
+	info := infoAdr;
+	WITH info^ DO
+	
+	    IF NOT Extract( name, num, name )
+	      OR ( Strings.Compare( name, toFind ) # Intrinsics.equal )
+	      OR ( num < minNum ) OR ( num > maxNum ) THEN
+	        RETURN TRUE;	(* Not ours *)
+	    END;
+	
+	    IF firstTime THEN
+		firstTime := FALSE;
+		
+	    ELSIF NOT (
+	      ( compare = Intrinsics.less ) AND ( num < bestNumber )
+	      OR ( compare = Intrinsics.greater ) AND ( num > bestNumber ) )
+	      THEN RETURN TRUE;	(* Keep going, but not better *)
+	    END;
+	    
+	    bestNumber := num;
+	    
+	END; (* WITH *)
+	
+	RETURN TRUE;	(* Always keep trying *)
+    
+    END FindByNumber;
+
+
+PROCEDURE Find(
+        path  : ARRAY OF CHAR;	  (* path w/o version number *)
+	min   : Number;		  (* lowest allowable number *)
+	max   : Number;		  (* greatest allowable number *)
+        mode  : FindModes;	  (* version of path to find *)
+    VAR found : Number		  (* version which matches mode *)
+    )         : IOErrors.Errors;  (* ok => means "found" is valid *)
+    (*
+     * Searches for all versions of "path" and returns the version which
+     * suites the specified "mode".  If the last component of path contains
+     * a version number, then the results are unpredictable, i.e. call
+     * Extract before calling this procedure if you are unsure if path 
+     * has a version number.
+     *)
+    VAR
+	info    : InfoRec;
+	ioError : IOErrors.Errors;
+	dir     : IOConsts.Path;
+	base    : IOConsts.Base;
+	suffix  : IOConsts.Suffix;
+    BEGIN (* Find *)
+    
+	IF min > max THEN
+	    ProgErr.Terminate( maxLessThanMin );
+	END;
+	info.firstTime := TRUE;
+	info.minNum := min;
+	info.maxNum := max;
+
+	IONames.Separate( path, dir, base, suffix );
+	IONames.Make( "", base, suffix, info.toFind );
+	
+	@IF MsDosOS THEN
+	    Chars.StringToUpper( info.toFind );
+	@END (* MsDosOS *)
+
+	CASE mode OF
+	    lowestNumber:
+		info.compare := Intrinsics.less;
+		ioError := DirIO.List( dir, FindByNumber, 
+				       SYSTEM.ADR( info ) );
+	    |
+	    highestNumber:
+		info.compare := Intrinsics.greater;
+		ioError := DirIO.List( dir, FindByNumber, 
+				       SYSTEM.ADR( info ) );
+	    |
+	    newestDate:
+		info.compare := DirIO.newer;
+		ioError := DirIO.ListWithInfo( dir, FindByDate, 
+					       SYSTEM.ADR( info ) );
+	    |
+	    oldestDate:
+		info.compare := DirIO.older;
+		ioError := DirIO.ListWithInfo( dir, FindByDate, 
+					       SYSTEM.ADR( info ) );
+	END;
+	
+	IF ioError = IOErrors.ok THEN
+	    IF info.firstTime THEN
+		RETURN IOErrors.notFound;
+	    END;
+	    found := info.bestNumber;
+	END;
+	
+	RETURN ioError;
+	
+    END Find;
+
+END IOVersions.    

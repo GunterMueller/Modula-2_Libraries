@@ -1,0 +1,390 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE CardConvert;
+
+IMPORT 
+    Chars,
+    ProgErr,
+    Strings,
+    SysTypes;
+
+@IF LogitechM2 THEN
+    IMPORT
+	Card32,
+        Intrinsics;
+@END (* LogitechM2 *)
+
+PROCEDURE ToString(
+        toConvert : SysTypes.Card;
+	base      : Chars.Bases;
+	width     : SysTypes.Card;
+    VAR result    : ARRAY OF CHAR
+    )             : BOOLEAN;
+    (*
+     * First must check for the special case of width = 0 in which
+     * case we pretend the width is really (ourWidth = ) HIGH( result ) + 1.
+     * Note that we "pre-terminate" the string if necessary in the case
+     * that width is not equal to HIGH( result ) + 1.
+     *
+     * After we have determined how much space there is, we copy characters
+     * the string from right to left (least significant digit to most).  If
+     * this loop exits, then the toConvert number was bigger than the string.
+     * Otherwise, normal termination is from within the loop when toConvert
+     * becomes 0.
+     *)
+    VAR
+	ourWidth  : SysTypes.Card;  (* may differ from "width" if "width" = 0 *)
+	i         : SysTypes.Card;
+	j	  : SysTypes.Card;
+	k	  : SysTypes.Card;
+    BEGIN (* ToString *)
+
+	IF width = 0 THEN
+	    (* user says make it as wide as we need to *)
+	    ourWidth := HIGH(result) + 1;
+	ELSE
+	    ourWidth := width;
+	    (* Null terminate in advance (if necessary) *)
+	    IF ourWidth <= HIGH( result ) THEN
+		result[ ourWidth ] := 0C;
+	    END;
+
+	    @IF Assert THEN
+		IF HIGH( result ) < ourWidth - 1 THEN
+		    (* user specified width which was too small for string *)
+		    WidthFault;
+		END;
+	    @END (* Assert *)
+
+	END;
+
+	(* 
+	 * Put numeric characters into the string.  If the FOR loop
+	 * exits, then the string (or width) was too small to fit the number.
+	 *)
+	FOR i := ourWidth - 1 TO 0 BY -1 DO
+	    (* Convert the digit *)
+	    result[ i ] := Chars.FromDigit( toConvert MOD base );
+	    toConvert   := toConvert DIV base;
+
+	    (* Are we through yet? *)
+	    IF toConvert = 0 THEN
+		(* If the string doesn't fit exactly,... *)
+		IF i > 0 THEN
+		    (* Must we compact the string? *)
+		    IF width = 0 THEN
+			(* Shift the string over to perfect "fit" *)
+			k := i;
+			ourWidth := HIGH( result ) - i;
+			FOR j := 0 TO ourWidth DO
+			    result[ j ] := result[ k ];
+			    INC( k );
+			END;
+			result[ ourWidth + 1 ] := 0C;	(* null-terminate *)
+
+		    ELSE (* width # 0 *)
+			(* put blanks in front of the string *)
+			FOR j := i - 1 TO 0 BY -1 DO
+			    result[ j ] := ' ';
+			END; (* FOR *)
+			(* already null-terminated *)
+		    END;
+		END;
+		RETURN TRUE;	(* All done *)
+	    END; 
+	END; (* FOR *)
+
+	(*
+	 * Failure termination. There were more digits than the 
+	 * width of our string.  Fill the string with the traditional char.
+	 *)
+	result[ 0 ] := 0C; 
+	Strings.Justify( result, Strings.justifyRight, ourWidth, '*' );
+
+	RETURN FALSE;
+    END ToString;
+
+
+@IF SunM2 THEN
+    PROCEDURE ToString32(
+            toConvert : SysTypes.CARDINAL32;
+            base      : Chars.Bases;
+            width     : SysTypes.Card;
+        VAR result    : ARRAY OF CHAR
+        )             : BOOLEAN;
+        BEGIN (* ToString32 *)
+            RETURN ToString( toConvert, base, width, result );
+        END ToString32;
+
+@END (* SunM2 *)
+
+@IF LogitechM2 THEN
+    VAR
+        zero32 : SysTypes.CARDINAL32;
+
+    PROCEDURE ToString32(
+            toConvert : SysTypes.CARDINAL32;
+            base      : Chars.Bases;
+            width     : SysTypes.Card;
+        VAR result    : ARRAY OF CHAR
+        )             : BOOLEAN;
+        (*
+         * Same as ToString, but we use the Card32 world of operation.
+         *)
+	VAR
+	    ourWidth    : SysTypes.Card;  (* may differ from "width" if = 0 *)
+	    i           : SysTypes.Card;
+	    j           : SysTypes.Card;
+	    k           : SysTypes.Card;
+	    base32      : SysTypes.CARDINAL32;
+	    remainder32 : SysTypes.CARDINAL32;
+            remainder16 : SysTypes.Card;
+            DONTCARE    : SysTypes.Card;
+        BEGIN (* ToString32 *)
+
+	    IF width = 0 THEN
+		(* user says make it as wide as we need to *)
+		ourWidth := HIGH(result) + 1;
+	    ELSE
+		ourWidth := width;
+		(* Null terminate in advance (if necessary) *)
+		IF ourWidth <= HIGH( result ) THEN
+		    result[ ourWidth ] := 0C;
+		END;
+
+		@IF Assert THEN
+		    IF HIGH( result ) < ourWidth - 1 THEN
+			(* user specified width which was too small *)
+			WidthFault;
+		    END;
+		@END (* Assert *)
+	    END;
+
+	    (* Convert the base into a 32 bit cardinal *)
+	    Card32.FromCard16( base, 0, base32 );
+
+	    (* 
+	     * Put numeric characters into the string.  If the FOR loop
+	     * exits, then the string (or width) was too small to fit.
+	     *)
+	    FOR i := ourWidth - 1 TO 0 BY -1 DO
+
+		(* Convert the digit *)
+		Card32.DivideAndMod( toConvert, base32,
+                    toConvert, remainder32 );
+		Card32.ToCard16( remainder32, remainder16, DONTCARE );
+		result[ i ] := Chars.FromDigit( remainder16 );
+
+		(* Are we through yet? *)
+		IF Card32.Compare( toConvert, zero32 ) = Intrinsics.equal THEN
+
+		    (* If the string doesn't fit exactly,... *)
+		    IF i > 0 THEN
+			(* Must we compact the string? *)
+			IF width = 0 THEN
+			    (* Shift the string over to perfect "fit" *)
+			    k := i;
+			    ourWidth := HIGH( result ) - i;
+			    FOR j := 0 TO ourWidth DO
+				result[ j ] := result[ k ];
+				INC( k );
+			    END;
+			    result[ ourWidth + 1 ] := 0C;
+                            (* null-terminate *)
+
+			ELSE (* width # 0 *)
+			    (* put blanks in front of the string *)
+			    FOR j := i - 1 TO 0 BY -1 DO
+				result[ j ] := ' ';
+			    END; (* FOR *)
+			    (* already null-terminated *)
+			END;
+		    END;
+		    RETURN TRUE; (* All done *)
+		END; 
+	    END; (* FOR *)
+
+	    (*
+	     * Failure termination. There were more digits than the 
+	     * width of our string. Fill string with the traditional char.
+	     *)
+	    result[ 0 ] := 0C; 
+	    Strings.Justify( result, Strings.justifyRight, ourWidth, '*' );
+
+	    RETURN FALSE;
+        END ToString32;
+
+@END (* LogitechM2 *)
+
+
+PROCEDURE FromString(
+        toConvert  : ARRAY OF CHAR;
+        base       : Chars.Bases;
+    VAR result     : SysTypes.Card
+    )              : BOOLEAN;
+    VAR
+	i                 : SysTypes.Card;
+	len               : SysTypes.Card;
+	digit             : SysTypes.Card;
+	maxBeforeMultiply : SysTypes.Card;
+    BEGIN (* FromString *)
+
+	len    := Strings.Length( toConvert );
+	IF len = 0 THEN
+	    RETURN FALSE;
+	END;
+
+	i := 0;
+	(* skip white space *)
+	WHILE Chars.IsWhiteSpace( toConvert[ i ] ) DO
+	    INC( i );
+	    IF i >= len THEN
+		RETURN FALSE;
+	    END;
+	END; (* WHILE *)
+
+	result := 0;
+	maxBeforeMultiply := SysTypes.MAXCARDINAL DIV base;
+	REPEAT
+	    (* See if we can shift the result *)
+	    IF result > maxBeforeMultiply THEN
+		RETURN FALSE;	(* Couldn't add another digit *)
+	    END;
+	    result := result * base;
+
+	    digit := Chars.ToDigit( toConvert[ i ] );
+	    IF digit >= base THEN
+		RETURN FALSE;	(* Illegal digit *)
+	    END;
+
+	    (* Can we add this newly converted digit? *)
+	    IF SysTypes.MAXCARDINAL - result < digit THEN
+		RETURN FALSE;   (* about to overflow *)
+	    END;
+	    result := result + digit;
+
+	    INC( i );
+	UNTIL i >= len;
+
+	RETURN TRUE;
+    END FromString;
+
+
+@IF SunM2 THEN
+
+    PROCEDURE FromString32(
+            toConvert : ARRAY OF CHAR;
+            base      : Chars.Bases;
+        VAR result    : SysTypes.CARDINAL32
+        )             : BOOLEAN;
+        BEGIN (* FromString32 *)
+    	RETURN FromString( toConvert, base, result );
+        END FromString32;
+
+@END (* SunM2 *)
+
+@IF LogitechM2 THEN
+    VAR
+        MAXCARDINAL32 : SysTypes.CARDINAL32;
+
+    PROCEDURE FromString32(
+            toConvert  : ARRAY OF CHAR;
+	    base       : Chars.Bases;
+	VAR result     : SysTypes.CARDINAL32
+        )              : BOOLEAN;
+	VAR
+	    i                 : SysTypes.Card;
+	    len               : SysTypes.Card;
+	    digit             : SysTypes.Card;
+	    maxBeforeMultiply : SysTypes.CARDINAL32;
+	    base32		  : SysTypes.CARDINAL32;
+	    tmp1		  : SysTypes.CARDINAL32;
+	    tmp2		  : SysTypes.CARDINAL32;
+	BEGIN (* FromString32 *)
+
+	    len    := Strings.Length( toConvert );
+	    IF len = 0 THEN
+		RETURN FALSE;
+	    END;
+
+	    i := 0;
+	    (* skip white space *)
+	    WHILE Chars.IsWhiteSpace( toConvert[ i ] ) DO
+		INC( i );
+		IF i >= len THEN
+		    RETURN FALSE;
+		END;
+	    END; (* WHILE *)
+
+	    (* Set up the initial values *)
+	    result := zero32;
+	    Card32.FromCard16( base, 0, base32 );
+	    Card32.Divide( MAXCARDINAL32, base32, maxBeforeMultiply );
+
+	    REPEAT
+		(* See if we can shift the result *)
+		IF Card32.Compare( result, maxBeforeMultiply )
+                    = Intrinsics.greater
+		  THEN RETURN FALSE;	(* Couldn't add another digit *)
+		END;
+		Card32.Multiply( result, base32, result );
+
+		digit := Chars.ToDigit( toConvert[ i ] );
+		IF digit >= base THEN
+		    RETURN FALSE;	(* Illegal digit *)
+		END;
+
+		(* Can we add this newly converted digit? *)
+		Card32.Subtract( MAXCARDINAL32, result, tmp1 );
+		Card32.FromCard16( digit, 0, tmp2 );
+		IF Card32.Compare( tmp1, tmp2 ) = Intrinsics.less THEN
+		    RETURN FALSE;   (* about to overflow *)
+		END;
+		Card32.Add( result, tmp2, result );
+
+		INC( i );
+	    UNTIL i >= len;
+
+	    RETURN TRUE;
+        END FromString32;
+
+@END (* LogitechM2 *)
+
+@IF Assert THEN
+    PROCEDURE WidthFault;
+	BEGIN (* WidthFault *)
+	    ProgErr.Terminate( "CardConvert: width too large for string" );
+	END WidthFault;
+@END (* Assert *)
+
+BEGIN (* CardConvert *)
+
+    @IF LogitechM2 THEN
+
+	Card32.Zero( zero32 );
+	SysTypes.MAXCARDINAL32( MAXCARDINAL32 );
+
+    @END (* LogitechM2 *)
+
+END CardConvert.
+

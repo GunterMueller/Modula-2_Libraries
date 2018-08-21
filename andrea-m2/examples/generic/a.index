@@ -1,0 +1,208 @@
+ALPHA_RANDOM.MOD
+     This program shows how to use the module MOD$LIBRARY:Shuffle
+     by randomizing the alphabet a couple of times.
+
+BASE2-1.MOD
+    This program tests and shows how to use the module Base2.
+
+BASE2-2.MOD
+    This program tests and shows how to use the module Base2.
+
+BASE3-1.MOD
+    This program tests and shows how to use the module Base2.
+
+BASE3-2.MOD
+    This program tests and shows how to use the module Base2.
+
+BASE3-3.MOD
+    This program tests and shows how to use the module Base2.
+
+BITMAP.MOD
+    This program shows how to use the module MOD$LIBRARY:BitmapOperations.
+    It produces a sixel graphics file "dragon.sixel" to be printed on a
+    DEC line printer with the command  print /nofeed dragon.sixel
+    The printout is that of a small fractal dragon curve.
+
+DATES-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:DateOperations.
+
+DATES-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:DateOperations.
+    This module also shows how to use a procedure as a parameter.
+
+DEMO.MOD
+DEMOMODUL.DEF
+DEMOMODUL.MOD
+    This is a set of modules which were developed as a demonstration
+    of the scope of variables of different modules. DEMO is the driving
+    module.
+
+DYNAMIC_ARRAY-1.MOD
+    This is a simple example of how to use memory to create and use
+    dynamic data structures.
+
+DYNAMIC_ARRAY-2.MOD
+    This is a simple example of how to use memory to create and use
+    dynamic data structures.
+
+DYNAMIC_ARRAY-3.MOD
+    This is a simple example of how to use memory to create and use
+    dynamic data structures. This example extends DYNAMIC_ARRAY-2
+    to show how to perform global operations quickly.
+
+ENTIER.MOD
+    This program tests, and shows how to use function 'entier' from
+    the module MOD$LIBRARY:MoreMath.
+
+GRAPHICS-1.MOD
+    A very simple line graphics program to show how to use some procedures
+    from MOD$LIBRARY:VeryScreen and MOD$LIBRARY:GetCharacter.
+    This program is a loop which is ended with any character from the
+    keyboard.
+
+GRAPHICS-2.MOD
+    A very simple line graphics program to show how to use some procedures
+    from MOD$LIBRARY:VeryScreen and MOD$LIBRARY:GetCharacter.
+    This program is a loop which is ended with any character (except a SPACE)
+    from the keyboard.
+
+HASH.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:Wordhash.
+
+HELLO.MOD
+    A very simple example. It outputs "Hello World!"
+
+LARGENUM-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:LargeNumbers.
+
+LARGENUM-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:LargeNumbers.
+
+MATRIX-1.MOD
+    This program tests, and shows how to use the module MatrixOperations.
+
+MATRIX-2.MOD
+    This program tests, and shows how to use the module MatrixOperations.
+
+PACKARRAY-1.MOD
+    This program tests, and shows how to use the module PackArray.
+
+PACKARRAY-2.MOD
+    This program tests, and shows how to use the module PackArray.
+
+PAINT.MOD
+    A very simple screen paint program as an example program using
+    screen management procedures.
+    Use the arrow keys to move around the screen and then draw some
+    lines, boxes and text.
+    The drawing can be printed into a file to be sent to a PostScript laser
+    printer, saved into a file of graphics commands, or a drawing can be
+    loaded from a file of graphics commands.
+
+QUEUES-1.MOD
+    This program tests, and shows how to use the procedures in
+    the module MOD$LIBRARY:Queues.
+
+QUEUES-2.MOD
+    This program tests, and shows how to use the procedures in
+    the module MOD$LIBRARY:Queues.
+
+RANDOMLY.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:Randomly.
+
+ROMAN-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:RomanNumerals.
+
+ROMAN-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:RomanNumerals.
+
+SAY-1.MOD
+    This program test and shows how to use the module MOD$LIBRARY:SayNumbers.
+
+SAY-2.MOD
+    This program test and shows how to use the module MOD$LIBRARY:SayNumbers.
+
+SCREEN.MOD
+    This program shows how to use the module MOD$LIBRARY:SimpleScreen.
+
+Show-Bits-Small.Mod
+    This is a small program that shows how to test for bit settings inside
+    a number by using the BITSET conversion.
+
+SHOW_HIGH-1.MOD
+    This program shows how to pass objects as ARRAY OF BYTE and how to
+    get the size of the array using the function HIGH.
+
+SHOW_HIGH-2.MOD
+    This program shows how to pass objects as ARRAY OF BYTE and how to
+    get the BYTEs in those objects as data.
+
+SHOWBITS.MOD
+    This program shows how to use the module MOD$LIBRARY:BitsetFunctions.
+
+SHUFFLE-1.MOD
+    This program shows how to use the module MOD$LIBRARY:Shuffle.
+
+SHUFFLE-2.MOD
+    This program tests the module MOD$LIBRARY:Shuffle.
+
+SHUFFLE-3.MOD
+    This program tests the module MOD$LIBRARY:Shuffle.
+
+SHUFFLE-CARDS.MOD
+    This program shows how to use the module MOD$LIBRARY:Shuffle.
+    The example is how Shuffle might me used in a game program.
+    This example shows how to generate a set of hands of cards.
+
+SHUFFLEFAST.MOD
+    This program tests the module MOD$LIBRARY:ShuffleFast.
+
+SOLVE_WORD_PUZZLE.MOD
+    This is a program which shows how to use recursion for problem solving.
+    See the program text itself for more documentation.
+
+SOMEBITS.MOD
+    This program shows how to use the module MOD$LIBRARY:BitsetFunctions.
+
+SORT-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:Sorting. For the sorting routines to pass
+    this test, the program need only be run once.
+
+SORT-2.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:Sorting. For the sorting routines to pass
+    this test, this program must be run many times.
+
+STACKS-1.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:Stacks.
+
+STRINGS.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:StringOperations.
+
+TILL_EOF.MOD
+    This program counts the number of lines and characters in a text file.
+    It is an example of how to read a file and test for the end-of-file.
+
+TOPO-1.MOD
+    This program tests, and shows how to use the topological
+    sorting procedure in the module MOD$LIBRARY:Sorting.
+
+VERYSCREEN.MOD
+    This program tests, and shows how to use the module
+    MOD$LIBRARY:VeryScreen.
+
+WATOR.MOD
+    This program is a simulation of fish and sharks on a watery planet.
+    See the program text itself for more documentation.
+    It may be run on ordinary terminals.

@@ -1,0 +1,225 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ProgEnviron;
+(*
+ * Logitech/PC implementation.   We load up a name list at the
+ * beginning and then do parsing afterwards.  If a program includes
+ * this module, then this may or may not reduce search time, but
+ * it sure reduces the code complexity.
+ *
+ * The environList is all upper case names as DOS does it.
+ *)
+IMPORT
+    DOS,
+    NameLists,
+    @IF NOT LogitechM2V2 THEN
+	RTSMain,
+    @END
+    SYSTEM,
+    SysTypes;
+
+TYPE
+    ValuePtr = POINTER TO Value;
+
+VAR
+    environList : NameLists.Object;	(* importObject is a ValuePtr *)
+
+PROCEDURE GetValue(     
+	nameOfValue : ARRAY OF CHAR;
+    VAR value       : Value 
+    ) 		    : BOOLEAN;
+    VAR
+	valuePtr : ValuePtr;
+	i        : SysTypes.Card;
+    BEGIN (* GetValue *)
+	
+	IF NOT NameLists.Find( environList, nameOfValue, valuePtr ) THEN
+	    RETURN FALSE;
+	END;
+
+	FOR i := 0 TO HIGH( value ) DO
+	    value[ i ] := valuePtr^[ i ];
+	    IF value[ i ] = 0C THEN
+		RETURN TRUE;
+	    END;
+	END;
+
+	RETURN TRUE;
+
+    END GetValue;
+
+
+PROCEDURE ListNames( 
+    names : NameLists.Object 
+    );
+    (* 
+     * Just copy the environList to the "names" list.
+     *)
+    VAR
+	DONTCARE : ValuePtr;
+	name     : Name;
+    BEGIN (* ListNames *)
+	
+	NameLists.MakeFirstNext( environList );
+	WHILE NameLists.Next( environList, name, DONTCARE ) DO
+	    NameLists.Insert( names, name, NameLists.DONTCARE );
+	END;
+    
+    END ListNames;
+	
+
+PROCEDURE Initialize;
+    (*
+     * Creates and initializes the environList.
+     * Get the program segment prefix which tells us where the environment
+     * table is.  Get the environment table pointer from the PSP and
+     * search the table for environment names.  We have a few extra
+     * checks for oversize names and syntactically incorrect environments,
+     * but it never hurts to protect onceself.
+     *)
+    @IF LogitechM2V2 THEN
+	CONST
+	    getProgramSegmentPrefixAddress = 26H;
+		(* 
+		 * Returns address of RTS program segment prefix pointer copy.
+		 * It is returned in CX:BX.
+		 *)
+	VAR
+	    segment    : SysTypes.CARDINAL16;
+	    offset     : SysTypes.CARDINAL16;
+    @END
+    VAR
+	progSegPtr : DOS.ProgramSegmentPrefixPtr;
+	adr        : SYSTEM.ADDRESS;
+	tableIndex : SysTypes.Card;
+	tablePtr   : POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR - 2 ] 
+					OF CHAR;
+	name	   : Name;
+	nameIndex  : SysTypes.Card;
+	valuePtr   : ValuePtr;
+	ch	   : CHAR;
+    BEGIN (* Initialize *)
+
+	(* 
+	 * Set up the environment list where names are always upper case.
+	 *)
+	NameLists.Create( environList, NameLists.forwardSorted,
+			  NameLists.allUpperCase );
+
+	@IF NOT LogitechM2V2 THEN
+	    (* Get the program segment prefix from the RTSMain. *)
+	    progSegPtr  := RTSMain.PSPAddress;
+	@ELSE (* LogitechM2V2 *)
+	    (* 
+	     * Get the program segment prefix from memory.  It is returned
+	     * in CX:BX.  We get the value into "segment" and "offset", 
+	     * because you can't get directly into adr.SEGMENT (don't ask 
+	     * me why).  After this we must assign the adr (offset=0) 
+	     * to progSegPtr.  Final indirection is to get the 
+	     * environmentSeg field out of the ptr and assign it to tablePtr.
+	     *)
+	    SYSTEM.SETREG( SYSTEM.AX, getProgramSegmentPrefixAddress );
+	    SYSTEM.SWI( SYSTEM.RTSVECTOR );
+	    SYSTEM.GETREG( SYSTEM.CX, segment );
+	    SYSTEM.GETREG( SYSTEM.BX, offset );
+	    adr.SEGMENT := segment;
+	    adr.OFFSET  := offset;
+	    progSegPtr  := adr;
+	@END
+
+	adr.SEGMENT := progSegPtr^.environmentSeg;
+	adr.OFFSET  := 0;
+	tablePtr    := adr;
+
+	(* 
+	 * Search through the list of strings which is terminated
+	 * by a 0C (after the last string terminator).
+	 *)
+	tableIndex := 0;
+	REPEAT
+	    (* 
+	     * Look through a name which is terminated by a 0C.
+	     * The format is "XXXX=yyy".  Where "XXXX" is inserted
+	     * as the "name" and SYSTEM.ADR( "yyy" ) is the valuePtr.
+	     *)
+	    nameIndex := 0;
+	    LOOP
+		ch := tablePtr^[ tableIndex ];
+		(*
+		 * We check for both null and '=' even though it is
+		 * unlikely.  
+		 *)
+		IF ( ch = '=' ) OR ( ch = 0C ) THEN
+
+		    (* Do we have to null-terminate *)
+		    IF nameIndex <= HIGH( name ) THEN
+			name[ nameIndex ] := 0C;
+		    END;
+
+		    (* How did we stop the search? *)
+		    IF ch = 0C THEN
+			(* Point at the empty string *)
+			valuePtr := SYSTEM.ADR( tablePtr^[ tableIndex ] );
+		    ELSE
+			(* Point at value after the '=' *)
+			INC( tableIndex );
+			valuePtr := SYSTEM.ADR( tablePtr^[ tableIndex ] );
+
+			(* Search for the end of the string *)
+			WHILE tablePtr^[ tableIndex ] # 0C DO
+			    INC( tableIndex );
+			END;
+		    END;
+		    EXIT;
+		END;
+
+		(* 
+		 * Copy characters until we can't copy any more.  We
+		 * still must continue parsing to find the end of the
+		 * extra long name.  So we just dump the characters
+		 * that don't fit into the name buffer.
+		 *)
+		IF nameIndex <= HIGH( name ) THEN
+		    name[ nameIndex ] := ch;
+		    INC( nameIndex );
+		END;
+
+		INC( tableIndex );	(* always go to next character *)
+
+	    END; (* LOOP through a name *)
+
+	    (* Put the found name in the list *)
+	    NameLists.Insert( environList, name, valuePtr );
+
+	    INC( tableIndex );	(* Skip trailing terminator *)
+
+	UNTIL tablePtr^[ tableIndex ] = 0C;	(* found second null *)
+
+    END Initialize;
+
+
+BEGIN (* ProgEnviron *)
+    
+    Initialize;
+
+END ProgEnviron.

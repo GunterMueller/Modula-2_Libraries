@@ -1,0 +1,134 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE DebugFlags;
+(*
+ * Implements the basis of a mechanism to dynamically control debugging
+ * code of importer selected sections of a program.
+ *
+ * There are two services provided by this module:
+ *     1. Command line control of internal debugging flags.
+ *     2. Centralized depot which can be accessed by higher-level
+ *        control facilities (e.g. via message passing).
+ *
+ * This module is a miniature database which associates importer
+ * assigned names to importer deposited global variables. This
+ * implementation is only defined for variables of type BOOLEAN.
+ *
+ * Several flags are registered with ProgArgs to allow the user of
+ * a program to turn debugging on or off. The debug flags are initially
+ * set by the importer before RegisterBool is called, after which the
+ * command line is parsed and the value is modified according to the
+ * flag-name combination which was specified by the user.
+ *
+ * All names are truncated to the size of a GenConsts.Identifier.
+ *)
+EXPORT QUALIFIED
+    setTrue1,         setTrue2,          setFalse,      BoolPtr,
+    RegisterBool,     DeregisterBool,    GetBool,       SetBool,
+    IsValidBool,      PrintModes,        PrintList;
+
+CONST
+    setTrue1 = "debug";     (* Calls SetBool( <string>, TRUE ) *)
+    setTrue2 = "debugOn";   (* Calls SetBool( <string>, TRUE ) *)
+    setFalse = "debugOff";  (* Calls SetBool( <string>, FALSE ) *)
+	(* 
+	 * The names listed above are passed to ProgArgs.RegisterStringHandler.
+	 * The values passed by ProgArgs back to this module's registered 
+	 * string handlers are debug names.  By registering only three flags
+	 * to ProgArgs, we save conflicts with regular program arguments.
+	 *)
+
+TYPE
+    BoolPtr = POINTER TO BOOLEAN;  (* Type accepted by other procedures *)
+    
+PROCEDURE RegisterBool(
+    name    : ARRAY OF CHAR;  (* Must be a unique name *)
+    toBeSet : BoolPtr         (* Must point to a global boolean variable *)
+    );
+    (*
+     * Identify the toBeSet pointer with the name and look up the name
+     * in the command line to see if is associated with one (or more)
+     * of the flags. The initial value of "toBeSet^" is set by the caller
+     * and this module will modify the value only if one of the flags
+     * has been passed with the associated name. Note that the toBeSet
+     * pointer will be saved by this module, thus it must be global
+     * and it must point to a boolean.
+     *
+     * If the name passed in is already registered, the caller will
+     * be terminated.
+     *
+     * NOTE:
+     *     The command line parsing only works the first time a name
+     *     has been set. If a name has been deregistered and registered
+     *     again, its value will be not be set to the value passed on the
+     *     command line (i.e. the initial value is only remembered for
+     *     the first registrant).
+     *)
+
+PROCEDURE DeregisterBool(
+    name : ARRAY OF CHAR  (* Need not be registered *)
+    );
+    (*
+     * If the name has been defined in the database, remove
+     * it from the list of know registrants.
+     *)
+
+PROCEDURE GetBool(
+    name : ARRAY OF CHAR  (* Must be a currently registered name *)
+    )    : BOOLEAN;
+    (*
+     * Get the value of the boolean registered with the identity "name".
+     * If the name is not registered, the caller will be terminated.
+     *)
+
+PROCEDURE SetBool(
+    name     : ARRAY OF CHAR;  (* Must be a currently registered name *)
+    newValue : BOOLEAN
+    );
+    (*
+     * Set the value of the boolean registered with the identity "name".
+     * If the name is not registered, the caller will be terminated.
+     *)
+
+PROCEDURE IsValidBool(
+    nameToTest : ARRAY OF CHAR  (* Can be any name *)
+    )          : BOOLEAN;       (* TRUE => Is a currently registered name *)
+    (*
+     * Determines if the "nameToTest" is a valid debug bool type flag.
+     *)
+
+TYPE
+    PrintModes = (
+        printWithValues,  (* Flags & values associated with the flags *)
+        printOnlyNames    (* Only the flag names (not titles) *)
+    );
+
+PROCEDURE PrintList(
+    mode : PrintModes  (* What should we see? *)
+    );
+    (*
+     * Displays a list of flags (and values possibly) to ProgErrOutput.
+     *)
+
+END DebugFlags.
+

@@ -1,0 +1,10 @@
+DEFINITION MODULE Randomly;
+
+(* John Andrea, Mar.27/92 *)
+(* This code may NOT be sold, it may be freely used and distributed *)
+
+PROCEDURE Choose_1_To_N( n :CARDINAL ) :CARDINAL;
+
+PROCEDURE Choose_0_To_N( n :CARDINAL ) :CARDINAL;
+
+END Randomly.

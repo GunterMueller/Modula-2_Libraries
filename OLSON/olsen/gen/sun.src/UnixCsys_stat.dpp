@@ -1,0 +1,100 @@
+DEFINITION FOR C MODULE UnixCsys_stat;
+(*
+ * See the file:
+ *    /usr/include/sys/stat.h.
+ *
+ * See the man pages:
+ *    stat(2), chmod(2), chown(2), utimes(2), and truncate(2).
+ *)
+IMPORT
+    UnixCtypes,
+    UnixCsys_time,
+    UnixCsys_types;
+
+TYPE
+    struct_stat = RECORD 
+	st_dev	   : UnixCsys_types.dev_t;   
+	st_ino     : UnixCsys_types.ino_t;   
+        st_mode    : UnixCsys_types.u_short; 
+	st_nlink   : UnixCtypes.short;       
+	st_uid	   : UnixCtypes.short;       
+	st_gid	   : UnixCtypes.short;       
+	st_rdev	   : UnixCsys_types.dev_t;   
+	st_size	   : UnixCsys_types.off_t;   
+	st_atime   : UnixCsys_types.time_t;  
+	st_spare1  : INTEGER;
+	st_mtime   : UnixCsys_types.time_t;  
+	st_spare2  : INTEGER;
+	st_ctime   : UnixCsys_types.time_t;  
+	st_spare   : INTEGER;
+	st_blksize : UnixCtypes.long;        
+	st_blocks  : UnixCtypes.long;        
+	st_spare4  : ARRAY [ 0 .. 2 ] OF UnixCtypes.long;
+    END;
+
+CONST
+
+    S_IFMT	= 0170000B;  
+    S_IFDIR	= 0040000B;  
+    S_IFCHR	= 0020000B;  
+    S_IFBLK	= 0060000B;  
+    S_IFREG	= 0100000B;   
+    S_IFLNK	= 0120000B;  
+    S_IFSOCK	= 0140000B;  
+    S_IFIFO	= 0010000B;  
+
+    S_ISUID	= 0004000B;  
+    S_ISGID	= 0002000B;  
+    S_ISVTX	= 0001000B;  
+    S_IREAD	= 0000400B;  
+    S_IWRITE	= 0000200B;  
+    S_IEXEC	= 0000100B;  
+
+PROCEDURE stat(
+        path : ARRAY OF CHAR;
+    VAR buf  : struct_stat
+    )        : INTEGER;
+
+PROCEDURE lstat(
+        path : ARRAY OF CHAR;
+    VAR buf  : struct_stat
+    )        : INTEGER;
+
+PROCEDURE fstat(
+        fd  : INTEGER;
+    VAR buf : struct_stat
+    )       : INTEGER;
+
+PROCEDURE chmod(
+    path : ARRAY OF CHAR;
+    mode : INTEGER
+    )    : INTEGER;
+
+PROCEDURE chown(
+    path  : ARRAY OF CHAR;
+    owner : INTEGER;
+    group : INTEGER
+    )     : INTEGER;
+
+TYPE
+    tvpType = ARRAY [ 0 .. 1 ] OF UnixCsys_time.struct_timeval;
+CONST
+    atimeIndex = 0;  
+    mtimeIndex = 1;
+
+PROCEDURE utimes(
+    file : ARRAY OF CHAR;
+    tvp  : tvpType
+    )    : INTEGER;
+
+PROCEDURE truncate(
+    path   : ARRAY OF CHAR;
+    length : UnixCsys_types.u_long
+    )      : INTEGER;
+
+PROCEDURE ftruncate(
+    fd     : INTEGER;
+    length : UnixCsys_types.u_long
+    )      : INTEGER;
+
+END UnixCsys_stat.

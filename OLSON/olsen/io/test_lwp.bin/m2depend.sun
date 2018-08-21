@@ -1,0 +1,400 @@
+BinTest.o: ../bin/BinaryIO.sym ../../gen/bin/CardConvert.sym ../bin/DirIO.sym  \
+           ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+           ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym 
+BinTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../bin/CatBinaryIO.o  \
+         ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+         ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+         ../../gen/bin/IntConvert.o ../../gen/lwp.bin/Interrupts.o  \
+         ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+         ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+         ../../gen/lwp.bin/Notices.o ../../gen/lwp.bin/Objects.o  \
+         ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+         ../../gen/lwp.bin/SafeStorage.o ../../gen/bin/Strings.o  \
+         ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+         ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskNotices.o  \
+         ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+         ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+         ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+         ../../gen/lwp.bin/UnixMonitor.o BinTest.o 
+CardIOTest.o: ../bin/SimpleIO.sym 
+CardIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+            ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+            ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+            ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+            ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+            ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+            ../lwp.bin/SimpleIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+            ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+            ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+            ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+            ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+            ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+            ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o CardIOTest.o 
+CardIOTimer.o: ../bin/CardIO.sym ../../gen/bin/SysTypes.sym ../bin/TextIO.sym 
+CardIOTimer: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o  \
+             ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+             ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+             ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+             ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+             ../../gen/bin/ProgErrOutput.o ../../gen/lwp.bin/SafeStorage.o  \
+             ../bin/StringIO.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+             ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+             ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+             ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+             ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+             ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+             ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+             ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o  \
+             CardIOTimer.o 
+ChangeDir.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+             ../../gen/bin/ProgArgs.sym ../../gen/bin/ProgErr.sym  \
+             ../../gen/bin/ProgErrOutput.sym 
+ChangeDir: ../../gen/bin/ASCII.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../../gen/bin/Chars.o  \
+           ../lwp.bin/DirIO.o ../../gen/bin/GenConsts.o ../bin/IOConsts.o  \
+           ../bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+           ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+           ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+           ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgArgs.o  \
+           ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+           ../../gen/lwp.bin/SafeStorage.o ../../gen/bin/Strings.o  \
+           ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+           ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+           ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+           ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o ChangeDir.o 
+DirTest.o: ../bin/DirIO.sym ../bin/IOErrors.sym ../../gen/bin/ProgErr.sym  \
+           ../bin/SimpleIO.sym 
+DirTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+         ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+         ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+         ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+         ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+         ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+         ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+         ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+         ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+         ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+         ../lwp.bin/SimpleIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+         ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+         ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+         ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+         ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+         ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+         ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+         ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+         ../../gen/lwp.bin/UnixMonitor.o DirTest.o 
+Hello.o: ../bin/SimpleIO.sym 
+Hello: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+       ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+       ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../../gen/bin/GenConsts.o  \
+       ../bin/IOConsts.o ../bin/IOErrors.o ../lwp.bin/IOMonitors.o  \
+       ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+       ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+       ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+       ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+       ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+       ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+       ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o ../lwp.bin/SimpleIO.o  \
+       ../bin/StringIO.o ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+       ../../gen/lwp.bin/TaskConsts.o ../../gen/lwp.bin/TaskInfo.o  \
+       ../../gen/lwp.bin/TaskMonitors.o ../../gen/lwp.bin/TaskNotices.o  \
+       ../../gen/lwp.bin/TaskTime.o ../../gen/lwp.bin/Tasks.o  \
+       ../../gen/lwp.bin/TasksPRIVATE.o ../lwp.bin/TextIO.o  \
+       ../lwp.bin/TextIOPRIVATE.o ../lwp.bin/UnixAsynchIO.o  \
+       ../lwp.bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+       ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+       ../../gen/lwp.bin/UnixMonitor.o Hello.o 
+IntIOTest.o: ../bin/SimpleIO.sym 
+IntIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+           ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+           ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+           ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+           ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+           ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+           ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+           ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+           ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+           ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+           ../lwp.bin/SimpleIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+           ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+           ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+           ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+           ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+           ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+           ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+           ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+           ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o IntIOTest.o 
+RealIOTest.o: ../bin/SimpleIO.sym ../../gen/bin/SysTypes.sym 
+RealIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+            ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+            ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+            ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+            ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+            ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+            ../lwp.bin/SimpleIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+            ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+            ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+            ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+            ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+            ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+            ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o RealIOTest.o 
+RealIOTimer.o: ../bin/RealIO.sym ../../gen/bin/SysTypes.sym ../bin/TextIO.sym 
+RealIOTimer: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o  \
+             ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+             ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+             ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+             ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+             ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+             ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+             ../bin/StringIO.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+             ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+             ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+             ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+             ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+             ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+             ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+             ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o  \
+             RealIOTimer.o 
+tAsynchRealIO.o: ../bin/IOErrors.sym ../bin/RealIO.sym ../bin/SimpleIO.sym  \
+                 ../../gen/bin/SysTypes.sym ../../gen/lwp.bin/TaskConsts.sym  \
+                 ../../gen/lwp.bin/TaskMonitors.sym  \
+                 ../../gen/lwp.bin/TaskTime.sym ../../gen/lwp.bin/Tasks.sym  \
+                 ../bin/TextIO.sym 
+tAsynchRealIO: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+               ../../gen/bin/CardConvert.o ../bin/CardIO.o  \
+               ../bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+               ../bin/ConfBinaryIO.o ../../gen/bin/GenConsts.o  \
+               ../bin/IOConsts.o ../bin/IOErrors.o ../lwp.bin/IOMonitors.o  \
+               ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+               ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+               ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+               ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+               ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+               ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+               ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+               ../lwp.bin/SimpleIO.o ../bin/StringIO.o  \
+               ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+               ../../gen/lwp.bin/TaskConsts.o ../../gen/lwp.bin/TaskInfo.o  \
+               ../../gen/lwp.bin/TaskMonitors.o  \
+               ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+               ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+               ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+               ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+               ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+               ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o  \
+               tAsynchRealIO.o 
+tCopy.o: ../bin/DirIO.sym ../bin/IOErrors.sym ../../gen/bin/ProgArgs.sym  \
+         ../../gen/bin/ProgErr.sym ../bin/TextSupportIO.sym 
+tCopy: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../bin/BinarySupportIO.o  \
+       ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o ../bin/CatBinaryIO.o  \
+       ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+       ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+       ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o  \
+       ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+       ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+       ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+       ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgArgs.o  \
+       ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+       ../../gen/lwp.bin/SafeStorage.o ../../gen/bin/Strings.o  \
+       ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+       ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+       ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+       ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+       ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o ../bin/TextSupportIO.o  \
+       ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+       ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+       ../../gen/lwp.bin/UnixMonitor.o tCopy.o 
+tCopyObject.o: ../bin/IOErrors.sym ../../gen/bin/ProgErr.sym  \
+               ../bin/TextIO.sym ../bin/TextSupportIO.sym 
+tCopyObject: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../bin/BinarySupportIO.o  \
+             ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+             ../bin/CatBinaryIO.o ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../lwp.bin/DirIO.o ../../gen/bin/GenConsts.o ../bin/IOConsts.o  \
+             ../bin/IOErrors.o ../lwp.bin/IOMonitors.o  \
+             ../../gen/bin/IntConvert.o ../../gen/lwp.bin/Interrupts.o  \
+             ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+             ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+             ../../gen/lwp.bin/Notices.o ../../gen/lwp.bin/Objects.o  \
+             ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+             ../../gen/lwp.bin/SafeStorage.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+             ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+             ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+             ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+             ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+             ../bin/TextSupportIO.o ../lwp.bin/UnixAsynchIO.o  \
+             ../lwp.bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+             ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+             ../../gen/lwp.bin/UnixMonitor.o tCopyObject.o 
+tDirIOList.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+              ../bin/SimpleIO.sym 
+tDirIOList: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+            ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+            ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+            ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+            ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+            ../bin/RealIO.o ../../gen/lwp.bin/SafeStorage.o  \
+            ../lwp.bin/SimpleIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+            ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+            ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+            ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+            ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+            ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+            ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o tDirIOList.o 
+tIONames.o: ../bin/IOConsts.sym ../bin/IONames.sym ../bin/SimpleIO.sym 
+tIONames: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+          ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+          ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+          ../lwp.bin/IOMonitors.o ../lwp.bin/IONames.o  \
+          ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+          ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+          ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+          ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+          ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgArgs.o  \
+          ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+          ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+          ../../gen/lwp.bin/SafeStorage.o ../lwp.bin/SimpleIO.o  \
+          ../bin/StringIO.o ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+          ../../gen/lwp.bin/TaskConsts.o ../../gen/lwp.bin/TaskInfo.o  \
+          ../../gen/lwp.bin/TaskMonitors.o ../../gen/lwp.bin/TaskNotices.o  \
+          ../../gen/lwp.bin/TaskTime.o ../../gen/lwp.bin/Tasks.o  \
+          ../../gen/lwp.bin/TasksPRIVATE.o ../lwp.bin/TextIO.o  \
+          ../lwp.bin/TextIOPRIVATE.o ../lwp.bin/UnixAsynchIO.o  \
+          ../lwp.bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+          ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+          ../../gen/lwp.bin/UnixMonitor.o tIONames.o 
+tIOVersions.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+               ../bin/IOVersions.sym ../../gen/bin/NameLists.sym  \
+               ../../gen/bin/Notices.sym ../../gen/bin/ProgErr.sym  \
+               ../bin/SimpleIO.sym 
+tIOVersions: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../lwp.bin/IOMonitors.o ../lwp.bin/IONames.o ../bin/IOVersions.o  \
+             ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+             ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+             ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+             ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+             ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgArgs.o  \
+             ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+             ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+             ../../gen/lwp.bin/SafeStorage.o ../lwp.bin/SimpleIO.o  \
+             ../bin/StringIO.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+             ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+             ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+             ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+             ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+             ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+             ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+             ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o  \
+             tIOVersions.o 
+tListWithInfo.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+                 ../../gen/bin/Intrinsics.sym ../../gen/bin/ProgErr.sym  \
+                 ../bin/SimpleIO.sym ../../gen/bin/Strings.sym 
+tListWithInfo: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+               ../../gen/bin/CardConvert.o ../bin/CardIO.o  \
+               ../bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+               ../bin/ConfBinaryIO.o ../lwp.bin/DirIO.o  \
+               ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+               ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o  \
+               ../bin/IntIO.o ../../gen/lwp.bin/Interrupts.o  \
+               ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+               ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+               ../../gen/lwp.bin/Notices.o ../../gen/lwp.bin/Objects.o  \
+               ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+               ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+               ../../gen/lwp.bin/SafeStorage.o ../lwp.bin/SimpleIO.o  \
+               ../bin/StringIO.o ../../gen/bin/Strings.o  \
+               ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+               ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+               ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+               ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+               ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+               ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+               ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+               ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o  \
+               tListWithInfo.o 
+tScreenIO.o: ../bin/CardIO.sym ../bin/IOErrors.sym ../bin/ScreenIO.sym  \
+             ../bin/StringIO.sym ../bin/TextIO.sym 
+tScreenIO: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+           ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+           ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+           ../lwp.bin/IOMonitors.o ../../gen/bin/IntConvert.o  \
+           ../../gen/lwp.bin/Interrupts.o ../../gen/bin/Intrinsics.o  \
+           ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+           ../../gen/bin/NameLists.o ../../gen/lwp.bin/Notices.o  \
+           ../../gen/lwp.bin/Objects.o ../../gen/bin/ProgErr.o  \
+           ../../gen/bin/ProgErrOutput.o ../../gen/lwp.bin/SafeStorage.o  \
+           ../bin/ScreenIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+           ../../gen/bin/SysTypes.o ../../gen/lwp.bin/TaskConsts.o  \
+           ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMonitors.o  \
+           ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/TaskTime.o  \
+           ../../gen/lwp.bin/Tasks.o ../../gen/lwp.bin/TasksPRIVATE.o  \
+           ../lwp.bin/TextIO.o ../lwp.bin/TextIOPRIVATE.o  \
+           ../lwp.bin/UnixAsynchIO.o ../lwp.bin/UnixBinaryIO.o  \
+           ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+           ../bin/UnixIONames.o ../../gen/lwp.bin/UnixMonitor.o tScreenIO.o 
+tStringBinaryIO.o: ../bin/BinaryIO.sym ../../gen/bin/CardConvert.sym  \
+                   ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+                   ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+                   ../bin/StringBinaryIO.sym ../../gen/bin/Strings.sym  \
+                   ../../gen/bin/SysTypes.sym 
+tStringBinaryIO: ../../gen/bin/ASCII.o ../bin/BinaryIO.o  \
+                 ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+                 ../bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+                 ../bin/ConfBinaryIO.o ../../gen/bin/GenConsts.o  \
+                 ../bin/IOConsts.o ../bin/IOErrors.o  \
+                 ../../gen/bin/IntConvert.o ../../gen/lwp.bin/Interrupts.o  \
+                 ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+                 ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+                 ../../gen/lwp.bin/Notices.o ../../gen/lwp.bin/Objects.o  \
+                 ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+                 ../../gen/lwp.bin/SafeStorage.o ../bin/StringBinaryIO.o  \
+                 ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+                 ../../gen/lwp.bin/TaskConsts.o ../../gen/lwp.bin/TaskInfo.o  \
+                 ../../gen/lwp.bin/TaskNotices.o ../../gen/lwp.bin/Tasks.o  \
+                 ../../gen/lwp.bin/TasksPRIVATE.o ../lwp.bin/UnixAsynchIO.o  \
+                 ../lwp.bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+                 ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+                 ../../gen/lwp.bin/UnixMonitor.o tStringBinaryIO.o 
+${M2Programs}: 
+	${StandardM2link}

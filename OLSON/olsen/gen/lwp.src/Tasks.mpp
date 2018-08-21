@@ -1,0 +1,1013 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Tasks;
+(*
+ * Systems on which this module will run: 
+ *       LogitechM2 AND MsDosOS AND IbmPcArch
+ *       SunOS -- probably other Unixes as well.
+ *       SunArch (32 bit)
+ * 
+ * The tasking model is not very complex.   All the tasks in the
+ * system are treated equally which simplifies all of the code
+ * except initialization (which is discussed later).  Each of 
+ * the procedures is self-explanatory.  Create and SwitchRunning
+ * are the messiest, because they must deal with registers and
+ * code statements and messing with tasks internals while the stacks
+ * are in a shakey state.  
+ *
+ * Context switches:
+ * Saving context is minimal in switchRunning, because running is
+ * voluntarily giving up the processor when this procedure is called.
+ * All restore operations must be full ones, because the saved state
+ * might have been involuntary (via an interrupt handler).
+ *
+ * Here are some simple assumptions that are made throughout this module:
+ * 	"readyQueue" is never empty (if it is, we will probably get a 
+ *	       NIL pointer reference).
+ *      "running" is always the running task (unless in the middle of a
+ *             context switch, see TasksPRIVATE.SwitchRunning).
+ *
+ * Initialization and termination of the system.
+ *
+ * Once the first task is initialized, there are internal tasks which
+ * need to run.  The IdleTask which runs when all other tasks are not
+ * ready.  To clean up after dead tasks, the DeathTask is created.
+ * This sounds silly, but how do you deallocate your own stack?  Someone
+ * else has to do it, and the deathTask is that someone.
+ *
+ * The system can terminate in several ways:
+ *	Abnormally (ProgErr, PanicSystem, RebootSystem)
+ *	Normally (ExitSystem, DeathTask returning)
+ * Abnormal termination is fairly clear.  ExitSystem makes it so that
+ * no task switches can occur and then calls the run-time system.  This
+ * is not the cleanest method of exiting, because some task may be 
+ * inside DOS or resources have not been cleaned up properly.  It is here,
+ * because it seemed like it was necessary.
+ * 
+ * The death task exits when it is the last task in the system.  It
+ * knows this, because numTasks is 1.  The IdleTask exits when it is
+ * the only task in the system besides the deathTask.  Specifically,
+ * when all the tasks in the system have exited normally, then the
+ * system will terminate normally.
+ *
+ * M2ppFlags: 
+ * 	IbmPcArch - interrupts and stack
+ *      MsDosOS   - break handling and switching
+ *      SunOS     - Unix stuff (signals, TasksAsm)
+ * 	SunArch   - stack
+ *)
+IMPORT
+    ProgErr,		
+    ProgErrOutput,	
+    Strings,
+    SYSTEM,		
+    SysTypes,
+    TaskConsts,
+    TasksPRIVATE;
+
+@IF IbmPcArch THEN
+    IMPORT
+	I8086;		
+@END
+@IF SunOS THEN
+    IMPORT
+	TasksAsm,
+	UnixCsignal;
+@END
+
+@IF Debug THEN
+    IMPORT
+	CardConvert;
+@END
+
+CONST
+    moduleName = "Tasks";
+
+    @IF SunArch THEN
+	deathTaskStackSize   = 1000H;	(* Runs termination code *)
+	idleTaskStackSize    = 100H;
+    @ELSIF IbmPcArch THEN
+	deathTaskStackSize   = 180H;
+	idleTaskStackSize    = 100H;
+    @END
+	(*
+	 * This value is used for both the IdleTask and the DeathTask.
+	 * It should be big enough to call the birth and death procs
+	 * for all of the groups.  The numbers were empirically 
+	 * determined.
+	 *)
+
+TYPE
+    Object = TasksPRIVATE.Object;
+
+
+VAR
+    deathTask : Object;
+	(*
+	 * This task cleans up after the dead.  It deallocates its stack
+	 * and Object record.  Note that "death" in this module means
+	 * normal termination.
+	 *)
+    deathQueue : Object;
+	(*
+	 * This is the list of tasks which are awaiting the grim reaper.  
+	 * The order doesn't matter, because the deathTask just 
+	 * deallocates 'em all.  We use the "otherNext" field as the
+	 * link pointer.  Only modified in non-preemptable section.
+	 *)
+
+PROCEDURE TaskEpilogue;
+    (* 
+     * This is a seperate procedure because the first task does not 
+     * have a preamble, but it needs to call the epilogue.  
+     * Instead of duplicating the code, Envelope calls this procedure.
+     *
+     * First thing we need to do is callOnDeath to free up the info
+     * field of the running task.  Then, we tell the deathTask
+     * that we are dead and suspend so the deathTask gets to run.  Note
+     * that the dead task should not return.
+     *)
+    BEGIN (* TaskEpilogue *)
+
+	TasksPRIVATE.callOnDeath;
+	(* 
+	 * From here to the end, we are in a non-preemptable section.
+	 *)
+	DisallowPreemption;
+
+	(* 
+	 * Put "me" (the dead task) on the deathQueue 
+	 * Note that we can't use the "nextReady", because it
+	 * is in the ready queue right now.
+	 *)
+	TasksPRIVATE.running^.otherNext := deathQueue;	
+	deathQueue := TasksPRIVATE.running;
+
+	Ready( deathTask );		(* Notify the grim reaper *)
+
+	Suspend;			(* Let death run *)
+	(* Should not return  *)
+
+	ProgErr.Terminate( "Tasks: task came back from the dead!" );
+
+    END TaskEpilogue;
+
+
+PROCEDURE TaskEnvelope( 
+    parent         : Object;
+    thread         : Proc;
+    importerObject : SysTypes.ANYPTR 
+    );
+    (*
+     * This is the procedure which calls the task's main entry point,
+     * but first it must initialize the info field.  If the task returns
+     * into this procedure, it has terminated normally and needs to
+     * be deallocated.  TaskEpilogue is called upon the return of
+     * the control thread to clean up.
+     *)
+    BEGIN (* TaskEnvelope *)
+
+	(* Initialize "info" *)
+	TasksPRIVATE.callOnBirth;
+
+	(* Tell the parent that it is ok to continue *)
+	DisallowPreemption;
+	    (* 
+	     * Set the parent's otherNext field to NIL so that parent
+	     * knows that the child  has been fully initialized, then
+	     * let the parent go.  Note that we modify the parent's
+	     * otherNext field, because we know that it can't be modified
+	     * while the parent is waiting for this task to initialize.
+	     *)
+	    parent^.otherNext := NIL;
+	    Ready( parent );
+	AllowPreemption;
+
+	thread( importerObject );	(* Main body of the task. *)
+
+	(* At this point, the main body has terminated normally *)
+
+	TaskEpilogue;
+
+    END TaskEnvelope;
+
+
+VAR
+    numTasks : SysTypes.Card;
+	(* 
+	 * This value is used by the idle and death tasks to determine when 
+	 * they should exit.  Note that this variable must be modified
+	 * in non-preemptable sections only.
+	 *)
+
+PROCEDURE Create( 
+    VAR task           : Object;
+	anyName        : ARRAY OF CHAR;
+	thread         : Proc;
+	importerObject : SysTypes.ANYPTR;
+	initPriority   : TaskConsts.Priorities;
+	stackSize      : TaskConsts.StackSizes 
+    );
+    (*
+     * Allocates the child Object and stack. Initializes the child's
+     * stack so that SwitchRunning will transfer to TaskEnvelope.  
+     * After the child is initialized, the child is readied and the parent 
+     * task suspends.  Once the child has called callOnBirth, the
+     * child readies the parent and then the two are treated as peers.  
+     *
+     * In the parent, the otherNext field is set to the child (before the
+     * parent suspends).  The child signals the parent by modifying
+     * the parent's otherNext field to NIL and then Readies the parent.
+     *
+     * Note the strange method of mutual exclusion.  We must hold the
+     * TasksPRIVATE.Enter/Exit mutex until we are really ready to switch
+     * the child.  This way we are ensured that TaskInfo will not 
+     * accidentally call the birthProc (or the deathProc) before the
+     * task is really initialized.
+     *)
+    VAR
+	child : Object;	(* don't assign this till the end! *)
+	i     : SysTypes.Card;
+    BEGIN (* Create *)
+
+	TasksPRIVATE.Enter;
+	    (* Make sure the list is mutually excluded properly *)
+
+	    TasksPRIVATE.Allocate( stackSize, thread, importerObject, child );
+	    (*
+	     * Initialize the child task Object.
+	     *)
+	    WITH child^ DO
+		state       := TasksPRIVATE.suspended;
+		priority    := initPriority;
+		nextReady   := NIL;			(* Not really needed *)
+		otherNext   := TasksPRIVATE.running;	(* parent link *)
+		FOR i := 0 TO HIGH( info ) DO
+		    info[ i ] := NIL;
+		END;
+
+		@IF Debug THEN
+		    @IF IbmPcArch THEN
+			(* Put a unique identifier on the name *)
+			WITH stackBase.adr DO
+			    (* This is a hack to get an approximately unique id*)
+			    CardConvert.DONTCARE := CardConvert.ToString( 
+				SEGMENT DIV 10H MOD 100H, 10H, 0, name );
+			END;
+		    @ELSIF SunArch THEN
+			(*  
+			 * Put a unique identifier on the name.  The numbers
+			 * here depend upon how memory gets allocated.
+			 *)
+			(* For some reason, we can't use stackBase directly *)
+			i := stackBase;
+			CardConvert.DONTCARE := CardConvert.ToString( 
+			    i DIV 100H MOD 1000H, 36, 0, name );
+		    @END
+		    Strings.Insert( name, Strings.BOS, anyName );
+		@ELSE
+		    Strings.Assign( anyName, name );      
+		@END
+	    END; (* WITH child *)
+
+	    (*
+	     * Now the child is fully initialized. All we have to do is
+	     * set up our "otherNext" flag, Ready the child, then
+	     * Suspend.  The child task will reset the "otherNext" flag after
+	     * it has executed callOnBirth.  It will then ready this task.
+	     *)
+
+	DisallowPreemption;	(* Grab stronger mutex *)
+	TasksPRIVATE.Exit;	(* Release weaker mutex *)
+
+	    INC( numTasks );		(* The child task has been created *)
+
+	    TasksPRIVATE.running^.otherNext := child; (* Reset by the child *)
+	    Ready( child );
+
+	    REPEAT
+		Suspend;	(* Wait until callOnBirth has completed *)
+	    UNTIL TasksPRIVATE.running^.otherNext = NIL;
+
+	AllowPreemption;
+
+	(* Tell the parent task who its child is and return *)
+	task := child;
+
+    END Create;
+
+
+@IF LowLevelDebugging THEN
+    PROCEDURE PrintReadyQueue;
+	VAR
+	    tp : Object;
+	BEGIN (* PrintReadyQueue *)
+	    
+	    ProgErrOutput.WriteString( "Running: " );
+	    ProgErrOutput.WriteString( TasksPRIVATE.running^.name );
+	    ProgErrOutput.WriteLn;
+	    ProgErrOutput.WriteString( "RQ:" );
+	    tp := TasksPRIVATE.readyQueue;
+	    WHILE tp # NIL DO
+		ProgErrOutput.WriteString( " " );
+		ProgErrOutput.WriteString( tp^.name );
+		tp := tp^.nextReady;
+	    END;
+	    ProgErrOutput.WriteLn;
+
+	END PrintReadyQueue;
+@END
+
+
+PROCEDURE Suspend;
+    (*
+     * Change the state of the running task (which previously 
+     * was readyOrRunning).  After changing the state, remove it
+     * from the readyQueue and switch to new readyQueue (head).
+     *)
+    VAR
+	tp : Object;
+    BEGIN (* Suspend *)
+	
+	@IF Assert AND MsDosOS THEN
+	    IF TasksPRIVATE.suspendNotAllowed THEN
+		(* Can't call ProgErr, because that uses ProgErrOutput *)
+		PanicSystem( "Tasks: Suspend called during termination code." );
+	    END;
+	@END
+
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    (*
+	     * We must push the flags on now.
+	     *)
+	    SYSTEM.CODE( I8086.Pushf );
+	    SYSTEM.DISABLE;
+	@END
+
+	@IF SunOS THEN
+	    TasksAsm.tasksSavedMask := UnixCsignal.sigblock(
+					TasksPRIVATE.blockAllSignals );
+	@END
+
+	TasksPRIVATE.running^.state := TasksPRIVATE.suspended;
+
+	(* Delete the "running" task from ready queue *)
+	tp := TasksPRIVATE.readyQueue;
+	IF TasksPRIVATE.running = tp THEN 
+	    TasksPRIVATE.readyQueue := tp^.nextReady; (* was the head *)
+	ELSE
+	    (* 
+	     * Search for in the ready queue.  Note that if
+	     * it isn't found, we will get a NIL pointer 
+	     * reference.  If this occurance were more likely,
+	     * I would have complicated the code with an 
+	     * explicit check.
+	     *)
+	    WHILE tp^.nextReady # TasksPRIVATE.running DO
+		tp := tp^.nextReady;
+	    END;
+	    (* delete the running task from the ready queue *)
+	    tp^.nextReady := TasksPRIVATE.running^.nextReady;	
+	END;
+
+	@IF MsDosOS THEN
+	    (*
+	     * The flags are already on the stack so all we have to do
+	     * is call TasksPRIVATE.SwitchRunning (which must be a call far!).
+	     * Note interrupts must be disabled here and the 
+	     * flags are on the top of the stack.
+	     *)
+	    TasksPRIVATE.SwitchRunning;
+	@END
+
+	@IF SunOS THEN
+	    TasksAsm.TasksSwitchRunning;
+	@END
+
+    END Suspend;
+
+
+PROCEDURE Ready( 
+    task : Object 
+    );
+    (*
+     * Since this procedure just diddles with the readyQueue, it must
+     * disable interrupts and not just disallow preemption.
+     * Check the object to see if it is already ready.  If it is, 
+     * do nothing.  If it isn't, insert it in the ready queue 
+     * (with the proper ordering).  If it becomes the best to run
+     * and preemption is disallowed, then call TasksPRIVATE.SwitchRunning.
+     *)
+    VAR
+	tp : Object;
+	@IF SunOS THEN
+	    oldMask : TasksPRIVATE.SignalMask;
+	@END
+    BEGIN (* Ready *)
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    (* This code may be called from interrupt handlers *)
+	    SYSTEM.CODE( I8086.Pushf );
+	    SYSTEM.DISABLE;
+	@END
+
+	@IF SunOS THEN
+	    oldMask := UnixCsignal.sigblock( TasksPRIVATE.blockAllSignals );
+	@END
+ 
+	    @IF Assert THEN
+		TasksPRIVATE.Assert( task );
+	    @END
+
+	    (* 
+	     * The state of the task may be changed by an interrupt handler.
+	     * We therefore must disable interrupts when messing with 
+	     * the readyQueue.
+	     *)
+	    WITH task^ DO 
+		(* If the task is suspended, then ready it. *)
+		IF state = TasksPRIVATE.suspended THEN
+		    state := TasksPRIVATE.readyOrRunning;
+		    (*
+		     * Insert in the readyQueue before the task with 
+		     * the strictly lesser priority.
+		     *)
+		    tp := TasksPRIVATE.readyQueue;
+		    IF priority > tp^.priority THEN
+			(* Insert at the head of the list *)
+			nextReady  := TasksPRIVATE.readyQueue;
+			TasksPRIVATE.readyQueue := task;
+
+			(* We are the best to run, so can we switch? *)
+			IF TasksPRIVATE.preemptionLevel =
+			   TasksPRIVATE.allowPreemption THEN
+			    @IF MsDosOS THEN
+				(* Flags have been pushed so.... *)
+				TasksPRIVATE.SwitchRunning;
+				(* WARNING: Flags are no longer on the stack *)
+			    @END
+			    @IF SunOS THEN
+				TasksAsm.tasksSavedMask := oldMask;
+				TasksAsm.TasksSwitchRunning;
+			    @END
+			    RETURN;
+			END;
+		    ELSE
+			WHILE ( tp^.nextReady # NIL ) AND 
+			      ( priority <= tp^.nextReady^.priority ) DO
+			    tp := tp^.nextReady;
+			END;
+			(* Insert somewhere in the list *)
+			nextReady := tp^.nextReady;
+			tp^.nextReady := task;
+		    END;
+		END;
+	    END; (* WITH *)
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    SYSTEM.CODE( I8086.Popf );	(* End readyQueue diddling *)
+	@END
+
+	@IF SunOS THEN
+	    oldMask := UnixCsignal.sigsetmask( oldMask );
+	@END
+
+    END Ready;
+
+
+(* 
+ * State Transactions - extract/modify the Object's fundamental state.
+ *)
+PROCEDURE GetCurrent(
+    ) : Object;
+    BEGIN (* GetCurrent *)
+
+	(* No critical section needed *)
+	RETURN TasksPRIVATE.running;
+
+    END GetCurrent;
+
+
+PROCEDURE GetName(     
+	task : Object;
+    VAR name : TaskConsts.Name 
+    );
+    BEGIN (* GetName *)
+
+	DisallowPreemption;
+	    @IF Assert THEN
+		TasksPRIVATE.Assert( task );
+	    @END
+
+	    name := task^.name;
+	AllowPreemption;
+
+    END GetName;
+
+
+PROCEDURE GetPriority( 
+    task : Object
+    )    : TaskConsts.Priorities;
+    (*
+     * Note that this procedure should never be passed an internal
+     * task, so the priority should always be in range.   task^.priority
+     * may change, but the assignment is atomic so we don't need to
+     * turn off priorities.
+     *)
+    VAR
+	result : TaskConsts.Priorities;
+    BEGIN (* GetPriority *)
+
+	DisallowPreemption;
+	    @IF Assert THEN
+		TasksPRIVATE.Assert( task );
+	    @END
+
+	    result := task^.priority;
+	AllowPreemption;
+
+	RETURN result;
+
+    END GetPriority;
+
+
+PROCEDURE SetPriority( 
+    task     : Object;
+    priority : TaskConsts.Priorities 
+    );
+    (*
+     * No matter who is doing the setting, we set the priority and
+     * check if it is already suspended.  If it is already suspended,
+     * then all we have to do is return.  If not, then we must delete
+     * the guy from the ready queue and reinsert it.  The "Allow" at
+     * the end will do a switch if necessary.
+     *
+     * TODO:
+     *    Optimize like Ready.
+     *)
+    VAR
+	tp : Object;
+	@IF SunOS THEN
+	    oldMask : TasksPRIVATE.SignalMask;
+	@END
+    BEGIN (* SetPriority *)
+
+	@IF Assert THEN
+	    TasksPRIVATE.Assert( task );
+	@END
+
+	(* 
+	 * The state of the task may be changed by an interrupt handler
+	 * (and for that matter so can the priority).
+	 *)
+	@IF IbmPcArch AND MsDosOS THEN
+	    (* Push the flags, disable interrupts and do the context switch.
+	       Note that the flags are no longer on the stack when we return. *)
+	    SYSTEM.CODE( I8086.Pushf );
+	    SYSTEM.DISABLE;
+	@END
+
+	@IF SunOS THEN
+	    oldMask := UnixCsignal.sigblock( TasksPRIVATE.blockAllSignals );
+	@END
+
+
+	    task^.priority := priority;
+
+	    IF task^.state = TasksPRIVATE.readyOrRunning THEN
+		(*
+		 * We must "suspend" the task and restart it.
+		 *)
+		task^.state := TasksPRIVATE.suspended;
+
+		(* Delete from ready queue *)
+		tp := TasksPRIVATE.readyQueue;
+		IF task = tp THEN 
+		    (* Delete at the head *)
+		    TasksPRIVATE.readyQueue := tp^.nextReady;
+		ELSE
+		    (* 
+		     * Search for in the ready queue.  Note that if
+		     * it isn't found, we will get a NIL pointer 
+		     * reference.  If this occurance were more likely,
+		     * I would have complicated the code with an 
+		     * explicit check.
+		     *)
+		    WHILE tp^.nextReady # task DO
+			tp := tp^.nextReady;
+		    END;
+		    tp^.nextReady := task^.nextReady; (* delete the task *)
+		END;
+
+		Ready( task );	 (* Re-insert in the ready queue *)
+	    END; (* IF task^.state = ready *)
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    SYSTEM.CODE( I8086.Popf );	(* End ReadyQueue diddling *)
+	@END
+
+	@IF SunOS THEN
+	    oldMask := UnixCsignal.sigsetmask( oldMask );
+	@END
+
+    END SetPriority;
+
+
+PROCEDURE SetInvalid( 
+    VAR task : Object 
+    );
+    BEGIN (* SetInvalid *)
+
+	task := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE IsValid( 
+    task : Object 
+    )    : BOOLEAN;
+    VAR
+	result : BOOLEAN;
+    BEGIN (* IsValid *)
+
+	DisallowPreemption;
+	    result := TasksPRIVATE.IsValid( task );
+        AllowPreemption;
+	
+	RETURN result;
+
+    END IsValid;
+
+
+(*
+ * Note that Allow/Disallow procedures may be called from interrupt handlers.
+ * Interrupts modifies preemptionLevel before calling the handler.
+ *)
+PROCEDURE DisallowPreemption;
+    (*
+     * Simply increment the preemptionLevel. 
+     *)
+    BEGIN (* DisallowPreemption *)
+
+	(* This code may be called from interrupt handlers *)
+	INC( TasksPRIVATE.preemptionLevel );
+
+    END DisallowPreemption;
+
+
+PROCEDURE AllowPreemption;
+    (*
+     * Decrement preemptionLevel, if it becomes allowPreemption, then we must 
+     * check to see if the running task is the head of the readyQueue.   
+     * If it isn't then we must switch tasks via TasksPRIVATE.SwitchRunning.
+     *)
+    BEGIN (* AllowPreemption *)
+
+	(* Note that if preemptionLevel = 0, this will blow up. *)
+	DEC( TasksPRIVATE.preemptionLevel );
+
+	(* If the best task to run is already the running task, or
+	   the preemption level forbids a task switch, do nothing. *)
+	IF ( TasksPRIVATE.readyQueue = TasksPRIVATE.running ) OR
+	   ( TasksPRIVATE.preemptionLevel <> TasksPRIVATE.allowPreemption ) 
+	THEN 
+	    RETURN ;
+	END ;
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    (* Push the flags, disable interrupts and do the context switch.
+	       Note that the flags are no longer on the stack when we return. *)
+	    SYSTEM.CODE( I8086.Pushf );
+	    SYSTEM.DISABLE;
+	    TasksPRIVATE.SwitchRunning;
+	@END
+
+	@IF SunOS THEN
+	    TasksAsm.tasksSavedMask := UnixCsignal.sigblock(
+					    TasksPRIVATE.blockAllSignals );
+	    TasksAsm.TasksSwitchRunning;
+	@END
+
+    END AllowPreemption;
+
+
+PROCEDURE ExitSystem;
+    BEGIN (* ExitSystem *)
+	
+	TasksPRIVATE.ExitSystem;
+
+    END ExitSystem;
+
+
+VAR
+    panicHandler   : PanicHandler;
+	(*
+	 * This variable becomes true when Panic is called.
+	 *)
+
+PROCEDURE PanicSystem( 
+    msg : ARRAY OF CHAR 
+    );
+    @IF SunOS THEN
+	VAR 
+	    DONTCARE : TasksPRIVATE.SignalMask;
+    @END
+	
+    BEGIN (* PanicSystem *)
+
+	@IF IbmPcArch AND MsDosOS THEN
+	    SYSTEM.DISABLE;
+	@END
+	@IF SunOS THEN
+	    DONTCARE := UnixCsignal.sigblock( TasksPRIVATE.blockAllSignals );
+	@END
+
+	    IF TasksPRIVATE.systemPanicked THEN
+		RebootSystem;	(* Nothing more we can do... *)
+	    END;
+
+	    TasksPRIVATE.preemptionLevel := TasksPRIVATE.firstLevelDisallow;
+	    TasksPRIVATE.systemPanicked := TRUE;
+	    panicHandler( msg );
+	    (* Must not return *)
+	    RebootSystem;	(* Will not return *)
+
+    END PanicSystem;
+
+
+PROCEDURE InstallPanicHandler(     
+	newPanicHandler : PanicHandler;
+    VAR oldPanicHandler : PanicHandler 
+    );
+    BEGIN (* InstallPanicHandler *)
+
+	DisallowPreemption;
+	    oldPanicHandler := panicHandler;
+	    panicHandler    := newPanicHandler;
+	AllowPreemption;
+	
+    END InstallPanicHandler;
+
+
+PROCEDURE RebootSystem;
+    BEGIN (* RebootSystem *)
+	
+	TasksPRIVATE.RebootSystem;
+
+    END RebootSystem;
+
+
+(*
+ * Internal task procedures.  The order of initialization of these
+ * tasks is FirstTask, DeathTask, and IdleTask.  This is important,
+ * because of the assumptions about numTasks that these tasks make!
+ *)
+PROCEDURE IdleTaskProc( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (*
+     * Runs until all the tasks are gone except this one and the
+     * death task.  Note because of its priority, it only runs
+     * when there are no other tasks ready.
+     *
+     * Priority:  minPriority - 1
+     *)
+    @IF SunOS THEN
+	VAR
+	    oldMask : TasksPRIVATE.SignalMask;
+    @END
+    BEGIN (* IdleTaskProc *)
+	
+	(* This guy is always preemptable *)
+	WHILE TasksPRIVATE.preemptionLevel > TasksPRIVATE.allowPreemption DO
+	    (* Cause a task switch... *)
+	    AllowPreemption;
+	END;
+	
+	(* Doesn't needed to be disabled since INC is atomic *)
+	@IF MsDosOS THEN
+	    WHILE numTasks >= 3 DO
+		(* Not much to do, but don't optimize *)
+	    END;
+	@END
+
+	@IF SunOS THEN
+	    (* 
+	     * We must make sure that we don't get suspended inbetween 
+	     * the tasks check and the sigpause.
+	     *)
+	    oldMask := UnixCsignal.sigblock( TasksPRIVATE.blockAllSignals );
+	    WHILE numTasks >= 3 DO
+		(* Not much to do, but don't optimize *)
+		    UnixCsignal.sigpause( TasksPRIVATE.SignalMask {} );
+	    END;
+	    oldMask := UnixCsignal.sigsetmask( oldMask );
+	@END
+
+	(*
+	 * We must restore the priority so that when callOnDeath is
+	 * called, no one gets screwed up if they call GetPriority.
+	 *)
+	DisallowPreemption;
+	    INC( TasksPRIVATE.running^.priority );
+	AllowPreemption;
+
+    END IdleTaskProc;
+
+
+PROCEDURE DeathTaskProc( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (* 
+     * Responsible for disposing of the "Objects" for all tasks in the
+     * system.  When the total number of tasks equals 1, this procedure
+     * exits.  Read the special code at the end of this procedure about
+     * termination.  The main body of this procedure loops on the
+     * deathQueue for deadTasks.  If there are no dead tasks, it Suspends.
+     * Note that the checks all have to be done with preemption turned
+     * off for mutual exclusion reasons.
+     *
+     * Note this procedure cannot call deathProc, because it's task
+     * information is needed during termination.
+     *
+     * Priority: maxPriority
+     *)
+    VAR
+	taskToDie : Object;
+    BEGIN (* DeathTaskProc *)	
+	
+	(* NOTE: This task always runs with preemption disabled! *)
+	DisallowPreemption;
+
+	(*
+	 * Get rid of tasks until the task count reaches 1.
+	 *)
+	LOOP
+	    (*
+	     * We need to have a loop inside a loop so that we can make
+	     * sure the entire task queue is empty before we do a 
+	     * Suspend. 
+	     *)
+	    WHILE deathQueue # NIL DO
+		(* 
+		 * First thing is to eliminate the dead task from
+		 * the list of dead tasks.
+		 *)
+		taskToDie  := deathQueue;
+		deathQueue := deathQueue^.otherNext;
+
+
+		(* 
+		 * A simple little assertion check to prevent
+		 * the memory from being totally thrashed.
+		 *)
+		IF taskToDie^.state # TasksPRIVATE.suspended THEN
+		    ProgErr.Terminate( "Tasks: dead task is ready!" );
+		END;
+
+		(* 
+		 * Free up the memory resources.  All tasks are treated
+		 * equally. TasksPRIVATE does the magic, if need be.
+		 *)
+		TasksPRIVATE.Enter;
+		    TasksPRIVATE.Deallocate( taskToDie );
+		TasksPRIVATE.Exit;
+
+		(*
+		 * We must update the count of tasks.  If the
+		 * count reaches 1, then this is the only task
+		 * alive and it is time to exit.  Note that this
+		 * check must occur here so that we don't suspend
+		 * forever!
+		 *)
+		DEC( numTasks );
+		IF numTasks = 1 THEN
+		    EXIT;
+		END;
+	    END; (* WHILE *)
+
+	    @IF MsDosOS THEN
+		SYSTEM.DISABLE;
+		    (* 
+		     * We must poll this variable twice, because it
+		     * is set in an interrupt handler.
+		     *)
+		    IF TasksPRIVATE.breakReceived THEN
+			EXIT;
+		    END;
+		    (* Wait for more tasks to die or a break.  *)
+		    Suspend;	
+		    IF TasksPRIVATE.breakReceived THEN
+			EXIT;
+		    END;
+		SYSTEM.ENABLE;
+	    @END
+
+	    @IF SunOS THEN
+		Suspend;
+	    @END
+
+	END; (* LOOP *)
+
+	(*
+	 * The deathTask is the last task to die in the system.  This
+	 * means we have to return to the run-time system now.  We do
+	 * this by calling the rts exit procedure.  During normal
+	 * termination, we can't deallocate the task information for
+	 * this task, because it is needed during termination!
+	 *)
+
+	@IF MsDosOS THEN
+	    (* Did we exit out of the loop above because of a break? *)
+	    IF TasksPRIVATE.breakReceived THEN
+		SYSTEM.ENABLE;
+		ProgErr.Terminate( "" ); (* Msgs increase stack too much *)
+	    END;
+	@END
+
+	TasksPRIVATE.ExitSystem;
+
+    END DeathTaskProc;
+
+
+@IF LowLevelDebugging THEN
+    PROCEDURE WriteCard( card : SysTypes.Card;	
+			 base : SysTypes.Card );
+	VAR
+	    DONTCARE : BOOLEAN;
+	    str      : ARRAY [ 0 .. SysTypes.bitsPerCard ] OF CHAR;
+	BEGIN (* WriteCard *)
+
+	    DONTCARE := CardConvert.ToString( card, base, 0, str );
+	    ProgErrOutput.WriteString( str );
+
+	END WriteCard;
+@END
+
+
+PROCEDURE DoNothing;
+    END DoNothing;
+
+VAR
+    idleTask  	     : Object;		(* Not used after initialization *)
+
+BEGIN (* Tasks *)
+    
+    TasksPRIVATE.taskEnvelopeAdr := SYSTEM.ADDRESS( TaskEnvelope );
+
+    TasksPRIVATE.Initialize( TaskEpilogue );
+
+    (* 
+     * Initialize global variables of Tasks first.
+     *)
+    deathTask  := NIL;
+    deathQueue := NIL;
+    numTasks   := 1;	(* mainTask is alive! *)
+    panicHandler      := TasksPRIVATE.DefaultPanicHandler;
+
+    (* 
+     * Initialize the TasksPRIVATE variables.
+     *)
+    TasksPRIVATE.callOnBirth := DoNothing;
+    TasksPRIVATE.callOnDeath := DoNothing;
+
+    (*
+     * Now we are ready to initialize the tasks.  They must 
+     * be created as follows: death, and idle.
+     *)
+    (* Set up to die on break interrupts *)
+    Create( deathTask, "Death", DeathTaskProc, DONTCARE, 
+	    TaskConsts.maxPriority, deathTaskStackSize );
+    @IF MsDosOS THEN
+	TasksPRIVATE.deathTask := deathTask;	(* never changes *)
+    @END
+
+    Create( idleTask, "Idle", IdleTaskProc, DONTCARE, 
+	    TaskConsts.minPriority, idleTaskStackSize );
+    (* 
+     * Make it so that the idle task won't run unless no other task is ready.
+     *)
+    DEC( idleTask^.priority );
+
+END Tasks.

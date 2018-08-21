@@ -1,0 +1,47 @@
+(*
+4.1 List Enumerations
+
+This module provides definitions for list operations and
+exceptions for both singly-linked and doubly-linked lists.
+*)
+
+DEFINITION MODULE ListEnum; 
+(*==========================================================
+    Version  : 1.00  18 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Tool - List Structure Enumerations Utility
+
+    REVISION HISTORY
+    v1.00  18 May 1989  C. Lins:
+	Initial TopSpeed Modula-2 implementation.
+	(C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+CONST ComponentID = 256 * 7;	(*-- must be a multiple of 256 *)
+
+TYPE  Operations = (modinit,
+
+	create, destroy, clear, assign,
+	setitem, setnext, setprev, insert,
+	setlist,
+
+	isdefined, isempty, isequal, lengthof,
+	getitem, getnext, getprev
+	);
+
+TYPE  Constructors = Operations [ create .. setlist ];
+TYPE  Selectors    = Operations [ isdefined .. getprev ];
+
+
+    (*-----------------------*)
+
+TYPE  Exceptions = (noerr,
+	initfailed,
+	listisnull,
+	overflow,
+					undefined
+	);
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END ListEnum.

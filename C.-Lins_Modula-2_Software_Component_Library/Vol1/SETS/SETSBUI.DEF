@@ -1,0 +1,123 @@
+DEFINITION MODULE SetSBUI;
+(*==========================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Set
+               Sequential Bounded Unmanaged Iterator
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins
+      Initial implementation. Derived from SetSBMI module.
+
+    (C) Copyright 1989 Charles A. Lins
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM SetEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  Set;
+TYPE  SizeRange = [ 1 .. 8000 ];
+CONST NullSet   = Set(NIL);
+
+
+    (*-----------------------*)
+
+CONST ModuleID = 5;
+
+PROCEDURE SetError    ()              : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    theError   : Exceptions  (*-- in    *))
+                                      : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    theError   : Exceptions  (*-- in    *);
+                           theHandler : HandlerProc (*-- in    *));
+
+    (*-----------------------*)
+
+PROCEDURE Create        (    theSize  : SizeRange (*-- in    *);
+                             theType  : TypeID    (*-- in    *))
+                                      : Set       (*-- out   *);
+
+PROCEDURE Destroy       (VAR theSet   : Set       (*-- inout *));
+
+PROCEDURE Clear         (VAR theSet   : Set       (*-- inout *));
+
+PROCEDURE Assign        (    theSet   : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Include       (    theItem  : Item      (*-- in    *);
+                         VAR inSet    : Set       (*-- inout *));
+
+PROCEDURE Exclude       (    theItem  : Item      (*-- in    *);
+                         VAR fromSet  : Set       (*-- inout *));
+
+PROCEDURE Union         (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Intersection  (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Difference    (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE SymDifference (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+    (*-----------------------*)
+
+PROCEDURE IsDefined     (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty       (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual       (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE SizeOf        (    theSet  : Set      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf        (    theSet  : Set      (*-- in    *))
+                                     : TypeID   (*-- out   *);
+
+PROCEDURE NumMembers    (    theSet  : Set      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE IsAMember     (    theItem : Item     (*-- in    *);
+                             theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsSubset      (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsProperSubset(    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+    (*-----------------------*)
+
+PROCEDURE LoopOver (    theSet  : Set            (*-- in    *);
+                        process : LoopAccessProc (*-- in    *));
+
+PROCEDURE Traverse (    theSet  : Set            (*-- in    *);
+                        process : AccessProc     (*-- in    *));
+
+END SetSBUI.
+

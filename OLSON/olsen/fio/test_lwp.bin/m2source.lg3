@@ -1,0 +1,4 @@
+M2Defs= 
+M2Imps= 
+M2Mods= fiotest.mod tbool.mod tdatafio.mod tfioscre.mod tintcard.mod  \
+        tisvalid.mod treal.mod tsimplef.mod tstring.mod 

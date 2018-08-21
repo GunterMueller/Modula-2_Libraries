@@ -1,0 +1,569 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ProgErr;
+(*
+ * Sun 3/3.0 implementation.  This module doesn't catch signals, because
+ * it is too complicated and probably best to just die hard anyway.  If
+ * you want to implement signal catching, you will have to be careful to
+ * not step on the toes of the LWP environment AND the debugger.
+ *
+ * There are three ways to terminate:
+ *     - from the run-time system (RunTimeHandler)
+ *     - via Terminate in this module being called.
+ *     - via the on_exit system in Unix (ExitHandler)
+ * The last way is treated "normally" only if the "status" passed to the
+ * routine is 0.
+ *
+ * Sun M2 doesn't catch real math errors.  This is a real pain in the
+ * neck for people who do floating point, because the procedures return
+ * with invalid values.  The floating point errors will cause traps and
+ * core dumps (always).
+ *)
+IMPORT 
+    (* Import only the bare essentials *)
+    GenConsts,
+    ProgErrOutput,
+    System,
+    SYSTEM,
+    SysTypes,
+    UnixCerrno,
+    UnixCexit,
+    UnixCmath,
+    UnixCprocess,
+    UnixCsignal,
+    UnixCsys_dir,
+    UnixCsys_types,
+    UnixCtypes,
+    UnixError,
+    UnixMathError;
+
+@IF MC68881Arch THEN
+    IMPORT
+	MC68881;
+    VAR
+	oldValue : MC68881.FPCR;	(* Set but never referenced *)
+@END
+
+PROCEDURE MathErrorHandler(
+    except : UnixCmath.exception
+    )      : INTEGER;
+    (*
+     * We handle DOMAIN, SING, and OVERFLOW.   The other errors are
+     * not important to us.  This procedure does not do a core dump
+     *)
+    VAR
+	reason   : ARRAY [ 0 .. 15 ] OF CHAR;
+    BEGIN (* MathErrorHandler *)
+
+	WITH except^ DO
+	    CASE type OF
+		UnixCmath.DOMAIN:
+		    reason := ": domain error";
+		|
+		UnixCmath.SING:
+		    reason := ": singularity";
+		|
+		UnixCmath.OVERFLOW:
+		    reason := ": overflow";
+		ELSE
+		    RETURN 0;	(* Other cases, take default action *)
+	    END;
+	    WriteCString( SYSTEM.ADDRESS( name ) );
+	    Terminate( reason );
+	    (* DOES NOT RETURN *)
+	END;
+
+    END MathErrorHandler;
+
+VAR
+    memorySaveMode     : MemorySaveModes;	(* current mode *)
+    terminationHandler : TerminationHandler;	(* installed handler *)
+
+    inChild	       : BOOLEAN;
+    terminationLevel   : SysTypes.Card;
+	(* 
+	 * We allow a maximum of two dumps, because there can be
+	 * an error in the termination handler.  Also we must exit
+	 * with a zero status if we are in the child which is dumping
+	 * core (or the child's child).  This prevents false dumps
+	 * in the ExitHandler.
+	 *)
+
+
+PROCEDURE SetMemorySaveMode(
+    newMemorySaveMode : MemorySaveModes
+    );
+    (*
+     * TODO:
+     *     Can this talk to the underlying operating systems?
+     *)
+    BEGIN (* SetMemorySaveMode *)
+
+	memorySaveMode := newMemorySaveMode;
+
+    END SetMemorySaveMode;
+
+
+PROCEDURE InstallTerminationHandler(
+        newHandler : TerminationHandler;
+    VAR oldHandler : TerminationHandler
+    );
+    BEGIN (* InstallTerminationHandler *)
+
+	oldHandler := terminationHandler;
+	terminationHandler := newHandler;
+
+    END InstallTerminationHandler;
+
+PROCEDURE DefaultTerminationHandler(
+    terminationMode : TerminationModes
+    );
+    (* Nothing to do *)
+    END DefaultTerminationHandler;
+
+(*
+ * The first three "termination" entry points into this module
+ * are: Terminate, RunTimeHandler, ExitHandler.  They all
+ * call DoTerminate
+ *)
+PROCEDURE Terminate(
+    message : ARRAY OF CHAR
+    );
+    (*
+     * If the message is non-null, then print out the message followed
+     * by a new-line.
+     *)
+    BEGIN (* Terminate *)
+
+	(* Do whatever processing as soon as possible *)
+	DoTerminate( abnormalTermination );
+
+	IF ( message[ 0 ] # 0C ) AND ( terminationLevel < 3 ) THEN
+	    ProgErrOutput.WriteString( message );
+	    ProgErrOutput.WriteLn;
+	END;
+
+	IF inChild THEN
+	    (* Prevents a core dump in the ExitHandler *)
+	    UnixCexit.exit( 0 );
+	ELSE
+	    UnixCexit.exit( ORD( System.m2tAssert ) );
+	END;
+
+    END Terminate;
+
+
+PROCEDURE RunTimeHandler(
+    reason : System.M2Trap
+    );
+    (*
+     * Called on run-time errors by m2_rts.
+     *)
+    BEGIN (* RunTimeHandler *)
+
+	DoTerminate( abnormalTermination );
+
+	(* Do the range check *)
+	IF ORD( reason ) > ORD( System.m2tAssert ) THEN
+	    reason := System.m2tAssert;
+	END;
+
+	IF terminationLevel < 3 THEN
+	    WriteTerminationMessage( reason );
+	END;
+
+	IF inChild THEN
+	    (* Prevents a core dump in the ExitHandler *)
+	    UnixCexit.exit( 0 );
+	ELSE
+	    UnixCexit.exit( ORD( reason ) );
+	END;
+
+    END RunTimeHandler;
+
+  
+PROCEDURE ExitHandler(
+    status : INTEGER;
+    argp   : UnixCsys_types.caddr_t
+    );
+    (*
+     * Called by the on_exit handler.  We have no use for "argp",
+     * but it serves as nice decoration.
+     *)
+    BEGIN (* ExitHandler *)
+
+	(* 
+	 * Note that we don't print messages.
+	 *)
+	IF status = 0 THEN
+	    DoTerminate( normalTermination );
+	ELSE
+	    DoTerminate( abnormalTermination );
+	END;
+
+	(* We are already in the lowest level of exitting *)
+    END ExitHandler;
+
+
+PROCEDURE DoTerminate(
+    mode : TerminationModes
+    );
+    (*
+     * This gets called by all the other termination methods.
+     * If we are in the child, we mustn't return to the caller.
+     *)
+    BEGIN (* DoTerminate *)
+
+	INC( terminationLevel );
+	(* Allow at most two dumps *)
+	IF terminationLevel >= 3 THEN
+	    RETURN;
+	END;
+
+	(* Dump core first! *)
+	IF ( mode = abnormalTermination ) AND
+	  ( memorySaveMode = saveMemoryOnAbnormalTermination ) THEN
+	    DumpCore;	(* Handles termination properly *)
+	END;
+
+	(* Allow one and only one call to the termination handler *)
+	IF terminationLevel = 1 THEN
+	    terminationHandler( mode );
+	END;
+
+    END DoTerminate;
+
+
+PROCEDURE DumpCore;
+    (*
+     * WARNING: If you put a bug in this routine, disasterous things
+     *          may happen.
+     * 
+     * This is a rather complicated process, because we are interested
+     * in dumping core and then calling the termination handler.  The
+     * reason is obvious.  If a termination handler cleans up, then it
+     * modifies memory and the dump is not "pure".  Hence we use the 
+     * following trick.  It is not fast, but then core dumping doesn't
+     * need to be fast.
+     *
+     * We fork the processes and let the child run the termination
+     * handler and then dump core.   After the child returns, the
+     * parents dumps core.  The result is that the "shell" or "debugger"
+     * can pick up the core dump signal (and do its thing), but before
+     * we get to clean up (do termination in the child). 
+     *
+     * We handle core dumps during termination by renaming the termination
+     * core dump to core2.   
+     *)
+    CONST
+	core1 = "core";
+	core2 = "core2";
+    VAR
+	processId : INTEGER;
+	deadChild : INTEGER;
+	DONTCARE1 : BITSET;
+	DONTCARE2 : INTEGER;
+	cardPtr   : POINTER TO SysTypes.Card;
+	saveErrno : INTEGER;
+    BEGIN (* DumpCore *)
+
+	processId := 0;
+	deadChild := 0;
+
+	(* Delete a core file if it exists (saving errno for dump!) *)
+	saveErrno := UnixCerrno.errno;
+	DONTCARE2 := UnixCsys_dir.unlink( core1 );
+	UnixCerrno.errno := saveErrno;
+
+	(*
+	 * We dump core by first creating a child.  It goes off and
+	 * does what it has to do, then calls exit.  The parent,
+	 * meanwhile, waits for the child and then dumps core as
+	 * soon as the child exits.
+	 * We don't use vfork, for obvious reasons.
+	 *)
+	processId := UnixCprocess.fork();
+	IF processId = 0 THEN
+	    (* 
+	     * We must set these variables to the proper state to
+	     * manage problems in the core dumps.
+	     *)
+	    inChild := TRUE;
+	    RETURN;	(* Child goes off and does its duty *)
+	END;
+
+	(*
+	 * Turn off all signals first, so that we can preserve the state
+	 * of the dump.
+	 *)
+	DONTCARE1 := UnixCsignal.sigsetmask( SysTypes.fullBITSET );
+
+	IF processId = -1 THEN
+	    (* Something went wrong, so tell user, but proceed *)
+	    UnixError.PrintMessage( UnixError.Get(), "fork" );
+	    ProgErrOutput.WriteString( "Error during dump." );
+	    ProgErrOutput.WriteLn;
+	ELSE
+	    (* 
+	     * In the parent, we wait for the child to die so that
+	     * we don't have Zombies.  This should be the only child
+	     * of the process.  If there are others, then we must
+	     * keep looking until there are no more.
+	     *)
+	    REPEAT
+		deadChild := UnixCprocess.wait( NIL );
+		(* Correct child or no more processes... *)
+	    UNTIL ( deadChild = processId ) OR ( deadChild = -1 );
+
+	    (* In case child dumped core, we rename and print a message. *)
+	    saveErrno := UnixCerrno.errno;
+	    IF UnixCsys_dir.rename( core1, core2 ) = 0 THEN
+		ProgErrOutput.WriteString( core2 );
+		ProgErrOutput.WriteString( ": dumped" );
+		ProgErrOutput.WriteLn;
+	    END;
+	    UnixCerrno.errno := saveErrno;	 (* Restore state *)
+	END;
+
+	(* 
+	 * At this point, one of the following is true:
+	 *    - We are in the parent, and
+	 *    - failed to create the child process, or
+	 *    - failed on the wait, or
+	 *    - everything proceed normally.
+	 * In any event, dump core, because that is what the caller wants.
+	 * However, before dumping, we rename "core" to "core2", if it
+	 * exists.
+	 *)
+
+	(* 
+	 * Enable only the SIGTRAP signal, then cause a SIGTRAP.
+	 *)
+	DONTCARE1 := UnixCsignal.sigsetmask( 
+			SysTypes.fullBITSET - { UnixCsignal.SIGTRAP } );
+	DONTCARE2 := UnixCsignal.kill( 
+			UnixCprocess.getpid(), UnixCsignal.SIGTRAP );
+	(* DOES NOT RETURN *)
+
+	(* Just in case *)
+	DONTCARE1 := UnixCsignal.sigsetmask( {} );
+	cardPtr := NIL;
+	cardPtr^ := 0;	(* kaboom! *)
+
+    END DumpCore; 
+
+
+PROCEDURE WriteTerminationMessage(
+    reason : System.M2Trap
+    );
+    (*
+     * This is a hack so we can output both C strings and 
+     * Modula-2 strings.  Note that Modula-2 strings can degenerate
+     * into C strings, but not the reverse.
+     *
+     * The output looks like the traditional C/Unix style.
+     *)
+    VAR
+	argptr : UnixCtypes.pp_char;
+    BEGIN (* WriteTerminationMessage *)
+
+	argptr := System.ArgumentTable();
+	WriteCString( SYSTEM.ADDRESS( argptr^[ 0 ] ) );
+	ProgErrOutput.WriteString( ": " );	(* The Unix way... *)
+	CASE reason OF
+	    System.m2tHalt:
+	        ProgErrOutput.WriteString( "HALT called." );
+	    |
+	    System.m2tReturn:
+	        ProgErrOutput.WriteString( "missing RETURN in function." );
+	    |
+	    System.m2tCase:
+	        ProgErrOutput.WriteString( "illegal case value." );
+	    |
+	    System.m2tRange:
+	        ProgErrOutput.WriteString( "range error." );
+	    |
+	    System.m2tInteger:
+	        ProgErrOutput.WriteString( "integer overflow." );
+	    |
+	    System.m2tCardinal:
+	        ProgErrOutput.WriteString( "cardinal overflow." );
+	    |
+	    System.m2tReal:
+	        ProgErrOutput.WriteString( "real overflow." );
+	    |
+	    System.m2tAddress:
+	        ProgErrOutput.WriteString( "address error." );
+	    |
+	    System.m2tStack:
+	        ProgErrOutput.WriteString( "stack overflow." );
+	    |
+	    System.m2tHeap:
+	        ProgErrOutput.WriteString( "heap overflow." );
+	    |
+	    System.m2tPriority:
+	        ProgErrOutput.WriteString( "illegal priority change." );
+	    |
+	    System.m2tAssert:
+	        ProgErrOutput.WriteString( "assertion failed." );
+	END; (* CASE *)
+
+	ProgErrOutput.WriteLn;
+    END WriteTerminationMessage;
+
+
+TYPE
+    BigArrayPtr = POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR ] OF CHAR;
+PROCEDURE WriteCString(
+    cString : BigArrayPtr
+    );
+    (*
+     * Note that we can't just write the string out.
+     *)
+    VAR
+	i   : SysTypes.Card;
+	tmp : GenConsts.Identifier;
+    BEGIN (* WriteCString *)
+
+	(* 
+	 * Copy sections of the string until we get it all.
+	 *)
+	LOOP
+	    (* Go from low to high *)
+	    FOR i := 0 TO HIGH( tmp ) DO
+		tmp[ i ] := cString^[ i ];
+		IF tmp[ i ] = 0C THEN
+		    EXIT;
+		END;
+	    END;
+	    ProgErrOutput.WriteString( tmp );
+	    cString := SYSTEM.ADDRESS( SYSTEM.ADDRESS( cString ) 
+				       + ( HIGH( tmp ) + 1 ) );
+	END; (* LOOP *)
+
+	ProgErrOutput.WriteString( tmp );	(* works in 0 case as well *)
+
+    END WriteCString;
+
+
+@IF LowLevelDebugging THEN
+    CONST
+	maxBase = 10;	(* In case this is a parameter some day *)
+    VAR
+	digits  : ARRAY [ 0 .. maxBase - 1 ] OF CHAR;
+
+    PROCEDURE CardToString(
+            from  : SysTypes.Card;
+	VAR to    : ARRAY OF CHAR
+        );
+	(*
+	 * A very simple cardinal conversion routine.  It is designed
+	 * for diagnostic output for very low level routines.  It
+	 * converts a cardinal into base 10 into a right justified string
+	 * using "blank" padding.  If "to" isn't large enough, then
+	 * the result is filled with '*' characters.
+	 *
+	 * INPUT:
+	 *    from,  what is to be converted.
+	 * 
+	 * OUTPUT:
+	 *    to,    resulting human readable string.
+	 *)
+	CONST
+	    base = 10;
+	VAR
+	    i    : SysTypes.Card;
+	    pad  : CHAR;
+	    tmp  : SysTypes.Card;
+	BEGIN (* CardToString *)
+
+	    i   := HIGH( to );
+	    LOOP
+		to[ i ] := digits[ from MOD base ];
+		from    := from DIV base;
+		IF from = 0 THEN
+		    pad := ' ';	(* Everything ok *)
+		    EXIT;
+		END;
+		IF i = 0 THEN
+		    (* Ran out of space *)
+		    pad := '*';	(* Mark as failure *) 
+		    i   := HIGH( to ) + 1;	(* first DEC *)
+		    EXIT;
+		END;
+		DEC( i );
+	    END; (* LOOP *)
+
+	    (* Pad out the rest of the string *)
+	    WHILE i > 0 DO
+		DEC( i );
+		to[ i ] := pad;
+	    END;
+
+	END CardToString;
+@END (* LowLevelDebugging *)
+
+
+BEGIN (* ProgErr *)
+
+    @IF LowLevelDebugging THEN
+	digits  := '0123456789';
+    @END (* LowLevelDebugging *)
+
+    (*
+     * Initialize the local variables before calling other modules.
+     *)
+    terminationLevel := 0;
+    inChild := FALSE;
+
+    terminationHandler := DefaultTerminationHandler;
+    @IF Debug THEN
+	SetMemorySaveMode( saveMemoryOnAbnormalTermination );
+    @ELSE
+	SetMemorySaveMode( doNotSaveMemoryOnTermination );
+    @END
+
+    (* 
+     * Set up for "exit".
+     *)
+    IF UnixCexit.on_exit( ExitHandler, NIL ) # 0 THEN
+	(* Kind of a weird place, but we have to check.... *)
+	Terminate( "ProgErr: failed to initialize termination." );
+    END;
+
+    (*
+     * Set up for modula-2 errors.
+     *)
+    System.SetModula2Trap( RunTimeHandler );
+
+    (*
+     * Set up for math errors.
+     *)
+    @IF MC68881Arch THEN
+	oldValue := MC68881.Set68881ControlRegister( MC68881.normalFPCR );
+    @END
+
+    UnixMathError.mathErrorHandler := MathErrorHandler;
+
+
+END ProgErr.

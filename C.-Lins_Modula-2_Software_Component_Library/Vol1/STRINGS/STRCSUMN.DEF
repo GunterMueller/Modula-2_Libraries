@@ -1,0 +1,229 @@
+(*
+10			The Unbounded Character String (continued)
+
+
+An unbounded implementation of the String abstraction, described in Chapter 8, is
+presented here.  This particular form has the properties: Sequential, Unbounded, Managed,
+and Non-Iterator, describing specific aspects of the implementation as follows:
+
+Sequential:		Can only be used in a non-tasking environment, or by only one task.
+Unbounded:		The size of a string varies dynamically as items are inserted and removed
+				from the string.
+Managed:		Memory space for items and objects is returned to the system when no
+				longer needed.
+Non-Iterator:	Routines for looping over each of the string items are provided.
+
+As noted in the previous chapter on the bounded string form, strings are nearly always
+formed of characters, or items that can be represented using characters, we use the
+Character Items module instead of the more generic Items module.
+
+There is one limitation in the implementation presented here: strings are limited to a
+maximum length of 32,000 characters.  This is primarily due to the TML Modula-2
+compiler excluding the type LONGINT and LONGCARD as array index types.
+
+Section 10.3 contains the interface to the unbounded string module while the
+implementation follows in Section 10.4.
+
+
+
+10.3		StringCSUMN Interface
+*)
+
+
+DEFINITION MODULE StrCSUMN;
+(*============================================================
+    Version  : 1.00  29 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2 Compiler
+    Component: Monolithic Structure - String
+               Character Sequential Unbounded Managed Non-Iterator
+
+    THE ABSTRACTION
+    This module provides a String abstraction limited to CHARs
+
+    REVISION HISTORY
+    v1.00  29 Apr 1989  C. Lins:
+        Initial JPI Modula-2 implementation.
+============================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM CharItems IMPORT
+    (*--Type*) Item;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+FROM StrEnum IMPORT
+    (*--Type*) Exceptions;
+
+    (*-----------------------*)
+
+TYPE  String;
+TYPE  Position   = [ 1 .. 32000 ];
+CONST NullString = String(NIL);
+
+
+(*
+10.3.1		Exceptions
+
+The ModuleID is used by the exception handling mechanism to distinguish this module
+from all other modules.
+
+StringError returns the exception code from the most recent string operation.  A result of
+noerr  indicates successful completion of the operation.
+
+GetHandler returns the exception handler routine associated with the given exception.
+Though the routine is a function procedure returning a procedure as its result, the
+HandlerProc  may not be called from within the GetHandler  call itself.  The procedure
+result must be first assigned to a procedure variable before invocation.  Exception handlers
+are given an initial value of ExitOnError  except for the handler for noerr  which is
+initialized to the null exception handler.  For example, the statement
+
+  GetHandler(overflow)(someErrorCode);
+
+would be flagged as an error by the compiler.
+
+
+SetHandler associates an exception handler routine with the given exception and is the
+inverse of GetHandler.  This routine may be used to override the default settings for the
+exception handlers.
+*)
+
+CONST ModuleID = 4;
+
+PROCEDURE StringError ()             : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+                           toHandler : HandlerProc (*-- in    *));
+
+
+(*
+10.3.2		Constructors
+
+The Create operation attempts to generate a new, empty, unbounded string.  Since this
+module uses character items all the standard operations, (such as assignment and
+comparison), can be done directly; user-defined routines are not needed. 
+
+Create will return the new string upon successful completion of the routine.  If it not
+possible for the string to be created, the constant NullString  will be returned instead.
+
+Destroy takes the given string, clears it of any items, and then destroys the string itself. 
+Where Create defines a string, Destroy is its inverse, making the string undefined.
+
+Clear takes the given string and removes all of its items.  Clearing the string returns it
+to the empty state.
+
+The Assign operation attempts to generate a duplicate of the source string (theString) in
+the target string (toString).  The target string is automatically created, if necessary,
+otherwise the target is simply cleared of its present contents.
+
+Prepend adds the first string to the beginning of the second string, Append  adds the first
+string to the end of the second string, while Insert  adds adds the first string to the second
+string at the given string index position.
+
+Delete removes characters from the given string between the given index positions,
+inclusive.
+
+Replace  removes characters from the given string from the given index position to the
+end of the string and then inserts the replacement string at the end of the given source
+string.  The length of the source string may grow due to the effects of the replacement.
+
+SetItem changes a single character of the source string at the specified index position.
+
+Construct allows one to build a dynamic string from the usual Modula-2 string form. 
+*)
+
+PROCEDURE Create    ()              : String     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Clear     (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Assign    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Prepend   (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Append    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Insert    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *));
+
+PROCEDURE Delete    (VAR theString  : String     (*-- inout *);
+                         fromIndex  : Position   (*-- in    *);
+                         toIndex    : Position   (*-- in    *));
+
+PROCEDURE Replace   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         withString : String     (*-- in    *));
+
+PROCEDURE SetItem   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         theItem    : Item       (*-- in    *));
+
+PROCEDURE Construct (VAR theString   : String        (*-- inout *);
+                         theSubstring: ARRAY OF Item (*-- in    *));
+
+
+
+(*
+10.3.3		Selectors
+
+IsDefined attempts to determine whether the given string is valid, e.g., has been created
+and not yet destroyed.  How this is accomplished may be as simple or complicated as the
+implementer desires and the requirements of the application.
+
+IsEmpty returns true if the given string contains no items, and false otherwise. 
+Undefined strings are considered empty.
+
+LengthOf returns the number of characters present in the string.  The function  result is
+declared CARDINAL (instead of Position) as an undefined string returns zero.
+
+Compare establishes the ordering relation between two strings. IsEqual  returns true if
+two strings contain the same items.
+
+ItemOf retrieves a single item at the given index position from the string; SliceOf
+returns a contiguous sequence of characters from a string between two index positions;
+and SubstringOf  returns the whole string as a contiguous sequence of characters.  Both
+SliceOf and SubstringOf terminate their results with 0C if necessary by the rules of
+Modula-2.
+*)
+
+PROCEDURE IsDefined  (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEmpty    (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE LengthOf   (    theString  : String      (*-- in    *))
+                                     : CARDINAL    (*-- out   *);
+
+PROCEDURE Compare    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : Relation    (*-- out   *);
+
+PROCEDURE IsEqual    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE ItemOf     (    theString  : String      (*-- in    *);
+                          theIndex   : Position    (*-- in    *))
+                                     : Item        (*-- out   *);
+
+PROCEDURE SliceOf    (    theString  : String        (*-- in    *);
+                          fromIndex  : Position      (*-- in    *);
+                          toIndex    : Position      (*-- in    *);
+                      VAR theSlice   : ARRAY OF Item (*-- out   *));
+
+PROCEDURE SubstringOf(    theString  : String        (*-- in    *);
+                      VAR toSubstring: ARRAY OF Item (*-- out   *));
+
+END StrCSUMN.
+

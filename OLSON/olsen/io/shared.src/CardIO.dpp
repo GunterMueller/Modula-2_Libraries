@@ -1,0 +1,127 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE CardIO;
+(*
+ * Supports CARDINAL I/O for TextIO files.
+ *
+ * The routines obey the semantics described in TextIO, including
+ * the rules about ReadXXX and WriteXXX routines. The IntConvert
+ * module specifies the syntax and semantics of the conversions
+ * performed by this module. See the module IntIO for notes
+ * concerning the semantics of these routines.
+ *)
+IMPORT 
+    Chars,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED
+    Read,       Read32,      ReadBase,     ReadBase32,
+    Write,      Write32,     WriteBase,    WriteBase32;
+
+PROCEDURE Read(
+        file   : TextIO.Object;  (* Not in "endOfFile" or "error" state *)
+    VAR toRead : SysTypes.Card   (* The cardinal read *)
+    )          : TextIO.States;  (* TextIO.ok => cardinal read *)
+    (*
+     * Read a cardinal number (base 10) from the file.
+     * The syntax is described in CardConvert.FromString.
+     *)
+
+PROCEDURE Read32(
+        file   : TextIO.Object;       (* Not in "endOfFile" or "error" state *)
+    VAR toRead : SysTypes.CARDINAL32  (* The long cardinal read *)
+    )          : TextIO.States;       (* TextIO.ok => long cardinal read *)
+    (*
+     * Read a long cardinal (base 10) from the file.
+     * The syntax is described in CardConvert.FromString.
+     *)
+
+PROCEDURE ReadBase(
+        file   : TextIO.Object;  (* Not in "endOfFile" or "error" state *)
+        base   : Chars.Bases;    (* Base in which cardinal is interpreted *)
+    VAR toRead : SysTypes.Card   (* The cardinal read *)
+    )          : TextIO.States;  (* TextIO.ok => cardinal read *)
+    (*
+     * Read a cardinal number in the specified base from the file.
+     * The syntax is described in CardConvert.FromString.
+     *)
+
+PROCEDURE ReadBase32(
+        file   : TextIO.Object;       (* Not in "endOfFile" or "error" *)
+        base   : Chars.Bases;         (* Base in which cardinal is inter. *)
+    VAR toRead : SysTypes.CARDINAL32  (* The long cardinal read *)
+    )          : TextIO.States;       (* TextIO.ok => cardinal read *)
+    (*
+     * Read a long cardinal number in the specified base from the file.
+     * The syntax is described in CardConvert.FromString.
+     *)
+
+PROCEDURE Write(
+    file    : TextIO.Object;  (* In "ok" state *)
+    toWrite : SysTypes.Card;  (* The cardinal to be written *)
+    width   : SysTypes.Card   (* Size of field: cardinal right-justified *)
+    )       : TextIO.States;  (* TextIO.ok => cardinal written *)
+    (*
+     * Write the cardinal to the file in human readable form.
+     * The syntax of the converted number is described in
+     * CardConvert.ToString.
+     *)
+
+PROCEDURE Write32(
+    file    : TextIO.Object;        (* In "ok" state *)
+    toWrite : SysTypes.CARDINAL32;  (* The long cardinal to be written *)
+    width   : SysTypes.Card         (* Size of field: cardinal right-justif. *)
+    )       : TextIO.States;        (* TextIO.ok => cardinal written *)
+    (*
+     * Write the long cardinal to the file in human readable form.
+     * The syntax of the converted number is described in
+     * CardConvert.ToString.
+     *)
+
+PROCEDURE WriteBase(
+    file    : TextIO.Object;  (* In "ok" state *)
+    toWrite : SysTypes.Card;  (* The cardinal to be written *)
+    base    : Chars.Bases;    (* Base in which conversion is to take place *)
+    width   : SysTypes.Card   (* Size of field: cardinal right-justified *)
+    )       : TextIO.States;  (* TextIO.ok => cardinal written *)
+    (*
+     * Write the cardinal to the file in human readable form
+     * in the specified base. The syntax of the converted number
+     * is described in CardConvert.ToString.
+     *)
+
+PROCEDURE WriteBase32(
+    file    : TextIO.Object;        (* In "ok" state *)
+    toWrite : SysTypes.CARDINAL32;  (* The long cardinal to be written *)
+    base    : Chars.Bases;          (* Base for conversion *)
+    width   : SysTypes.Card         (* Size of field: cardinal right-just. *)
+    )       : TextIO.States;        (* TextIO.ok => cardinal written *)
+    (*
+     * Write the long cardinal to the file in human readable form
+     * in the specified base. The syntax of the converted number
+     * is described in CardConvert.ToString.
+     *)
+
+END CardIO.
+

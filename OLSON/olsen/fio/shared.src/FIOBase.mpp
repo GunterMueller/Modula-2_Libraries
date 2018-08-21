@@ -1,0 +1,760 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOBase;
+(*
+ * Initialization occurs when Register routines are called.  See the
+ * procedure Initialize.
+ *
+ * Ignored cases:
+ * 	[Real,] is equivalent to [Real] when it probably should be
+ *      an error.  However, [Real,,] is an error. I just thought this
+ *      was not important enough to put an assertion check in for it.
+ *)
+IMPORT 
+   CardConvert,
+   Chars,
+   FIOPRIVATE,
+   FormatIO,
+   Intrinsics,
+   IOErrors,
+   ModInit, 
+   NameLists,
+   Objects,
+   ProgErr,
+   ProgErrOutput,
+   Strings,
+   SYSTEM,
+   SysTypes,
+   TextIO;
+
+CONST
+    moduleName = "FIOBase";
+
+@IF Assert THEN
+
+    PROCEDURE DuplicateRegister(
+        name : CommandName
+        );
+	BEGIN (* DuplicateRegister *)
+
+	    ProgErrOutput.WriteString( name );
+	    ProgErr.Terminate( ': duplicate FormatIO name registered.' );
+
+	END DuplicateRegister;
+@END (* Assert *)
+
+    
+PROCEDURE RegisterWrite(
+    name           : CommandName;
+    writeProc      : WriteProc;
+    importerObject : SysTypes.ANYPTR;
+    expectedSize   : SysTypes.Card
+    );
+    VAR
+	fioPtr : FIOPRIVATE.WriteRecordPtr;
+    BEGIN (* RegisterWrite *)
+
+	IF NOT ModInit.Get( moduleName ) THEN
+	    Initialize;
+	END;
+
+	@IF Assert THEN
+	    IF NameLists.Find( FIOPRIVATE.writeList, name, NameLists.DONTCARE ) 
+		THEN DuplicateRegister( name );
+	    END;
+	@END (* Assert *)
+
+	Objects.Allocate( FIOPRIVATE.writeObjectManager, fioPtr );
+	fioPtr^.expectedSize   := expectedSize;
+	fioPtr^.writeProc      := writeProc;
+	fioPtr^.importerObject := importerObject;
+
+	NameLists.Insert( FIOPRIVATE.writeList, name, fioPtr );
+
+    END RegisterWrite;
+   
+
+PROCEDURE RegisterRead(
+    name           : CommandName;
+    readProc       : ReadProc;
+    importerObject : SysTypes.ANYPTR;
+    expectedSize   : SysTypes.Card
+    );
+    VAR
+	fioPtr : FIOPRIVATE.ReadRecordPtr;
+    BEGIN (* RegisterRead *)
+
+	IF NOT ModInit.Get( moduleName ) THEN
+	    Initialize;	
+	END;
+
+	@IF Assert THEN
+	    IF NameLists.Find( FIOPRIVATE.readList, name, NameLists.DONTCARE ) 
+		THEN DuplicateRegister( name );
+	    END;
+	@END (* Assert *)
+
+	Objects.Allocate( FIOPRIVATE.readObjectManager, fioPtr );
+	fioPtr^.expectedSize   := expectedSize;
+	fioPtr^.readProc       := readProc;
+	fioPtr^.importerObject := importerObject;
+	NameLists.Insert( FIOPRIVATE.readList, name, fioPtr );
+
+    END RegisterRead;
+    
+(* 
+ * a commonly used utility routine follows 
+ *)
+   
+TYPE
+    ScanMode = ( passThrough, cleanUp );
+  
+PROCEDURE ScanFormatString(
+    VAR format      : ARRAY OF CHAR;
+	mode        : ScanMode;
+    VAR fieldLength : SysTypes.Card
+    )               : BOOLEAN;
+    (* 
+     * Parses the format for escape characters, etc.
+     * Returns the length of the found string (not counting the
+     * trailing delimiter if any).  If the mode is cleanUp,
+     * then escape characters are deleted from format.  Otherwise,
+     * the format is unmodified and the fieldLength accounts for
+     * the total length including escape characters.
+     *
+     * Nesting is managed by this routine.  We can have nested formats
+     * (really recursive stuff).  The first level of format command
+     * characters where already removed.  If we are nested, then we
+     * ignore argSeparators.  We don't eliminate escape characters inside
+     * nestings, because they need to be passed on.
+     *
+     * Returns FALSE in the event of syntax errors.
+     *)
+    VAR
+	ch           : CHAR;
+	formatLength : SysTypes.Card;
+	nestingLevel : SysTypes.Card;	(* level of command braces *)
+    BEGIN (* ScanFormatString *)
+
+	formatLength := Strings.Length( format );
+	IF formatLength = 0 THEN
+	    RETURN FALSE;	(* Nothing to do *)
+	END;
+
+	IF format[ 0 ] = argSeparator THEN
+	    RETURN FALSE;	(* Syntax error *)
+	END;
+
+	fieldLength  := 0;
+	nestingLevel := 0;	(* We don't have an outstanding brace *)
+	REPEAT
+	    ch := format[ fieldLength ];
+	    CASE ch OF
+		argSeparator:
+		    (* We only quit if we aren't inside a nested command *)
+		    IF nestingLevel = 0 THEN
+			RETURN fieldLength # 0;
+		    END;
+		|
+		beginCommand:
+		    (* Inside a nested format *)
+		    INC( nestingLevel );
+		|
+		endCommand:
+		    (* Command characters must be paired. *)
+		    IF nestingLevel = 0 THEN
+			RETURN FALSE;	(* Too many endCommands *)
+		    END;
+		    DEC( nestingLevel );
+		|
+		escapeChar:
+		    (* We don't delete escape characters in nested commands *)
+		    IF ( mode = cleanUp ) AND ( nestingLevel = 0 ) THEN
+			Strings.Delete( format, fieldLength, fieldLength );
+			DEC( formatLength );
+		    ELSE
+			INC( fieldLength );  (* ignore the character *)
+		    END;
+		    IF fieldLength >= formatLength THEN
+			RETURN FALSE;	(* Must have character after escape *)
+		    END;
+		ELSE
+		    (* Nothing to do *)
+	    END; (* CASE *)
+
+	    INC( fieldLength );
+	UNTIL fieldLength >= formatLength;
+
+	(* Can't have an open command *)
+	RETURN nestingLevel = 0;
+
+    END ScanFormatString;
+		    
+
+(* 
+ * support routines for both ReadProcs and ReadProcs 
+ *)
+PROCEDURE WriteMessage(
+    VAR format     : ARRAY OF CHAR;
+	tmp        : ARRAY OF CHAR;	 
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+    (*
+     * Strips off the first part of the format and copies it into tmp.
+     * It is very important that tmp is as big as format.  Note also
+     * that we pass this on to FormatIO, thus we can't use GetString
+     * like everyone else.
+     *)
+    VAR
+	state     : TextIO.States;
+	stopIndex : SysTypes.Card;
+    BEGIN (* WriteMessage *)
+	
+	IF format[ 0 ] = 0C THEN
+	    RETURN TextIO.error;
+	END;
+
+	(* Find the characters to copy (leaving escape characters in) *)
+	IF NOT ScanFormatString( format, passThrough, stopIndex ) THEN
+	    RETURN TextIO.error;
+	END;
+	DEC( stopIndex );	 (* make into an index *)
+
+	IF NOT Strings.SubstringOK( format, Strings.BOS, stopIndex, tmp ) 
+	  THEN RETURN TextIO.error;
+	END;
+
+	IF stopIndex <= HIGH( format ) THEN
+	    INC( stopIndex );
+	    IF format[ stopIndex ] # argSeparator THEN
+		DEC( stopIndex );	(* At end of the string *)
+	    END;
+	END;
+	Strings.Delete( format, Strings.BOS, stopIndex );
+
+	RETURN FormatIO.Write( promptFile, tmp );
+
+    END WriteMessage;
+
+                                   
+PROCEDURE ScanModifiers(
+        format            : ARRAY OF CHAR;
+        expectedModifiers : ExpectedModifierSet;
+        promptFile        : TextIO.Object;
+    VAR values            : ModifierValues;
+    VAR resultFormat      : ARRAY OF CHAR
+    )                     : BOOLEAN;
+    (* 
+     * Scan the format string for the expected modifiers.  If a modifier
+     * is encountered, then strip off the entire parameter string and
+     * try to parse it.
+     *)
+    VAR
+	length       : SysTypes.Card;
+	oldChar      : CHAR;
+	modifierChar : ARRAY [ 0 .. 0 ] OF CHAR;
+    BEGIN (* ScanModifiers *)
+
+	resultFormat[ 0 ] := 0C;
+	(* strip out all command characters *)
+	WITH values DO
+	    WHILE format[ 0 ] # 0C DO
+		modifierChar[ 0 ] := GetSpecifier( format );
+		CASE modifierChar[ 0 ] OF
+		    0C:
+			RETURN FALSE;	(* Improperly formed format string *)
+		    |
+		    'w': 
+			IF NOT ( expectWidth IN expectedModifiers ) OR
+			   NOT GetCard( format, 10, width ) THEN
+			    RETURN FALSE;
+			END;
+		    |
+		    'f': 
+			IF NOT ( expectFillChar IN expectedModifiers ) OR
+			   NOT GetString( format, fillChar ) THEN
+			    RETURN FALSE;
+			END;
+		    |
+		    'j': 
+			IF NOT ( expectJustification IN expectedModifiers ) OR
+			   NOT GetString( format, modifierChar ) THEN
+			    RETURN FALSE;
+			END;
+			CASE modifierChar[ 0 ] OF
+			    'l': justification := Strings.justifyLeft;
+			    |
+			    'r': justification := Strings.justifyRight;
+			    |
+			    'c': justification := Strings.justifyCenter;
+			    ELSE      
+				RETURN FALSE;
+			END; (* CASE *)
+		    |
+		    'm': 
+			(* 
+			 * Write out the message.  Note that we play a dynamic
+			 * array trick by passing "format" twice.  See the
+			 * requirements of WriteMessage for the reasoning.
+			 *)
+			IF NOT ( expectMessage IN expectedModifiers ) OR
+			  ( WriteMessage( format, format, promptFile ) 
+			   = TextIO.error ) THEN 
+			     RETURN FALSE;
+			END;
+			messageOutput := TRUE;
+
+		    ELSE
+			(* 
+			 * This modifier is unknown, so we must pass it on 
+			 * to the caller.  The caller must give us enough room.
+			 * First, we find the end of the format string which
+			 * we must copy. Then we must terminate the "format"
+			 * so that we can append it to the current resultFormat.
+			 * After which, we must replace the null and delete
+			 * the copied characters (if necessary).
+			 *)
+
+			(* If we aren't at the next argument, then Scan *)
+			IF ( format[ 0 ] = argSeparator ) OR
+			   ( format[ 0 ] = 0C ) THEN
+			    RETURN FALSE;	(* syntax error! *)
+			END;
+
+			IF NOT ScanFormatString( format, passThrough, 
+						 length ) THEN
+			    RETURN FALSE;
+			END;
+
+			(* Terminate the format *)
+			IF length <= HIGH( format ) THEN
+			    oldChar := format[ length ];
+			    format[ length ] := 0C;
+			END;
+
+			(* 
+			 * Have to copy in argSeparator if not first modifier.
+			 * We don't check for modifierChar being a special
+			 * character, since it is stupid to use them as
+			 * such and was defined not to in the def mod.
+			 *)
+			IF ( ( resultFormat[ 0 ] # 0C ) AND
+			     NOT Strings.InsertOK( resultFormat, Strings.EOS,
+						   argSeparator ) ) OR
+			   NOT Strings.InsertOK( resultFormat, Strings.EOS, 
+						 modifierChar ) OR 
+			   NOT Strings.InsertOK( resultFormat, Strings.EOS,
+					       format ) THEN
+			    ProgErr.Terminate( 
+			 'FIOBase.ScanModifiers: passed improper parameters.' );
+			END;
+
+			(* 
+			 * Unterminate if necessary and figure out if there
+			 * is a trailing argSeparator.
+			 *)
+			IF length <= HIGH( format ) THEN
+			    (* Always replace the null *)
+			    format[ length ] := oldChar;
+			    IF oldChar = argSeparator THEN
+				INC( length ); (* delete the argSep as well *)
+			    END;
+			END;
+
+			Strings.Delete( format, Strings.BOS, length - 1 );
+
+		END; (* CASE *)
+	    END; (* WHILE *)
+	END; (* WITH *)
+
+	RETURN TRUE;
+
+    END ScanModifiers;
+
+(* support routines for ReadProcs *)
+
+PROCEDURE CharNotInString(
+    ch     : CHAR;
+    string : ARRAY OF CHAR;
+    len    : SysTypes.Card  (* must be > 0 *)
+    )      : BOOLEAN;
+    (* 
+     * return FALSE if "ch" is in "string", where "len" is length 
+     * of "string".  NOte that must be called with len > 0!
+     *)
+    VAR
+        i : SysTypes.Card;
+    BEGIN
+    FOR i := 0 TO len - 1 DO
+        IF ch = string[ i ] THEN
+            RETURN FALSE;
+            END;
+    END;
+    RETURN TRUE;
+    END CharNotInString;
+   
+PROCEDURE ReadToken(
+        inFile      : TextIO.Object;
+        skipChars   : ARRAY OF CHAR;
+        acceptChars : ARRAY OF CHAR;
+    VAR token       : ARRAY OF CHAR
+    )               : TextIO.States;
+    VAR
+       ch        : CHAR;
+       state     : TextIO.States;
+       skipLen   : SysTypes.Card;
+       acceptLen : SysTypes.Card;
+       to        : SysTypes.Card;
+    BEGIN
+	token[ 0 ] := 0C;
+	acceptLen  := Strings.Length(acceptChars);
+	IF (acceptLen = 0) THEN
+	    (* no chars to accept into the token! *)
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+	
+	(* skip chars up to token *)
+	skipLen := Strings.Length( skipChars );
+	IF (skipLen > 0) THEN
+	    LOOP
+	        state := TextIO.Read(inFile, ch);
+	        CASE state OF
+		    TextIO.error,
+                    TextIO.endOfFile,
+                    TextIO.endOfLine :
+                        RETURN state;
+		    |
+                    TextIO.ok : 
+		        IF CharNotInString(ch, skipChars, skipLen) THEN
+		            EXIT;
+		        END;
+		 END; (* CASE *)
+	    END; (* skip LOOP *)
+	ELSE (* skipLen = 0, have to get at least on character *)
+	    state := TextIO.Read( inFile, ch );
+	    IF (state <> TextIO.ok) THEN
+	        RETURN state;
+	    END;
+	END;
+	
+	(* while chars are acceptable and token not full,
+           stuff chars into token *)
+	to := 0;
+	LOOP
+	    (* is this an acceptable char or not? *)
+	    IF CharNotInString( ch, acceptChars, acceptLen ) THEN
+	        (* found a terminator *)
+	        EXIT;
+	    END;
+	   
+	    IF (to > HIGH(token)) THEN
+                (* token filled and still no terminator *)
+	        (* we try to read one extra char hoping for terminator: this
+	         * time, it didn't pan out, so put it back for the next guy *)
+	        state := TextIO.UndoRead(inFile);
+	        RETURN TextIO.SetError( inFile, IOErrors.badData );
+	    END;
+       
+	    token[ to ] := ch;
+	    INC( to );
+	   
+	    state := TextIO.Read(inFile, ch);
+	    IF (state <> TextIO.ok) THEN
+	        IF (to > 0) AND (state <> TextIO.error) THEN
+	        (* got some chars without error *)
+	        EXIT;
+	    END;
+	         (* error or no chars read before EOF/EOL *)
+	        token[ 0 ] := 0C;
+	        RETURN state;
+	    END;
+	   
+	END; (* read LOOP *)
+	   
+	(* put back term char (or term EOL/EOF) for next *)
+	state := TextIO.UndoRead( inFile );
+	IF (to <= HIGH( token )) THEN
+	    token[ to ] := 0C;
+	END;
+
+	RETURN state;
+    END ReadToken;
+    
+
+PROCEDURE PromptForReread(
+    promptFile : TextIO.Object;
+    inFile     : TextIO.Object
+    )          : TextIO.States;
+    (*
+     * First figure out the state.  Make corrections if necessary including
+     * flushing the inFile.  Print a "re-enter" prompt and return the
+     * resulting state to the caller.
+     *)
+    BEGIN (* PromptForReread *)
+
+	CASE TextIO.GetState( inFile ) OF
+	    TextIO.ok:
+		(* Not much to do *)
+	    |
+	    TextIO.endOfLine:
+		RETURN TextIO.ReadLn( inFile );
+	    |
+	    TextIO.endOfFile:
+		RETURN TextIO.endOfFile;
+	    |
+	    TextIO.error:
+		IF ( TextIO.GetError( inFile ) # IOErrors.badData ) OR
+		    ( TextIO.SetError( inFile, IOErrors.ok ) # TextIO.ok ) THEN
+		    RETURN TextIO.error;
+		END;
+		IF TextIO.ReadLn( inFile ) # TextIO.ok THEN
+		    RETURN TextIO.GetState( inFile );
+		END;
+	END; (* CASE *)
+	 
+	(*
+	 * Write the prompt and attempt to flush the output.  If the
+	 * writes failed or if the flush failed, then an error occured
+	 * and we must mark the inFile (since it is the object of the
+	 * operation).  
+	 *)
+        IF ( FormatIO.Write( promptFile, 'Input invalid, try again.[NL]' ) 
+	     # TextIO.ok) OR
+	   ( TextIO.Flush( promptFile ) # TextIO.ok ) THEN
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+
+	RETURN TextIO.ok;
+   END PromptForReread;
+
+
+(* 
+ * Start of support routines for format string decomposition.
+ * Note that the escape character ("`") is handled properly by these routines.
+ *)
+
+PROCEDURE GetSpecifier(
+    VAR format : ARRAY OF CHAR
+    )          : CHAR;
+    (*
+     * Get the first character off the string.  If it is an argSeparator,
+     * there is a syntax error.  Verify that the trailing chararacter is
+     * not an argSeparator (as specified in the def mod).
+     *
+     * Note that we don't have to pay attention to "nested commands" since
+     * we are only grabbing a single character.  This makes the following
+     * string illegal: "[XXX,[yyy]]", because the "[" can't be a command
+     * character.
+     *)
+    VAR
+	len     : SysTypes.Card;
+	current : SysTypes.Card;
+	result  : CHAR;
+    BEGIN (* GetSpecifier *)
+
+	len  := Strings.Length( format );
+	IF len = 0 THEN
+	    RETURN 0C;	(* Expecting a character! *)
+	END;
+
+	@IF Assert THEN
+	    (* Verify that we don't have a leading separator *)
+	    IF format[ 0 ] = argSeparator THEN
+		RETURN 0C;	(* Syntax error *)
+	    END;
+	@END (* Assert *)
+
+	(* Have to handle escapeChars properly *)
+	current := 0;
+	IF format[ 0 ] = escapeChar THEN
+	    INC( current );
+	    IF current >= len THEN
+		RETURN 0C;
+	    END;
+	END;
+
+	result := format[ current ];
+
+	@IF Assert THEN
+	    (* Verify that we don't have a trailing separator or terminator *)
+	    INC( current );
+	    IF ( current >= len ) OR ( format[ current ] = argSeparator ) THEN
+		RETURN 0C;	(* Syntax error *)
+	    END;
+	    DEC( current );
+	@END (* Assert *)
+
+	Strings.Delete( format, Strings.BOS, current );
+
+	RETURN result;
+    END GetSpecifier;
+				       
+
+PROCEDURE GetString(
+    VAR format   : ARRAY OF CHAR;
+    VAR modifier : ARRAY OF CHAR
+    )            : BOOLEAN;
+    VAR
+	stopIndex : SysTypes.Card;
+    BEGIN (* GetString *)
+
+	IF format[ 0 ] = 0C THEN
+	    RETURN FALSE;
+	END;
+
+	(* Find the characters to copy *)
+	IF NOT ScanFormatString( format, cleanUp, stopIndex ) THEN
+	    RETURN FALSE;
+	END;
+	DEC( stopIndex );	 (* make into an index *)
+
+	IF NOT Strings.SubstringOK( format, Strings.BOS, stopIndex, modifier ) 
+	  THEN RETURN FALSE;
+	END;
+
+	IF stopIndex <= HIGH( format ) THEN
+	    INC( stopIndex );
+	    IF format[ stopIndex ] # argSeparator THEN
+		DEC( stopIndex );	(* At end of the string *)
+	    END;
+	END;
+	Strings.Delete( format, Strings.BOS, stopIndex );
+
+	RETURN TRUE;
+    END GetString;
+
+
+PROCEDURE GetCard(
+    VAR format   : ARRAY OF CHAR;
+        base     : Chars.Bases;
+    VAR modifier : SysTypes.Card
+    )            : BOOLEAN;
+    VAR
+	cardString : ARRAY [ 0 .. SysTypes.bitsPerCard ] OF CHAR;
+    BEGIN (* GetCard *)
+
+	RETURN GetString( format, cardString ) AND
+	       CardConvert.FromString( cardString, base, modifier );
+
+    END GetCard;
+
+
+PROCEDURE Write1(
+    file    : TextIO.Object;
+    format  : ARRAY OF CHAR;
+    argPtr  : SysTypes.SAUPTR;
+    argSize : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Write1 *)
+
+	args[ 1 ].ptr  := argPtr;
+	args[ 1 ].size := argSize;
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	RETURN FIOPRIVATE.Write( file, format, format,
+            SYSTEM.ADR( args ) ) ;
+    END Write1;
+
+
+PROCEDURE Read1(
+    inFile  : TextIO.Object;
+    format  : ARRAY OF CHAR;
+    argPtr  : SysTypes.SAUPTR;
+    argSize : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	args : FIOPRIVATE.Arguments;
+    BEGIN (* Read1 *)
+
+	args[ 1 ].ptr  := argPtr;
+	args[ 1 ].size := argSize;
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	RETURN FIOPRIVATE.Read( inFile, format, format,
+            SYSTEM.ADR( args ), FALSE, inFile );
+   END Read1;
+
+
+PROCEDURE PromptedRead1(
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    argPtr     : SysTypes.SAUPTR;
+    argSize    : SysTypes.Card;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    VAR
+	args  : FIOPRIVATE.Arguments;
+	state : TextIO.States;
+    BEGIN (* PromptedRead1 *)
+
+	args[ 1 ].ptr  := argPtr;
+	args[ 1 ].size := argSize;
+	args[ 2 ].ptr  := NIL;
+	args[ 2 ].size := 0;
+
+	LOOP
+	    state := FIOPRIVATE.Read( inFile, format, format, 
+				      SYSTEM.ADR( args ), TRUE, promptFile );
+	    IF ( state # TextIO.error ) OR
+	       ( TextIO.GetError( inFile ) # IOErrors.badData ) THEN
+		RETURN state;
+	    END;
+
+	    (* Have to start all over *)
+	    IF PromptForReread( promptFile, inFile ) # TextIO.ok THEN
+		RETURN TextIO.GetState( inFile );
+	    END;
+	END; (* LOOP *)
+
+   END PromptedRead1;
+
+
+PROCEDURE Initialize;
+    (* 
+     * This is called when either Register has been called.  The problem
+     * is that FIOBase is imported by FIOPRIVATE, FormatIO is imported
+     * by FIOBase, and then ConfFIO is imported by FormatIO.  A vicious
+     * circle...
+     *)
+    BEGIN (* Initialize *)
+
+	NameLists.Create( FIOPRIVATE.writeList, NameLists.forwardSorted, 
+				    NameLists.caseSensitive );
+	NameLists.Create( FIOPRIVATE.readList,  NameLists.forwardSorted, 
+				    NameLists.caseSensitive );
+	Objects.CreateManager( FIOPRIVATE.writeObjectManager, 
+			       SYSTEM.TSIZE( FIOPRIVATE.WriteRecord ), 
+			       'FormatIO.Write' );
+	Objects.CreateManager( FIOPRIVATE.readObjectManager,  
+			       SYSTEM.TSIZE( FIOPRIVATE.ReadRecord ),  
+			       'FormatIO.Read' );
+	(* Tell ModInit that we have been initialized. *)
+	ModInit.Set( moduleName );
+
+    END Initialize;
+
+END FIOBase.

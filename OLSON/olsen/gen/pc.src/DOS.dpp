@@ -1,0 +1,588 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE DOS;
+(*
+ * Symbolic names for constants defined by DOS.
+ *
+ * The values were obtained from the DOS Technical Reference Manual,
+ * (First Edition, May 1984) Chapter 5. The names should read as they
+ * are in the manual with a few exceptions (viz. critical errors and
+ * XENIX-like calls).
+ *)
+(*$A-*) (* Since we have packed records, we must do this *)
+IMPORT 
+    SYSTEM,
+    SysTypes;
+
+EXPORT QUALIFIED
+    (* DOS Interrupts *)
+    programTerminateInterrupt, functionRequestInterrupt, terminateInterrupt,
+    ctrlBreakExitInterrupt, criticalErrorInterrupt, absoluteDiskReadInterrupt,
+    absoluteDiskWriteInterrupt, terminateButStayResidentInterrupt,
+    printerInterrupt,
+
+    (* Critical errors *)
+    writeProtectError, unknownUnitError, driveNotReadyError,
+    unknownCommandError, badRequestStructureLengthError, seekErrorError,
+    unknownMediaTypeError, sectorNotFoundError, printerOutOfPaperError,
+    writeFaultError, readFaultError, generalFailureError, ignoreTheError,
+
+    (* Critical errors, more stuff *)
+    retryTheOperation, terminateTheProgramViaINT23H,
+    failTheSystemCallInProgress, operationMask, readOperation, writeOperation,
+    areaAffectedMask, dosAreaAffected, fileAllocationTableAffected,
+    directoryAffected, dataAreaAffected, failAllowed, retryAllowed,
+    ignoreAllowed,
+
+    (* Direct disk IO responses *)
+    attachmentFailedToRespond, seekOperationFailed, badCRCOnDiskRead,
+    requestedSectorNotFound, writeProtectedDisk, otherDiskFailure,
+
+    (* Special printer interrupt values *)
+    printerGetInstalledState, printerSubmitFile, printerCancelFile,
+    printerStatus, printerEndOfStatus, printerSuccess, printerInvalidFunction,
+    printerFileNotFound, printerPathNotFound, printerTooManyOpenFiles,
+    printerAccessDenied, printerQueueFull, printerBusy, printerNameTooLong,
+    printerInvalidDrive, printerNotInstalled, printerNotInstalledNotOkToInstall,
+    printerInstalled,
+
+    (* Some DOS function calls *)
+    programTerminate, keyboardInput, displayOutput, auxiliaryInput,
+    auxiliaryOutput, printerOutput, directConsoleIO,
+    directConsoleInputWithoutEcho, consoleInputWithoutEcho, printString,
+    bufferedKeyboardInput, checkStandardInputStatus,
+    clearKeyboardBuferAndInvokeFunction, diskReset, selectDisk, openFile,
+    closeFile, searchForFirstEntry, searchForNextEntry, deleteFile,
+    sequentialRead, sequentialWrite, createFile, renameFile, getCurrentDrive,
+    setDiskTransferAddress, allocationTableInformation,
+    allocationTableInformationSpecific, randomRead, randomWrite, fileSize,
+    setRelativeRecordField, setInterruptVector, createNewProgramSegment,
+    randomBlockRead, randomBlockWrite, parseFileName, getDate, setDate, getTime,
+    setTime, setResetVerifySwitch, getDiskTransferAddress, getDOSVersionNumber,
+    terminateProcessAndRemainResident, ctrlBreakCheck, 
+    getCriticalSectionFlag, getVector,
+    getDiskFreeSpace, getOrSetCountryDependentInformation,
+    
+    (* UNIX is pretty obvious, n'est-ce pas? *)
+    mkdir, rmdir, chdir, creat, open, close, read, write, unlink, lseek,
+    chmod, ioctl, dup, pwd, malloc, free, exec, exit,
+
+    (* Some more DOS calls *)
+    findFirstMatchingFile, findNextMatchingFile, getVerifySetting, renameAFile,
+    getSetFileDateAndTime, getExtendedError, createTemporaryFile,
+    createNewFile, lockUnlockFileAccess, getProgramSegmentPrefixAddress,
+
+    (* DOS extended errors *)
+    success, invalidFunctionNumber, fileNotFound, pathNotFound,
+    tooManyOpenFiles, accessDenied, invalidHandle, memoryControlBlocksDestroyed,
+    insufficientMemory, invalidMemoryBlockAddress, invalidEnvironment,
+    invalidFormat, invalidAccessCode, invalidData, invalidDriveWasSpecified,
+    attemptToRemoveCurrentDirectory, notSameDevice, noMoreFiles,
+    attemptToWriteOnWriteProtectedDisk, unknownUnit, driveNotReady,
+    unknownCommand, dataError, badRequestStructureLength, seekError,
+    unknownMediaType, sectorNotFound, printerOutOfPaper, writeFault, readFault,
+    generalFailure, sharingViolation, lockViolation, invalidDiskChange,
+    fcbUnavailable, fileExists, cannotMake, failOnINT24,
+
+    (* Extended error classes *)
+    outOfResourceErrorClass, temporarySituationErrorClass,
+    authorizationErrorClass, internalErrorClass, hardwareErrorClass,
+    systemErrorClass, applicationProgramErrorClass, notFoundErrorClass,
+    badFormatErrorClass, lockedErrorClass, mediaErrorClass,
+    alreadyExistsErrorClass, unknownErrorClass,
+    
+    (* Actions on extended errors *)
+    retryAction, delayRetryAction, userAction, abortAction, immediateExitAction,
+    retryAfterUserInterventionAction,
+    
+    (* Loci for extended errors *)
+    unknownLocus, blockDeviceLocus, serialDeviceLocus, memoryLocus,
+
+    (* Standard files *)
+    standardInput, standardOutput, standardError, standardAuxiliary,
+    standardPrinter,
+
+    (* Open modes *)
+    notInheritedByChild, sharingModeMask, compatibleSharing,
+    denyReadOrWriteSharing, denyWriteSharing, denyReadSharing, denyNoneSharing,
+    accessModeMask, readAccess, writeAccess, readWriteAccess,
+
+    (* Create modes *) 
+    readOnlyFileAttributeBit, hiddenFileAttributeBit, systemFileAttributeBit,
+    volumeLabelAttributeBit, directoryAttributeBit, archiveAttributeBit,
+    
+    (* Seek modes *)
+    seekFromStart, seekFromCurrent, seekFromEnd,
+
+    (* Some IOCTL stuff *)
+    getDeviceInfoIOCTL, setDeviceInfoIOCTL, readFromDeviceIOCTL,
+    writeToDeviceIOCTL, readFromDriveIOCTL, writeToDriveIOCTL,
+    getInputStatusIOCTL, getOutputStatusIOCTL, isBlockDeviceChangeableIOCTL,
+    changeRetryCountIOCTL,
+    
+    (* IOCTL Device Data Return Values (pp. ??) *)
+    isStandardConsoleInputBit, isStandardConsoleOutputBit, isNullDeviceBit, 
+    isClockDeviceBit, isSpecialDeviceBit, passesRawDataBit, notEndOfFileBit,
+    isDeviceBit, canProcessControlStringsBit,
+    
+    (* A DTA format *)
+    MatchingFileDTA,
+
+    ProgramSegmentPrefixPtr, ProgramSegmentPrefixRec,
+
+    (* Date/Time format *)
+    yearShift, monthShift, monthSize, daySize,
+    hourShift, minuteShift, minuteSize, secondSize,
+    firstYear, lastYear, 
+
+    (* The following definitions are programmers' aides to DOS *)
+
+    (* An expanded version of DOS's time/date format *)
+    Years, Months, Days, Date, 
+    Hours, Minutes, Seconds, Time,
+
+    (* Standard file handles *)
+    stdInputHandle, stdOutputHandle, stdErrorHandle, stdPrinterHandle;
+    
+CONST
+    (* Interrupts used by DOS (pp. 5-7 ) *)
+    programTerminateInterrupt           = 20H;
+    functionRequestInterrupt            = 21H;
+    terminateInterrupt                  = 22H;
+    ctrlBreakExitInterrupt              = 23H;
+    criticalErrorInterrupt              = 24H;
+    absoluteDiskReadInterrupt           = 25H;
+    absoluteDiskWriteInterrupt          = 26H;
+    terminateButStayResidentInterrupt   = 27H;
+    (* 28H used internally by DOS *)
+    (* 29H - 2EH reserved for DOS *)
+    printerInterrupt                    = 2FH;
+    (* 30H - 3FH reserved for DOS *)
+
+    (* Critical Errors (pp. 8) *)
+    writeProtectError                   = 00H;
+    unknownUnitError                    = 01H;
+    driveNotReadyError                  = 02H;
+    unknownCommandError                 = 03H;
+    dataErrorError                      = 04H;  (* What can you do... *)
+    badRequestStructureLengthError      = 05H;
+    seekErrorError                      = 06H;
+    unknownMediaTypeError               = 07H;
+    sectorNotFoundError                 = 08H;
+    printerOutOfPaperError              = 09H;
+    writeFaultError                     = 0AH;
+    readFaultError                      = 0BH;
+    generalFailureError                 = 0CH;
+
+    (* Critical error return code (pp. 9) *)
+    ignoreTheError                      = 0;
+    retryTheOperation                   = 1;
+    terminateTheProgramViaINT23H        = 2;
+    failTheSystemCallInProgress         = 3;
+
+    (* Critical disk errors (pp. 11) *)
+    operationMask                       = { 0    };
+    readOperation                       = {      };
+    writeOperation                      = { 0    };
+    areaAffectedMask                    = { 2, 1 };
+    dosAreaAffected                     = {      };
+    fileAllocationTableAffected         = {    1 };
+    directoryAffected                   = { 2    };
+    dataAreaAffected                    = { 2, 1 };
+    failAllowed                         = { 3    };
+    retryAllowed                        = { 4    };
+    ignoreAllowed                       = { 5    };
+
+    (* Absolute disk read and write reply codes (pp. 15) *)
+    attachmentFailedToRespond           = 80H;
+    seekOperationFailed                 = 40H;
+    badCRCOnDiskRead                    = 08H;
+    requestedSectorNotFound             = 04H;
+    writeProtectedDisk                  = 03H;
+    otherDiskFailure                    = 02H;
+
+    (* Printer function codes (pp. 17) *)
+    printerGetInstalledState            = 0;
+    printerSubmitFile                   = 1;
+    printerCancelFile                   = 2;
+    printerStatus                       = 3;
+    printerEndOfStatus                  = 4;
+
+    (* Printer error codes (pp. 18) *)
+    printerSuccess                      =  0;
+    printerInvalidFunction              =  1;
+    printerFileNotFound                 =  2;
+    printerPathNotFound                 =  3;
+    printerTooManyOpenFiles             =  4;
+    printerAccessDenied                 =  5;
+    printerQueueFull                    =  6;
+    printerBusy                         =  7;
+    printerNameTooLong                  = 12;
+    printerInvalidDrive                 = 15;
+
+    (* Printer installed states (pp. 18) *)
+    printerNotInstalled                 = 000H;
+    printerNotInstalledNotOkToInstall   = 001H;
+    printerInstalled                    = 0FFH;
+
+    (* Function calls (pp. 21-23) *)
+    programTerminate                    = 00H;
+    keyboardInput                       = 01H;
+    displayOutput                       = 02H;
+    auxiliaryInput                      = 03H;
+    auxiliaryOutput                     = 04H;
+    printerOutput                       = 05H;
+    directConsoleIO                     = 06H;
+    directConsoleInputWithoutEcho       = 07H;
+    consoleInputWithoutEcho             = 08H;
+    printString                         = 09H;
+    bufferedKeyboardInput               = 0AH;
+    checkStandardInputStatus            = 0BH;
+    clearKeyboardBuferAndInvokeFunction = 0CH;
+    diskReset                           = 0DH;
+    selectDisk                          = 0EH;
+    openFile                            = 0FH;
+    closeFile                           = 10H;
+    searchForFirstEntry                 = 11H;
+    searchForNextEntry                  = 12H;
+    deleteFile                          = 13H;
+    sequentialRead                      = 14H;
+    sequentialWrite                     = 15H;
+    createFile                          = 16H;
+    renameFile                          = 17H;
+    (* 18H used internally by DOS *)
+    getCurrentDrive                     = 19H;
+    setDiskTransferAddress              = 1AH;
+    allocationTableInformation          = 1BH;
+    allocationTableInformationSpecific  = 1CH;
+    (* 1DH - 20H used internally by DOS *)
+    randomRead                          = 21H;
+    randomWrite                         = 22H;
+    fileSize                            = 23H;
+    setRelativeRecordField              = 24H;
+    setInterruptVector                  = 25H;
+    createNewProgramSegment             = 26H;
+    randomBlockRead                     = 27H;
+    randomBlockWrite                    = 28H;
+    parseFileName                       = 29H;
+    getDate                             = 2AH;
+    setDate                             = 2BH;
+    getTime                             = 2CH;
+    setTime                             = 2DH;
+    setResetVerifySwitch                = 2EH;
+    getDiskTransferAddress              = 2FH;
+    getDOSVersionNumber                 = 30H;
+    terminateProcessAndRemainResident   = 31H;
+    (* 32H used internally by DOS *)
+    ctrlBreakCheck                      = 33H;
+    getCriticalSectionFlag              = 34H;
+    (* 
+     * Note: the above function call is not advertised, but it
+     * allows you to get a pointer to DOS's re-entrancy flag.
+     * This call returns a pointer (ES:BX) to a BYTE. If the BYTE
+     * is zero, then it is safe to enter DOS. Otherwise, one
+     * cannot enter DOS. If you have a single-thread application,
+     * then this doesn't matter. See the module DosMonitor for
+     * more details for multi-threaded applications.
+     *)
+    getVector                           = 35H;
+    getDiskFreeSpace                    = 36H;
+    (* 37H used internally by DOS *)
+    getOrSetCountryDependentInformation = 38H;
+
+    (* The following function calls use the XENIX (UNIX) terminology *)
+    mkdir                               = 39H;
+    rmdir                               = 3AH;
+    chdir                               = 3BH;
+    creat                               = 3CH;
+    open                                = 3DH;
+    close                               = 3EH;
+    read                                = 3FH;
+    write                               = 40H;
+    unlink                              = 41H;
+    lseek                               = 42H;
+    chmod                               = 43H;
+    ioctl                               = 44H;
+    dup                                 = 45H;
+    cdup                                = 46H;  (* This should be dup2 *)
+    pwd                                 = 47H;
+    malloc                              = 48H;
+    free                                = 49H;
+    setBlock                            = 4AH;  (* This should be realloc *)
+    exec                                = 4BH;
+    exit                                = 4CH;
+    wait                                = 4DH;  (* This is a joke... *)
+    (* End pseudo-UNIX section *)
+
+    findFirstMatchingFile               = 4EH;
+    findNextMatchingFile                = 4FH;
+    (* 50H - 53H used internally by DOS *)
+    getVerifySetting                    = 54H;
+    (* 55H used internally by DOS *)
+    renameAFile                         = 56H;  (* Different from renameFile *)
+    getSetFileDateAndTime               = 57H;
+    (* 58H used internally by DOS *)
+    getExtendedError                    = 59H;
+    createTemporaryFile                 = 5AH;
+    createNewFile                       = 5BH;
+    lockUnlockFileAccess                = 5CH;
+    (* 5DH - 61H used internally by DOS *)
+    getProgramSegmentPrefixAddress      = 62H;
+
+    (* Extended error codes (pp. 26-27) *)
+    success                             =  0;
+    invalidFunctionNumber               =  1;
+    fileNotFound                        =  2;
+    pathNotFound                        =  3;
+    tooManyOpenFiles                    =  4;
+    accessDenied                        =  5;
+    invalidHandle                       =  6;
+    memoryControlBlocksDestroyed        =  7;
+    insufficientMemory                  =  8;
+    invalidMemoryBlockAddress           =  9;
+    invalidEnvironment                  = 10;
+    invalidFormat                       = 11;
+    invalidAccessCode                   = 12;
+    invalidData                         = 13;
+    (* 14 is reserved *)
+    invalidDriveWasSpecified            = 15;
+    attemptToRemoveCurrentDirectory     = 16;
+    notSameDevice                       = 17;
+    noMoreFiles                         = 18;
+    attemptToWriteOnWriteProtectedDisk  = 19;
+    unknownUnit                         = 20;
+    driveNotReady                       = 21;
+    unknownCommand                      = 22;
+    dataError                           = 23;
+    badRequestStructureLength           = 24;
+    seekError                           = 25;
+    unknownMediaType                    = 26;
+    sectorNotFound                      = 27;
+    printerOutOfPaper                   = 28;
+    writeFault                          = 29;
+    readFault                           = 30;
+    generalFailure                      = 31;
+    sharingViolation                    = 32;
+    lockViolation                       = 33;
+    invalidDiskChange                   = 34;
+    fcbUnavailable                      = 35;
+    (* 36-79 are reserved *)
+    fileExists                          = 80;
+    (* 81 is reserved *)
+    cannotMake                          = 81;
+    failOnINT24                         = 82;
+
+    (* Error classes (pp. 27-28) *)
+    outOfResourceErrorClass             =  1;
+    temporarySituationErrorClass        =  2;
+    authorizationErrorClass             =  3;
+    internalErrorClass                  =  4;
+    hardwareErrorClass                  =  5;
+    systemErrorClass                    =  6;
+    applicationProgramErrorClass        =  7;
+    notFoundErrorClass                  =  8;
+    badFormatErrorClass                 =  9;
+    lockedErrorClass                    = 10;
+    mediaErrorClass                     = 11;
+    alreadyExistsErrorClass             = 12;
+    unknownErrorClass                   = 13;
+
+    (* Recommended actions for errors (pp. 28-29) *)
+    retryAction                         = 1;
+    delayRetryAction                    = 2;
+    userAction                          = 3;
+    abortAction                         = 4;
+    immediateExitAction                 = 5;
+    ignoreAction                        = 6;    (* Somewhat contradictory... *)
+    retryAfterUserInterventionAction    = 7;
+
+    (* Locus of errors (pp. 29) *)
+    unknownLocus                        = 1;
+    blockDeviceLocus                    = 2;
+    (* 3 is reserved by DOS *)
+    serialDeviceLocus                   = 4;
+    memoryLocus                         = 5;
+
+    (* Default file handles (pp. 30) *)
+    standardInput                       = 0;
+    standardOutput                      = 1;
+    standardError                       = 2;
+    standardAuxiliary                   = 3;
+    standardPrinter                     = 4;
+
+
+    (* Sorry, but am skipping the FFs and 0s of the CPM stuff for now *)
+
+
+    (* Open Modes (pp. 95-96) *)
+    notInheritedByChild                 = { 7       };
+    sharingModeMask                     = { 6, 5, 4 };
+    compatibleSharing                   = {         };
+    denyReadOrWriteSharing              = {       4 };
+    denyWriteSharing                    = {    5    };
+    denyReadSharing                     = {    5, 4 };
+    denyNoneSharing                     = { 6       };
+    (* Bit 3 must be zero *)
+    accessModeMask                      = { 2, 1, 0 };
+    readAccess                          = {         };
+    writeAccess                         = {       0 };
+    readWriteAccess                     = {    1    };
+
+    (* For creat and chmod, we need this from Chapter 4. pp. 11 *)
+    readOnlyFileAttributeBit            = 0;
+    hiddenFileAttributeBit              = 1;
+    systemFileAttributeBit              = 2;
+    volumeLabelAttributeBit             = 3;
+    directoryAttributeBit               = 4;
+    archiveAttributeBit                 = 5;
+
+    (* Seek modes (pp. 106) *)
+    seekFromStart                       = 0;
+    seekFromCurrent                     = 1;
+    seekFromEnd                         = 2;
+
+    (* I/O control for devices (pp. 111) *)
+    getDeviceInfoIOCTL                  = 00H;
+    setDeviceInfoIOCTL                  = 01H;
+    readFromDeviceIOCTL                 = 02H;
+    writeToDeviceIOCTL                  = 03H;
+    readFromDriveIOCTL                  = 04H;
+    writeToDriveIOCTL                   = 05H;
+    getInputStatusIOCTL                 = 06H;
+    getOutputStatusIOCTL                = 07H;
+    isBlockDeviceChangeableIOCTL        = 08H;
+    changeRetryCountIOCTL               = 09H;
+    
+    (* IOCTL Device Data Return Values (pp. ??) *)
+    isStandardConsoleInputBit           = 0;
+    isStandardConsoleOutputBit          = 1;
+    isNullDeviceBit                     = 2;
+    isClockDeviceBit                    = 3;
+    isSpecialDeviceBit                  = 4;
+    passesRawDataBit                    = 5;
+    notEndOfFileBit                     = 6;
+    isDeviceBit                         = 7;
+    canProcessControlStringsBit         = 14;
+
+    (* Sorry, skipping the bits on the pages 112-114 *)
+
+TYPE
+   (* 
+    * Data Transfer Area format used with 
+    * findFirstMatchingFile/findNextMatchingFile
+    * See the manual description for findFirstMatchingFile.
+    *)
+    MatchingFileDTA = RECORD
+        dosData      : ARRAY[ 0 .. 20 ] OF SysTypes.CHAR8;
+        attributes   : SysTypes.CHAR8;         (* Really is a BITSET8 *)
+        time         : SysTypes.CARDINAL16;    (* DOS time format *)
+        date         : SysTypes.CARDINAL16;    (* DOS date format *)
+        sizeLowWord  : SysTypes.CARDINAL16;    (* File's size *)
+        sizeHighWord : SysTypes.CARDINAL16;
+        name         : ARRAY[ 0 .. 12 ] OF SysTypes.CHAR8;
+    END;
+
+    (* 
+     * The following descriptor defines the Program Segment Prefix
+     * as described in the manual on page 7-10. According to the
+     * manual, the program must not alter any part of the prefix
+     * from int20H up to and including reserved4.
+     *)
+    ProgramSegmentPrefixPtr = POINTER TO ProgramSegmentPrefixRec;
+    ProgramSegmentPrefixRec = RECORD
+        int20H           : SysTypes.CARDINAL16; 
+        topOfMemory      : SysTypes.CARDINAL16;
+        reserved1        : SysTypes.CHAR8;
+        longCallOpCode   : SysTypes.CHAR8;      (* Really CARDINAL8 *)
+        longCallSegSize  : SysTypes.CARDINAL16;
+        longCallSeg      : SysTypes.CARDINAL16;
+        terminateAdr     : SYSTEM.ADDRESS;
+        ctrlBreakAdr     : SYSTEM.ADDRESS;
+        criticalErrorAdr : SYSTEM.ADDRESS;
+        reserved2        : ARRAY[ 0 .. 2CH - 16H - 1 ] OF SysTypes.CHAR8;
+        environmentSeg   : SysTypes.CARDINAL16;
+        reserved3        : ARRAY[ 0 .. 50H - 2EH - 1 ] OF SysTypes.CHAR8;
+        dosCall          : SysTypes.CARDINAL16;
+        reserved4        : ARRAY[ 0 .. 5CH - 52H - 1 ] OF SysTypes.CHAR8;
+        unopennedFCB1    : ARRAY[ 0 .. 6CH - 5CH - 1 ] OF SysTypes.CHAR8;
+        unopennedFCB2    : ARRAY[ 0 .. 80H - 6CH - 1 ] OF SysTypes.CHAR8;
+        paramLength      : SysTypes.CHAR8;      (* Really CARDINAL8 *)
+        parameters       : ARRAY[ 0 .. 0100H - 81H - 1 ] OF SysTypes.CHAR8;
+    END;
+
+CONST
+    (* 
+     * In order to unpack and pack the DOS file date/time format, 
+     * the following constants are declared. The shift constants
+     * are intended to be used with DIV and *. The size constants
+     * are to be used with MOD. Example: to unpack a month:
+     *     month := ( dosDate DIV monthShift ) MOD monthSize.
+     * If a shift or size is missing, then you don't need to do 
+     * the respective DIV or MOD. Don't forget to range check the
+     * shifted results if you are going to use Date/Time.
+     *)
+    (* A date is YYYYYYYMMMMDDDDD *)
+    yearShift   = 200H;         (* High 7 bits *)
+    monthShift  = 20H;          (* Middle 4 bits *)
+    monthSize   = 10H;
+    daySize     = 20H;          (* Low 5 bits *)
+    (* A time is HHHHHMMMMMMXXXXX where XXXX is biseconds *)
+    hourShift   = 800H;         (* High 5 bits *)
+    minuteShift = 20H;          (* Middle 6 bits *)
+    minuteSize  = 40H;
+    secondSize  = 20H;          (* Low 5 bits *)
+
+    firstYear   = 1980; (* First year in DOS's time domain *)
+    lastYear    = 2099; (* Last DOS year. Please let it be sooner! *) 
+
+    (*
+     * The following aren't really defined anywhere in DOS,
+     * but are very useful if you are trying to use DOS.
+     *)
+TYPE
+    Years   = [ firstYear .. lastYear ];
+    Months  = [ 1 .. 12 ];
+    Days    = [ 1 .. 31 ];
+    Date    = RECORD
+        year  : Years;
+        month : Months;
+        day   : Days;
+    END;
+
+    Hours   = [ 0 .. 23 ];
+    Minutes = [ 0 .. 59 ];
+    Seconds = [ 0 .. 59 ];
+    Time    = RECORD
+        hour   : Hours;
+        minute : Minutes;
+        second : Seconds;
+    END;
+      
+CONST
+    (* Standard file handles pre-allocated by DOS for programs *)
+    stdInputHandle   = 0;
+    stdOutputHandle  = 1;
+    stdErrorHandle   = 2;
+    stdPrinterHandle = 4;
+
+END DOS.

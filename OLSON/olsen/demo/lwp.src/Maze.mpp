@@ -1,0 +1,412 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Maze;
+IMPORT
+    TaskMonitors, Screen, RandomNumbers,
+    SysTypes;
+
+TYPE
+    MazeElements = RECORD
+        fill         : Colors;
+        active       : BOOLEAN;
+    END;
+
+VAR
+    maze          : ARRAY MazeRowRange, MazeColRange OF MazeElements;
+    takeToChar    : ARRAY Colors OF CHAR;
+    killToChar    : ARRAY Colors OF CHAR;
+    
+PROCEDURE TakePosition( VAR pos   : Position;
+                            dir   : Directions )
+                                  : BOOLEAN;
+    VAR
+        result : BOOLEAN;
+        coord  : Screen.Coordinate;
+        tmpPos : Position;
+
+    BEGIN (* TakePosition *)
+
+        tmpPos := pos;        
+        WITH pos DO
+            (* Test *)
+            CASE dir OF 
+                up:        
+                    IF row <=  startRow THEN
+                        RETURN FALSE;
+                    END;
+                    DEC( row );
+                |
+                down:
+                    IF row >= endRow THEN
+                        RETURN FALSE;
+                    END;
+                    INC( row );
+                |
+                left:
+                    IF col <= startCol THEN
+                        RETURN FALSE;
+                    END;        
+                    DEC( col );
+                |
+                right:
+                    IF col >= endCol THEN
+                        RETURN FALSE;
+                    END;
+                    INC( col );
+            END; (* CASE *)
+
+            TaskMonitors.Enter( mutex );
+
+                result := maze[ row, col ].fill = blank;
+
+                (* Can we set? *)
+                IF result THEN
+                    maze[ row, col ].fill := dir;
+                    WITH coord DO
+                        x := col;
+                        y := row;
+                    END;
+                    Screen.PutBoldCharAt( coord, takeToChar[ dir ] );
+                ELSE
+                    pos := tmpPos;
+                END;
+                     
+            TaskMonitors.Exit( mutex );    
+
+        END; (* WITH *)
+
+        RETURN result;
+
+    END TakePosition;
+
+    
+PROCEDURE KillPosition( VAR pos : Position );
+
+    VAR
+        coord : Screen.Coordinate;
+
+    BEGIN (* KillPosition *)
+
+        TaskMonitors.Enter( mutex );
+
+            WITH pos DO 
+                WITH maze[ row, col ] DO
+
+                    active := FALSE;
+                    WITH coord DO
+                        x := col;
+                        y := row;
+                    END;
+
+                    (* Turn off brightness on character *)
+                    Screen.PutCharAt( coord, killToChar[ fill ] );
+
+                    CASE fill OF 
+                        up:     INC( row );
+                        |
+                        down:   DEC( row );
+                        |
+                        left:   INC( col );
+                        |
+                        right:  DEC( col );
+                    END; (* CASE *)
+                END; (* WITH maze *)
+            END; (* WITH pos *)
+                    
+        TaskMonitors.Exit( mutex );    
+
+    END KillPosition;
+
+
+PROCEDURE Create;
+
+
+    PROCEDURE ValidDirection( VAR row  : SysTypes.Card;
+                              VAR col  : SysTypes.Card;
+                                  dir  : Directions )
+                                       : BOOLEAN;
+        VAR
+            tmpCol,
+            tmpRow : SysTypes.Card;
+
+        BEGIN (* ValidDirection *)
+
+            tmpRow := row;
+            tmpCol := col;
+
+            CASE dir OF 
+                up:        
+                    IF row <= startRow THEN
+                        RETURN FALSE;
+                    END;
+                    DEC( row );
+                |
+                down:
+                    IF row >= endRow THEN
+                        RETURN FALSE;
+                    END;
+                    INC( row );
+                |
+                left:
+                    IF col <= startCol THEN
+                        RETURN FALSE;
+                    END;        
+                    DEC( col );
+                |
+                right:
+                    IF col >= endCol THEN
+                        RETURN FALSE;
+                    END;
+                    INC( col );
+            END; (* CASE *)
+
+            IF maze[ row, col ].active THEN
+
+            ELSIF (col > startCol) AND (dir # right) AND
+              maze[ row, col - 1 ].active THEN
+
+            ELSIF (col < endCol) AND (dir # left) AND
+              maze[ row, col + 1 ].active THEN
+
+            ELSIF (row > startRow) AND (dir # down) AND
+              maze[ row - 1, col].active THEN
+
+            ELSIF (row < endRow) AND (dir # up) AND
+              maze[ row + 1, col ].active THEN
+                
+            ELSE
+                RETURN TRUE;
+            END;
+
+            row := tmpRow;
+            col := tmpCol;
+
+            RETURN FALSE;
+                
+        END ValidDirection;
+    TYPE
+        DirectionSet = SET OF Directions;
+
+    CONST
+        fullDirSet   = DirectionSet { up, down, left, right };
+        emptyDirSet  = DirectionSet { };
+    VAR
+        haveSolution : BOOLEAN;
+        maxRow,
+        maxCol,
+        row,
+        col          : SysTypes.Card;
+        coord        : Screen.Coordinate;
+        index        : SysTypes.Card;
+        dirSet       : DirectionSet;
+        tmpDir       : Directions;
+        randomNum    : SysTypes.Card;
+        
+
+    BEGIN (* Create *);
+
+        TaskMonitors.Enter( mutex );
+
+            (* Make a solution *)
+            haveSolution := TRUE;
+            REPEAT
+                IF haveSolution OR ((row = maxRow) AND (col = maxCol)) THEN
+                    (* Start or deadlock! *)        
+        
+                    (* Clear the maze *)            
+                    FOR row := startRow TO endRow DO
+                        FOR col := startCol TO endCol DO
+                            maze[ row, col ].active := FALSE;
+                        END;
+                    END;
+                        
+                    maxRow := startRow;
+                    maxCol := startCol;
+                    row    := startRow;
+                    col    := startCol;
+
+                    (* Always fill the first square *)
+                    WITH maze[ startRow, startCol ] DO
+                        fill   := blank;
+                        active := TRUE;
+                    END;
+
+                ELSE (* start from point closest to end *)
+                    row := maxRow;
+                    col := maxCol;
+
+                END;
+
+                haveSolution := TRUE;                
+                LOOP
+                    dirSet := emptyDirSet;
+                    LOOP
+                        REPEAT
+			    (* We bias towards lower-right *)
+                            randomNum := RandomNumbers.GetCard( 0, 65 );
+                            IF randomNum < 5 THEN
+                                tmpDir := up;
+                            ELSIF randomNum < 13 THEN
+                                tmpDir := down;
+                            ELSIF randomNum < 34 THEN
+                                tmpDir := left;
+                            ELSE
+                                tmpDir := right;
+                            END;
+                        UNTIL NOT (tmpDir IN dirSet);
+                
+                        IF ValidDirection( row, col, tmpDir ) THEN
+                            EXIT;
+                        END;
+
+                        (* no more choices? *)
+                        INCL( dirSet, tmpDir );
+                        IF dirSet = fullDirSet THEN
+                            haveSolution := FALSE;
+                            EXIT;
+                        END;
+                            
+                    END; (* LOOP *)
+
+                    IF NOT haveSolution THEN      
+                        EXIT;
+                    END;
+                
+                    WITH maze[ row, col ] DO
+                        fill   := blank;
+                        active := TRUE;
+                    END;
+
+                    IF (row = endRow) AND (col = endCol) THEN
+                        EXIT;
+                    END;
+
+                    IF (maxRow <= row) AND (maxCol <= col) THEN
+                        maxRow := row;
+                        maxCol := col;
+                    END;
+ 
+                END; (* LOOP *)
+
+            UNTIL haveSolution;
+
+
+            (* Fill and display the maze *)
+            Screen.Clear;
+
+            FOR row := startRow TO endRow DO
+                FOR col := startCol TO endCol DO
+                    WITH maze[ row, col ] DO
+                        IF NOT active THEN
+                            IF RandomNumbers.GetCard( 0, 1 ) = 1 THEN
+                                fill := blank;
+                            ELSE
+                                fill := solid;
+                            END;
+                            active := TRUE;
+                        END; (* IF NOT active *)
+
+                        WITH coord DO
+                            x := col;
+                            y := row;
+                        END;
+                        Screen.PutCharAt( coord, takeToChar[ fill ] );
+
+                    END; (* WITH *)
+                END; (* FOR col *)
+            END; (* FOR row *)
+
+            (* Always take the first position direction from the left *)
+            maze[ startRow, startCol ].fill := right;
+            WITH coord DO
+                x := startCol;
+                y := startRow;
+            END;
+            Screen.PutBoldCharAt( coord, takeToChar[ right ] );
+
+        TaskMonitors.Exit( mutex );    
+
+    END Create;
+
+PROCEDURE Destroy;
+    VAR
+        row,
+        col : SysTypes.Card;
+    BEGIN (* Destroy *)
+
+        TaskMonitors.Enter( mutex );
+
+            Screen.Clear;
+            (* Clear the maze *)
+            FOR row := startRow TO endRow DO
+                FOR col := startCol TO endCol DO
+                    WITH maze[ row, col ] DO
+                        fill   := blank;
+                        active := FALSE;        
+                    END;
+                END;
+            END;
+            
+        TaskMonitors.Exit( mutex );
+
+    END Destroy;
+
+BEGIN
+
+    TaskMonitors.Create( mutex, "Maze" );
+    
+    @IF IbmPcArch THEN
+	(* These are pretty characters from the IBM BIOS *)
+			      (* arrows   *) 
+	killToChar[ up ]    := CHR( 018H );
+	killToChar[ down ]  := CHR( 019H );
+	killToChar[ left ]  := CHR( 01BH );
+	killToChar[ right ] := CHR( 01AH );
+	killToChar[ solid ] := CHR( 0DBH );
+	killToChar[ blank ] := CHR( 020H );
+
+			      (* triangles *)
+	takeToChar[ up ]    := CHR( 01EH );
+	takeToChar[ down ]  := CHR( 01FH );
+	takeToChar[ left ]  := CHR( 011H );
+	takeToChar[ right ] := CHR( 010H );
+	takeToChar[ solid ] := CHR( 0DBH );
+	takeToChar[ blank ] := CHR( 020H );
+    @ELSE
+	(* Normal ASCII *)
+	killToChar[ up ]    := '^';
+	killToChar[ down ]  := 'v';
+	killToChar[ left ]  := '<';
+	killToChar[ right ] := '>';
+	killToChar[ solid ] := '#';
+	killToChar[ blank ] := ' ';
+
+	takeToChar[ up ]    := '^';
+	takeToChar[ down ]  := 'v';
+	takeToChar[ left ]  := '<';
+	takeToChar[ right ] := '>';
+	takeToChar[ solid ] := '#';
+	takeToChar[ blank ] := ' ';
+    @END
+
+END Maze.

@@ -1,0 +1,16 @@
+ConvertFIO.o: ../../io/bin/BinaryIO.sym ../bin/ConvertFIO.sym ../bin/FormatIO.sym  \
+              ../../io/bin/IOErrors.sym ../../io/bin/StringBinaryIO.sym  \
+              ../../io/bin/StringIO.sym ../../gen/bin/SysTypes.sym  \
+              ../../gen/lwp.bin/TaskMonitors.sym ../../io/bin/TextIO.sym 
+ErrorFIO.o: ../bin/ErrorFIO.sym ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+            ../../io/lwp.bin/IOMonitors.sym ../../gen/bin/ProgErr.sym  \
+            ../../gen/bin/SysTypes.sym ../../gen/lwp.bin/TaskMonitors.sym  \
+            ../../io/bin/TextIO.sym ../../io/bin/TextIOPRIVATE.sym 
+FIOScreen.o: ../bin/FIOBase.sym ../bin/FIOScreen.sym  \
+             ../../io/bin/IOErrors.sym ../../io/bin/ScreenIO.sym  \
+             ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+SimpleFIO.o: ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+             ../../io/lwp.bin/IOMonitors.sym ../../gen/bin/ProgErr.sym  \
+             ../bin/SimpleFIO.sym ../../gen/bin/SysTypes.sym  \
+             ../../gen/lwp.bin/TaskMonitors.sym ../../io/bin/TextIO.sym  \
+             ../../io/bin/TextIOPRIVATE.sym 

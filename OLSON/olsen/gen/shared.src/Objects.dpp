@@ -1,0 +1,189 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Objects;
+(* 
+ * Purpose of this module is to provide a higher level scheme
+ * for memory allocation than is provided by SafeStorage.
+ *
+ * The basic advantages are:
+ *    - Dynamic validity checking of allocated objects.
+ *    - Object-oriented memory management facilities.
+ *    - Simple object list management.
+ *    - Allocation information display for memory utilization statistics.
+ *
+ * A Manager is an allocator with the characteristics specified above.
+ * Each Manager has a list of objects associated with it. An importer
+ * can use this facility to verify (or assert) that a pointer is (with
+ * high probability) associated with a particular Manager. The validation
+ * is not perfect, because such a perfect system would require tagged
+ * memory (to catch uninitialized variables) or automatic initialization.
+ * There is no perfect system without these additional measures, since
+ * any pointer variable's uninitialized value can look exactly like any
+ * other pointer's initialized value.
+ *
+ * This module provides a simple list management facility for each
+ * Manager. To iterate through a list of objects associated with a
+ * particular Manager, one merely calls MakeFirstNext and then Next
+ * until Next returns FALSE. This scheme maintains an internal next
+ * pointer which is manipulated properly for allocations and
+ * deallocations. The list is maintained in first allocated first
+ * returned order.
+ *
+ * The status of all the Managers can be displayed to ProgErrOutput
+ * via the PrintStatus call. The information displayed includes the
+ * current allocation statistics and objects sizes. The "debugName"
+ * passed to Create is used to identify the different objects.
+ *)
+IMPORT 
+    SysTypes;
+
+EXPORT QUALIFIED
+    Manager,      CreateManager,     DestroyManager,   SetInvalidManager,
+    Allocate,     AllocateOK,        Deallocate,       DeallocateAll,
+    IsValid,
+    Assert,       Next,              MakeFirstNext,    NumAllocated,     
+    PrintStatus;
+
+TYPE
+    Manager;
+    (*
+     * Dynamic typed object allocator.
+     *)
+
+PROCEDURE CreateManager(
+    VAR manager       : Manager;       (* In any state, will be valid *)
+        sizeOfObjects : SysTypes.Card; (* Size of storage to Allocate *)
+        debugName     : ARRAY OF CHAR  (* Usually caller module name *)
+    );
+    (* 
+     * Create a storage manager for objects of "sizeOfObjects" size.  
+     * The "debugName" is used for diagnostic output (and will be
+     * truncated to "GenConsts.maxIdentifierLength").
+     *)
+
+PROCEDURE DestroyManager(
+    VAR manager : Manager  (* In any state, will be invalid *)
+    );
+    (* 
+     * Disposes of the manager and all of its currently allocated objects.
+     * If the manager is not currently allocated, then nothing happens.
+     *
+     * Disposing of the objects automatically can cause problems if
+     * there is an internal state associated with each object which
+     * must be cleared before deallocation (for example open files).
+     *)
+
+PROCEDURE SetInvalidManager(
+    VAR manager : Manager  (* In any state, will be invalid *)
+    );
+    (*
+     * Initializes the manager variable to an invalid object.
+     *)
+
+PROCEDURE Allocate(
+        manager : Manager;        (* Must be valid *)
+    VAR object  : SysTypes.SAUPTR (* Object of type specified by the manager *)
+    );
+PROCEDURE AllocateOK(
+        manager : Manager;	  (* Must be valid *)
+    VAR object  : SysTypes.SAUPTR (* Object of type specified by the manager *)
+    )           : BOOLEAN;        (* TRUE => allocation successful *)
+    (*
+     * Creates a new object.
+     *)
+
+PROCEDURE Deallocate(
+        manager : Manager;        (* Must be valid *)
+    VAR object  : SysTypes.SAUPTR (* Must be valid, will be NIL *)
+    );
+    (* 
+     * Deallocate the object.  
+     *)
+
+PROCEDURE DeallocateAll( 
+    manager : Manager	  (* Must be a valid *)
+    );
+    (* 
+     * Deallocates all of the manager's currently allocated objects.
+     * This procedure is identical to traversing the list of objects
+     * and calling deallocate on each of the objects in the list.
+     * Note that deallocating objects which have associate external
+     * state (or pointers to other objects) may be dangerous.
+     *)
+
+PROCEDURE IsValid(
+    manager : Manager;        (* Must be valid *)
+    object  : SysTypes.SAUPTR (* Object to be validated *)
+    )       : BOOLEAN;        (* TRUE => Was allocated *)
+    (*
+     * Attempts to verify that "object" was Allocated via the "manager".
+     *)
+ 
+PROCEDURE Assert(
+    manager : Manager;        (* Must be valid *)
+    object  : SysTypes.SAUPTR (* Object to be asserted (validated) *)
+    );
+    (* 
+     * The same as IsValid, but if "object" is invalid,
+     * the caller is terminated.
+     *)
+
+PROCEDURE Next(
+        manager : Manager;        (* Must be valid *)
+    VAR object  : SysTypes.SAUPTR (* Pointer to next object *)
+    )           : BOOLEAN;        (* TRUE => Pointer is valid *)
+    (*
+     * Used to traverse the list of allocated objects.
+     *
+     * Each call causes a more recently allocated object to be returned
+     * than the previous call (the list is kept in a first-allocated
+     * first-returned order, or FIFO).
+     *
+     * If the previous call returned the most recently allocated object,
+     * the next return will be FALSE. If the previous call returned FALSE,
+     * then a succeeding call will terminate the caller. Allocate and
+     * Deallocate correctly adjust the next.
+     *)
+
+PROCEDURE MakeFirstNext(
+    manager : Manager  (* Must be valid *)
+    );
+    (*
+     * Set the next value to be returned by Next to the least-recently
+     * allocated object (first object in the object list).
+     *)
+
+PROCEDURE NumAllocated(
+    manager : Manager         (* Must be valid *)
+    )       : SysTypes.Card;  (* Number of objects allocated by this manager *)
+
+PROCEDURE PrintStatus;
+    (*
+     * Lists all instances for all current allocators and their storage 
+     * allocation to the standard error file. Helpful at end of program
+     * to confirm that all instances are being cleaned up properly.
+     * This routine uses ProgErrOutput.
+     *)
+
+END Objects.
+

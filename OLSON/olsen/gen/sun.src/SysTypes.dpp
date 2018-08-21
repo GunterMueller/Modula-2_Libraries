@@ -1,0 +1,438 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE SysTypes;
+(*
+ * Defines system dependent values for generic types and system dependent
+ * types.
+ * 
+ * The boolean constants littleEndian, bigEndian, littleEndianSets, and
+ * bigEndianSets define the way data is stored in multi-byte/bit values.
+ * These values are useful when dealing with network devices.  See their
+ * declarations for more details.
+ *
+ * The types SAU and ANY aid address arithmetic and magic types SYSTEM.BYTE
+ * and SYSTEM.WORD.  See their declarations for their specific meaning.
+ * Three constants are associated with each of these types (XXX is ANY or SAU):
+ *     bitsPerXXX - number of bits per storage location occupied by
+ *         the declaration: VAR x : XXX;
+ *     maxArrayIndexXXX - the largest value defined for the following
+ * 	   declaration: ARRAY [ 0 .. maxArrayIndexXXX ] OF XXX;
+ *
+ * The generic types CARDINAL, BYTE, INTEGER, REAL, BITSET, and BOOLEAN
+ * are described by constants defined here.  The prefixes for the
+ * constants are (XXX is one of the above types):
+ *      bitsPerXXX - as defined above.
+ * 	maxArrayIndexXXX - as defined above.
+ *      bitsPerArrayXXX - the number of bits per element of an ARRAY
+ *         OF XXX.  This will be different from bitsPerXXX on some systems.
+ * 	MINXXX - same as MIN( XXX ) 
+ * 	MAXXXX - same as MAX( XXX )
+ * For the type BITSET the values fullBITSET and emptyBITSET are defined
+ * instead of MIN and MAX.
+ *
+ * The type REAL is more complex.  The following values are defined for it.
+ *      minPosREAL - minimum positive (non-zero) real number.
+ * 	minExponentREAL - largest base ten exponent.
+ * 	maxExponentREAL - smallest base ten exponent.
+ * 	maxDecimalDigitsREAL - largest number of significant digits
+ *          in the mantissa.
+ * 
+ * The types Card, Int, and Real are defined for portability.  Some
+ * Modula-2 implementations define CARDINAL, INTEGER, and REAL in a
+ * way which would require duplicate effort in defining a library.
+ * The new types are defined to carefully match the machine characteristics.
+ * Specifically, Card and Int are the size of the machine ALU registers. 
+ * Real is defined to be the most precise real which is "reasonable" to use.
+ * Note reasonable does not mean "storage space conserving", but means
+ * natural for the machine architecture.
+ *
+ * Some applications require storage space conservation.   Other applications
+ * need to declare variables which occupy a specific amount of storage.  
+ * For these applications, this module defines a set of "storage specific"
+ * types.  A storage specific type is identified by its generic class
+ * followed by a storage specification in bits.  For example, CARDINAL32
+ * occupies 32 bits of storage and has the semantics of a CARDINAL number.
+ * The semantic characteristics of the storage specific types are defined,
+ * but the values bitsPer, bitsPerArray, and maxArrayIndex are typically
+ * not defined.
+ *
+ * Comments about storage specific types:
+ *      - A particular storage specific type may not exist in all
+ *        implementations.   Therefore, portable applications should
+ * 	  use them sparingly.
+ *      - Although the basic (Modula-2) semantics of the type may
+ * 	  exist, other modules may not handle the type.  A special
+ *        procedure may be required to handle them.
+ *	- The Modula-2 operations available for these types (+, -, etc.)
+ *        may be supplied by a module, thus normal infix operations
+ * 	  will not be possible.
+ *      - If a specific range is required, use a subrange not a storage
+ * 	  specific type.  Unless the compiler doesn't support the specific
+ *        type.
+ *
+ * PORTABILITY NOTES:
+ *      - When using bitsPerArrayXXX values, compute the number of
+ * 	  XXX objects per SAU *before* multiplying by the number of
+ * 	  array elements.   This will yield results proper for most
+ * 	  systems that do data packing.
+ *      - Use the types Card, Int, and Real when interfacing with the
+ * 	  library and in other places as required.
+ *      - If a module performs bitsPer arithmetic or makes assumptions
+ * 	  about the size of any of the non-specific entities, include
+ * 	  a check of the assumptions in the initialization body of the
+ * 	  module.  Typically, these checks are under the control of the
+ * 	  preprocessor variable SysTypesCheck.
+ * 
+ * This module specifies the system types for the following configurations:
+ *      CPU      : Sun 2/XXX,3/XXX
+ *      OS       : Sun 3.X
+ *      Compiler : Sun 1.X, 2.X
+ *)
+IMPORT
+    SYSTEM;
+EXPORT QUALIFIED 
+    (* IMPLEMENTATION SPECIFIC types *)
+    BITSET8,            emptyBITSET8,         fullBITSET8,
+    BITSET16,           emptyBITSET16,        fullBITSET16,
+    BITSET32,           emptyBITSET32,        fullBITSET32,
+    MINBOOLEAN8,        MAXBOOLEAN8,          BOOLEAN8,
+    MINCARDINAL8,       MAXCARDINAL8,         CARDINAL8,
+    MINCARDINAL16,      MAXCARDINAL16,        CARDINAL16,             
+    MINCARDINAL32,      MAXCARDINAL32,        CARDINAL32,
+    MINCHAR8,           MAXCHAR8,             CHAR8,          
+    MININTEGER8,        MAXINTEGER8,          INTEGER8,       
+    MININTEGER16,       MAXINTEGER16,         INTEGER16,
+    MININTEGER32,       MAXINTEGER32,         INTEGER32,      
+    MINREAL32,          MAXREAL32,            minPosREAL32,
+    minExponentREAL32,  maxExponentREAL32,    maxDecimalDigitsREAL32,     
+    REAL32,             
+    minExponent32,      maxExponent32,        maxDecimalDigits32,     
+    MINREAL64,          MAXREAL64,              
+    minPosREAL64,       minExponentREAL64,    maxExponentREAL64,  
+    maxDecimalDigitsREAL64, 		      REAL64,
+    minExponent64,      maxExponent64,        maxDecimalDigits64,
+
+    (* These names are defined for all implementations *)
+    littleEndian,	bigEndian,
+    littleEndianSets,	bigEndianSets,
+    SAU,		MINSAU,		      MAXSAU,
+    bitsPerSAU,	        maxArrayIndexSAU,
+    ANY,		bitsPerANY,	      maxArrayIndexANY,
+    SAUPTR,		ANYPTR,
+    bitsPerBYTE,	bitsPerArrayBYTE,     maxArrayIndexBYTE,
+    bitsPerWORD,	bitsPerArrayWORD,     maxArrayIndexWORD,
+    bitsPerADDRESS,	bitsPerArrayADDRESS,  maxArrayIndexADDRESS,
+    bitsPerBITSET,      bitsPerArrayBITSET,   maxArrayIndexBITSET,
+    emptyBITSET,        fullBITSET,
+    bitsPerBOOLEAN,     bitsPerArrayBOOLEAN,  maxArrayIndexBOOLEAN,
+    MINBOOLEAN,         MAXBOOLEAN,
+    bitsPerCARDINAL,    bitsPerArrayCARDINAL, maxArrayIndexCARDINAL,
+    MINCARDINAL,        MAXCARDINAL,
+    Card,		bitsPerCard,          bitsPerArrayCard, 
+    maxArrayIndexCard, 	MINCard,              MAXCard,
+    bitsPerCHAR,    	bitsPerArrayCHAR,     maxArrayIndexCHAR,
+    MINCHAR,            MAXCHAR,
+    bitsPerINTEGER,     bitsPerArrayINTEGER,  maxArrayIndexINTEGER,
+    MININTEGER,         MAXINTEGER,
+    Int,		bitsPerInt,           bitsPerArrayInt, 
+    maxArrayIndexInt, 	MINInt,               MAXInt,
+    bitsPerREAL,        bitsPerArrayREAL,     maxArrayIndexREAL,
+    MINREAL,            MAXREAL, 	      minPosREAL,         
+    minExponentREAL,    maxExponentREAL,      maxDecimalDigitsREAL,
+    minExponent,        maxExponent,          maxDecimalDigits,
+    Real,
+    bitsPerReal,        bitsPerArrayReal,     maxArrayIndexReal,
+    MINReal,            MAXReal, 	      minPosReal,         
+    minExponentReal,    maxExponentReal,      maxDecimalDigitsReal;
+
+(*
+ * BEGIN Storage Specific Types  (IMPLEMENTATION SPECIFIC)
+ *
+ * The types and constants with a number following them are
+ * system dependent names; they may not exist on
+ * all systems. Note that MIN and MAX are only defined for
+ * scalar types, so we have taken the liberty of defining
+ * "full" and "empty" for BITSETs.
+ *)
+
+TYPE
+    BITSET8            = SET OF [ 0 ..  7 ];
+CONST
+    emptyBITSET8       = BITSET8{ };
+    fullBITSET8        = BITSET8{ 0 .. 7 };
+
+TYPE
+    BITSET16           = SET OF [ 0 .. 15 ];
+CONST
+    emptyBITSET16      = BITSET16 { };
+    fullBITSET16       = BITSET16 { 0 .. 15 };
+
+TYPE
+    BITSET32           = BITSET;
+CONST
+    emptyBITSET32      = { };
+    fullBITSET32       = { 0 .. 31 };
+
+CONST
+    MINBOOLEAN8        = FALSE;
+    MAXBOOLEAN8        = TRUE;
+TYPE
+    BOOLEAN8           = BOOLEAN;
+
+CONST
+    MINCARDINAL8       = 0H;
+    MAXCARDINAL8       = 0FFH;
+TYPE
+    CARDINAL8          = [ MINCARDINAL8  .. MAXCARDINAL8  ];
+
+CONST
+    MINCARDINAL16      = 0H;
+    MAXCARDINAL16      = 0FFFFH;
+TYPE
+    CARDINAL16         = [ MINCARDINAL16 .. MAXCARDINAL16 ];
+
+CONST
+    MINCARDINAL32      = 0H;
+    MAXCARDINAL32      = 0FFFFFFFFH;
+TYPE
+    CARDINAL32         = CARDINAL;
+
+CONST
+    MINCHAR8           = 0C;
+    MAXCHAR8           = 377C;
+TYPE
+    CHAR8              = CHAR;
+
+CONST
+    MININTEGER8        = -80H;
+    MAXINTEGER8        = +7FH;
+TYPE
+    INTEGER8           = [ MININTEGER8  .. MAXINTEGER8  ];
+
+CONST
+    MININTEGER16       = -8000H;
+    MAXINTEGER16       = +7FFFH;
+TYPE
+    INTEGER16          = [ MININTEGER16 .. MAXINTEGER16 ];
+
+CONST
+    MININTEGER32       = -80000000H;
+    MAXINTEGER32       = +7FFFFFFFH;
+TYPE
+    INTEGER32          = INTEGER;
+
+CONST
+    MINREAL32              = MIN( REAL );   (* About -3.40282346E+38 *)
+    MAXREAL32              = MAX( REAL );   (* About +3.40282346E+38 *)
+    minPosREAL32           = 1.0E-38;	    (* Not 100% correct *)
+    minExponentREAL32      = -38;
+    maxExponentREAL32      = +38;
+    maxDecimalDigitsREAL32 = 9;             (* Significant digits *)
+TYPE
+    REAL32                 = REAL;
+CONST
+    (* For backwards compatibility *)
+    minExponent32          = minExponentREAL32;
+    maxExponent32          = maxExponentREAL32;
+    maxDecimalDigits32     = maxDecimalDigitsREAL32;
+
+CONST
+    MINREAL64              = MIN( LONGREAL ); (* about -1.79769313486231E+308 *)
+    MAXREAL64              = MAX( LONGREAL ); (* about +1.79769313486231E+308 *)
+    minPosREAL64           = 2.0E-308;        (* Not 100% correct *)
+    minExponentREAL64      = -308;
+    maxExponentREAL64      = +308;
+    maxDecimalDigitsREAL64 = 17;              (* Significant digits *)
+TYPE
+    REAL64             = LONGREAL;
+CONST
+    (* For backwards compatibility *)
+    minExponent64          = minExponentREAL64;
+    maxExponent64          = maxExponentREAL64;
+    maxDecimalDigits64     = maxDecimalDigitsREAL64;
+
+(*
+ * END Storage Specific Types
+ *)
+
+(*
+ * The rest of the module defines identifiers available on all implementations.
+ *)
+CONST
+    (* Byte and bit orders *)
+    littleEndian       = FALSE;
+    bigEndian          = NOT littleEndian;
+	(*
+	 * These constants define the order of the bytes within a
+	 * multi-byte numeric value. Little Endian machines put the least
+	 * significant byte in the low address. Big Endian machines put
+	 * the most significant byte in the low address.
+	 *)
+    littleEndianSets   = TRUE;
+    bigEndianSets      = NOT littleEndianSets;
+	(*
+	 * Some compilers define the bit order within a byte to be
+	 * different from the byte order within a word.  These constants
+	 * are provided for those programs which really need to know
+	 * these things.  Typically, you only need to use littleEndian
+	 * and bigEndian.
+	 *)
+
+TYPE
+    SAU	= CHAR;			(* Smallest Addressable Unit *)
+CONST
+    MINSAU = MINCHAR8;
+    MAXSAU = MAXCHAR8;
+    bitsPerSAU = 8;
+    maxArrayIndexSAU = MAXCARDINAL32 - 2;
+	(*
+	 * Defines the size of the unit between ADDRESS values.  This is 
+	 * usually defined as CHAR or CARDINAL.  SYSTEM.TSIZE( SAU ) is 
+	 * defined to return 1.  The module SafeStorage allocates
+	 * memory in SAUs.  Note that one can assume that an SAU
+	 * declared in an array occupies the same number of bits
+	 * as it does when declared as a simple variable.  For the
+	 * purpose of manipulation, SAU's should be scalar type to
+	 * allow comparisons and simple arithmetic.
+	 *)
+
+TYPE
+    ANY = SYSTEM.BYTE;		(* Generic procedure parameter type *)
+CONST
+    bitsPerANY       = bitsPerSAU;
+    maxArrayIndexANY = maxArrayIndexSAU;
+	(*
+	 * Always either BYTE or WORD.  When defining a generic
+	 * procedure parameter which is to accept *any* type, 
+	 * declare the formal parameter as ARRAY OF SysTypes.ANY.
+	 * Note that the size of ANY in an array and declared
+	 * individually will be identical.
+	 *)
+    
+TYPE
+    SAUPTR = SYSTEM.ADDRESS;	(* ptr to data accessed as ARRAY OF SAUs *)
+    ANYPTR = SYSTEM.ADDRESS;	(* ptr to uninterpreted data *)
+	(*
+	 * These types are declared for the purpose of documention.
+	 * Their values will not change for any implementation.
+	 * If an arbitrary sequence of data is to be interpeted as
+	 * address units (e.g. storage allocation procedures), then
+	 * the type SAUPTR should be used in the definition module.
+	 * ANYPTR is to be used when the module does not interpret
+	 * the data, but merely passes it on to some module which does.
+	 *)
+
+(*
+ * Descriptions of the generic types and definition of new generic types.
+ *)
+CONST
+    bitsPerBYTE          = 8;
+    bitsPerArrayBYTE     = bitsPerBYTE;
+    maxArrayIndexBYTE    = maxArrayIndexSAU;
+ 
+    bitsPerWORD          = 32;
+    bitsPerArrayWORD     = bitsPerWORD;
+    maxArrayIndexWORD    = maxArrayIndexSAU DIV 
+			   ( bitsPerWORD DIV bitsPerSAU ) - 1;
+
+    bitsPerADDRESS       = 32;
+    bitsPerArrayADDRESS  = bitsPerADDRESS;
+    maxArrayIndexADDRESS = maxArrayIndexWORD;
+
+CONST
+    bitsPerBITSET       = 32;
+    bitsPerArrayBITSET  = bitsPerBITSET;
+    maxArrayIndexBITSET = maxArrayIndexWORD;
+    emptyBITSET         = emptyBITSET32;
+    fullBITSET          = fullBITSET32;
+
+    bitsPerBOOLEAN       = 8;
+    bitsPerArrayBOOLEAN  = bitsPerBOOLEAN;
+    maxArrayIndexBOOLEAN = maxArrayIndexSAU;
+    MINBOOLEAN           = MINBOOLEAN8;
+    MAXBOOLEAN           = MAXBOOLEAN8;
+
+    bitsPerCARDINAL       = 32;
+    bitsPerArrayCARDINAL  = bitsPerCARDINAL;
+    maxArrayIndexCARDINAL = maxArrayIndexWORD;
+    MINCARDINAL           = MINCARDINAL32;
+    MAXCARDINAL           = MAXCARDINAL32;
+TYPE
+    Card	      = CARDINAL;
+CONST
+    bitsPerCard	      = bitsPerCARDINAL;
+    bitsPerArrayCard  = bitsPerCard;
+    maxArrayIndexCard = maxArrayIndexCARDINAL;
+    MINCard	      = MINCARDINAL;
+    MAXCard	      = MAXCARDINAL;
+
+    bitsPerCHAR       = 8;
+    bitsPerArrayCHAR  = bitsPerCHAR;
+    maxArrayIndexCHAR = maxArrayIndexSAU;
+    MINCHAR           = MINCHAR8;
+    MAXCHAR           = MAXCHAR8;
+
+    bitsPerINTEGER       = 32;
+    bitsPerArrayINTEGER  = bitsPerINTEGER;
+    maxArrayIndexINTEGER = maxArrayIndexWORD;
+    MININTEGER           = MININTEGER32;
+    MAXINTEGER           = MAXINTEGER32;
+TYPE
+    Int		     = INTEGER;
+CONST
+    bitsPerInt	     = bitsPerINTEGER;
+    bitsPerArrayInt  = bitsPerInt;
+    maxArrayIndexInt = maxArrayIndexINTEGER;
+    MINInt	     = MININTEGER;
+    MAXInt	     = MAXINTEGER;
+
+    bitsPerREAL          = 32;
+    bitsPerArrayREAL     = bitsPerREAL;
+    maxArrayIndexREAL    = maxArrayIndexWORD;
+    MINREAL              = MINREAL32;
+    MAXREAL              = MAXREAL32;
+    minPosREAL           = minPosREAL32;
+    minExponentREAL      = minExponent32;
+    maxExponentREAL      = maxExponent32;
+    maxDecimalDigitsREAL = maxDecimalDigits32;  
+
+    (* The following three constants are defined for backwards compatibility *)
+    minExponent          = minExponentREAL;
+    maxExponent          = maxExponentREAL;
+    maxDecimalDigits     = maxDecimalDigitsREAL;
+
+TYPE
+    Real	         = REAL64;
+CONST
+    bitsPerReal          = 64;
+    bitsPerArrayReal     = bitsPerReal;
+    maxArrayIndexReal    = maxArrayIndexSAU DIV 
+			   ( bitsPerReal DIV bitsPerSAU ) - 1;
+    MINReal	         = MINREAL64;
+    MAXReal	         = MAXREAL64;
+    minPosReal	         = minPosREAL64;
+    minExponentReal      = minExponent64;
+    maxExponentReal      = maxExponent64;
+    maxDecimalDigitsReal = maxDecimalDigits64;
+
+END SysTypes. 

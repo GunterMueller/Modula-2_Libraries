@@ -1,0 +1,77 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE MakeParameters;
+(*
+ * Parameter specifications and requirements:
+ *      - source file names may not contain ':'.
+ *      - path names may be anything, but they will be inserted
+ *        into "paths" with a trailing ":" or "\" for simplicity.
+ *      - all names must exist, that is, they have to be searchable.
+ *      - source names may contain wild cards and they will be expanded.
+ *      - duplicate names are illegal (errors will be reported).
+ *)
+IMPORT
+    NameLists;
+
+EXPORT QUALIFIED
+    MachineTypes, 	lowVersionPC, 		highVersionPC, 
+    VersionNumbers, 	ReadCommandLine,	Usage;
+
+TYPE
+    MachineTypes = ( Sun, 		(* SMI Sun Workstation *)
+		     PC );		(* IBM PC series *)
+CONST
+    lowVersionPC = 2;
+    highVersionPC = 3;
+TYPE
+    VersionNumbers = [ lowVersionPC .. highVersionPC ];	
+		    
+PROCEDURE ReadCommandLine(     paths      : NameLists.Object;
+			       sources    : NameLists.Object;
+			   VAR targetType : MachineTypes;
+			   VAR version    : VersionNumbers );
+    (*
+     * Reads the command line and inserts the names into the lists.
+     * If there are no command line parameters, then nothing will be 
+     * done to the lists.  Provides input parsing and outputs errors 
+     * to ProgErrOutput, when there is an error. The NameLists
+     * objects will all be NameLists.DONTCARE.  If there is a syntax
+     * error on the parameters, this procedure will call ProgErr.Terminate.
+     *
+     * INPUT:
+     *    paths    = a list to insert the paths.
+     *    sources  = a list to insert the target source file names.
+     * 
+     * OUTPUT:
+     *    targetType, how to generate file names and search for modules.
+     *
+     * MODIFIES:
+     *    paths,      inserted paths.
+     *    sources,    the target source file names.
+     *)
+
+PROCEDURE Usage;
+    (*
+     * Print a usage line and than call ProgErr.Terminate.
+     *)
+END MakeParameters.

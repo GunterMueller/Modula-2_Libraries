@@ -1,0 +1,72 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskDebug;
+(*
+ * Provides a routine to dump the information of all the tasks
+ * in the system.
+ *
+ * The other routines in this module provide a method for dumping
+ * the information based on the termination state of the program
+ * and via the user interrupt key.
+ *
+ * IMPORTANT:
+ *     You must cause the TaskNotices.RequestExit notice to cause
+ *     the program to exit if you include this module, because it
+ *     creates internal tasks.
+ *)
+EXPORT QUALIFIED
+    PrintAll,         UserInterruptModes,  SetUserInterruptMode,
+    TerminationModes, SetTerminationMode;
+
+PROCEDURE PrintAll;
+    (*
+     * Prints out the tasking information to ProgErrOutput for
+     * all of the tasks in the system.
+     *
+     * If you would like to print the tasking information for
+     * a single task, then see the module TaskInfo.
+     *)
+
+TYPE
+    UserInterruptModes = (
+        doNothingOnUserInterrupt,  (* Do nothing if user interrupts *)
+        printOnUserInterrupt,      (* PrintAll and continue *)
+        terminateOnUserInterrupt   (* Default: Call ProgErr.Terminate *)
+    );
+
+PROCEDURE SetUserInterruptMode(
+    mode : UserInterruptModes  (* What to do when user interrupt *)
+    );
+
+TYPE
+    TerminationModes = ( 
+        doNotPrintOnTermination,     (* Do nothing on termination     *)
+        printOnAbnormalTermination,  (* Default: Abnormal causes PrintAll *)
+        printOnTermination           (* Any termination causes print  *)
+    );
+
+PROCEDURE SetTerminationMode(
+    mode : TerminationModes  (* What to do when termination *)
+    );
+
+END TaskDebug.

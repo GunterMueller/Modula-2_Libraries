@@ -1,0 +1,93 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskConsts;
+(*
+ * Parameters of the Task system for Sun Modula-2.  These constants
+ * should not be changed without understanding their use and purpose.
+ *)
+IMPORT
+    GenConsts,
+    SysTypes;
+EXPORT QUALIFIED
+    minStackSize,	maxStackSize,	StackSizes,	
+    GetDefaultStackSize, 		SetDefaultStackSize,
+    minPriority,	maxPriority,	
+    defaultPriority,	Priorities,	maxInfoGroups,	maxNameLength,	
+    Name,		AllowPreemption;
+
+CONST
+    minStackSize  = 100H;
+    maxStackSize  = SysTypes.maxArrayIndexSAU;
+TYPE
+    StackSizes    = [ minStackSize .. maxStackSize ];
+	(* 
+	 * Both min and max must be a multiple of 16 which is the number of
+	 * bytes in the a "paragraph" of 8088 memory.
+	 *)
+
+PROCEDURE GetDefaultStackSize(
+    ) : StackSizes;
+    (*
+     * OUTPUT:
+     *    <RETURN>, reasonable sized stack for normal task.
+     *)
+
+PROCEDURE SetDefaultStackSize( 
+    newSize : StackSizes 
+    );
+    (*
+     * Allows dynamic update of the value that GetDefaultStackSize
+     * returns.
+     * 
+     * INPUT:
+     *    newSize, new default stack size.
+     *)
+
+CONST
+    minPriority     = 001H;	(* must be positive and less than maxPriority *)
+    maxPriority     = 0FFH;
+    defaultPriority = ( minPriority + maxPriority ) DIV 2;
+TYPE
+    Priorities      = [ minPriority .. maxPriority ];
+
+CONST
+    maxInfoGroups  = 10;		(* must be greater than 3 to account
+					   for Time, Monitors, & Messages *)
+CONST
+    maxNameLength  = GenConsts.maxIdentifierLength;
+TYPE
+    Name           = GenConsts.Identifier;
+
+PROCEDURE AllowPreemption(
+    ) : BOOLEAN;	(* TRUE => Task system allows preemption *)
+    (* 
+     * The tasking system is preemptable, that is, a task may be interrupted
+     * in the middle of processing by another task without the interrruptee
+     * giving permission.  You can cancel this feature of the system by
+     * setting the value that this procedure returns to FALSE.  This latter
+     * model can then be used to implement a model of tasking which doesn't
+     * require mutual exclusion.  Note: interrupt handlers always preempt
+     * tasks, but they are not allowed to execute normal code.
+     *)
+
+END TaskConsts.

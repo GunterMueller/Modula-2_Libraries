@@ -1,0 +1,6 @@
+M2Defs= 
+M2Imps= 
+M2Mods= bintest.mod cardiote.mod cardioti.mod changedi.mod dirtest.mod  \
+        hello.mod intiotes.mod realiote.mod realioti.mod tcopy.mod  \
+        tcopyobj.mod tdirioli.mod tionames.mod tioversi.mod tkeyboar.mod  \
+        tlistwit.mod tscreeni.mod tstringb.mod 

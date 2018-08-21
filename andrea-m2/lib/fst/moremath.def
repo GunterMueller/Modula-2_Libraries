@@ -1,0 +1,26 @@
+DEFINITION MODULE MoreMath;
+
+(* John Andrea, Mar.27/92 *)
+(* This code may NOT be sold, it may be freely used and distributed *)
+
+PROCEDURE MinCard( a, b :CARDINAL ) :CARDINAL;
+(* return the smaller of 'a' and 'b' *)
+
+PROCEDURE MaxCard( a, b :CARDINAL ) :CARDINAL;
+(* return the larger of 'a' and 'b' *)
+
+
+PROCEDURE MinInt( a, b :INTEGER ) :INTEGER;
+(* return the smaller of 'a' and 'b' *)
+
+PROCEDURE MaxInt( a, b :INTEGER ) :INTEGER;
+(* return the larger of 'a' and 'b' *)
+
+
+PROCEDURE SizeCard( a :CARDINAL ) :CARDINAL;
+(* return the number of digits in the number *)
+
+PROCEDURE SizeInt( a :INTEGER ) :CARDINAL;
+(* return the number of digits in the number *)
+
+END MoreMath.

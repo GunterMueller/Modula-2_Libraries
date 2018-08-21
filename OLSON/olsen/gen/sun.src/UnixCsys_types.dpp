@@ -1,0 +1,64 @@
+DEFINITION FOR C MODULE UnixCsys_types;
+(*
+ * See the file /usr/include/sys/types.h.
+ *)
+IMPORT
+    SYSTEM,
+    UnixCtypes;
+
+TYPE
+    u_char  = [ 0 .. 0FFH ];	
+    u_short = [ 0 .. 0FFFFH ];
+    u_int   = CARDINAL;	
+    u_long  = CARDINAL;
+    ushort  = u_short;		
+    uint    = u_int;		
+
+@IF VaxArch THEN
+    struct__physadr = RECORD
+	r : ARRAY [ 0 .. 0 ] OF UnixCtypes.short;
+    END;
+    _physadr = POINTER TO struct__physadr;
+    physadr  = _physadr;
+
+    struct_label_t = RECORD
+	val : ARRAY [ 0 .. 13 ] OF INTEGER;
+    END;
+    label_t = struct_label_t;	
+@END 
+
+@IF SunArch THEN
+    struct__physadr = RECORD
+	r : ARRAY [ 0 .. 0 ] OF UnixCtypes.short;
+    END;
+    _physadr = POINTER TO struct__physadr;
+    physadr  = _physadr;
+
+    struct_label_t = RECORD
+	val : ARRAY [ 0 .. 12 ] OF INTEGER;
+    END;
+    label_t = struct_label_t;	
+@END 
+
+    struct__quad = RECORD
+	val: ARRAY [ 0 .. 1 ] OF INTEGER;
+	END;
+    quad = struct__quad;	
+
+    daddr_t = UnixCtypes.long;
+
+    caddr_t  = SYSTEM.ADDRESS;
+    ino_t    = u_long;
+    swblk_t  = UnixCtypes.long;
+    size_t   = INTEGER;
+    time_t   = UnixCtypes.long;
+    dev_t    = UnixCtypes.short;
+    off_t    = INTEGER;
+    key_t    = UnixCtypes.long;
+
+    struct_fd_set = RECORD
+	fds_bits : ARRAY [ 0 .. 0 ] OF INTEGER;
+    END;
+    fd_set   = struct_fd_set;
+
+END UnixCsys_types.

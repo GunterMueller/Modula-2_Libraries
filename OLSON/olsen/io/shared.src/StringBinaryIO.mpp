@@ -1,0 +1,700 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE StringBinaryIO;
+(*
+ * Implements the in memory BinaryIO files.
+ *
+ * Throughout this module, the following terms are used:
+ *     local      - the Object declared in this module (classBasedInfo).
+ *     private    - the CatBinaryIO.Object.
+ *     result     - value returned by the procedure.
+ *
+ * A string file is a list of Buffers.  The buffers are of a fixed
+ * size so we use Objects to the allocation/deallocation.  We use the
+ * linked list in Objects so that the list code is much simpler.
+ * There is a read/write pointer maintained in the local object which
+ * is called "next", because it always points to the next datum to be
+ * read.  The Objects.Next value is always the next pointer after
+ * the "next.buffer".  
+ *
+ * Note that there is at least one buffer associated with a string file,
+ * even when it is totally empty. 
+ *
+ * Buffers are variable sized by importer specification.  In order to 
+ * make the allocation simpler, we partially allocate ObjectRec.
+ * 
+ * TODO:
+ *   - The class object should contain a "short-buffer" for small 
+ *     string files to optimize for the normal case.
+ *   - This module should declare a global buffer pool from which 
+ *     it will allocate buffers.
+ *)
+IMPORT
+    BinaryIO,
+    Bytes,
+    CardConvert,
+    CatBinaryIO,
+    Chars,
+    IOConsts,
+    IOErrors,
+    Objects,		
+    ProgErr,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+@IF LogitechM2 THEN
+    IMPORT
+	Card32;
+@END (* LogitechM2 *)
+
+CONST
+    moduleName = 'StringBinaryIO';
+
+TYPE
+    (* 
+     * Where all the data goes.
+     *)
+    Buffer    = POINTER TO BufferRec;
+    BufferRec = RECORD
+	number : SysTypes.Card;			(* Buffer number *)
+	length : [ 0 .. maxBlockSize ];	(* Current length *)
+	data   : ARRAY [ 0 .. maxBlockSize - 1 ] OF SysTypes.SAU;
+		    (* This buffer is partially allocated *)
+    END;
+
+TYPE
+    Object    = POINTER TO ObjectRec; (* CatBinaryIO.ObjectRec.classBasedInfo *)
+    ObjectRec = RECORD
+	bufferMgr       : Objects.Manager;	(* buffer list *)
+
+	maxBufferLength : BlockSizes;		(* How much to use *)
+	@IF LogitechM2 THEN
+	    maxBufferLength32 : SysTypes.CARDINAL32;
+	@END (* LogitechM2 *)
+
+	next : RECORD		(* where to read/write next! *)
+	    buffer : Buffer;	(* data is goes to/comes from here *)
+	    offset : [ 0 .. maxBlockSize ]; (* points into buffer *)
+	END;
+	lastBuffer : Buffer;		(* Needed for easy indexing *)
+    END;
+
+VAR
+    objectMgr : Objects.Manager;	(* All classBasedInfo objects *)
+
+PROCEDURE Open(
+          VAR private  : CatBinaryIO.Object;
+    (*IN*)VAR openPath : ARRAY OF CHAR;
+    (*IN*)VAR options  : ARRAY OF CHAR
+    )                  : IOErrors.Errors;
+    (*
+     * First check things out before creating the object and things.
+     * All string files are the same, so isInteractive and isIndexable
+     * are constant.  Once these values are set, we initialized the
+     * rest of the general information and then move on to the classBased.
+     * ClassBased requires allocating the buffer manager and the first
+     * buffer.  We also initialize the first buffer with the name of
+     * the file (openPath).
+     *
+     * The options are handled only if the string is non-empty.
+     *)
+    VAR
+	DONTCARE1 : BinaryIO.States;
+	DONTCARE2 : SysTypes.Card;
+	DONTCARE3 : BOOLEAN;
+        local     : Object;
+	blockSize : BlockSizes;
+	totalSize : SysTypes.Card;
+    BEGIN (* Open *)
+
+	WITH private^ DO
+
+	    blockSize := defaultBlockSize;
+	    IF ( options[ 0 ] # 0C ) AND
+	       NOT SeparateOptions( options, blockSize ) THEN
+		RETURN IOErrors.badParameter;
+	    END;
+
+	    (* 
+	     * Assign the general information.
+	     *)
+	    isInteractive := FALSE;
+	    isIndexable   := openMode # BinaryIO.appendOnly;
+            methods := SYSTEM.ADR( methodTable );
+	    
+	    Objects.Allocate( objectMgr, local );
+	    classBasedInfo := local;
+	    WITH local^ DO
+		(* 
+		 * The best way to allocate enough buffer space is to
+		 * take maxBlockSize off the "top" (allowing that the
+		 * record is bigger than maxBlockSize) and then adding
+		 * in the number of bytes we will really need.  This ought
+		 * to take into account the amount of slop required for
+		 * implementation specific record field spacing.
+		 *)
+		totalSize := ( SYSTEM.TSIZE( BufferRec ) - maxBlockSize )
+			     + blockSize;
+
+		Objects.CreateManager( bufferMgr, totalSize,
+				       "StringBinaryIO.Buffer" );
+		(* Always allocate the first buffer! *)
+		Objects.Allocate( bufferMgr, next.buffer );
+
+		(* Everything is referenced off of this value *)
+		maxBufferLength := blockSize;
+
+		@IF LogitechM2 THEN
+		    (* Needed for indexing *)
+		    Card32.FromCard16( maxBufferLength, 0, maxBufferLength32 );
+		@END (* LogitechM2 *)
+
+		WITH next.buffer^ DO
+		    length := 0;
+		    number := 0;
+		END;
+		next.offset := 0;		(* Empty file *)
+		lastBuffer  := next.buffer;
+
+		(*
+		 * Now we must initialize the file with the openPath passed in.
+		 * We call WriteBytes, because it is the easiest thing to do.
+		 * Note that we don't have to do a "mode" change, since 
+		 * WriteBytes doesn't check this.  If there is nothing to 
+		 * write (openPath empty), then just return.
+		 *)
+		IF openPath[ 0 ] # 0C THEN
+		    DONTCARE1 := WriteBytes( private, SYSTEM.ADR( openPath ), 
+					     Strings.Length( openPath ), 
+					     DONTCARE2 );
+	    
+		    (* Only rewind in the case of readWrite and readOnly *)
+		    IF openMode # BinaryIO.appendOnly THEN
+			(* set the offset and buffer back to the beginning *)
+			Objects.MakeFirstNext( bufferMgr );
+			DONTCARE3 := Objects.Next( bufferMgr, next.buffer );
+			next.offset := 0;
+		    END;
+		END;
+	    END; (* WITH local *)
+
+	END; (* WITH *)
+
+	RETURN IOErrors.ok;
+    END Open;
+
+
+PROCEDURE MakeOptions(
+        blockSize : BlockSizes;
+    VAR result    : ARRAY OF CHAR
+    );
+    BEGIN (* MakeOptions *)
+	
+	IF HIGH( result ) < maxOptionsLength - 1 THEN
+	    ProgErr.Terminate( 
+	       "StringBinaryIO.MakeOptions: result string is too short." );
+	END;
+
+	(* Will always work *)
+	CardConvert.DONTCARE := CardConvert.ToString( blockSize, Chars.maxBase, 
+					  maxOptionsLength, result );
+	(* Mark it as our "type" *)
+	result[ 0 ] := CatBinaryIO.classOptionsChar;
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(
+        options   : ARRAY OF CHAR;
+    VAR blockSize : BlockSizes
+    )             : BOOLEAN;
+    VAR
+	card : SysTypes.Card;	(* Need a temporary to do range check *)
+    BEGIN (* SeparateOptions *)
+
+	(* Will always work *)
+	IF options[ 0 ] # CatBinaryIO.classOptionsChar THEN
+	    RETURN FALSE;
+	END;
+
+	options[ 0 ] := ' ';	(* So we can convert easily *)
+	IF ( NOT CardConvert.FromString( options, Chars.maxBase, card ) ) OR
+	   ( card < minBlockSize ) OR ( card > maxBlockSize ) THEN
+	    RETURN FALSE;
+	END;
+
+	blockSize := card;
+	RETURN TRUE;
+    END SeparateOptions;
+   
+   
+PROCEDURE Close(
+    VAR private : CatBinaryIO.Object
+    )           : IOErrors.Errors;
+    (* 
+     * Clean-up destroys buffer list which is easily done by Objects.
+     *)
+    VAR
+        local  : Object;
+    BEGIN (* Close *)
+
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    Objects.DestroyManager( local^.bufferMgr );
+
+	END; (* WITH private *)
+
+	Objects.Deallocate( objectMgr, local );
+
+	RETURN IOErrors.ok;
+    END Close;
+
+
+PROCEDURE ReadBytes(
+        private    : CatBinaryIO.Object;
+        buffer     : SysTypes.SAUPTR;
+        bufferSize : SysTypes.Card;
+    VAR bytesRead  : SysTypes.Card
+    )              : BinaryIO.States;
+    (* 
+     * There are no errors (except read past eof which is handled by
+     * BinaryIO).
+     *)
+    VAR
+	local  : Object;
+	toCopy : SysTypes.Card;
+    BEGIN (* ReadBytes *)
+
+
+	WITH private^ DO
+
+	    bytesRead := 0;
+	    IF bufferSize = 0 THEN
+		RETURN state;	(* Nothing to do *)
+	    END;
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		IF next.buffer = NIL THEN
+		    state := BinaryIO.endOfFile;
+		ELSE
+		    LOOP 
+			(* Do we need another buffer? *)
+			IF next.offset >= next.buffer^.length THEN
+			    IF NOT Objects.Next( bufferMgr, next.buffer ) THEN
+				next.buffer := NIL;
+				EXIT;
+			    END;
+			    next.offset := 0;
+			END;
+
+			WITH next.buffer^ DO 
+			    toCopy := length - next.offset;
+			    IF toCopy > bufferSize THEN
+				toCopy := bufferSize;
+			    END;
+			    Bytes.Copy( SYSTEM.ADR( data[ next.offset ] ), 
+					buffer, toCopy );
+			    INC( next.offset, toCopy );	(* change index *)
+			END; (* WITH *)
+
+			(* Have we read enough? *)
+			INC( bytesRead, toCopy );
+			DEC( bufferSize, toCopy );
+			IF bufferSize = 0 THEN
+			    EXIT;
+			END;
+			INC( buffer, toCopy );
+
+		    END; (* LOOP *)
+
+		    IF bytesRead = 0 THEN
+			state := BinaryIO.endOfFile;
+		    END;
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END ReadBytes;
+
+	
+PROCEDURE WriteBytes(
+        private      : CatBinaryIO.Object;
+        buffer       : SysTypes.SAUPTR;
+        bufferSize   : SysTypes.Card;  
+    VAR bytesWritten : SysTypes.Card
+    )                : BinaryIO.States;
+    (*
+     * This is kind of tricky, because we must maintain the "Objects.Next"
+     * concept in Objects properly.
+     *
+     * There are no errors.
+     *)
+    VAR
+	toCopy   : SysTypes.Card;
+	local    : Object;
+	DONTCARE : BOOLEAN;
+    BEGIN (* WriteBytes *)
+
+	WITH private^ DO
+
+	    (* No errors *)
+	    bytesWritten := bufferSize;
+	    state 	 := BinaryIO.ok;	(* Always the case *)
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		(* Are we at the end of the file? *)
+		IF next.buffer = NIL THEN
+		    (* Make us point at the real end of file *)
+		    next.buffer := lastBuffer;
+		    next.offset := lastBuffer^.length;
+		END;
+
+		LOOP 
+		    (* Do we need another buffer? *)
+		    IF next.offset >= maxBufferLength THEN
+			(* 
+			 * If this is the lastBuffer, then we must allocate.
+			 * Otherwise, try to use Next which should always work.
+			 *)
+			IF next.buffer = lastBuffer THEN
+			    Objects.Allocate( bufferMgr, next.buffer );
+			    WITH next.buffer^ DO
+				length := 0;
+				number := lastBuffer^.number + 1;
+			    END;
+			    lastBuffer := next.buffer;
+			ELSE
+			    DONTCARE := Objects.Next( bufferMgr, next.buffer );
+			END;
+			next.offset := 0;    (* Start at beginning of buffer *)
+		    END;
+
+		    WITH next.buffer^ DO 
+			toCopy := maxBufferLength - next.offset;
+			IF toCopy > bufferSize THEN
+			    toCopy := bufferSize;
+			END;
+			Bytes.Copy( buffer, SYSTEM.ADR( data[ next.offset ] ), 
+				    toCopy );
+			INC( next.offset, toCopy );	(* change index *)
+
+			(* Has this buffer grown in size? *)
+			IF length < next.offset THEN
+			    length := next.offset;
+			END;
+		    END; (* WITH *)
+
+		    (* Have we written enough? *)
+		    DEC( bufferSize, toCopy );
+		    IF bufferSize = 0 THEN
+			EXIT;
+		    END;
+		    INC( buffer, toCopy );	(* move to next area to write *)
+
+		END; (* LOOP *)
+
+		(*
+		 * We need to make sure the "Objects.Next" state is proper.
+		 * If we were appending to the end, then we just have to
+		 * set "next.buffer" to NIL to indicate end of file.
+		 * Otherwise, the Objects.Next state should be correct.
+		 *)
+		IF ( next.buffer = lastBuffer ) AND 
+		   ( next.offset = lastBuffer^.length ) THEN
+		    next.buffer := NIL;	(* Position at EOF *)
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END WriteBytes;
+
+
+PROCEDURE Flush(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Nothing to do.
+     *)
+    BEGIN (* Flush *)
+
+	RETURN private^.state;
+
+    END Flush;
+
+
+PROCEDURE Truncate(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Some trickiness in maintaining the Objects.Next state.
+     * Note that with this algorithm, we never delete all of the buffers.
+     *)
+    VAR
+        local : Object;
+    BEGIN (* Truncate *)
+	WITH private^ DO
+
+	    (* no errors *)
+	    state := BinaryIO.ok;
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		(* Are we at end of file already? *)
+		IF ( next.buffer = NIL ) OR 
+		   ( ( lastBuffer = next.buffer ) AND 
+		     ( next.offset = lastBuffer^.length ) ) THEN
+		    RETURN state;	(* No truncation needed *)
+		END;
+
+		(* 
+		 * The lastBuffer is always next.buffer and 
+		 * lastBuffer^.length is always next.offset.
+		 *)
+		lastBuffer := next.buffer;
+		lastBuffer^.length := next.offset;
+
+		(* Free up the buffers *following* the lastBuffer *)
+		WHILE Objects.Next( bufferMgr, next.buffer ) DO
+		    Objects.Deallocate( bufferMgr, next.buffer );
+		END;
+
+		next.buffer := NIL;	(* Mark as end of file *)
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END Truncate;
+
+
+(*
+ * Start of routines to support random access to file positions.
+ *)
+
+PROCEDURE GetEnd(
+        private : CatBinaryIO.Object;
+    VAR index   : BinaryIO.Index
+    )           : BinaryIO.States;
+    (*
+     * Since we keep buffer numbers, the last index is always:
+     * 	    lastBuffer^.number * maxBufferLength + lastBuffer^.length.
+     *)
+    VAR
+	local : Object;
+    BEGIN (* GetEnd *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		@IF LogitechM2 THEN
+		    WITH lastBuffer^ DO 
+			Card32.Multiply16x16( maxBufferLength, number, 
+					      index );
+			Card32.LINC16( index, length );
+		    END; (* WITH *)
+		@ELSE
+		    WITH lastBuffer^ DO 
+			index := maxBufferLength * number + length;
+		    END; (* WITH *)
+		@END
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END GetEnd;
+
+
+PROCEDURE GetIndex(
+        private : CatBinaryIO.Object;
+    VAR index   : BinaryIO.Index
+    )           : BinaryIO.States;
+    (*
+     * Since we keep buffer numbers, the current index is always:
+     * 	 next.buffer^.number * maxBufferLength + next.offset.
+     * However, if next.buffer is NIL, then we are at end of file.
+     *)
+    VAR
+	local : Object;
+    BEGIN (* GetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		IF next.buffer = NIL THEN
+		    (* At end of file, so... *)
+		    RETURN GetEnd( private, index );
+		END;
+		
+		@IF LogitechM2 THEN
+		    Card32.Multiply16x16( maxBufferLength, next.buffer^.number, 
+					  index );
+		    Card32.LINC16( index, next.offset );
+		@ELSE
+		    index := maxBufferLength * next.buffer^.number 
+				     + next.offset;
+		@END
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+		
+	END; (* WITH private *)
+    END GetIndex;
+
+
+@IF LogitechM2 THEN
+    VAR
+	maxBufferLength32 : SysTypes.CARDINAL32;
+@END (* LogitechM2 *)
+
+PROCEDURE SetIndex(
+    private : CatBinaryIO.Object;
+    index   : BinaryIO.Index
+    )       : BinaryIO.States;
+    (* 
+     * You can't extend string files by seeking beyond their end, so we
+     * do some checking to make sure the index is within range.
+     * The index is computed as a two part entity: bufferNumber and next.offset.
+     * Once the bufferNumber and next.offset are considered valid, we just
+     * search through the buffer list until we find a buffer with that number.
+     *) 
+    VAR
+	local	     : Object;
+	bufferNumber : SysTypes.Card;	(* Buffer being to seek to *)
+	@IF LogitechM2 THEN
+	    bufferNumber32 : SysTypes.CARDINAL32;
+	    nextOffset32   : SysTypes.CARDINAL32;
+	    DONTCARE       : SysTypes.Card;
+	@END (* LogitechM2 *)
+    BEGIN (* SetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		@IF LogitechM2 THEN
+		    Card32.DivideAndMod( index, maxBufferLength32,
+					 bufferNumber32, nextOffset32 );
+		    Card32.ToCard16( bufferNumber32, bufferNumber, DONTCARE );
+		    Card32.ToCard16( nextOffset32, next.offset, DONTCARE );
+		@ELSE
+		    bufferNumber := index DIV maxBufferLength;
+		    next.offset  := index MOD maxBufferLength;
+		@END
+
+		WITH lastBuffer^ DO
+		    IF ( bufferNumber >= number ) AND
+		       ( ( bufferNumber > number ) OR ( next.offset > length ) ) 
+		      THEN
+			(* 
+			 * The index is beyond the end of the file. 
+			 * We set the file index in a logical position (eof) and 
+			 * then put the file in an error state.
+			 *)
+			next.buffer := NIL;	
+			RETURN BinaryIO.SetError( BinaryIO.Object( private ), 
+						  IOErrors.invalidIndex );
+		    END;
+		END; (* WITH *)
+
+		(* Set the "Next" pointer to the correct location *)
+		Objects.MakeFirstNext( bufferMgr );
+		WHILE Objects.Next( bufferMgr, next.buffer ) DO
+		    IF next.buffer^.number = bufferNumber THEN
+			state := BinaryIO.ok;
+			RETURN state;
+		    END;
+		END;
+
+		ProgErr.Terminate( 
+		    "StringBinaryIO: buffer list inconsistency." );
+
+	    END; (* WITH local *)
+
+
+	END; (* WITH private *)
+    END SetIndex;
+
+
+PROCEDURE GetOpenPath(
+        private : CatBinaryIO.Object;
+    VAR path    : IOConsts.Path
+    );
+    BEGIN (* GetOpenPath *)
+
+	path := "String File";
+
+    END GetOpenPath;
+
+
+VAR
+    methodTable : CatBinaryIO.MethodTable;
+
+BEGIN (* StringBinaryIO *)
+
+    @IF SysTypesCheck THEN
+	(*
+	 * If this check fails, then we need to do special handling
+	 * of the file open parameter.  The read/write operations
+	 * should be ok, because TextIO will have to deal with the 
+	 * problems of CHAR written to files.
+	 *)
+	IF SysTypes.bitsPerSAU # SysTypes.bitsPerArrayCHAR THEN
+	    ProgErr.Terminate( "StringBinaryIO: SysTypesCheck failed!" );
+	END;
+    @END 
+
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), 
+			   moduleName );
+    WITH methodTable DO
+        close       := Close; 
+        readBytes   := ReadBytes; 
+        writeBytes  := WriteBytes;
+        flush       := Flush; 
+        truncate    := Truncate; 
+        getEnd      := GetEnd; 
+        getIndex    := GetIndex; 
+        setIndex    := SetIndex; 
+        getOpenPath := GetOpenPath;
+    END; (* WITH *)
+
+    CatBinaryIO.Register( className, Open );
+
+END StringBinaryIO.

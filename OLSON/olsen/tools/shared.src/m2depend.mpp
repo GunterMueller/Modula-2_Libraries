@@ -1,0 +1,937 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE m2depend;
+(*
+ * Generate a dependency list and source list macros for
+ * makefiles which make Modula-2 programs.  Note that
+ * these files must be included into the appropriate
+ * makefile (which isn't specified by this program).
+ *
+ * ASSUMES: that all implementation modules import a superset
+ *          of what the definition module does.  Can be changed,
+ *          would require a bit of work.
+ *
+ * If you have trouble with the program, you can use my debugging
+ * stuff I put into parenthesis, I once had troubles too ...
+ *)
+
+IMPORT
+    ProgErrOutput,           MakeIO,                 Intrinsics,
+    Strings,            MakeParameters,         NameLists,
+    DirIO,          	M2Parser,
+    Chars,		IONames,		IOConsts,
+    ProgErr,		IOErrors,		SysTypes;
+IMPORT
+    SYSTEM;
+
+FROM SafeStorage IMPORT
+    ALLOCATE,           DEALLOCATE;
+
+CONST
+    myName             = "m2depend";
+    dependenciesFile   = "m2depend.mak";
+    macrosFile         = "m2source.mak";
+
+VAR
+    fileSuffixes : ARRAY M2Parser.ModuleTypes OF RECORD
+	source : IOConsts.Suffix;  (* source file suffix, lower case *)
+	object : IOConsts.Suffix;  (* object file suffix, ditto      *)
+    END;
+
+@IF MsDosOS THEN
+    CONST
+	fileNameCase = NameLists.allLowerCase;
+@ELSE
+    CONST
+	fileNameCase = NameLists.caseSensitive;
+@END
+
+TYPE
+    ModuleSet    = SET OF M2Parser.ModuleTypes;     
+    LibraryTypes = [ M2Parser.definition .. M2Parser.implementation ];
+
+CONST
+    firstLibraryType   = M2Parser.definition;
+    lastLibraryType    = M2Parser.implementation;
+
+TYPE
+    (* Associated with a library module *)
+    ImportDesc   = POINTER TO RECORD
+	initialized   : ARRAY LibraryTypes OF BOOLEAN;
+	multiName     : ARRAY LibraryTypes OF BOOLEAN;
+				    (* Did we find two files with the same
+				       internal module name? *)
+	fileNames     : ARRAY LibraryTypes OF IOConsts.Path;
+	importLists   : ARRAY LibraryTypes OF NameLists.Object;
+				    (* NameLists is forwardSorted,
+				       caseSensitive, NIL *)
+    END;
+
+    (* List of files in a directory associated with paths *)
+    DirInfo     = POINTER TO RECORD
+	fileList      : NameLists.Object;  (* forwardSorted, fileNameCase, NIL *)
+    END;
+
+    (* Associated with source of something to be made *)
+    TargetDesc   = POINTER TO RECORD
+	CASE type : M2Parser.ModuleTypes OF
+	    M2Parser.program:
+		importList : NameLists.Object; 
+				    (* forwardSorted, caseSensitive, NIL *)
+	    |
+	    M2Parser.definition,
+	    M2Parser.implementation:
+		importDesc : ImportDesc;
+	    ELSE
+		(* it is not a module *)
+	END;
+    END;
+
+
+VAR
+    paths   : NameLists.Object;        (* List of directory search paths.
+					   NameLists is a queue with
+					   fileNameCase and the objects are
+					   of type DirInfo. *)
+
+    targets : NameLists.Object;        (* The list of source file names
+					   which were specified by the user.
+					   NameLists is a forwardSorted list with 
+					   fileNameCase and the objects are
+					   NIL until set to TargetDesc *)
+
+    imports : NameLists.Object;        (* List by module name of all known
+					   modules to have been imported.
+					   Namelist is a tree with 
+					   caseSensitive and the objects are
+					   of type ImportDesc. *)
+
+    sources : ARRAY M2Parser.ModuleTypes OF NameLists.Object;  
+					(* Source file names: 
+					   forwardSorted, fileNameCase, 
+					   NameLists.DONTCARE *)
+
+    targetType : MakeParameters.MachineTypes;
+    version    : MakeParameters.VersionNumbers;
+	(* 
+	 * For which machine and version are we generating the make stuff.
+	 *)
+
+PROCEDURE InsertImport(     name       : M2Parser.ModuleName;
+			VAR importDesc : ImportDesc )
+			               : BOOLEAN;
+    (* 
+     * Insert the name into the global import list with an
+     * initialized ImportDesc.  Always returns a valid 
+     * importDesc.
+     *)
+    VAR
+	i : LibraryTypes;
+    BEGIN (* InsertImport *)
+
+	IF NameLists.Find( imports, name, importDesc ) THEN
+	    (* Is it fully initialized. *)
+	    WITH importDesc^ DO
+		FOR i := firstLibraryType TO lastLibraryType DO
+		    IF NOT initialized[ i ] THEN
+			RETURN TRUE;	(* Have to search *)
+		    END;
+		END;
+	    END; (* WITH *)
+	    RETURN FALSE;
+	END;
+
+	NEW( importDesc );
+	WITH importDesc^ DO
+	    FOR i := firstLibraryType TO lastLibraryType DO
+		initialized[ i ] := FALSE;
+		multiName[ i ]   := FALSE; 
+		fileNames[ i ] := "";
+		NameLists.Create( importLists[ i ], NameLists.forwardSorted, 
+				 NameLists.caseSensitive );
+	    END; 
+	END; (* WITH *)
+
+	NameLists.Insert( imports, name, importDesc );
+
+	RETURN TRUE;
+
+    END InsertImport;
+
+
+PROCEDURE AddImports( importList : NameLists.Object );
+    (* 
+     * Go through the list of imports and attempt to add to imports
+     * and parse.
+     *)
+    VAR
+	name       : M2Parser.ModuleName;
+	importDesc : ImportDesc;
+    BEGIN (* AddImports *)
+	
+	NameLists.MakeFirstNext( importList );
+	WHILE NameLists.Next( importList, name, NameLists.DONTCARE ) DO
+	    IF InsertImport( name, importDesc ) THEN
+		ParseLibrary( name, importDesc );
+	    END;
+	    (* Always add the importDesc to our list *)
+	    NameLists.ChangeCurrentObject( importList, importDesc );
+	END;
+
+    END AddImports;
+
+TYPE
+    FileTypes = ( sourceFile, objectFile );
+
+PROCEDURE ParseLibrary( name       : M2Parser.ModuleName;
+			importDesc : ImportDesc );
+    (*
+     * Fill in the module descriptor for the named module.
+     * Determine if and what targets exist for the module.
+     * Search the targets for further imports.  If no targets
+     * exist and the modules binaries cannot be found, then
+     * output an error.
+     *
+     * We need to search a directory at a time for all the
+     * values, because
+     *)
+    VAR
+	i          : LibraryTypes;
+	modType    : M2Parser.ModuleTypes;
+	foundSet   : ModuleSet;
+	fileType   : FileTypes;
+	lookForImp : BOOLEAN;
+	lookForDef : BOOLEAN;
+    BEGIN (* ParseLibrary *)
+
+	foundSet := ModuleSet { };
+	WITH importDesc^ DO
+	    lookForImp := NOT initialized[ M2Parser.implementation ];
+	    lookForDef := NOT initialized[ M2Parser.definition ];
+
+	    (* 
+	     * We only search for modules once, so we set the initialized
+	     * flag to true here.  Note also, this prevents recursion.
+	     *)
+	    initialized[ M2Parser.implementation ] := TRUE;
+	    initialized[ M2Parser.definition ]     := TRUE;
+
+	    (*
+	     * Look for the definition first (in case def for C)
+	     *)
+	    i := M2Parser.definition;
+	    IF lookForDef AND 
+	       FindModule( name, i, fileType, fileNames[ i ] ) THEN
+		INCL( foundSet, M2Parser.definition );
+
+		IF fileType = sourceFile THEN
+		    IF M2Parser.FindImports( fileNames[ i ], importLists[ i ],
+					     name, modType ) THEN
+			IF modType # M2Parser.definition THEN
+			    (* Only sun understands Def for C *)
+			    IF ( targetType = MakeParameters.Sun ) AND 
+			       ( modType = M2Parser.definitionForC ) THEN
+				(* No implementation *)
+				lookForImp := FALSE;
+			    ELSE
+				IF modType = M2Parser.definitionForC THEN
+				    PrintError( fileNames[ i ],
+			    "DEFINITION FOR C only allowed on the Sun." );
+				ELSE
+				    (* Inside not the same as outside *)
+				    PrintError( fileNames[ i ],
+					"not a definition module." );
+				END;
+				fileNames[ i ] := "";
+			    END;
+			END;
+			IF fileNames[ i ][ 0 ] # 0C THEN
+			    ChangeSuffix( fileNames[ i ], 
+					  fileSuffixes[ i ].object );
+			    AddImports( importLists[ i ] );
+			END;
+		    END;
+		END;
+	    END;
+
+	    (*
+	     * Look for the implementation.
+	     *)
+	    i := M2Parser.implementation;
+	    IF lookForImp AND
+	       FindModule( name, i, fileType, fileNames[ i ] ) THEN
+		INCL( foundSet, M2Parser.implementation );
+		IF fileType = sourceFile THEN
+		    IF M2Parser.FindImports( fileNames[ i ], importLists[ i ],
+					     name, modType ) THEN
+			IF modType # M2Parser.implementation THEN
+			    PrintError( fileNames[ i ],
+				"not an implementation module." );
+				fileNames[ i ] := "";
+			ELSE
+			    ChangeSuffix( fileNames[ i ], 
+					  fileSuffixes[ i ].object );
+			    AddImports( importLists[ i ] );
+			END;
+		    END;
+		END;
+	    END;
+	END; (* WITH *)
+
+	IF ( foundSet = ModuleSet { } ) AND lookForImp AND lookForDef THEN
+	    PrintError( name, "library module not found" );
+
+	ELSIF NOT ( M2Parser.implementation IN foundSet ) AND lookForImp THEN
+	    PrintError( name, "library implementation module not found." );
+
+	ELSIF NOT ( M2Parser.definition IN foundSet ) AND lookForDef THEN
+	    PrintError( name, "library definition module not found." );
+	END;
+
+    END ParseLibrary;
+
+CONST
+    baseNameLengthPC = 8;	(* This is a hack, but only known here! *)
+
+PROCEDURE FindModule(     name     : M2Parser.ModuleName;
+			  modType  : M2Parser.ModuleTypes;
+		      VAR fileType : FileTypes;
+		      VAR fileName : IOConsts.Path )
+				   : BOOLEAN;
+    (*
+     * Searches for the named module in "paths".  Each directory
+     * is search first for source, then object.
+     *)
+    VAR
+	dirInfo  : DirInfo;
+	dirName  : IOConsts.Path;
+    BEGIN (* FindModule *)
+
+	IF targetType = MakeParameters.PC THEN
+	    (* 
+	     * Have to take the name and munge it a bit. 
+	     * This assumes that "lower case" is ok for the PC.
+	     *)
+	    IF Strings.Length( name ) > baseNameLengthPC THEN
+		Strings.Delete( name, baseNameLengthPC, Strings.EOS );
+	    END;
+	    Chars.StringToLower( name );
+	END;
+
+	(*
+	 * This is the correct search order.  We must search in every
+	 * directory for the source and the object.  We can't first
+	 * search for the source in all the directories, then the object.
+	 * I realize this isn't the cleanest code, but it will have to
+	 * do for now.
+	 *)
+	NameLists.MakeFirstNext( paths );
+	WHILE NameLists.Next( paths, dirName, dirInfo ) DO
+
+	    fileType := sourceFile;
+	    IONames.Make( "", name, fileSuffixes[ modType ].source, fileName );
+	    IF NameLists.Find( dirInfo^.fileList, fileName, NameLists.DONTCARE )
+	      THEN 
+		IONames.Make( dirName, name, fileSuffixes[ modType ].source,
+			      fileName );
+		RETURN TRUE;
+	    END;
+
+	    fileType := objectFile;
+	    IONames.Make( "", name, fileSuffixes[ modType ].object, fileName );
+	    IF NameLists.Find( dirInfo^.fileList, fileName, NameLists.DONTCARE )
+	      THEN
+		IONames.Make( dirName, name, fileSuffixes[ modType ].object,
+			      fileName );
+		RETURN TRUE;
+	    END;
+	END;  (* WHILE *)
+
+	fileName[ 0 ] := 0C;	(* so no one knows! *)
+	RETURN FALSE;
+
+    END FindModule;
+
+
+PROCEDURE ChangeSuffix( VAR fileName : IOConsts.Path;
+			    suffix   : ARRAY OF CHAR );
+    (*
+     * Replace the suffix.
+     *)
+    VAR
+	directory : IOConsts.Path;
+	oldSuffix : IOConsts.Suffix;
+	base      : IOConsts.Base;
+    BEGIN (* ChangeSuffix *)
+
+	IONames.Separate( fileName, directory, base, oldSuffix );
+	IONames.Make( directory, base, suffix, fileName );
+	
+    END ChangeSuffix;
+
+    
+
+CONST
+    nameListError = "NameLists returned inconsistent info, exiting!";
+    importsError  = "Name should have been in imports list, exiting!";
+
+PROCEDURE PrintError( name  : ARRAY OF CHAR;
+		      msg   : ARRAY OF CHAR );
+    BEGIN (* PrintError *)
+
+	ProgErrOutput.WriteString( "ERROR: " );
+	ProgErrOutput.WriteString( name );
+	ProgErrOutput.WriteString( ": " );
+	ProgErrOutput.WriteString( msg );
+	ProgErrOutput.WriteLn;
+
+    END PrintError;
+
+
+PROCEDURE ReadSources() : BOOLEAN;
+    (* 
+     * Sequentially scan the list targets and build up
+     * the lists of targets, imports, and sources.
+     *)
+     
+    VAR
+	fileName   : IOConsts.Path;
+	name       : M2Parser.ModuleName;
+	randomDesc : POINTER TO CARDINAL;
+	targetDesc : TargetDesc;
+	tmpList    : NameLists.Object;
+	modType    : M2Parser.ModuleTypes;
+	gotSources : BOOLEAN;
+	DONTCARE   : BOOLEAN;
+	defForC    : BOOLEAN;
+    BEGIN (* ReadSources *)
+	
+	gotSources := FALSE;
+	NameLists.MakeFirstNext( targets );
+
+	(* First build of the list of targets. *)
+	WHILE NameLists.Next( targets, fileName, randomDesc ) DO
+	    defForC    := FALSE;
+	    (* Default is program module (easier, see below) *)
+	    NEW( targetDesc );
+	    targetDesc^.type := M2Parser.program;  (* minimize effects *)
+	    NameLists.Create( tmpList, NameLists.forwardSorted, 
+			      NameLists.caseSensitive );
+	    targetDesc^.importList := tmpList;
+	    NameLists.ChangeCurrentObject( targets, targetDesc); 
+
+	    name := "";
+	    IF NOT M2Parser.FindImports( fileName, tmpList, name, modType ) THEN
+		WITH targetDesc^ DO
+		    (* Destroy for later *)
+		    NameLists.Destroy( importList );
+		    type := M2Parser.notModule;
+		END;
+	    ELSE
+		(* Only mark if we could parse *)
+		gotSources := TRUE;
+
+		(* Compare the names for user's sake... *)
+		VerifyName( name, fileName );
+
+		IF modType # M2Parser.program THEN
+		    IF modType = M2Parser.definitionForC THEN
+			(* Convert modType, because defForC isn't first class*)
+			modType := M2Parser.definition;
+			defForC := TRUE;
+			IF targetType # MakeParameters.Sun THEN
+			    PrintError( fileName,
+				"DEFINITION FOR C only allowed on the Sun." );
+			END;
+		    END;
+
+		    DONTCARE := InsertImport( name, targetDesc^.importDesc );
+
+		    WITH targetDesc^.importDesc^ DO
+			(* Are we not yet initialized? *)
+			IF NOT initialized[ modType ] THEN
+			    (* 
+			     * If we got a definition for C, then we don't
+			     * want to initialize the implementation.
+			     *)
+			    IF defForC THEN
+				(* Should we have a check here? *)
+				initialized[ M2Parser.implementation ] := TRUE;
+				(* The names are all empty *)
+			    END;
+			    initialized[ modType ] := TRUE;
+			    NameLists.Destroy( importLists[ modType ] );
+			    importLists[ modType ] := tmpList;
+			    fileNames[ modType ]   := fileName;
+			    ChangeSuffix( fileNames[ modType ],
+					  fileSuffixes[ modType ].object );
+			ELSE
+			    PrintError( name, fileNames[ modType ] );
+			    PrintError( name, fileName );
+			    PrintError( name, 
+	    "Same name in two different files, will not be a prerequisite." );
+			    PrintError( name, 
+	    "You will have to use an explicit dependency for dependents." );
+			    (* RJN - this is to make multi-file names... *)
+			    multiName[ modType ] := TRUE;
+			END;
+
+		    END; (* WITH *)
+		END; (* IF modType *)
+
+		targetDesc^.type := modType;
+
+		(* Enter in the list of source files *)
+		NameLists.Insert( sources[ modType ], fileName, 
+				  NameLists.DONTCARE );
+	    END; (* IF Parse *)
+
+	END; (* WHILE *)
+
+	IF NOT gotSources THEN
+	    PrintError( myName, "no source files found, exiting" );
+	    MakeParameters.Usage;
+	    (* Does not return *)
+	END;
+
+
+	(* Now add the imports recursively *)
+	NameLists.MakeFirstNext( targets );
+	WHILE NameLists.Next( targets, fileName, targetDesc ) DO
+	    WITH targetDesc^ DO
+		IF type  = M2Parser.program THEN
+		    tmpList := importList;
+
+		ELSIF type # M2Parser.notModule THEN
+		    tmpList := importDesc^.importLists[ type ];
+		END;
+	    END; (* WITH *)
+	    AddImports( tmpList );
+
+	END; (* WHILE *)
+
+	RETURN TRUE;
+
+    END ReadSources;
+
+
+PROCEDURE VerifyName( moduleName : ARRAY OF CHAR;
+		      fileName   : ARRAY OF CHAR );
+    (*
+     * Print out a pretty error message when the names disagree.
+     *)
+    VAR
+	directory : IOConsts.Path;
+	base      : IOConsts.Base;
+	suffix    : IOConsts.Suffix;
+	nameCopy  : IOConsts.Base;
+    BEGIN (* VerifyName *)
+
+	IONames.Separate( fileName, directory, base, suffix );
+	Strings.Assign( moduleName, nameCopy );
+	IF targetType = MakeParameters.PC THEN
+	    (* Have to clean up the name *)
+	    IF Strings.Length( nameCopy ) > baseNameLengthPC THEN
+		Strings.Delete( nameCopy, baseNameLengthPC, Strings.EOS );
+	    END;
+	    Chars.StringToLower( nameCopy );
+	END;
+
+	@IF NOT MsDosOS THEN
+	    IF Strings.Compare( nameCopy, base ) # Intrinsics.equal THEN
+		ProgErrOutput.WriteString( "Warning: the source file name '" );
+		ProgErrOutput.WriteString( fileName );
+		ProgErrOutput.WriteString( "' and module name '" );
+		ProgErrOutput.WriteString( moduleName );
+		ProgErrOutput.WriteString( "' do not agree." );
+		ProgErrOutput.WriteLn;
+	    END;
+	@END
+
+    END VerifyName;
+
+
+PROCEDURE MergeDependencies( completeList : NameLists.Object;
+			     importList   : NameLists.Object );
+    (*
+     * Recursively add dependency lists of the imports to completeList.
+     *)
+    VAR
+	imported   : M2Parser.ModuleName;
+	importDesc : ImportDesc;
+    BEGIN (* MergeDependencies *)
+
+	(* Search through the importList *)
+	NameLists.MakeFirstNext( importList );
+	WHILE NameLists.Next( importList, imported, importDesc ) DO
+
+	    IF NOT NameLists.Find( completeList, imported, NameLists.DONTCARE )
+	      THEN
+		(* Must insert before we call MergeDependencies *)
+		NameLists.Insert( completeList, imported, importDesc );
+		(* 
+		 * Must check both the implementation and the definition
+		 * in order to get a complete list of the dependencies.
+		 *)
+		MergeDependencies( completeList, 
+		       importDesc^.importLists[ M2Parser.definition ] );
+		MergeDependencies( completeList,
+		       importDesc^.importLists[ M2Parser.implementation ] );
+	    END;
+	END; (* WHILE *)
+
+    END MergeDependencies;
+
+
+TYPE
+    MakeIOProc = PROCEDURE( MakeIO.Instance ) 
+			  : BOOLEAN;
+
+PROCEDURE DoMakeIO( writeProc : MakeIOProc;
+		    fileName  : ARRAY OF CHAR );
+    VAR
+	inst : MakeIO.Instance;
+
+    BEGIN (* DoMakeIO *)
+
+	(* Do the dependencies file *)
+	IF MakeIO.Create( inst, fileName ) THEN
+	    IF NOT writeProc( inst ) THEN
+		PrintError( fileName, "error writing" );
+	    END;
+	    IF NOT MakeIO.Destroy( inst ) THEN
+		PrintError( fileName, "close failed" );
+	    END;
+	ELSE
+	    PrintError( fileName, "unable to create" );
+	END;
+
+    END DoMakeIO;
+
+
+PROCEDURE WriteDependencies( inst : MakeIO.Instance ): BOOLEAN;
+    (*
+     * Generates the make file which is just a dependency list,
+     * If an entry is bad, it nullifies it!
+     *)
+    VAR
+	targetDesc : TargetDesc;
+	fileName   : IOConsts.Path;
+	havePrograms : BOOLEAN;
+	linkerList : NameLists.Object;
+	DONTCARE   : BOOLEAN;
+    BEGIN (* WriteDependencies *)
+
+	havePrograms := FALSE;
+	NameLists.MakeFirstNext( targets );
+	(* Go through targets *)
+	WHILE NameLists.Next( targets, fileName, targetDesc ) DO
+
+	    WITH targetDesc^ DO
+		IF type = M2Parser.program THEN
+		    havePrograms := TRUE;
+		(* Only print the dependencies directly imported *)
+		    ChangeSuffix( fileName, 
+			      fileSuffixes[ M2Parser.implementation ].object );
+		    IF WriteDependency( inst, fileName, importList, 
+					M2Parser.definition ) THEN
+			(* Now do the whole link list *)
+			NameLists.Create( linkerList,
+			  NameLists.forwardSorted, NameLists.caseSensitive );
+			MergeDependencies( linkerList, importList );
+			ChangeSuffix( fileName, 
+				      fileSuffixes[ M2Parser.program ].object );
+			IF WriteDependency( inst, fileName, linkerList, 
+					    M2Parser.implementation ) THEN
+			    ChangeSuffix( fileName, 
+				fileSuffixes[ M2Parser.implementation ].object );
+			    IF NOT MakeIO.AppendEntry( inst,
+							fileName ) THEN
+			    (* nullify the file name, probably bad *)
+				fileName := "";
+			    END;
+			ELSE
+			    (* nullify the file name, probably bad *)
+			    fileName := "";
+			END;
+			NameLists.Destroy( linkerList );
+		    ELSE
+			(* nullify the file name, probably bad *)
+			fileName := "";
+		    END;
+
+		ELSIF type # M2Parser.notModule THEN
+		    (* implementation or definition *)
+		    WITH importDesc^ DO
+			IF NOT WriteDependency( inst, fileNames[ type ],
+						importLists[ type ], 
+						M2Parser.definition  ) THEN
+			    (* nullify the file name, probably bad *)
+			    fileNames[ type ] := "";
+			END;
+		    END; (* WITH *)
+		END;
+	    END; (* WITH *)
+	END;  (* WHILE *)
+
+	IF ( targetType = MakeParameters.Sun ) AND havePrograms THEN
+	    (* Need to match "binDepend" program's idea of the world *)
+	    IF NOT MakeIO.BeginEntry( inst, "${M2Programs}", 
+				      MakeIO.dependency ) OR
+	       NOT MakeIO.BeginEntry( inst, "${StandardM2link}",
+				      MakeIO.command ) THEN
+		PrintError( "${M2Programs}", 
+				"failed to write command, continuing." );
+	    END;
+	END;
+
+	RETURN TRUE;
+	
+    END WriteDependencies;
+
+
+PROCEDURE WriteDependency( inst       : MakeIO.Instance;
+			   target     : IOConsts.Path;
+			   importList : NameLists.Object;
+			   dependent  : M2Parser.ModuleTypes )
+				      : BOOLEAN;
+
+    (*
+     * Never fails (except assertion fault).  If a target 
+     * or dependency fails to get written, then it is more than
+     * likely caused by a ":" in the file name which MakeIO doesn't like.
+     *)
+    VAR
+	importDesc : ImportDesc;
+	dependency : M2Parser.ModuleName;
+	tmp        : ARRAY [ 0 .. 147 ] OF CHAR;
+	dontCare   : BOOLEAN;
+    BEGIN (* WriteDependency *)
+    
+	(* If the target has a colon in it, then makefile can't be valid *)
+	IF NOT MakeIO.BeginEntry( inst, target, MakeIO.dependency ) THEN 
+	    PrintError( target, "failed to write target, continuing." );
+	    (* Don't continue with illegal target *)
+	    RETURN FALSE;
+	END;
+
+	NameLists.MakeFirstNext( importList );
+	WHILE NameLists.Next( importList, dependency, importDesc ) DO
+	    WITH importDesc^ DO
+		(* Gotta tell the guy which modules depend on
+		   which so he can try to sort things out. *)
+		IF multiName[ dependent ] THEN
+		    Strings.Concat( "depends upon module ", 
+				   fileNames[ dependent ], 
+				   tmp );
+		    Strings.Concat( tmp,
+				   " which exists by several file names.",
+				   tmp );
+		    PrintError( target, tmp );
+		ELSIF NOT MakeIO.AppendEntry( inst, fileNames[ dependent ] ) 
+		  THEN 
+		    PrintError( fileNames[ dependent ],
+				"failed to write dependency, continuing." );
+		    fileNames[ dependent ] := "";
+
+		END;
+	    END; (* WITH *)
+
+	END; (* WHILE *)
+
+	RETURN TRUE;
+
+    END WriteDependency;
+
+
+
+PROCEDURE WriteMacros( inst : MakeIO.Instance )
+			    : BOOLEAN;
+    (* 
+     * Write the macro definitions of the targets and the
+     * targets to a file.
+     *)
+    BEGIN (* WriteMacros *)
+
+	(* Need to match "binDepend" program's idea of the world *)
+	RETURN WriteMacro( inst, "M2Defs", 
+			   sources[ M2Parser.definition ] ) AND
+	       WriteMacro( inst, "M2Imps", 
+			   sources[ M2Parser.implementation ] ) AND
+	       WriteMacro( inst, "M2Mods", 
+			   sources[ M2Parser.program ] );
+
+    END WriteMacros;
+
+
+PROCEDURE WriteMacro( inst     : MakeIO.Instance;
+		      name     : ARRAY OF CHAR;
+		      fileList : NameLists.Object )
+			       : BOOLEAN;
+    VAR
+	Ok       : BOOLEAN;
+	fileName : IOConsts.Path;
+    BEGIN (* WriteMacro *)
+
+	IF NOT MakeIO.BeginEntry( inst, name, MakeIO.macroDeclaration ) THEN
+	    RETURN FALSE;
+	END;
+	
+	NameLists.MakeFirstNext( fileList );
+	WHILE NameLists.Next( fileList, fileName, NameLists.DONTCARE ) DO
+	    IF NOT MakeIO.AppendEntry( inst, fileName ) THEN
+		RETURN FALSE;
+	    END;
+	END; (* WHILE *)
+
+	RETURN TRUE;
+
+    END WriteMacro;
+
+
+PROCEDURE InitFileLists( paths : NameLists.Object );
+    VAR
+	dirInfo    : DirInfo;
+	DONTCARE1  : DirInfo;
+	directory  : IOConsts.Path;
+	DONTCARE2  : IOErrors.Errors;
+    BEGIN (* InitFileLists *)
+
+	NameLists.MakeFirstNext( paths );
+	WHILE NameLists.Next( paths, directory, DONTCARE1 ) DO
+	    (* Create a file list *)
+	    NEW( dirInfo );
+	    WITH dirInfo^ DO
+		NameLists.Create( fileList, NameLists.forwardSorted,
+				  fileNameCase );
+		(* If it is empty or error, all is the same *)
+		DONTCARE2 := DirIO.List( directory, DirIO.DefaultListHandler,
+			                 SYSTEM.ADDRESS( fileList ) );
+	    END;
+	    NameLists.ChangeCurrentObject( paths, dirInfo );
+	END;
+
+    END InitFileLists;
+
+
+PROCEDURE SearchCurrentDirectory(
+    targets : SYSTEM.ADDRESS;
+    name    : ARRAY OF CHAR
+    )       : BOOLEAN;
+    (*
+     * Adds files which match one of the source suffixes.
+     *)
+    VAR
+	path   : IOConsts.Path;
+	base   : IOConsts.Base;
+	suffix : IOConsts.Suffix;
+	i      : M2Parser.ModuleTypes;
+    BEGIN (* SearchCurrentDirectory *)
+
+	IONames.Separate( name, path, base, suffix );
+	IF fileNameCase = NameLists.allLowerCase THEN
+	    Chars.StringToLower( suffix );
+	END;
+	FOR i := M2Parser.definition TO M2Parser.program DO
+	    IF Strings.Compare( suffix, fileSuffixes[ i ].source ) = 
+							Intrinsics.equal THEN
+		(* Matches *)
+		NameLists.Insert( NameLists.Object( targets ), name, NIL );
+		RETURN TRUE;
+	    END;
+	END;
+
+	RETURN TRUE;
+
+    END SearchCurrentDirectory;
+    
+VAR 
+    pathName   : IOConsts.Path;
+
+BEGIN (* m2depend *)
+
+    (* 
+     * Always have case sensitive paths for the searches of path
+     * and source files.  
+     *)
+    NameLists.Create( paths, NameLists.queue, fileNameCase );
+
+    NameLists.Create( targets, NameLists.forwardSorted, fileNameCase );
+
+    (*
+     * Note that we assume the current directory is in the search
+     * path already!
+     *)
+
+    (* Read the targets and paths *)
+    MakeParameters.ReadCommandLine( paths, targets, targetType, version );
+
+    NameLists.Create( imports, NameLists.forwardSorted, 
+		      NameLists.caseSensitive );
+    NameLists.Create( sources[ M2Parser.definition ], 
+		      NameLists.forwardSorted, fileNameCase );
+    NameLists.Create( sources[ M2Parser.implementation ], 
+		      NameLists.forwardSorted, fileNameCase );
+    NameLists.Create( sources[ M2Parser.program ], 
+		      NameLists.forwardSorted, fileNameCase );
+
+
+    CASE targetType OF
+	MakeParameters.Sun:
+	    fileSuffixes[ M2Parser.definition ].source     := "def";
+	    fileSuffixes[ M2Parser.definition ].object     := "sym";
+	    fileSuffixes[ M2Parser.implementation ].source := "mod";
+	    fileSuffixes[ M2Parser.implementation ].object := "o";
+	    fileSuffixes[ M2Parser.program ].source        := "mod";
+	    fileSuffixes[ M2Parser.program ].object        := "";
+	|
+	MakeParameters.PC:
+	    fileSuffixes[ M2Parser.definition ].source     := "def";
+	    fileSuffixes[ M2Parser.definition ].object     := "sym";
+	    fileSuffixes[ M2Parser.implementation ].source := "mod";
+	    fileSuffixes[ M2Parser.program ].source        := "mod";
+	    fileSuffixes[ M2Parser.program ].object        := "exe";
+	    IF version = MakeParameters.lowVersionPC THEN
+		fileSuffixes[ M2Parser.implementation ].object := "lnk";
+	    ELSE
+		fileSuffixes[ M2Parser.implementation ].object := "obj";
+	    END;
+    END; (* CASE *)
+
+    IF NameLists.GetCount( targets ) = 0 THEN
+	(* "" always means default directory *)
+	IOErrors.DONTCARE := DirIO.List( "", SearchCurrentDirectory,
+					 SYSTEM.ADDRESS( targets ) );
+	IF NameLists.GetCount( targets ) = 0 THEN
+	    PrintError( myName, "no source files found in current directory" );
+	    MakeParameters.Usage;
+	END;
+    END;
+
+    InitFileLists( paths );
+    IF ReadSources() THEN
+	DoMakeIO( WriteDependencies, dependenciesFile );
+	DoMakeIO( WriteMacros, macrosFile );
+    END;
+
+END m2depend.

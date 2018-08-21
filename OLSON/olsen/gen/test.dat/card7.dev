@@ -1,0 +1,9 @@
+$ CARDINAL - overflow. Causes a CardConvert - syntax error.
+$
+#test1
+4294967295
+decimal
+100000000
+hex
+normal
+10

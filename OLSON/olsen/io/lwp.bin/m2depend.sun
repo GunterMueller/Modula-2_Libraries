@@ -1,0 +1,60 @@
+DirIO.o: ../../gen/bin/Bytes.sym ../../gen/bin/CardConvert.sym  \
+         ../../gen/bin/Chars.sym ../bin/DirIO.sym ../bin/IOConsts.sym  \
+         ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+         ../../gen/bin/NameLists.sym ../../gen/bin/Strings.sym  \
+         ../../gen/bin/SysTypes.sym ../../gen/bin/UnixCerrno.sym  \
+         ../../gen/bin/UnixCsys_dir.sym ../../gen/bin/UnixCsys_file.sym  \
+         ../../gen/bin/UnixCsys_param.sym ../../gen/bin/UnixCsys_stat.sym  \
+         ../bin/UnixIOErrors.sym ../bin/UnixIONames.sym  \
+         ../../gen/lwp.bin/UnixMonitor.sym 
+IOMonitors.sym: ../../gen/lwp.bin/TaskMonitors.sym 
+IOMonitors.o: IOMonitors.sym ../../gen/lwp.bin/TaskMonitors.sym 
+IONames.o: ../../gen/bin/Chars.sym ../bin/DirIO.sym ../bin/IOConsts.sym  \
+           ../bin/IOErrors.sym ../bin/IONames.sym  \
+           ../../gen/bin/IntConvert.sym ../../gen/bin/Intrinsics.sym  \
+           ../../gen/bin/ProgArgs.sym ../../gen/bin/ProgErr.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+           ../../gen/bin/UnixCprocess.sym ../../gen/bin/UnixCsys_time.sym 
+SimpleIO.o: ../bin/CardIO.sym ../bin/IOErrors.sym IOMonitors.sym  \
+            ../bin/IntIO.sym ../../gen/bin/ProgErr.sym ../bin/RealIO.sym  \
+            ../bin/SimpleIO.sym ../bin/StringIO.sym  \
+            ../../gen/bin/SysTypes.sym ../../gen/lwp.bin/TaskMonitors.sym  \
+            ../bin/TextIO.sym ../bin/TextIOPRIVATE.sym 
+TextIO.o: ../../gen/bin/ASCII.sym ../bin/BinaryIO.sym  \
+          ../../gen/bin/CardConvert.sym ../bin/CatBinaryIO.sym  \
+          ../../gen/bin/Chars.sym ../../gen/bin/GenConsts.sym  \
+          ../bin/IOConsts.sym ../bin/IOErrors.sym IOMonitors.sym  \
+          ../../gen/bin/Notices.sym ../../gen/bin/Objects.sym  \
+          ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+          ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+          ../../gen/lwp.bin/TaskMonitors.sym ../bin/TextIO.sym  \
+          ../bin/TextIOPRIVATE.sym 
+TextIOPRIVATE.o: ../../gen/bin/ASCII.sym ../bin/BinaryIO.sym  \
+                 ../bin/IOErrors.sym IOMonitors.sym ../../gen/bin/Notices.sym  \
+                 ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+                 ../../gen/bin/ProgErrOutput.sym ../../gen/bin/Strings.sym  \
+                 ../../gen/bin/SysTypes.sym  \
+                 ../../gen/lwp.bin/TaskMonitors.sym ../bin/TextIO.sym  \
+                 ../bin/TextIOPRIVATE.sym 
+UnixAsynchIO.sym: 
+UnixAsynchIO.o: ../../gen/lwp.bin/Interrupts.sym ../../gen/bin/Notices.sym  \
+                ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+                ../../gen/bin/SysTypes.sym ../../gen/lwp.bin/TaskNotices.sym  \
+                ../../gen/lwp.bin/Tasks.sym UnixAsynchIO.sym  \
+                ../../gen/bin/UnixCfcntl.sym ../../gen/bin/UnixCprocess.sym  \
+                ../../gen/bin/UnixCsignal.sym ../../gen/bin/UnixCsys_file.sym  \
+                ../../gen/bin/UnixCsys_param.sym  \
+                ../../gen/bin/UnixCsys_stat.sym  \
+                ../../gen/bin/UnixCsys_time.sym 
+UnixBinaryIO.o: ../bin/BinaryIO.sym ../../gen/bin/CardConvert.sym  \
+                ../bin/CatBinaryIO.sym ../../gen/bin/Chars.sym  \
+                ../bin/ConfBinaryIO.sym ../bin/IOConsts.sym  \
+                ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+                ../../gen/bin/ModInit.sym ../../gen/bin/Objects.sym  \
+                ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+                ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+                UnixAsynchIO.sym ../bin/UnixBinaryIO.sym  \
+                ../../gen/bin/UnixCerrno.sym ../../gen/bin/UnixCfcntl.sym  \
+                ../../gen/bin/UnixCsys_file.sym  \
+                ../../gen/bin/UnixCsys_stat.sym ../bin/UnixIOErrors.sym  \
+                ../bin/UnixIONames.sym 

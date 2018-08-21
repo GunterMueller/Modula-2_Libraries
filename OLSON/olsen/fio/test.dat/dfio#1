@@ -1,0 +1,9 @@
+; This is a test file for the program tDataIO.
+[Real] real      = 2.34000E2;   more stuff here.
+
+
+
+; hello this is more stuff.
+     [Real] real2		= 111.0E5   ; and it ends here.
+
+;

@@ -1,0 +1,53 @@
+DEFINITION FOR C MODULE UnixCtermcap;
+(*
+ * See the man pages:
+ *     termcap(3X), termcap(5), tty(4)
+ *)
+IMPORT
+    SYSTEM,
+    UnixCtypes;
+
+VAR
+    UP : SYSTEM.ADDRESS;	
+    BC : SYSTEM.ADDRESS;	
+    PC : CHAR;			
+
+VAR
+    ospeed : UnixCtypes.short; 	
+
+PROCEDURE tgetent(
+    bp   : SYSTEM.ADDRESS;
+    name : ARRAY OF CHAR
+    )    : INTEGER;
+
+PROCEDURE tgetnum(
+    id : ARRAY OF CHAR
+    )  : INTEGER;
+
+PROCEDURE tgetflag(
+    id : ARRAY OF CHAR
+    )  : INTEGER;
+
+PROCEDURE tgetstr(
+        id   : ARRAY OF CHAR;
+    VAR area : SYSTEM.ADDRESS
+    )        : SYSTEM.ADDRESS;
+
+PROCEDURE tgoto(
+    cm       : SYSTEM.ADDRESS;
+    destcol  : INTEGER;
+    destline : INTEGER
+    )        : SYSTEM.ADDRESS;
+
+TYPE
+    Outc = PROCEDURE(
+        CHAR
+    );
+
+PROCEDURE tputs(
+    cp     : SYSTEM.ADDRESS;
+    affcnt : INTEGER;
+    outc   : Outc
+    );
+
+END UnixCtermcap.

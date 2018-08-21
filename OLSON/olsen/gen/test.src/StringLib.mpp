@@ -1,0 +1,336 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE StringLib; 
+
+IMPORT
+    GenTestIO,    TestIO;
+
+CONST
+   TERMINATOR = 0C;
+   BLANK = 40C; 
+   SyntaxError = 5;
+
+(* ------------------------------------------------------------------ *)
+PROCEDURE length( String: ARRAY OF CHAR ): CARDINAL;
+
+    VAR
+	Index: CARDINAL; 
+
+    BEGIN
+	Index:= 0;
+	WHILE ( Index < HIGH( String ) ) AND 
+	  ( String[ Index ] # TERMINATOR ) 
+	DO
+	    INC( Index );
+	END;
+	RETURN Index;
+
+    END length;
+(* ------------------------------------------------------------------ *)
+PROCEDURE stringsEqual( String1, String2: ARRAY OF CHAR ): BOOLEAN;
+
+    VAR
+	Index : CARDINAL;
+
+    BEGIN
+	IF length( String1 ) # length( String2 ) THEN
+	    RETURN FALSE;
+	END; 
+	Index:= 0;
+	WHILE ( Index <= length( String1 ) ) DO
+	    IF String1[ Index ] # String2[ Index ] THEN
+		RETURN FALSE
+	    END;
+	    INC( Index );
+	END;
+	RETURN TRUE;
+
+    END stringsEqual;
+(* ------------------------------------------------------------------ *)
+PROCEDURE wipeLeadingBlanks( VAR String: ARRAY OF CHAR );
+
+    VAR
+	BlankCount, Index: CARDINAL;
+
+    BEGIN
+       Index:= 0;
+       IF String[ Index ] # BLANK THEN 
+	   RETURN
+       END;   
+       WHILE ( Index < HIGH( String ) ) AND ( String[ Index ] = BLANK ) DO
+	   INC( Index );
+       END;
+       IF Index = HIGH( String ) THEN
+	   String[ 0 ]:= TERMINATOR;
+	   RETURN;
+       END;
+       BlankCount:= Index; (* modula strings !!! *) 
+       WHILE ( Index <= HIGH( String ) ) AND 
+	 ( String[ Index ] # TERMINATOR ) 
+       DO
+	   String[ Index - BlankCount ]:= String[ Index ];
+	   INC( Index );
+       END;
+       String[ Index - BlankCount ]:= TERMINATOR;
+
+    END wipeLeadingBlanks;
+(* ------------------------------------------------------------------ *)
+PROCEDURE contentsEqual( String1, String2: ARRAY OF CHAR ): BOOLEAN;
+
+    BEGIN
+	wipeLeadingBlanks( String1 );
+	wipeLeadingBlanks( String2 );
+	RETURN stringsEqual( String1, String2 );
+
+    END contentsEqual;
+(* ------------------------------------------------------------------ *)
+PROCEDURE Length( String: string ): CARDINAL;
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    short:
+		RETURN length( ShortString )
+            |
+	    normal:
+		RETURN length( NormalString )
+            |
+	    long:
+		RETURN length( LongString )
+        END;    (* case *)
+        END;    (* with *)
+
+    END Length;
+(* ------------------------------------------------------------------ *)
+PROCEDURE StringsEqual( String1, String2: string ): BOOLEAN;
+
+    BEGIN
+	IF String1.Size # String2.Size THEN
+	    RETURN FALSE
+        ELSE
+	    CASE String1.Size OF
+		short:
+		    RETURN stringsEqual( String1.ShortString, 
+		                         String2.ShortString )
+                |
+		normal:
+		    RETURN stringsEqual( String1.NormalString, 
+					 String2.NormalString )
+                |
+		long:
+		    RETURN stringsEqual( String1.LongString, 
+		                         String2.LongString )
+             END;                
+        END;
+
+    END StringsEqual;
+(* ------------------------------------------------------------------ *)
+PROCEDURE CompareStrings( String1, String2: string ): compare;
+
+    BEGIN
+        IF StringsEqual( String1, String2 ) THEN
+	    RETURN equal
+        ELSIF ContentsEqual( String1, String2 ) THEN
+	    RETURN adjusted
+        ELSE 
+	    RETURN nomatch
+        END;
+
+    END CompareStrings;
+(* ------------------------------------------------------------------ *)
+PROCEDURE WipeLeadingBlanks( VAR String: string );
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    short:
+		wipeLeadingBlanks( ShortString );
+            |
+	    normal:
+		wipeLeadingBlanks( NormalString );
+            |
+	    long:
+		wipeLeadingBlanks( LongString );
+        END;    (* case *)
+	END;    (* with *)
+
+    END WipeLeadingBlanks;
+(* ------------------------------------------------------------------ *)
+PROCEDURE ContentsEqual( String1, String2: string ): BOOLEAN;
+
+    BEGIN
+       WITH String1 DO CASE Size OF
+	  short:
+	      CASE String2.Size OF
+		  short:
+		      RETURN contentsEqual( ShortString, 
+					    String2.ShortString )
+                  |
+		  normal:
+		      RETURN contentsEqual( ShortString, 
+					    String2.NormalString )
+                  |
+		  long:
+		      RETURN contentsEqual( ShortString, 
+					    String2.LongString )
+              END;
+          |
+	  normal:
+	      CASE String2.Size OF
+		  short:
+		      RETURN contentsEqual( NormalString, 
+					    String2.ShortString )
+                  |
+		  normal:
+		      RETURN contentsEqual( NormalString, 
+					    String2.NormalString )
+                  |
+		  long:
+		      RETURN contentsEqual( NormalString, 
+					    String2.LongString )
+              END;
+          |
+	  long:
+	      CASE String2.Size OF
+		  short:
+		      RETURN contentsEqual( LongString, 
+					    String2.ShortString )
+                  |
+		  normal:
+		      RETURN contentsEqual( LongString, 
+					    String2.NormalString )
+                  |
+		  long:
+		      RETURN contentsEqual( LongString, 
+					    String2.LongString )
+              END;
+        END;    (* case *)
+        END;    (* with *)  
+
+    END ContentsEqual;
+(* ------------------------------------------------------------------ *)
+PROCEDURE GetSize( VAR Size: size; Name: ARRAY OF CHAR;
+		   VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+   VAR
+       SizeStr: normalString;
+
+   BEGIN
+       LOOP 
+	   IF NOT TestIO.GetString( SizeStr, Name, Msg ) 
+	   THEN
+	       RETURN FALSE;
+	   END;
+	   IF CAP( SizeStr[ 0 ] ) = "S" THEN
+	       Size:= short;
+	       EXIT;
+	   ELSIF CAP( SizeStr[ 0 ] ) = "N" THEN
+	       Size:= normal;
+	       EXIT;
+	   ELSIF CAP( SizeStr[ 0 ] ) = "L" THEN
+	       Size:= long;
+	       EXIT;
+	   ELSE
+	       IF GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN
+		   TestIO.Write( GenTestIO.GetErrOutput(), 
+		     "  short, normal or long !!!" );
+		   TestIO.WriteLn( GenTestIO.GetErrOutput() );
+               ELSE
+		   Msg:= SyntaxError;
+		   RETURN FALSE;
+               END;
+	   END;
+       END;    (* loop *)
+       RETURN TRUE;
+
+   END GetSize;
+(* ------------------------------------------------------------------ *)
+PROCEDURE GetString( VAR String: string; 
+		     StringName, SizeName: ARRAY OF CHAR;
+		     Mode: getStringMode;
+		     VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    BEGIN
+	WITH String DO
+	    CASE Mode OF
+		sizeRequested:
+		    IF NOT GetSize( Size, SizeName, Msg ) THEN
+			RETURN FALSE
+		    END;
+                |
+		shortDefault:
+		    Size:= short
+                |
+		normalDefault:
+		    Size:= normal
+                |
+		longDefault:
+		    Size:= long
+            END;    (* case Mode... *)
+	    CASE Size OF
+		short:
+		    RETURN TestIO.GetString( ShortString, 
+					     StringName, Msg );
+                |
+		normal:
+		    RETURN TestIO.GetString( NormalString, 
+					     StringName, Msg );
+                |
+		long:
+		    RETURN TestIO.GetString( LongString, 
+					     StringName, Msg );
+            END;    (* case Size... *)
+        END;
+
+    END GetString;
+(* ------------------------------------------------------------------ *)
+PROCEDURE WriteString( file: GenTestIO.File; String: string );
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    short: TestIO.Write( file, ShortString )
+	    |
+	    normal: TestIO.Write( file, NormalString )
+	    |
+	    long: TestIO.Write( file, LongString );
+        END;
+	END;
+
+    END WriteString;
+
+(* ------------------------------------------------------------------ *)
+PROCEDURE WriteResult( Comment: ARRAY OF CHAR; String: string );
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    short: TestIO.WriteResult( Comment, ShortString )
+	    |
+	    normal: TestIO.WriteResult( Comment, NormalString )
+	    |
+	    long: TestIO.WriteResult( Comment, LongString );
+        END;
+	END;
+
+    END WriteResult;
+
+(* ------------------------------------------------------------------ *)
+
+END StringLib.    

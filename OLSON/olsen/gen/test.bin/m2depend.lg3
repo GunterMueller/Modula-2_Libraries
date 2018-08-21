@@ -1,0 +1,110 @@
+gentesti.sym: 
+gentesti.obj: ..\bin\dos.sym gentesti.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\safestor.sym  \
+              ..\bin\strings.sym 
+stringli.sym: gentesti.sym testio.sym 
+stringli.obj: gentesti.sym stringli.sym testio.sym 
+tbytes.obj: ..\bin\bytes.sym ..\bin\intrinsi.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\bin\systypes.sym 
+tbytes.exe: ..\bin\bytes.obj ..\bin\dos.obj ..\bin\i8086.obj  \
+            ..\bin\intrinsi.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+            ..\bin\systypes.obj tbytes.obj 
+tcrash.obj: ..\bin\i8086.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tcrash.exe: ..\bin\dos.obj ..\bin\i8086.obj ..\bin\progerr.obj  \
+            ..\bin\notices.obj ..\bin\objects.obj \
+tdebugfl.obj: ..\bin\debugfla.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tdebugfl.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\debugfla.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\bin\notices.obj ..\bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\safestor.obj ..\bin\strings.obj ..\bin\systypes.obj  \
+              tdebugfl.obj 
+testcard.obj: ..\bin\cardconv.sym ..\bin\chars.sym gentesti.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testcard.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj gentesti.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\bin\notices.obj ..\bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\safestor.obj stringli.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj testio.obj testsyst.obj testcard.obj 
+testcrc1.obj: ..\bin\crc16.sym ..\bin\cardconv.sym ..\bin\progerro.sym 
+testcrc1.exe: ..\bin\crc16.obj ..\bin\card32.obj ..\bin\cardconv.obj  \
+              ..\bin\chars.obj ..\bin\dos.obj ..\bin\i8086.obj  \
+              ..\bin\intrinsi.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj testcrc1.obj 
+testintc.obj: gentesti.sym ..\bin\intconve.sym ..\bin\objects.sym  \
+              stringli.sym testio.sym testsyst.sym 
+testintc.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj gentesti.obj  \
+              ..\bin\i8086.obj ..\bin\intconve.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\bin\notices.obj  \
+              ..\bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\bin\safestor.obj stringli.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj testio.obj testsyst.obj  \
+              testintc.obj 
+testio.sym: gentesti.sym 
+testio.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\progerr.sym  \
+            ..\bin\safestor.sym ..\bin\strings.sym testio.sym 
+testname.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testname.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj gentesti.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\bin\notices.obj ..\bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\safestor.obj stringli.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj testio.obj testsyst.obj testname.obj 
+testreal.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\objects.sym  \
+              ..\bin\realconv.sym stringli.sym ..\bin\systypes.sym testio.sym  \
+              testsyst.sym 
+testreal.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj gentesti.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\bin\notices.obj ..\bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\realconv.obj ..\bin\safestor.obj stringli.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj testio.obj testsyst.obj  \
+              testreal.obj 
+teststri.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\intrinsi.sym  \
+              ..\bin\objects.sym stringli.sym ..\bin\strings.sym testio.sym  \
+              testsyst.sym 
+teststri.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj gentesti.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\bin\notices.obj ..\bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\safestor.obj stringli.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj testio.obj testsyst.obj teststri.obj 
+testsyst.sym: testio.sym 
+testsyst.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\notices.sym ..\bin\objects.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\strings.sym testio.sym testsyst.sym 
+thello.obj: ..\bin\progerro.sym 
+thello.exe: ..\bin\dos.obj ..\bin\progerro.obj ..\bin\systypes.obj thello.obj 
+tprogarg.obj: ..\bin\cardconv.sym ..\bin\namelist.sym ..\bin\progargs.sym  \
+              ..\bin\progerro.sym 
+tprogarg.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj ..\bin\i8086.obj  \
+              ..\bin\intrinsi.obj ..\bin\lists.obj ..\bin\namelist.obj  \
+              ..\bin\notices.obj ..\bin\objects.obj ..\bin\progargs.obj  \
+              ..\bin\progerr.obj ..\bin\progerro.obj ..\bin\safestor.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj tprogarg.obj 
+tprogenv.obj: ..\bin\namelist.sym ..\bin\progargs.sym ..\bin\progenvi.sym  \
+              ..\bin\progerro.sym 
+tprogenv.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj ..\bin\i8086.obj  \
+              ..\bin\intrinsi.obj ..\bin\lists.obj ..\bin\namelist.obj  \
+              ..\bin\notices.obj ..\bin\objects.obj ..\bin\progargs.obj  \
+              ..\bin\progenvi.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\safestor.obj ..\bin\strings.obj ..\bin\systypes.obj  \
+              tprogenv.obj 
+tqstring.obj: ..\bin\progerro.sym ..\bin\qstrings.sym ..\bin\strings.sym 
+tqstring.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\genconst.obj ..\bin\i8086.obj  \
+              ..\bin\intrinsi.obj ..\bin\objects.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\bin\qstrings.obj ..\bin\safestor.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj tqstring.obj 
+tsystype.obj: ..\bin\systypes.sym 
+tsystype.exe: ..\bin\systypes.obj tsystype.obj 

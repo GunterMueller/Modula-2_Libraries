@@ -1,0 +1,622 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Notices;
+(*
+ * A notice is a linked list of procedure variables.  The list is in the
+ * reverse order of the way the procedures should be called.  The only
+ * procedure that needs to check the calling order is the procedure 
+ * Register.   Call always traverses the list in the same way.
+ *
+ * The elements of the list are allocated via SafeStorage, since they are 
+ * not seen by importers and the list management code is so simple.
+ *
+ * Please pardon the excessive type coercions.  In Modula-2, it is unclear
+ * as to whether you can compare procedure types.  To be portable, we must
+ * coerce the procedure variables into address types.
+ *
+ * Tasks notes:
+ * Because notices is intended for public registration, it is important that
+ * mutual exclusion be provided around the list management code.  
+ * There are some slight timing windows, because a notice can be destroyed 
+ * after it is validated in Register or in Call.  The system will terminate
+ * in this case, but not necessarily by the task doing the Destroy.
+ * Mutual exclusions is implemented via Dis/AllowPreemption control so that
+ * Notices can be used by all modules above Tasks in the import chain.
+ *
+ * TODO: Integrate with overlays.  Have to register each time an overlay
+ *	 is called and create a new termination notice.
+ *)
+
+IMPORT 
+    Objects,
+    ProgErr,
+    ProgErrOutput,
+    SafeStorage,
+    SYSTEM,
+    SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+	Tasks;
+@END (* Tasks *)
+
+CONST
+    moduleName = "Notices";
+
+TYPE
+    Element    = POINTER TO ElementRec;
+    ElementRec = RECORD
+	proc      : Proc;		(* To be called *)
+	next      : Element;		(* previous guy that was called *)
+    END;
+
+    Object     = POINTER TO ObjectRec;
+    ObjectRec  = RECORD
+	callingOrder : CallingOrders;	(* How to insert in the list *)
+	head         : Element;		(* Last guy to call *)
+	tail         : Element;		(* First guy to call. Invalid when
+					   head is NIL *)
+    END;
+
+VAR
+    objectMgr : Objects.Manager;	(* Memory allocator for notices *)
+
+PROCEDURE Create( 
+    VAR notice    : Object;
+	howToCall : CallingOrders 
+    );
+    (*
+     * Allocate memory and initialize.
+     *)
+    BEGIN (* Create *)
+
+	Objects.Allocate( objectMgr, notice );
+	WITH notice^ DO
+	    callingOrder := howToCall;
+	    head         := NIL;
+	    tail         := NIL;
+	END;
+
+    END Create;
+
+
+PROCEDURE Destroy( 
+    VAR notice : Object 
+    );
+    (*
+     * If the notice is invalid, then just return.  If it isn't,
+     * we must deallocate all of the registrants and deallocate the notice.
+     *)
+    VAR
+	element : Element;	(* used for linked list deletion *)
+    BEGIN (* Destroy *)
+
+	IF NOT Objects.IsValid( objectMgr, notice ) THEN
+	    RETURN;
+	END;
+
+	WITH notice^ DO
+
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;
+	    @END (* Tasks *)
+
+	    (* Dispose of all the elements *)
+	    WHILE head # NIL DO
+		element := head;
+		head    := head^.next;
+		SafeStorage.DEALLOCATE( element, SYSTEM.TSIZE( ElementRec ) );
+	    END; (* WHILE *)
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;
+	    @END (* Tasks *)
+
+	END; (* WITH *)
+
+	Objects.Deallocate( objectMgr, notice );
+
+    END Destroy;
+
+PROCEDURE SetInvalid( 
+    VAR notice : Object 
+    );
+    BEGIN (* SetInvalid *)
+
+	notice := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE Register( 
+    notice     : Object; 
+    toRegister : Proc 
+    );
+    (*
+     * Insert the specified procedure in the linked list only if
+     * it isn't already there.  The insertion algorithm is based on
+     * the calling order.
+     *)
+    VAR
+	element : Element;
+    BEGIN (* Register *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, notice );
+	@END (* Assert *)
+
+	WITH notice^ DO
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;
+	    @END (* Tasks *)
+
+	    LOOP (* For forward exits *)
+
+		(* 
+		 * If it is already in the list, then do nothing. 
+		 *)
+		element := head;
+		WHILE element # NIL DO
+		    WITH element^ DO
+			IF SYSTEM.ADDRESS( proc ) 
+			   = SYSTEM.ADDRESS( toRegister ) THEN
+			    EXIT; (* don't do anything, already registered *)
+			END;
+			element := next;
+			(* with invalid *)
+		    END; (* WITH *)
+		END; (* WHILE *)
+
+		(* 
+		 * Allocate an element and insert according to the calling
+		 * order.
+		 *)
+		SafeStorage.ALLOCATE( element, SYSTEM.TSIZE( ElementRec ) );
+		WITH element^ DO
+		    proc := toRegister;
+		    next := NIL;
+		END; (* WITH *)
+		IF head = NIL THEN
+		    head := element;
+		    tail := element;
+		ELSE
+		    (* 
+		     * Insert in proper order.  This is tricky, because
+		     * firstRegisterFirstCalled is really a queue. However,
+		     * we call in the reverse order of the list!  Therefore,
+		     * the insertion orders are opposite of what one would
+		     * expect.  See Call for more details.
+		     *)
+		    CASE callingOrder OF
+			firstRegisteredFirstCalled: 	
+			    (* put new ones in the front *)
+			    element^.next := head;
+			    head          := element;
+			|
+			firstRegisteredLastCalled: 	
+			   (* put new ones in the back *)
+			    tail^.next    := element;
+			    tail          := element;
+		    END; (* CASE *)
+		END; (* IF *)
+
+		EXIT;	(* All done *)
+
+	    END; (* LOOP for forward exits *)
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* end critical section *)
+	    @END (* Tasks *)
+	END; (* WITH *)
+
+    END Register;
+
+PROCEDURE Deregister( 
+    notice       : Object; 
+    toDeregister : Proc 
+    );
+    (*
+     * Delete the "proc" from the notice, if it is there.   Otherwise
+     * do nothing.  Note that we must 
+     *)
+    VAR
+	previous  : Element;
+	toDispose : Element;
+    BEGIN (* Deregister *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, notice );
+	@END (* Assert *)
+
+	WITH notice^ DO
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;
+	    @END (* Tasks *)
+
+	    previous := head;
+	    IF head = NIL THEN
+		(* Nothing to do *)
+	    ELSE
+		IF SYSTEM.ADDRESS( head^.proc ) = SYSTEM.ADDRESS( toDeregister )
+		  THEN
+		    (* Delete from the head *)
+		    toDispose := head;
+		    head      := head^.next;
+		ELSE
+		    (*
+		     * Somewhere in the list. Need to find it.
+		     *)
+		    LOOP
+			toDispose := previous^.next;
+			IF toDispose = NIL THEN
+			    EXIT;	(* not found *)
+			END;
+			IF SYSTEM.ADDRESS( toDispose^.proc ) 
+			   = SYSTEM.ADDRESS( toDeregister ) THEN
+			    (* 
+			     * Delete from the list, but we must update
+			     * the tail.
+			     *)
+			    previous^.next := toDispose^.next;
+			    IF toDispose = tail THEN
+				tail := previous;
+			    END;
+			END;
+		    END; (* LOOP *)
+		END; (* IF *)
+
+		IF toDispose # NIL THEN
+		    SafeStorage.DEALLOCATE( toDispose, 
+					    SYSTEM.TSIZE( ElementRec ) );
+		END;
+	    END; (* IF *)
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;
+	    @END (* Tasks *)
+
+	END; (* WITH *)
+
+    END Deregister;
+
+
+PROCEDURE Call( 
+    notice         : Object; 
+    importerObject : SysTypes.ANYPTR 
+    );
+    (* 
+     * It is conceivable that a Proc called by Notices.Call might
+     * attempt to operate upon the notice which was passed to Notices.Call.
+     * For example, the Proc might want to unregister itself.
+     * Thus, we need to take a "snapshot" of the data structure before
+     * calling any of the registrants.  We use the stack (via recursion)
+     * to solve this problem, because we don't want to try and replicate
+     * the list from dynamic memory (might be calling the OutOfMemory
+     * Notice, catch-22!).
+     *
+     * We call a recursive procedure starting with the LAST Proc we wish to
+     * invoke, then unwind the stack, calling the procs as we go.  We
+     * have to do this, because we want to get all the elements copied
+     * into the "snapshot" before notifying the registrants.  Note that
+     * the list has been registered/inserted in the proper order 
+     * (firstRegisteredFirstCalled is done by a head insert for new 
+     * registrants and the other is done by a tail insert).
+     *)
+    VAR 
+	element : Element;	(* Here to save stack space *)
+    PROCEDURE Recurse;
+	(*
+	 * Keep on going down the linked list till we find the
+	 * end and then call the procedures on the stack unwind.
+	 * We can't just save the "element" on the stack, because
+	 * the caller may Deregister the element (leaving us with
+	 * an invalid value).
+	 *)
+	VAR
+	    toCall : Proc;
+	BEGIN (* Recurse *)
+
+	    IF element # NIL THEN
+		WITH element^ DO
+		    toCall  := proc;	(* save for call later *)
+		    element := next	(* chase down the chain. *)
+		    (* with invalid *)
+		END; (* WITH *)
+		Recurse;			(* find the rest *)
+
+		toCall( importerObject );	(* call ours *)
+
+	    @IF Tasks THEN
+		ELSE
+		    (* 
+		     * Matches the Enter inside of Call.  We must release
+		     * the monitor before making the upcalls, because they
+		     * may want to Deregister or Register.   This will prevent
+		     * deadlocks.
+		     *)
+		    Tasks.AllowPreemption;
+	    @END (* Tasks *)
+	    END;
+
+	END Recurse;
+
+    BEGIN (* Call *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, notice );
+	@END (* Assert *)
+
+	@IF Tasks THEN
+	    (* 
+	     * This is a strange entry, because it must be released
+	     * inside of Recurse once the list has been pushed on the
+	     * stack.
+	     *)
+	    Tasks.DisallowPreemption;
+	@END (* Tasks *)
+	element := notice^.head;
+	Recurse;	(* Start the recursion *)
+
+    END Call;
+
+
+PROCEDURE GetCallingOrder( 
+    notice : Object 
+    )      : CallingOrders;
+    BEGIN (* GetCallingOrder *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, notice );
+	@END (* Assert *)
+
+	RETURN notice^.callingOrder;
+
+    END GetCallingOrder;
+
+VAR
+    outOfMemoryNotice     : Object;
+    oldOutOfMemoryHandler : PROC;
+
+PROCEDURE GetOutOfMemoryNotice(
+    ) : Object;
+    BEGIN (* GetOutOfMemoryNotice *)
+
+	RETURN outOfMemoryNotice;
+
+    END GetOutOfMemoryNotice;
+
+PROCEDURE CallOldMemoryHandler(
+    DONTCARE : SysTypes.ANYPTR
+    );
+    (*
+     * This procedure implements proper chaining if someone calls
+     * the out of memory notice on their own (to clean up free lists
+     * for example).
+     *)
+    BEGIN (* CallOldMemoryHandler *)
+
+	oldOutOfMemoryHandler;
+
+    END CallOldMemoryHandler;
+
+VAR
+    outOfMemory           : BOOLEAN;
+
+@IF Tasks THEN
+    VAR
+	outOfMemoryWaiter : Tasks.Object; (* See OutOfMemoryHandler *)
+	outOfMemoryTask   : Tasks.Object; (* Executing notice *)
+	    (*
+	     * We need a separate mutex for the out of memory notice to
+	     * protect the outOfMemory code.  Preemption isn't right,
+	     * because the registrants can call Suspend which will
+	     * break the critical section.
+	     *)
+@END (* Tasks *)
+
+CONST
+    recursiveCall =
+	"Notices: allocation attempted during out of memory notice.";
+	
+PROCEDURE OutOfMemoryHandler;
+    (*
+     * Gets called when the system runs out of memory.
+     *)
+    @IF NOT Tasks THEN
+	BEGIN (* OutOfMemoryHandler *)
+	
+	    (* Are we recursing? *)
+	    IF outOfMemory THEN
+		ProgErr.Terminate( recursiveCall );
+	    END;
+	    outOfMemory := TRUE;
+	    Call( outOfMemoryNotice, DONTCARE );
+	    oldOutOfMemoryHandler;		(* Call previous *)
+	    outOfMemory := FALSE;
+	    
+    @ELSE (* Tasks *)
+	(* 
+	 * Rather strange algorithm to avoid using monitors and to 
+	 * determine if recursion has occurred by the task executing
+	 * the out of memory notice.  If we aren't executing the
+	 * out of memory notice, then execute it and set the oomTask
+	 * to be the calling task.  If the caller recurses, the oomTask
+	 * will be itself and ProgErr.Terminate will be called.
+	 * 
+	 * The queueing is actually very weird.  Each task which
+	 * comes into this procedure and finds outOfMemory to be TRUE,
+	 * sets himself up as the outOfMemoryWaiter (saving the previous
+	 * waiter).  At the time the oomTask is done executing the notice,
+	 * it will ready the oomWaiter (if valid).  At that point, the
+	 * chain is started, because the oomWaiter will wake up and ready
+	 * the previous waiter at the same time it will check the outOfMemory
+	 * flag.  The first guy to see the flag free gets it, the rest
+	 * requeue themselves by the method just described.  
+	 * 
+	 * This method although obscure allows Notices to not import 
+	 * Interrupts, TaskTime, TaskMonitors, etc... This helps in the
+	 * initialization sequence and generalizes the termination notice
+	 * handling.
+	 *)
+	VAR
+	    prevWaiting : Tasks.Object;
+	    me          : Tasks.Object;
+	BEGIN (* OutOfMemoryHandler *)
+
+	    Tasks.DisallowPreemption;
+		IF outOfMemory THEN
+		    me := Tasks.GetCurrent();
+		    IF SYSTEM.ADDRESS( outOfMemoryTask ) = 
+		       SYSTEM.ADDRESS( me ) THEN
+			ProgErr.Terminate( recursiveCall );
+		    END;
+		    LOOP
+			prevWaiting := outOfMemoryWaiter;
+			outOfMemoryWaiter := me;
+			Tasks.Suspend;
+			(* Always wake up the previous *)
+			IF Tasks.IsValid( prevWaiting ) THEN
+			    Tasks.Ready( prevWaiting );
+			END;
+			IF NOT outOfMemory THEN
+			    EXIT;    (* We got it *)
+			END;
+			(* Go to the top to requeue *)
+		    END; (* LOOP *)
+		END;
+		
+		outOfMemoryTask := me;
+		outOfMemory := TRUE;
+		
+		Tasks.AllowPreemption;
+		    Call( outOfMemoryNotice, DONTCARE );
+		    oldOutOfMemoryHandler;		(* Call previous *)
+	        Tasks.DisallowPreemption;
+		
+		outOfMemory := FALSE;
+
+		(* Ready the task waiting and start the chain of waiting
+		 * tasks all over again *)
+		IF Tasks.IsValid( outOfMemoryWaiter ) THEN
+		    Tasks.Ready( outOfMemoryWaiter );
+		    Tasks.SetInvalid( outOfMemoryWaiter );
+		END;
+	    Tasks.AllowPreemption;
+
+	@END (* Tasks *)
+
+    END OutOfMemoryHandler;
+
+
+VAR
+    terminationNotice     : Object;
+    oldTerminationHandler : ProgErr.TerminationHandler;	(* for chaining *)
+
+PROCEDURE GetTerminationNotice(
+    ) : Object;
+    BEGIN (* GetTerminationNotice *)
+
+	RETURN terminationNotice;
+
+    END GetTerminationNotice;
+
+
+PROCEDURE TerminationHandler( 
+    mode : ProgErr.TerminationModes 
+    );
+    (*
+     * Gets called by ProgErr when the system is terminating.  We
+     * must notify the registrants of the terminationNotice with
+     * the proper value when this occurs.
+     *
+     * Once we have calle the termination notice, we must deallocate
+     * our local information if we are in normal termination.
+     *
+     * Logitech Tasks Note:
+     *    We don't have to worry about stack overflow, because the
+     *    run-time system switches to a safe stack when calling termination
+     * 	  procedures.
+     *
+     * Sun Tasks Note: 
+     *    Stacks are a problem.
+     *)
+    VAR
+	DONTCARE  : PROC;
+	DONTCARE2 : ProgErr.TerminationHandler;
+    BEGIN (* TerminationHandler *)
+
+	IF mode = ProgErr.normalTermination THEN
+	    Call( terminationNotice, normalTermination );
+
+	    (* Now do own termination *)
+	    SafeStorage.InstallOutOfMemoryHandler( oldOutOfMemoryHandler,
+						   DONTCARE);
+	    ProgErr.InstallTerminationHandler( oldTerminationHandler,
+					       DONTCARE2 );
+	    Destroy( outOfMemoryNotice );
+	    Destroy( terminationNotice );
+	    Objects.DestroyManager( objectMgr );
+
+	ELSE
+	    (* Have to pass a non-NIL pointer in abnormal termination! *)
+
+	    @IF Tasks THEN
+		(* The current task is the one that is at fault *)
+		Call( terminationNotice, 
+		      SysTypes.ANYPTR( Tasks.GetCurrent() ) );
+	    @ELSE
+		(* Just pass a non-nil pointer *)
+		Call( terminationNotice, terminationNotice );
+	    @END (* Tasks *)
+
+	END;
+
+	oldTerminationHandler( mode );	(* Chain the termination handlers *)
+
+    END TerminationHandler;
+
+
+BEGIN (* Notices *)
+
+
+    @IF Tasks THEN
+	Tasks.SetInvalid( outOfMemoryTask );
+	Tasks.SetInvalid( outOfMemoryWaiter );
+    @END (* Tasks *)
+
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), moduleName );
+
+    (* Set up for out of memory *)
+    outOfMemory := FALSE;
+    Create( outOfMemoryNotice, firstRegisteredLastCalled );
+    SafeStorage.InstallOutOfMemoryHandler( OutOfMemoryHandler,
+					   oldOutOfMemoryHandler );
+    (* Necessary to give nice behavior to this notice *)
+    Register( outOfMemoryNotice, CallOldMemoryHandler );
+
+    (* Set up for termination *)
+    Create( terminationNotice, firstRegisteredLastCalled );
+    ProgErr.InstallTerminationHandler( TerminationHandler,
+				       oldTerminationHandler );
+
+END Notices.

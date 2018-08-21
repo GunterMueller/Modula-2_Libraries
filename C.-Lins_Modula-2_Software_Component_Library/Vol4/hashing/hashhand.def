@@ -1,0 +1,24 @@
+(*
+This module provides standard exception handlers for the various Hast Table
+ADT modules. WriteHandler issues a message to standard output identifying
+the module, exception and routine.
+*)
+
+DEFINITION MODULE HashHand; 
+(*==============================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Hash Table Exception Handlers Utility
+
+    REVISION HISTORY
+    v1.00  20 Apr 1989  C. Lins:
+        Initial implementation
+==============================================================*)
+
+FROM ErrorHandling IMPORT
+   (*--type*) ErrorCode;
+
+
+PROCEDURE WriteHandler (    theError : ErrorCode (*--in   *));
+
+END HashHand.

@@ -1,0 +1,64 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+conffio.def: ..\shared.src\conffio.dpp 
+	${StandardM2pp}
+convertf.def: ..\shared.src\convertf.dpp 
+	${StandardM2pp}
+datafio.def: ..\shared.src\datafio.dpp 
+	${StandardM2pp}
+errorfio.def: ..\shared.src\errorfio.dpp 
+	${StandardM2pp}
+fiobase.def: ..\shared.src\fiobase.dpp 
+	${StandardM2pp}
+fiobool.def: ..\shared.src\fiobool.dpp 
+	${StandardM2pp}
+fiocard.def: ..\shared.src\fiocard.dpp 
+	${StandardM2pp}
+fioint.def: ..\shared.src\fioint.dpp 
+	${StandardM2pp}
+fiopriva.def: ..\shared.src\fiopriva.dpp 
+	${StandardM2pp}
+fioreal.def: ..\shared.src\fioreal.dpp 
+	${StandardM2pp}
+fioscree.def: ..\shared.src\fioscree.dpp 
+	${StandardM2pp}
+fiostrin.def: ..\shared.src\fiostrin.dpp 
+	${StandardM2pp}
+formatio.def: ..\shared.src\formatio.dpp 
+	${StandardM2pp}
+simplefi.def: ..\shared.src\simplefi.dpp 
+	${StandardM2pp}
+conffio.mod: ..\shared.src\conffio.mpp 
+	${StandardM2pp}
+convertf.mod: ..\shared.src\convertf.mpp 
+	${StandardM2pp}
+datafio.mod: ..\shared.src\datafio.mpp 
+	${StandardM2pp}
+errorfio.mod: ..\shared.src\errorfio.mpp 
+	${StandardM2pp}
+fiobase.mod: ..\shared.src\fiobase.mpp 
+	${StandardM2pp}
+fiobool.mod: ..\shared.src\fiobool.mpp 
+	${StandardM2pp}
+fiocard.mod: ..\shared.src\fiocard.mpp 
+	${StandardM2pp}
+fioint.mod: ..\shared.src\fioint.mpp 
+	${StandardM2pp}
+fiopriva.mod: ..\shared.src\fiopriva.mpp 
+	${StandardM2pp}
+fioreal.mod: ..\shared.src\fioreal.mpp 
+	${StandardM2pp}
+fioscree.mod: ..\shared.src\fioscree.mpp 
+	${StandardM2pp}
+fiostrin.mod: ..\shared.src\fiostrin.mpp 
+	${StandardM2pp}
+formatio.mod: ..\shared.src\formatio.mpp 
+	${StandardM2pp}
+simplefi.mod: ..\shared.src\simplefi.mpp 
+	${StandardM2pp}

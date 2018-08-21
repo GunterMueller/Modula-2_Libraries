@@ -1,0 +1,55 @@
+DEFINITION MODULE LargeSets;
+
+(*
+ Some implementations limit sizes of sets to 32 elements, others to 65535
+ elements. This module allows sets of numbers limited only by available memory.
+ Use of this module for objects other than numbers requires another layer
+ to map object indicies into numbers.
+*)
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Apr.5/92 *)
+(* This code may be freely used and distributed, it may bot be sold *)
+
+EXPORT QUALIFIED LargeSet, 
+                 Build, Destroy, Empty, Fill,
+                 Incl,  Excl,    In,
+                 Not,   Equal,
+                 Copy,  Duplicate;
+
+TYPE LargeSet;   (* opaque *)
+
+PROCEDURE Build( VAR s :LargeSet; min, max :CARDINAL );
+(* create a set of numbers in the range [min,max] *)
+
+PROCEDURE Destroy( VAR s :LargeSet );
+(* get rid of the specified set *)
+
+PROCEDURE Empty( s :LargeSet );
+(* turn off all elements *)
+
+PROCEDURE Fill( s :LargeSet );
+(* turn on all elements *)
+
+PROCEDURE Incl( s :LargeSet; x :CARDINAL );
+(* put the specified number into the set *)
+
+PROCEDURE Excl( s :LargeSet; x :CARDINAL );
+(* take the specified number out of the set *)
+
+PROCEDURE In( s :LargeSet; x :CARDINAL ) :BOOLEAN;
+(* determine if the number is in the set *)
+
+PROCEDURE Not( s :LargeSet );
+(* invert the set *)
+
+PROCEDURE Equal( s, t :LargeSet ) :BOOLEAN;
+(* compare two sets, return TRUE if they have the same ranges, and same
+   element are on *)
+
+PROCEDURE Copy( s, t :LargeSet );
+(* make 't' the same as 's' *)
+
+PROCEDURE Duplicate( s :LargeSet; VAR t :LargeSet );
+(* copy set 's' into a new set 't' *)
+
+END LargeSets.

@@ -1,0 +1,131 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE BinarySupportIO;
+(*
+ * Copy the file from the source to the dest.
+ *)
+IMPORT
+    BinaryIO,
+    DirIO,
+    IOErrors,
+    SYSTEM,
+    SysTypes;
+
+CONST
+    @IF SunOS THEN
+	bufferSize = 8192;
+    @END
+    @IF MsDosOS THEN
+	bufferSize = 1024;
+    @END
+
+PROCEDURE Copy(
+    source     : ARRAY OF CHAR;
+    dest       : ARRAY OF CHAR;
+    createMode : DirIO.CreateModes
+    )          : IOErrors.Errors;
+    (*
+     * First open the source, if it is unreadable and return.
+     * Next create the dest, if failed, close open input and return.
+     * Open the dest, if there is a failure, the dest must be deleted.
+     * Copy the files, in the event of errors, close the files and
+     * delete the "dest".
+     *)
+    VAR
+	input    : BinaryIO.Object;
+	output   : BinaryIO.Object;
+	result   : IOErrors.Errors;
+    BEGIN (* Copy *)
+	
+	(* Make sure they are initialized *)
+	BinaryIO.SetInvalid( input );	
+	BinaryIO.SetInvalid( output );
+
+	result := BinaryIO.Open( input, source, BinaryIO.readOnly, 
+				 BinaryIO.defaultOptions );
+	IF result # IOErrors.ok THEN
+	    RETURN result;
+	END;
+
+	result := DirIO.CreateEntry( dest, DirIO.createBinaryFile, createMode );
+	IF result # IOErrors.ok THEN
+	    IOErrors.DONTCARE := BinaryIO.Close( input );
+	    RETURN result;
+	END;
+
+	result := BinaryIO.Open( output, dest, BinaryIO.appendOnly,
+				 BinaryIO.defaultOptions );
+	IF result = IOErrors.ok THEN
+	    result := CopyObject( input, output );
+	    IF result = IOErrors.ok THEN
+		result := BinaryIO.Close( input );
+		IF result = IOErrors.ok THEN
+		    result := BinaryIO.Close( output );
+		    IF result = IOErrors.ok THEN
+			RETURN IOErrors.ok;
+		    END;
+		END;
+	    END;
+	END;
+
+	IOErrors.DONTCARE := BinaryIO.Close( output );
+	IOErrors.DONTCARE := BinaryIO.Close( input );
+	IOErrors.DONTCARE := DirIO.DeleteEntry( dest );
+
+	RETURN result;
+    END Copy;
+
+
+PROCEDURE CopyObject(
+    source : BinaryIO.Object;
+    dest   : BinaryIO.Object
+    )      : IOErrors.Errors;
+    (*
+     * Just copy the source to the dest.  Note this assumes BinaryIO.Write
+     * does the full job.
+     *)
+    VAR
+	buffer    : ARRAY [ 0 .. bufferSize - 1 ] OF SysTypes.SAU;
+	bytesRead : CARDINAL;
+	DONTCARE  : CARDINAL;
+    BEGIN (* CopyObject *)
+	
+	LOOP
+	    CASE BinaryIO.ReadBytes( source, SYSTEM.ADR( buffer ), bufferSize,
+				     bytesRead ) OF
+		BinaryIO.ok:
+		    IF BinaryIO.WriteBytes( dest, SYSTEM.ADR( buffer ),
+			bytesRead, DONTCARE ) = BinaryIO.error THEN
+			RETURN BinaryIO.GetError( dest );
+		    END;
+		|
+		BinaryIO.endOfFile:
+		    RETURN IOErrors.ok;
+		|
+		BinaryIO.error:
+		    RETURN BinaryIO.GetError( source );
+	    END; (* CASE *)
+	END;
+    END CopyObject;
+
+END BinarySupportIO.

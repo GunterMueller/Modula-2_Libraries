@@ -1,0 +1,121 @@
+BinaryIO.sym: ../../gen/bin/GenConsts.sym IOConsts.sym IOErrors.sym  \
+              ../../gen/bin/Intrinsics.sym ../../gen/bin/SysTypes.sym 
+BinaryIO.o: BinaryIO.sym ../../gen/bin/CardConvert.sym CatBinaryIO.sym  \
+            IOConsts.sym IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+            ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+            ../../gen/bin/ProgErrOutput.sym ../../gen/bin/Strings.sym  \
+            ../../gen/bin/SysTypes.sym 
+BinarySupportIO.sym: BinaryIO.sym DirIO.sym IOErrors.sym 
+BinarySupportIO.o: BinaryIO.sym BinarySupportIO.sym DirIO.sym IOErrors.sym  \
+                   ../../gen/bin/SysTypes.sym 
+CardIO.sym: ../../gen/bin/Chars.sym ../../gen/bin/SysTypes.sym TextIO.sym 
+CardIO.o: ../../gen/bin/CardConvert.sym CardIO.sym ../../gen/bin/Chars.sym  \
+          IOErrors.sym StringIO.sym ../../gen/bin/Strings.sym  \
+          ../../gen/bin/SysTypes.sym TextIO.sym 
+CatBinaryIO.sym: BinaryIO.sym IOConsts.sym IOErrors.sym  \
+                 ../../gen/bin/Objects.sym ../../gen/bin/SysTypes.sym 
+CatBinaryIO.o: BinaryIO.sym CatBinaryIO.sym ConfBinaryIO.sym IOErrors.sym  \
+               ../../gen/bin/Intrinsics.sym ../../gen/bin/ModInit.sym  \
+               ../../gen/bin/NameLists.sym ../../gen/bin/Objects.sym  \
+               ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+               ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym 
+ConfBinaryIO.sym: BinaryIO.sym 
+ConfBinaryIO.o: BinaryIO.sym ConfBinaryIO.sym ../../gen/bin/ModInit.sym  \
+                ../../gen/bin/Strings.sym UnixBinaryIO.sym 
+DirIO.sym: IOConsts.sym IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+           ../../gen/bin/SysTypes.sym ../../gen/bin/UnixCsys_stat.sym 
+DirIO.o: ../../gen/bin/Bytes.sym ../../gen/bin/CardConvert.sym  \
+         ../../gen/bin/Chars.sym DirIO.sym IOConsts.sym IOErrors.sym  \
+         ../../gen/bin/Intrinsics.sym ../../gen/bin/NameLists.sym  \
+         ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+         ../../gen/bin/UnixCerrno.sym ../../gen/bin/UnixCsys_dir.sym  \
+         ../../gen/bin/UnixCsys_file.sym ../../gen/bin/UnixCsys_param.sym  \
+         ../../gen/bin/UnixCsys_stat.sym UnixIOErrors.sym UnixIONames.sym 
+IOConsts.sym:
+IOConsts.o: IOConsts.sym 
+IOErrors.sym: 
+IOErrors.o: IOErrors.sym ../../gen/bin/ProgErrOutput.sym 
+IONames.sym: IOConsts.sym 
+IONames.o: ../../gen/bin/Chars.sym DirIO.sym IOConsts.sym IOErrors.sym  \
+           IONames.sym ../../gen/bin/IntConvert.sym  \
+           ../../gen/bin/Intrinsics.sym ../../gen/bin/ProgArgs.sym  \
+           ../../gen/bin/ProgErr.sym ../../gen/bin/Strings.sym  \
+           ../../gen/bin/SysTypes.sym ../../gen/bin/UnixCprocess.sym  \
+           ../../gen/bin/UnixCsys_time.sym 
+IOSearchPaths.sym: IOConsts.sym ../../gen/bin/NameLists.sym 
+IOSearchPaths.o: DirIO.sym IOConsts.sym IOErrors.sym IONames.sym  \
+                 IOSearchPaths.sym ../../gen/bin/NameLists.sym  \
+                 ../../gen/bin/ProgEnviron.sym ../../gen/bin/Strings.sym  \
+                 ../../gen/bin/SysTypes.sym 
+IOVersions.sym: IOErrors.sym ../../gen/bin/SysTypes.sym 
+IOVersions.o: ../../gen/bin/CardConvert.sym ../../gen/bin/Chars.sym DirIO.sym  \
+              IOConsts.sym IOErrors.sym IONames.sym IOVersions.sym  \
+              ../../gen/bin/Intrinsics.sym ../../gen/bin/ProgErr.sym  \
+              ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym 
+IntIO.sym: ../../gen/bin/SysTypes.sym TextIO.sym 
+IntIO.o: CardIO.sym ../../gen/bin/Chars.sym IOErrors.sym  \
+         ../../gen/bin/IntConvert.sym IntIO.sym StringIO.sym  \
+         ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym TextIO.sym 
+RealIO.sym: ../../gen/bin/SysTypes.sym TextIO.sym 
+RealIO.o: CardIO.sym ../../gen/bin/Chars.sym IOErrors.sym  \
+          ../../gen/bin/RealConvert.sym RealIO.sym StringIO.sym  \
+          ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym TextIO.sym 
+ScreenIO.sym: ../../gen/bin/Notices.sym ../../gen/bin/SysTypes.sym TextIO.sym 
+ScreenIO.o: BinaryIO.sym IOErrors.sym ../../gen/bin/Notices.sym  \
+            ../../gen/bin/ProgErr.sym ../../gen/bin/SafeStorage.sym  \
+            ScreenIO.sym ../../gen/bin/SysTypes.sym TextIO.sym  \
+            TextIOPRIVATE.sym UnixBinaryIO.sym ../../gen/bin/UnixCenviron.sym  \
+            ../../gen/bin/UnixCioctl.sym ../../gen/bin/UnixCsys_file.sym  \
+            ../../gen/bin/UnixCtermcap.sym ../../gen/bin/UnixCtty.sym  \
+            ../../gen/bin/UnixCtypes.sym 
+SimpleIO.sym: ../../gen/bin/SysTypes.sym 
+SimpleIO.o: CardIO.sym IOErrors.sym IntIO.sym ../../gen/bin/ProgErr.sym  \
+            RealIO.sym SimpleIO.sym StringIO.sym ../../gen/bin/SysTypes.sym  \
+            TextIO.sym TextIOPRIVATE.sym 
+StringBinaryIO.sym: BinaryIO.sym 
+StringBinaryIO.o: BinaryIO.sym ../../gen/bin/Bytes.sym  \
+                  ../../gen/bin/CardConvert.sym CatBinaryIO.sym  \
+                  ../../gen/bin/Chars.sym IOConsts.sym IOErrors.sym  \
+                  ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+                  StringBinaryIO.sym ../../gen/bin/Strings.sym  \
+                  ../../gen/bin/SysTypes.sym 
+StringIO.sym: ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym TextIO.sym 
+StringIO.o: ../../gen/bin/ASCII.sym ../../gen/bin/GenConsts.sym IOErrors.sym  \
+            ../../gen/bin/ProgErr.sym StringIO.sym ../../gen/bin/Strings.sym  \
+            ../../gen/bin/SysTypes.sym TextIO.sym 
+TextIO.sym: IOConsts.sym IOErrors.sym ../../gen/bin/SysTypes.sym 
+TextIO.o: ../../gen/bin/ASCII.sym BinaryIO.sym ../../gen/bin/CardConvert.sym  \
+          CatBinaryIO.sym ../../gen/bin/Chars.sym ../../gen/bin/GenConsts.sym  \
+          IOConsts.sym IOErrors.sym ../../gen/bin/Notices.sym  \
+          ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+          ../../gen/bin/ProgErrOutput.sym ../../gen/bin/Strings.sym  \
+          ../../gen/bin/SysTypes.sym TextIO.sym TextIOPRIVATE.sym 
+TextIOPRIVATE.sym: ../../gen/bin/ASCII.sym BinaryIO.sym IOErrors.sym  \
+                   ../../gen/bin/Objects.sym ../../gen/bin/SysTypes.sym  \
+                   TextIO.sym 
+TextIOPRIVATE.o: ../../gen/bin/ASCII.sym BinaryIO.sym IOErrors.sym  \
+                 ../../gen/bin/Notices.sym ../../gen/bin/Objects.sym  \
+                 ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+                 ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+                 TextIO.sym TextIOPRIVATE.sym 
+TextSupportIO.sym: DirIO.sym IOErrors.sym TextIO.sym 
+TextSupportIO.o: BinaryIO.sym BinarySupportIO.sym DirIO.sym IOErrors.sym  \
+                 ../../gen/bin/ProgErr.sym ../../gen/bin/SysTypes.sym  \
+                 TextIO.sym TextIOPRIVATE.sym TextSupportIO.sym 
+UnixBinaryIO.sym: BinaryIO.sym ../../gen/bin/SysTypes.sym  \
+                  ../../gen/bin/UnixCsys_param.sym 
+UnixBinaryIO.o: BinaryIO.sym ../../gen/bin/CardConvert.sym CatBinaryIO.sym  \
+                ../../gen/bin/Chars.sym ConfBinaryIO.sym IOConsts.sym  \
+                IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+                ../../gen/bin/ModInit.sym ../../gen/bin/Objects.sym  \
+                ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+                ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+                UnixBinaryIO.sym ../../gen/bin/UnixCerrno.sym  \
+                ../../gen/bin/UnixCfcntl.sym ../../gen/bin/UnixCsys_file.sym  \
+                ../../gen/bin/UnixCsys_stat.sym UnixIOErrors.sym  \
+                UnixIONames.sym 
+UnixIOErrors.sym: IOErrors.sym ../../gen/bin/SysTypes.sym 
+UnixIOErrors.o: IOErrors.sym ../../gen/bin/SysTypes.sym  \
+                ../../gen/bin/UnixCerrno.sym UnixIOErrors.sym 
+UnixIONames.sym: IOConsts.sym 
+UnixIONames.o: ../../gen/bin/Bytes.sym UnixIONames.sym 

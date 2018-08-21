@@ -1,0 +1,21 @@
+%FOREIGN DEFINITION MODULE FortranJPI;
+
+(*
+   Allow for easy use of LIB$GETJPI routines
+   but actually do the work by using calls to FORTRAN routines.
+*)
+
+(* V1.0, J. Andrea, Sept.4/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT BYTE;
+
+EXPORT QUALIFIED  For$LibJPI;
+
+PROCEDURE For$LibJPI( %REF         item   :INTEGER;
+                      VAR %REF     value  :ARRAY OF BYTE;
+                      VAR %STDESCR name   :ARRAY OF CHAR;
+                      VAR %REF     len    :CARDINAL;
+                      VAR %REF     status :CARDINAL );
+
+END FortranJPI.

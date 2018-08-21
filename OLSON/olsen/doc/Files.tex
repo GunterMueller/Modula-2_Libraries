@@ -1,0 +1,1034 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%                   All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Files}
+\label{TextIOChapter}\label{BinaryIOChapter}\label{FilesChapter}
+
+\xquote{J. C. Wells}{Concise Esperanto And English Dictionary}{
+    It is impossible to describe the sounds of a language
+    accurately merely by reference to the sounds of another
+    language.  For instance the expression ``{\em e} as in get'' means
+    quite different things to a Yorkshireman and an Australian.  The
+    following notes must be taken as a rough guide only.  
+    Unless otherwise specified, ``English'' means the pronunciation
+    heard from educated speakers in Southern England, free from 
+    regional features.
+}
+
+The Olsen \& Associates Portable Modula-2 Library supports two
+fundamental types of files: {\em binary} and {\em text}.
+The semantics of binary files are operating system
+dependent.  With some systems, binary files are the method by which one
+accesses all operating system resources.  With others, they are
+strictly disk based.  The module \module{BinaryIO} defines
+a binary file so loosely that it can mold to any system.
+Hence, programmers must be cautious when using binary files.
+Most programmers are wary of this problem and define an abstraction
+on top of binary files as their sole interface to \module{BinaryIO}.
+Text files, on the other hand, are defined quite rigidly by the
+module \module{TextIO}.  A text file is a sequence of characters
+separated by new-lines.  A \module{TextIO} new-line is a portable concept,
+because it is defined procedurally.  All operating systems support
+or have a convention for text files defined as such.  In contrast
+to binary files, the \module{TextIO} interface is highly portable.
+
+In this chapter, we discuss the file I/O facilities defined by 
+\module{TextIO} and \module{BinaryIO}.  These modules share the
+same unqualified names for many procedures (e.g. \proc{Open}, \proc{Close}),
+parameters (e.g. \codeterm{path}, \codeterm{file}), and types
+(e.g. \codeterm{Object}, \codeterm{States}).
+Unqualified references are made for the sake of brevity and should not
+be construed to mean that the identifiers from the two modules are 
+interchangeable.  Code fragments always use qualified imports to identify
+clearly that types and procedures from \module{BinaryIO} are not compatible
+with \module{TextIO} and vice-versa.
+
+We assume the reader is familiar with files in the general sense.
+The subjects of opening, closing, reading, writing, indexing, and options
+are presented.  Errors are mentioned, but the specifics of error handling
+are covered in chapter~\ref{IOErrorsChapter}.
+
+\section{Terminology}
+
+The subject of files is usually treated vaguely. 
+In order to handle it properly, the following terms must be clarified:
+
+\begin{description}
+\item[External File]\index{File}\index{External File}
+                    \index{Disk File}\index{Device}  --
+    Each operating system (or file service) defines files which
+    we call external files.  An external file is not a Modula-2
+    entity.  Typically, an external file is associated with some
+    form of non-volatile storage, e.g. disk.
+    Synonyms: disk file, device, and file.
+    
+\item[Internal File]\index{Internal File} \index{File Object} --
+    The modules \module{BinaryIO} and \module{TextIO} each define a
+    Modula-2 opaque type called \code{Object}.  These objects are
+    created by Modula-2 programs and exist for the life of the Modula-2
+    programs by which they were created.  Internal files are usually\footnote{
+        The module \module{StringBinaryIO} provided with some implementations
+        of the library supports memory only files: that is, files which
+        are not associated with an external file.}
+    associated with external files.
+    Synonyms: internal file, file object, and \codeterm{file}.
+
+\item[\codeterm{path}] --
+    All external files are identified by a name which is called a
+    \code{path}.  \code{path}s are Modula-2 strings whose syntax
+    and semantics are defined by the host operating system.
+    Synonyms: file name, directory name, and name.
+    
+\item[writable] -- \index{writable}
+    The term writable applies to both kinds of files, but is used
+    primarily to identify files which can be used with
+    \code{Write} procedures.  An internal file is writable if its
+    mode is \codeterm{append\-Only} or \codeterm{read\-Write}.
+
+\item[readable] -- \index{readable}
+    A file is readable if it can be used with \code{Read} procedures.
+    An internal file is readable if its
+    mode is \codeterm{read\-Only} or \codeterm{read\-Write}.
+\end{description}
+
+
+\section{Gaining Access To Files} 
+\subsection{\proc{Open}}
+The procedures \module{BinaryIO.\-Open} and \proc{TextIO.\-Open}
+are defined identically as follows.
+\begin{verbatim}
+    PROCEDURE Open(
+        VAR file    : Object;
+            path    : ARRAY OF CHAR;
+            mode    : Modes;
+            options : ARRAY OF CHAR
+        )           : IOErrors.Errors;
+\end{verbatim}
+
+The parameter \codeterm{file} is the internal file which is created
+if and only if the return value is \codeterm{IOErrors.\-ok}.  The
+\code{file} is associated with an external file specified
+by \codeterm{path}.   The mode of the file is one of the following:
+
+\begin{description}
+\item[\codeterm{readOnly}] --
+    The \code{file} is usable only for general and read operations.
+    An attempted write operation puts the \code{file} into an error state.
+
+\item[\codeterm{readWrite}] --
+    The \code{file} is available for all operations.
+    This mode is available only with \module{BinaryIO.\-Open}.
+    
+\item[\codeterm{append\-Only}] --
+    The \code{file} is usable only for general and write operations.
+    An attempted read operation will put the \code{file} into an error state.
+\end{description}
+
+The type \codeterm{Modes} is defined separately in \module{BinaryIO}
+and \module{TextIO}.
+
+The \codeterm{options} parameter is described in section~\ref{IOOptions}.
+The value \codeterm{defaultOptions} is available on all implementations
+and its value is always the empty string \code{""}.
+
+
+\subsection{\proc{Close}}\index{\code{TextIO.\-Close}}
+    \index{\code{BinaryIO.\-Close}}
+
+A \code{file} exists until it is {\em closed}.  The procedure \proc{Close}
+is defined as follows:
+
+\begin{verbatim}
+    PROCEDURE Close(
+        VAR file : Object
+        )        : IOErrors.Errors;
+\end{verbatim}
+
+This procedure {\em dissociates} the external file from the internal
+file (\code{file}) and destroys the internal file object.  If the
+file is writable, internal buffers will be {\em flushed} to the external
+file.  Any errors encountered during the \proc{Close} are returned,
+but in all cases \code{file} is {\em invalid} upon return, i.e.
+the effects of \proc{Close} are irreversible.
+
+
+\section{\codeterm{State} of a \code{file}}
+
+Every internal file has an associated {\em state} value.  This
+state is returned by all procedures which modify the internal
+or external file's state (except for \proc{Open} and \proc{Close}).
+\module{BinaryIO} and \module{TextIO} define two enumerations
+called \codeterm{State} whose values are the following:\footnote{
+    TextIO.\-Read\-Chars does not behave like any other 
+    read operation in the library.  It may return data irrespective
+    of its return state.  See section~\ref{ReadChars} for a full
+    description.}
+
+\begin{description}
+\item[\codeterm{ok}] --
+    The previous read or write operation was successful.
+
+\item[\codeterm{endOfFile}] --
+    The previous read operation failed because there was no more
+    data available on input. No data was returned on
+    the previous read call.
+
+\item[\codeterm{endOfLine}] --
+    The previous read operation failed because a new-line was encountered.
+    This state is only available for \module{TextIO} reads. 
+    No data was returned on the previous read call.
+
+\item[\codeterm{error}] --
+    The previous operation failed.  The procedure
+    \proc{Get\-Error} can be called to obtain a more specific description
+    of the error. (See Chapter~\ref{IOErrorsChapter} for further information.)
+
+\end{description}
+
+A couple of interesting points about states follow:
+\begin{itemize}
+\item
+    The state \codeterm{ok} defines the success of read and
+    write operations only.  For other operations (e.g. \proc{Flush},
+    \proc{Truncate}, \proc{SetError}), 
+    the success is indicated by a return state which is
+    {\em not} \codeterm{error}.
+\item
+    Write operations do not return the states
+    \codeterm{end\-Of\-Line} or \codeterm{end\-Of\-File}.
+    Failures are only indicated by an \code{error} state.
+    
+\end{itemize}
+
+Examples of return states in Modula-2 code are presented in
+the following sections.
+
+\section{Output -- \proc{Write} procedures}
+
+The procedures \proc{BinaryIO.\-Write\-Bytes}, 
+\proc{BinaryIO.\-Write\-Block},
+\proc{TextIO.\-Write}, \proc{TextIO.\-Write\-Chars},
+and \proc{TextIO.\-Write\-Ln} cause data to be written into 
+the internal files.  The act of writing data to external
+files can be ensured only by calling the procedure \proc{Flush}.
+
+All read procedures advance the file index by the amount of data
+that was written.  A file index indicates the next position to read or
+write.  See section~\ref{FileIndexing} for more details.
+
+\finepoint{
+    The implementation specific \codeterm{option} for 
+    no buffering does not mean that data is always immediately written
+    to the non-volatile storage.  The operating system may
+    have its own buffers which are not under the auspices
+    of the non-buffering option.  Therefore to ensure
+    data integrity (e.g. for atomic transactions), the
+    program must call \proc{Flush} on the internal file
+    and the file module will do everything within its power to 
+    make sure the non-volatile storage is updated.
+}
+
+\subsection{\module{BinaryIO} Writes}
+
+The following demonstrates the two methods of writing to binary files:
+\begin{verbatim}
+    IF BinaryIO.WriteBytes( file, SYSTEM.ADR( someRec ),
+                            SIZE( someRec ), num ) # BinaryIO.ok 
+      THEN ProgErr.Terminate( "Couldn't write data" );
+    END;
+    IF BinaryIO.WriteBlock( file, someRec ) # BinaryIO.ok THEN
+        ProgErr.Terminate( "Couldn't write data" );
+    END;
+\end{verbatim}
+
+
+The file must be writable.  The object \code{some\-Rec} is 
+any Modula-2 object for \proc{Write\-Block}.  \proc{Write\-Bytes}
+requires that the object be a variable or formal parameter, i.e.
+not a constant or procedure.  The semantics of these two procedures
+are identical except that in the event of errors \proc{Write\-Bytes}
+returns the amount of data written before the error occurred.
+If either operation returns \codeterm{ok}, {\em all} of the
+data was written.
+
+\finepoints{
+    The procedure \proc{Write\-Block} is less efficient
+    than \proc{Write\-Bytes}, because the data is passed 
+    by value.  Therefore, for speed concerns, you should
+    use Write\-Bytes instead of Write\-Block for
+    large data records.
+
+    The name Write\-Bytes is a misnomer.  Its name
+    should be \code{Write\-SAUs}, but this is less pleasing
+    to the eye.
+}
+\portability{
+    The procedure \proc{SIZE} was not a pervasive identifier
+    in Modula-2 prior to version 3.  It was originally exported
+    by the module \module{SYSTEM}.  The change was not upwardly
+    compatible, i.e. \module{SYSTEM} in version 3 does not
+    export the identifier \proc{SIZE}.  If you are using the
+    preprocessor and plan to be highly portable, you should
+    import \proc{SIZE} as follows:
+{\tt
+\\
+\hspace*{2em}@IF M2V2 THEN\\
+\hspace*{4em}FROM SYSTEM IMPORT SIZE;\\
+\hspace*{2em}@END\\
+}
+}
+
+\subsection{\module{TextIO} Writes}
+
+The following demonstrates the procedure \proc{TextIO.\-Write\-Chars}.
+\begin{verbatim}
+    IF TextIO.WriteChars( file, SYSTEM.ADR( string ),
+                          Strings.Length( string ) ) # TextIO.ok 
+      THEN ProgErr.Terminate( "Couldn't write string" );
+    END;
+\end{verbatim}
+
+\code{file} must be writable.  The only acceptable type for
+\code{string} is \code{ARRAY OF CHAR}, because the only data
+that may be written to a text file are characters.  It is not portable
+to define \code{string} to be of type \code{CHAR}.  \proc{Write\-Chars}
+writes exactly the number of characters specified in its last parameter
+(\code{numChars}).  
+    
+    \finepoint{
+        On some implementations \proc{Write\-Chars} will even write
+        a null\index{null character} character (\codeterm{0C}) if 
+        it is within \codeterm{string}.  \proc{StringIO.\-Write},
+        on the other hand, will never write a null character; it
+        observes the rule that a null character terminates a string.
+        In the above example, none of the characters output will be
+        a null, because we have called \proc{Strings.\-Length}
+        which stops at a null character.  If we had instead passed
+        the static length (\code{HIGH( string ) + 1}) {\em and} there
+        was a null character in \code{string}, one or more null
+        characters would be output.
+    }
+        
+
+The semantics of \proc{Write\-Ln} and \proc{Write} (write a character)
+are sufficiently similar to \proc{SimpleIO.\-Write\-Ln} and 
+\proc{SimpleIO.\-Write\-Char} that we need not discuss them here.
+
+
+\section{Input -- \proc{Read} procedures}
+
+Reading is more complicated than writing.  The returned state from
+a read procedure not only indicates the success or failure of the
+current operation but affects subsequent read operations as well.
+Specifically, if the state is \codeterm{end\-Of\-File}, the 
+next attempted read puts the file into an \codeterm{error} state.
+The general approach when reading is to use the two Modula-2 constructs
+\codeterm{LOOP} and \codeterm{CASE} as is demonstrated in the following
+sections.
+
+All read procedures advance the file index by the amount of data
+that was read.  A file index indicates the next position to read or
+write.  See section~\ref{FileIndexing} for more details.
+
+\subsection{\module{BinaryIO} Read procedures}
+
+The procedures \proc{BinaryIO.\-Read\-Bytes} and 
+\proc{BinaryIO.\-Read\-Block} are less
+alike than their write counterparts.  \proc{Read\-Bytes} may
+read only a partial buffer while \proc{Read\-Block} will either
+return a fully read buffer or fail.  The following is a simple
+demonstration of \proc{Read\-Block}.
+
+\begin{verbatim}
+    LOOP
+        CASE BinaryIO.ReadBlock( file, card ) OF
+            BinaryIO.ok:
+                Process( card );
+            |
+            BinaryIO.endOfFile:
+                EXIT;
+            (* BinaryIO.error: cause case label error *)
+        END;
+    END; (* LOOP *)
+\end{verbatim}
+
+\code{file} is assumed to contain a homogeneous sequence of cardinal
+values.  
+If \codeterm{ok} is returned, \code{card} is valid and may be
+processed.  Failure occurs in the two other states.  \codeterm{end\-Of\-File}
+not only indicates failure but also changes the flow of control in 
+the \code{LOOP}.  
+
+    \finepoints{
+        The handling of the \codeterm{error} return value is noteworthy.
+        In this example, we chose to cause a \code{CASE} 
+        error\index{\code{CASE} error} when a file error occurs.
+        This is a cheap way of terminating the program.  This is a
+        technique for ``quick hacks'' which do not intend to handle
+        I/O robustly.  
+        
+        It may appear that we are expecting too much from a Modula-2
+        implementation (i.e. that it will catch \code{CASE} errors).
+        However, we have the added protection that it is illegal to
+        operate on a file in an error state.  Even though the CASE
+        may fall through, the next I/O operation will cause the program
+        to terminate.  This feature reduces the chance of errant
+        program behavior to a great extent and makes coding 
+        simpler.  See chapter~\ref{IOErrorsChapter} for more details.
+    }
+
+\subsubsection{Simple Binary File Copy}
+
+The example in the previous section assumes the data contained
+within a file is known.  The following demonstrates a typical
+use of \proc{BinaryIO.\-Read\-Bytes}:
+
+\begin{verbatim}
+    LOOP
+        CASE BinaryIO.ReadBytes( in, buf, bufSize, numRead ) OF
+        BinaryIO.ok:
+            IF BinaryIO.WriteBytes( out, buf, numRead, DONTCARE )
+                # BinaryIO.ok THEN
+                FileError;      (* Terminate and print a nice message *)
+            END;
+        |
+        BinaryIO.endOfFile:
+            EXIT;
+        (* BinaryIO.error: cause case label error *)
+        END;
+    END; (* LOOP *)
+\end{verbatim}
+
+The file \code{in} is the source of the copy and \code{out} is
+the destination.  The variable \code{buf} points to a data area
+which is {\em at least} bufSize \codeterm{Sys\-Types.\-SAU}s.
+The number of read \codeterm{SAU}s (\code{numRead}) is not
+necessarily the same as \code{bufSize}.  The number of \code{SAU}s
+to write is equal to \code{numRead}, {\em not} to \code{bufSize}.
+
+\portability{
+    This piece of code may not be portable if:
+    \begin{itemize}
+    \item
+        the block sizes of \code{in} and \code{out} are not identical.
+        On systems like Unix or MS-DOS, block size is not an issue
+        for ordinary binary files, but for other systems this is a
+        fairly complicated issue.  
+    \item
+        \code{bufSize} is smaller than the block size of \code{in}
+        and \code{out}.  In this case, the write or read operations
+        may result in an error.
+    \end{itemize}
+}
+
+\subsection{Basic \module{TextIO} Reads}
+
+\subsubsection{Simple Text File Copy}
+
+In chapter~\ref{IntroIOChapter}, the problem of reading is treated
+in a less exact way than is required for a file copy.  The following
+loop demonstrates an exact file copy:
+
+\begin{verbatim}
+    LOOP
+        CASE TextIO.Read( in, ch ) OF
+        TextIO.ok:
+            IF TextIO.Write( out, ch ) # TextIO.ok THEN
+                FileError;      (* Terminate and print a nice message *)
+            END;
+        |
+        TextIO.endOfLine:
+            IF TextIO.WriteLn( out ) # TextIO.ok THEN
+                FileError;      (* Terminate and print a nice message *)
+            END;
+        |
+        TextIO.endOfFile:
+            EXIT;
+        (* TextIO.error: cause case label error *)
+        END;
+    END; (* LOOP *)
+\end{verbatim}
+
+The procedure \proc{TextIO.\-Read} extracts a single character from
+the file or fails.  The difference between this file reading loop
+and higher level file reads (e.g. \module{CardIO}, \module{IntIO})
+is that {\em all data} is transferred.  These other modules interpret
+the value of a character and if it is irrelevant (e.g. spaces), the
+higher level read procedure will ignore the data.  Therefore, to know
+exactly what is in the file, the procedures \proc{TextIO.\-Read} or
+\proc{TextIO.\-Read\-Chars} must be called.
+
+
+\finepoint{
+    The term {\em exact} as used above means
+    semantically equivalent from the point of view of text
+    files on the host operating system.  On MS-DOS, for example, the
+    value \code{ASCII.\-sub} (ctrl-Z) is an {\em optional} text file
+    terminator (just like \code{0C} is an optional string terminator).
+    This file copy may yield files which are not identical
+    in the binary sense, but identical in the text sense.
+    }
+    
+\subsubsection{Faster Text File Copy}
+\label{ReadChars}
+
+Copying a text file a character at a time is compute intensive.  
+\proc{TextIO.\-Read\-Chars} can be used to reduce the overhead
+of scanning text files as follows:
+\begin{verbatim}
+    LOOP
+        state := TextIO.ReadChars( in, charBuf, maxChars, numRead );
+        IF ( numRead # 0 ) AND
+          ( TextIO.WriteChars( out, charBuf, numRead ) # TextIO.ok ) THEN
+            FileError;
+        END;
+        
+        CASE state OF
+        TextIO.ok:
+        |
+        TextIO.endOfLine:
+            IF TextIO.WriteLn( out ) # TextIO.ok THEN
+                FileError;      (* Terminate and print a nice message *)
+            END;
+        |
+        TextIO.endOfFile:
+            EXIT;
+        (* TextIO.error: cause case label error *)
+        END;
+    END; (* LOOP *)
+\end{verbatim}
+
+The difference between \proc{TextIO.\-Read\-Chars} and other read
+operations is that the returned state is {\em not} indicative of
+failure or success.  The number of characters read (\code{numRead})
+is always valid and may be non-zero independent of the returned state.
+In the code fragment, we write any characters {\em before} we check
+the file state.  This is the only correct method for guaranteeing 
+correct interpretation of the contents of the \code{in} file.
+
+\finepoint{
+    All this nonsense about copying brings up the module 
+    \module{Text\-Sup\-portIO} which implements the {\em fastest}
+    file copy.  If you really need to do a file copy (by object
+    or by name), use this module.
+}
+
+\subsection{Higher Level \module{TextIO} Reads}
+
+\module{TextIO} supports one character or state look ahead.
+A single character or state transition (except transitions into
+the \codeterm{error} state) may be {\em re-read} by using 
+\proc{TextIO.\-Undo\-Read}.  Reads need to be {\em undone} when extracting
+higher level data such as tokens from text files.  This enables
+{\em all} other \module{TextIO} related read operations to behave
+identically. \codeterm{ok} is returned if data is returned;
+otherwise, the data parameter is invalid. 
+
+\subsubsection{Token Reading}
+\label{TextIORules}
+
+All high-level text file (token) reads follow a simple protocol in order to
+implement an efficient structure without losing important information
+such as new-line conditions.  The following rules define the protocol:
+\index{\code{TextIO} Read Rules}
+\begin{enumerate}
+\item
+    Upon entry, token readers ignore the incoming file state.
+\item
+    Upon exit, token readers return \codeterm{ok} if valid data
+    is being returned.   Otherwise, the other \codeterm{TextIO.\-States}
+    indicate the reason for the failure.
+\item
+    If a terminating condition is encountered, meaning that the token
+    has been read in its entirety, and valid data was 
+    read, \proc{Undo\-Read} is called so that the terminating condition
+    is put back on the input stream.
+\item
+    \code{end\-Of\-Line} and \code{end\-Of\-File} are always terminating
+    conditions.
+\item
+    If an \codeterm{TextIO.\-error} state is returned by a lower
+    level read procedure (e.g. \proc{TextIO.\-Read}), the read
+    terminates immediately.
+\item
+    Error conditions are handled in such a way as to leave the file
+    in a usable state once the error is reset.
+    If an invalid character is found, it is 
+    put back on the input stream before the file is put into 
+    the \codeterm{error}
+    state.  If the token is syntactically correct but too large 
+    (e.g. too many significant digits in a cardinal number), 
+    the entire token is read before the \codeterm{error} state is imposed.
+    File read errors are indicated by \codeterm{IOErrors.\-bad\-Data}.
+\end{enumerate}
+
+The procedures \proc{CardIO.\-Read}, \proc{IntIO.\-Read},
+\proc{RealIO.\-Read}, or \proc{StringIO.\-Read} follow these
+rules.  The examples in chapter~\ref{IntroIOChapter} use
+the effects of these rules event though they are not explicitly
+mentioned.
+
+\subsubsection{Implementing a Token Reader}
+\label{TokenReader1}
+
+The number of rules in the previous section may seem daunting, but
+they are designed to {\em ease} implementation of token readers.
+The implementation of a token reader called \code{Read\-Token} is
+show below.  First, however we define the semantics of \code{Read\-Token}.
+
+\begin{enumerate}
+\item
+    A token is defined as a non-empty sequence of alphabetic characters.
+\item
+    Leading white-space is ignored.
+\item
+    Tokens are terminated by a non-alphabetic character,
+    \codeterm{end\-Of\-Line} or \codeterm{end\-Of\-File}.
+\item
+    An input token may not exceed the size of the string buffer
+    parsed to \code{Read\-Token}.
+\item
+    A syntax error occurs if
+    a non-alphabetic non-white-space character is encountered
+    before the first alphabetic character.
+\end{enumerate}
+
+The implementation of these semantics according to the
+rules in section~\ref{TextIORules} follows.
+\begin{verbatim}
+PROCEDURE ReadToken(
+        file : TextIO.Object;    (* Must be readable *)
+    VAR tok  : ARRAY OF CHAR     (* Sequence of alphas *)
+    )        : TextIO.States;    (* ok => tok is valid *)
+    VAR
+        i       : SysTypes.Card; (* Index into "tok" *)
+        ch      : CHAR;          (* Last character read *)
+        badData : BOOLEAN;       (* Error? *)
+        state   : TextIO.States; (* Return of last Read *)
+    BEGIN (* ReadToken *)
+
+        i := 0;
+        badData := FALSE;
+        LOOP
+            state := TextIO.Read( file, ch );
+            CASE state OF
+            TextIO.ok:
+                IF ( i = 0 ) AND Chars.IsWhiteSpace( ch ) THEN
+                    (* Just ignore, we haven't read anything *)
+                ELSIF NOT Chars.IsAlpha( ch ) THEN
+                    badData := badData OR ( i = 0 );
+                    EXIT;
+                ELSIF i > HIGH( tok ) THEN  (* token is too long *)
+                    badData := TRUE;
+                    (* Consume the rest of the token *)
+                ELSE
+                    (* Assign the character and increment pointer *)
+                    tok[ i ] := ch;
+                    INC( i );
+                END;
+            |
+            TextIO.endOfFile,
+            TextIO.endOfLine:
+                IF i = 0 THEN
+                    RETURN state; (* nothing read, don't undo. *)
+                END;
+                EXIT;   (* Success and undo so state is "ok" *)
+            |
+            TextIO.error:
+                RETURN state;   (* Do not undo *)
+	    END; (* CASE *)
+        END; (* LOOP *)
+
+        (* Put back terminating condition *)
+        IF TextIO.UndoRead( file ) = TextIO.error THEN
+            RETURN TextIO.error;
+        END;
+        IF badData THEN
+            RETURN TextIO.SetError( file, IOErrors.badData );
+        END;
+
+        (* Null-terminate? *)
+        IF i <= HIGH( tok ) THEN
+            tok[ i ] := 0C;
+        END;
+
+        RETURN TextIO.ok;
+
+    END ReadToken;
+\end{verbatim}
+
+The main loop accepts characters until any of the termination
+conditions occurs.  If we encounter \code{end\-Of\-Line} or
+\code{end\-Of\-File} before a valid character is found, the
+read fails as per the \module{TextIO} reading protocol.  If
+the main loop encounters any valid characters before either of
+these conditions are encountered, the read is successful and 
+the epilogue {\em undoes} these conditions will be encountered
+on the next read.
+
+If an invalid character is found before any valid data is
+read, the loop is terminated with the \code{bad\-Data} boolean
+\code{TRUE}.  The same holds if the data is valid but there
+is no more room in \code{tok}.  In either of these cases, the
+the illegal character is unread {\em before} the file is
+put into an \codeterm{error} state.  
+
+\finepoint{
+    The returned state of \proc{Undo\-Read} in \code{Read\-Token}
+    is compared against \codeterm{error} as opposed to comparing
+    to see if it is \codeterm{ok}.  The reason for this is slightly
+    subtle, but is typical of the non-read/write procedures.
+    \proc{Undo\-Read} returns the state of the file which was 
+    before the current one.  In the event that the first character
+    on the line is illegal and \code{Read\-Token} is called, the
+    call to \proc{Undo\-Read} will return \code{end\-Of\-Line}.
+    If we compared against \codeterm{ok} for {\em success}, the 
+    \code{end\-Of\-Line} would be interpreted as a failed
+    undo when it was in fact correct.
+    
+    To avoid problems, one should check against \codeterm{error}
+    for all procedures except for read or write procedures.  For
+    read and write procedures, one should check for success by
+    checking against \codeterm{ok}.
+    }
+    
+
+\subsubsection{\proc{TextIO.\-Scan}}
+\label{TextIOScan}
+
+The implementation of \code{Read\-Token} could be used as
+the basis for any one of the procedures
+\proc{CardIO.\-Read}, \proc{IntIO.\-Read},
+\proc{RealIO.\-Read}, or \proc{StringIO.\-Read}.
+We could call this a {\em token reader shell}.
+There are problems however.  First, \module{TextIO.\-Read}
+is called for every character which means that it must
+re-establish its internal state for every character read.
+Second, most of these procedures skip leading white-space,
+thus white-space scanning code is needlessly duplicated 
+in many modules.  Third, upon successful termination
+\proc{Undo\-Read} is called which for small tokens is a
+signficant added overhead.  To alleviate this problems,
+the procedure \proc{TextIO.\-Scan} is defined as follows:
+\begin{verbatim}
+    PROCEDURE Scan(
+        file           : Object;
+        scanner        : ScannerProc;
+        importerObject : SysTypes.ANYPTR;
+        scanMode       : ScanModes
+        )              : States;
+\end{verbatim}
+where \codeterm{Scan\-ner\-Proc} and \codeterm{Scan\-Modes} are
+defined as:
+\begin{verbatim}
+    TYPE
+        ScannerProc = PROCEDURE(
+            SysTypes.ANYPTR, (* importerObject *)
+            CHAR             (* value read from the file *)
+        ) : BOOLEAN;         (* keep going? *)
+        ScanModes = (
+            doNotSkip,
+            skipLeadingWhiteSpace
+        );
+\end{verbatim}
+
+\proc{Scan} is called once per token and {\em upcalls} (calls back)
+the procedure \codeterm{scanner} for each valid character in
+the file before \codeterm{end\-Of\-Line} or \codeterm{end\-Of\-File}
+is encountered.  The \code{scanner} looks at these valid characters
+and performs syntax analysis.  When it encounters a character that
+terminates the scan, it returns \code{FALSE} and \proc{Scan} {\em undoes}
+this character.  There are many other edge conditions that are designed
+to make life easy for the \codeterm{scanner}.
+
+The following two procedures
+implement the semantics of \code{Read\-Token} using \proc{TextIO.\-Scan}:
+\begin{verbatim}
+TYPE
+    MaxTokenRange = [ 0 .. SysTypes.maxArrayIndexCHAR ];
+    TokenPtr      = POINTER TO ARRAY MaxTokenRange OF CHAR;
+    ScanInfo = RECORD
+        index   : MaxTokenRange;
+        high    : MaxTokenRange;
+        tokPtr  : TokenPtr;
+        badData : BOOLEAN;
+    END;
+    ScanInfoPtr = POINTER TO ScanInfo;
+
+PROCEDURE TokenScanner(
+    infoAdr : SysTypes.ANYPTR;
+    char    : CHAR
+    )       : BOOLEAN;
+    VAR
+        info : ScanInfoPtr;
+    BEGIN (* TokenScanner *)
+
+        info := infoAdr;
+        WITH info^ DO
+            IF NOT Chars.IsAlpha( char ) THEN
+                badData := badData OR ( index = 0 );
+                RETURN FALSE;   (* Always put character back *)
+
+            ELSIF index > high THEN     (* token is too long *)
+                badData := TRUE;
+                (* Consume the rest of the token *)
+
+            ELSE
+                (* Assign the character and increment pointer *)
+                tokPtr^[ index ] := char;
+                INC( index );
+            END;
+        END; (* WITH *)
+        RETURN TRUE;    (* keep going *)
+        
+    END TokenScanner;
+
+    
+PROCEDURE ReadToken(
+        file : TextIO.Object;    (* Must be readable *)
+    VAR tok  : ARRAY OF CHAR     (* Sequence of alphas *)
+    )        : TextIO.States;    (* ok => tok is valid *)
+    VAR
+        infoRec : ScanInfo;
+        state   : TextIO.States;
+    BEGIN (* ReadToken *)
+    
+        WITH infoRec DO
+            (* Set up for the scan *)
+            index   := 0;
+            high    := HIGH( tok );
+            tokPtr  := SYSTEM.ADR( tok );
+            badData := FALSE;
+
+            state := TextIO.Scan( file, TokenScanner, 
+                                  SYSTEM.ADR( infoRec ),
+                                  TextIO.skipLeadingWhiteSpace );
+            IF state # TextIO.ok THEN
+                RETURN state;   (* Failure was result of error *)
+                
+            ELSIF badData THEN
+                RETURN TextIO.SetError( file, IOErrors.badData );
+            
+            (* Null terminate? *)
+            ELSIF index <= HIGH( tok ) THEN
+                tok[ index ] := 0C;
+            END;
+        END; (* WITH *)
+        RETURN TextIO.ok;
+
+    END ReadToken;
+    
+\end{verbatim}
+
+\code{Read\-Token} performs an epilogue and prologue.  Upon
+return from \proc{Scan} terminating condition is
+{\em undone} (whether it is an invalid data or one of the
+terminating states).  The \code{Tok\-en\-Scan\-ner} is
+taken from the main loop of the \code{Read\-Token} in 
+section~\ref{TokenReader1}.  The only a small amount of the
+loop code is required, because 
+\proc{TextIO.\-Scan} ignores leading white-space and
+handles the edge conditions associated with the non-\codeterm{ok} 
+states.
+
+\newpage
+\finepoint{
+    The assignment of \code{info\-Adr} to \code{info} in
+    \code{Tok\-en\-Scan\-ner} is necessary to be perfectly
+    legitimate with Modula-2.  By the nature of Modula-2
+    pointers, however, all implementations of Modula-2 should
+    allow the following definition of \code{Tok\-en\-Scan\-ner}.
+{\tt
+\\ 
+\hspace*{2em}PROCEDURE TokenScanner(\\
+\hspace*{4em}info : ScanInfoPtr;\\
+\hspace*{2em}...\\
+}
+    and the following coercion:
+{\tt
+\\
+\hspace*{2em}...TextIO.Scan( file, TextIO.ScannerProc( TokenScanner ),\\
+\hspace*{10em}SYSTEM.ADR( infoRec ), ...\\
+}
+    Although not ``proper'', this is yet one more speed optimization
+    for die-hards.
+    }
+
+\section{Non-Sequential Reads and Writes}
+\label{FileIndexing}
+
+\module{BinaryIO} provides random access files.  \module{TextIO}
+is stream oriented therefore its streams are always sequential.
+The index operations are only available if the procedure
+\proc{BinaryIO.\-Is\-Index\-able} returns \code{TRUE}.  We
+assume the reader is generally familiar with random access files.
+
+\finepoint{
+    One may, however, {\em rewind} a text file or {\em append} to
+    a text file which was opened in \codeterm{read\-Only}.  The
+    procedures, \proc{Rewind}, \proc{Append}, and 
+    \proc{Rewind\-And\-Truncate} are used for this purpose.  See
+    the definition modules for more details.  Warning: these 
+    calls may not work on all text files just as indexing does not
+    work for all files.
+}
+
+\subsection{\codeterm{BinaryIO.\-Index}}
+
+A indexable binary file has a pointer of type \codeterm{BinaryIO.\-Index}.
+The declaration of an \code{Index} is implementation dependent.
+However, the type is made visible to allow more complex operations
+than can be provided by the portable operations defined in the library.
+\module{BinaryIO} exports several procedures for manipulating
+indices.  The following operations obtain or change
+a file's index.
+\begin{description}
+\item[\proc{GetIndex}]
+    {\em returns} the location of the {\em next} read or write.
+\item[\proc{SetIndex}]
+    {\em changes} the {\em next} read/write location.
+\item[\proc{GetStart}]
+    {\em returns} the {\em first} read/write location.
+\item[\proc{GetEnd}]
+    {\em returns} the location after the  {\em last} read/write location.  
+    After setting the file to this index, the next read should fail with
+    \codeterm{end\-Of\-File}.
+\end{description}
+
+\subsection{\codeterm{BinaryIO.\-Index} Computations}
+
+\module{BinaryIO} provides three portable operations on indices in
+general as follows:
+\begin{description}
+\item[\proc{CalculateIndex}] 
+    is used to move from one index to another by a number of homogeneous
+    file elements.  The size of the elements is expressed in numbers
+    of \codeterm{SAU}s.  The number of elements may be negative or positive
+    for backwards or forwards movements, respectively.  Once an index
+    is computed, \proc{Set\-Index} must be called for it take effect
+    on a particular file.
+\item[\proc{CompareIndex}]
+    provides an absolute sorting of all file indices.  The return
+    value is one of the \codeterm{Intrinsics.\-Compare\-Results}.
+\item[\proc{IndexToString}]
+    converts an \codeterm{Index} to a character string for diagnostic
+    output.
+    
+\end{description}
+
+\section{The \codeterm{options} Parameter}
+\label{IOOptions}
+\index{\code{options}}
+
+The procedures \proc{BinaryIO.\-Open}, \proc{TextIO.\-Open}, and
+\proc{DirIO.\-Create\-Entry} all accept a parameter called
+\codeterm{options}.  This parameter (borrowed from the Ada programming
+language) identifies
+implementation specific parameters.  An implementation specific
+parameter can be just about anything.  \module{TextIO} and
+\module{BinaryIO} export a constant \codeterm{default\-Options}
+for the normal case of an ordinary file open.  \module{DirIO}
+exports three values: \codeterm{create\-Text\-File}, 
+\codeterm{create\-Binary\-File}, and \codeterm{create\-Directory}.
+
+\subsection{\proc{Make\-Options}}
+
+Each of these modules exports a procedure called \proc{Make\-Options}
+to create options strings from implementation specific parameters.
+The following example is taken from \module{TextIO} as implemented
+for the Sun and MS-DOS:
+\begin{verbatim}
+    TextIO.MakeOptions( TextIO.doNotBuffer, BinaryIO.defaultOptions,
+                        options );
+\end{verbatim}
+\module{TextIO} supports two parameters:
+\codeterm{Buf\-fer\-ing\-Modes} and \codeterm{binary\-Options}.
+The first reveals that the implementation of  \module{TextIO} 
+has internal buffering.  With the parameter, you can turn on or
+off buffering if the default mode is not what is required.  The
+second parameter indicates that \module{TextIO} uses \module{BinaryIO}
+to implement its access to the external files.
+The description of \proc{TextIO.\-Make\-Options} in the definition
+module states that the \codeterm{binary\-Options} parameter is passed
+through to the \proc{BinaryIO.\-Open}.  In this case, we chose
+to use \codeterm{BinaryIO.\-default\-Options} (which is always defined
+to be the empty string).
+The procedure \proc{Make\-Options} takes no semantic action other
+than to produce the \codeterm{options} string.
+
+\subsection{More Implementation Specific Examples}
+
+When the library was first designed, the \codeterm{options} strings
+had little meaning other than as a slot for the future.  Today there
+are many uses for options strings, the most common is to create
+\newterm{string files}.  A string file is memory only, that is,
+it is not associated with an \newterm{external file}.  The
+module \module{String\-BinaryIO} supports these memory only files.
+To open a binary string file, the following can be used:
+\begin{verbatim}
+    VAR
+        options : BinaryIO.Options;
+    ...
+    BinaryIO.MakeOptions( StringBinaryIO.className, '', options );
+    IOErrors.DONTCARE := BinaryIO.Open( file, '', BinaryIO.readWrite,
+                                        options );
+\end{verbatim}
+
+The \codeterm{options} string
+is created and the succeeding call to \proc{BinaryIO.\-Open} always
+succeeds.\footnote{Or the program terminates for lack of memory.
+    Perhaps someday there will be a \module{String\-BinaryIO} option
+    which will cause failure to be returned (e.g. 
+    \code{IOErrors.\-no\-More\-Room}).}
+The \code{file} is just like any other open binary file with the
+exception that when the program terminates, so does the existence
+of the ``external file'' associated with \code{file}.
+
+\module{StringBinaryIO} is a \newterm{class} implemenation of
+the \newterm{category} represented by the module \module{BinaryIO}.
+A category defines a common set
+of operations for a group of classes.  For a class to be a member
+of a category it must implement the defined set of operations.
+The terms class and category are discussed in 
+chapter~\ref{ClassesChapter}.  In any event, \module{BinaryIO}
+supports several different kinds of files and allows importers
+to define their own classes.  
+
+The following demonstrates the real need for options as they
+are defined.
+\begin{verbatim}
+    VAR
+        options : ARRAY [ 0 .. StringBinaryIO.maxOptionsLength
+                             + BinaryIO.maxOptionsLength
+                             + TextIO.maxOptionsLength ] OF CHAR;
+    ...
+    StringBinaryIO.MakeOptions( StringBinaryIO.minBlockSize, options );
+    BinaryIO.MakeOptions( StringBinaryIO.className, options, options );
+    TextIO.MakeOptions( TextIO.doNotBuffer, options, options );
+    IOErrors.DONTCARE := TextIO.Open( file, '', TextIO.appendOnly,
+                                      options );
+\end{verbatim}
+This incantation creates a {\em text} string file which will
+allocate the minimum block size blocks.  
+Note that the \codeterm{options} string must be specially declared
+to have enough space for all of these options.

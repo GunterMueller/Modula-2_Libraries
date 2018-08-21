@@ -1,0 +1,599 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE NameLists;
+(*
+ * Name lists are multi-part.  There is the list descriptor
+ * (Object);  The list element (Element); and the names
+ * themselves (Name).  The names are limited by the size
+ * of an ARRAY OF CHAR.  Each name is allocated exactly the
+ * amount of space required.  The Elements are managed by Lists.
+ *
+ * The various classes of lists are managed by in-line checks.
+ * of findCase.  This probably could be changed
+ * to a method table, but for the time being it works and was
+ * easy to implement.   The checks are usually O(1), so they
+ * aren't expensive.
+ *
+ * NOTE: We do not do assertion checking on the lists, because
+ *       all list operations go always to Lists which does
+ *	 assertion checking (no sense in being overly redundant).
+ * 
+ * PORTABILITY NOTE:
+ *      To handle 0 length strings efficiently, we say its "high"
+ *      is 0 and assign 0C to the array.  This will work in all
+ *      cases as long as SysTypes.MINCHAR = 0C.  (SysTypesCheck)
+ *)
+IMPORT
+    Chars,
+    Intrinsics, 
+    Objects,
+    Lists,
+    SafeStorage,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END 
+
+CONST
+    highToSize  = SysTypes.bitsPerArrayCHAR DIV SysTypes.bitsPerSAU;
+	(* 
+	 * To use this value say: size := ( high + 1 ) DIV highToSize.
+	 *
+	 * ASSUMES: SysTypes.bitsPerArrayCHAR >= SysTypes.bitsPerSAU
+	 * See SysTypesCheck in init body.
+	 *)
+TYPE
+    NameArray   = ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR ] OF CHAR; 
+    (* largest structure *)
+    Name        = RECORD
+        high        : SysTypes.Card;         	(* length - 1 *)
+        value       : POINTER TO NameArray;
+    END;
+
+    Object     = POINTER TO ObjectRec;
+    ObjectRec  = RECORD
+        findCase : FindCases;     (* how to insert and what to return *)
+	realList : Lists.Object;  (* The actual list *)
+    END; (* ObjectRec *)
+
+VAR
+    listMgr : Objects.Manager;
+
+PROCEDURE Create(
+    VAR list          : Object;
+        howToTraverse : Orderings;
+        howToFind     : FindCases
+    );
+    BEGIN (* Create *)
+
+        Objects.Allocate( listMgr, list );
+
+        (* Initialize *)
+	WITH list^ DO
+	    findCase := howToFind;
+	    IF findCase = caseInsensitive THEN
+		Lists.SpecialCreate( realList, Lists.NoAssert, 
+				     InsensitiveCompare, SYSTEM.TSIZE( Name ),
+				     howToTraverse );
+	    ELSE
+		Lists.SpecialCreate( realList, Lists.NoAssert, 
+				     SensitiveCompare, SYSTEM.TSIZE( Name ),
+				     howToTraverse );
+	    END;
+	END; (* WITH *)
+
+    END Create;
+
+
+PROCEDURE Destroy(
+    VAR list : Object
+    );
+    VAR
+        name : Name;
+    BEGIN (* Destroy *)
+
+	IF NOT Objects.IsValid( listMgr, list ) THEN 
+	    RETURN;
+	END;
+           
+        WITH list^ DO 
+	    
+	    (* Objects.MakeFirstNext is initialized... *)
+	    Lists.MakeFirstNext( realList );
+	    WHILE Lists.Next( realList, name, DONTCARE ) DO
+		DisposeName( name );
+	    END;
+	    Lists.Destroy( realList );
+
+        END; (* WITH list *)
+
+        Objects.Deallocate( listMgr, list );
+
+    END Destroy;
+
+
+PROCEDURE SetInvalid(
+    VAR list : Object
+    );
+    BEGIN (* SetInvalid *)
+	
+	list := NIL;
+    
+    END SetInvalid;
+
+
+PROCEDURE Insert(
+    list           : Object;
+    name           : ARRAY OF CHAR;
+    importerObject : SysTypes.ANYPTR
+    );
+    VAR
+        nam : Name;
+    BEGIN (* Insert *)
+
+	FillName( name, list^.findCase, nam );
+	Lists.Insert( list^.realList, nam, importerObject );
+
+    END Insert;
+
+
+PROCEDURE DeleteCurrent(
+    list : Object
+    );
+    (*
+     * Delete "current" entry with the extra links.
+     * This is kind of messy.  Basically, the tree deletion with
+     * the parent nodes makes for a lot of tests, but it is simpler.
+     *)
+    VAR
+        nam : Name;
+    BEGIN (* DeleteCurrent *)
+
+        WITH list^ DO
+	    Lists.GetCurrent( realList, nam, DONTCARE );
+            DisposeName( nam );
+	    Lists.DeleteCurrent( realList );
+
+        END; (* WITH list *)
+
+    END DeleteCurrent;
+
+
+PROCEDURE DeleteAll(
+    list : Object    (* must be a valid object *)
+    );
+    (*
+     * Have to deallocate the names individually and then call
+     * Lists.DeleteAll.
+     *)
+    VAR
+        name : Name;
+    BEGIN (* DeleteAll *)
+
+	WITH list^ DO
+	    Lists.MakeFirstNext( realList );
+	    WHILE Lists.Next( realList, name, DONTCARE ) DO
+		DisposeName( name );
+	    END;
+	    Lists.DeleteAll( realList );
+	END; (* WITH *)
+           
+    END DeleteAll;
+
+
+PROCEDURE Find(
+        list           : Object;
+        name           : ARRAY OF CHAR;
+    VAR importerObject : SysTypes.ANYPTR
+    )                  : BOOLEAN;
+    (*
+     * We have to make "name" look like a "Name", thus we
+     * must change the its appearance based on the findCase.
+     *)
+    VAR
+        toFind : Name;
+    BEGIN (* Find *)
+
+	WITH toFind DO
+	    (*
+	     * Set up the high and the value so it points to "name".
+	     *)
+	    high := Strings.Length( name );
+
+	    IF high # 0 THEN
+		DEC( high );         (* adjust for a high, not length *)
+	    END;
+	    value := SYSTEM.ADR( name );
+ 
+	END; (* WITH *)
+
+	WITH list^ DO 
+	    (*
+	     * Convert if needed.
+	     *)
+	    CASE list^.findCase OF
+		allLowerCase:   
+		    Chars.StringToLower( name );
+		|
+		allUpperCase:   
+		    Chars.StringToUpper( name );
+		ELSE
+		    (* Nothing to do *)
+	    END; (* CASE *)
+
+	    RETURN Lists.Find( realList, toFind, importerObject ); 
+        END; (* WITH list *)
+
+    END Find;
+
+
+PROCEDURE InsensitiveCompare(
+    leftHand  : SysTypes.ANYPTR;
+    rightHand : SysTypes.ANYPTR
+    )         : Intrinsics.CompareResults;
+    VAR
+	leftHandPtr  : POINTER TO Name;
+	rightHandPtr : POINTER TO Name;
+        i            : SysTypes.Card;
+        minHigh      : SysTypes.Card;
+        lc           : CHAR;
+        rc           : CHAR;
+    BEGIN (* InsensitiveCompare *)
+        
+	leftHandPtr  := leftHand;
+	rightHandPtr := rightHand;
+
+        (* Get the minimum "high" *)
+        IF leftHandPtr^.high > rightHandPtr^.high THEN
+            minHigh := rightHandPtr^.high;
+        ELSE
+            minHigh := leftHandPtr^.high;
+        END;
+
+        (* Compare characters until an inequality is found or i = minHigh *)
+        i := 0;
+        LOOP 
+            lc := leftHandPtr^.value^[ i ];
+            rc := rightHandPtr^.value^[ i ];
+            IF lc # rc THEN
+		(* 
+		 * Have to check for case sensitive differences.
+		 *)
+		IF ( lc >= 'a' ) AND ( lc <= 'z' ) THEN
+		    lc := CAP( lc );
+		END;
+		IF ( rc >= 'a' ) AND ( rc <= 'z' ) THEN
+		    rc := CAP( rc );
+		END;
+		IF rc # lc THEN
+		    EXIT;
+		END;
+            END;
+            IF i >= minHigh THEN
+                EXIT;
+            END;
+            INC( i );
+        END;
+
+        (* Which way did the search go? *)
+        IF lc = rc THEN
+            IF leftHandPtr^.high = rightHandPtr^.high THEN
+                RETURN Intrinsics.equal;
+            END;
+            IF leftHandPtr^.high < rightHandPtr^.high THEN
+                RETURN Intrinsics.less;
+            END;
+            RETURN Intrinsics.greater;
+        END;
+
+        IF lc > rc THEN
+            RETURN Intrinsics.greater;
+        END;
+
+        RETURN Intrinsics.less;
+
+    END InsensitiveCompare;
+
+
+PROCEDURE SensitiveCompare(
+    leftHand  : SysTypes.ANYPTR;
+    rightHand : SysTypes.ANYPTR
+    )         : Intrinsics.CompareResults;
+    VAR
+	leftHandPtr  : POINTER TO Name;
+	rightHandPtr : POINTER TO Name;
+        i            : SysTypes.Card;
+        minHigh      : SysTypes.Card;
+        lc           : CHAR;
+        rc           : CHAR;
+    BEGIN (* SensitiveCompare *)
+        
+	leftHandPtr  := leftHand;
+	rightHandPtr := rightHand;
+
+        (* Get the minimum "high" *)
+        IF leftHandPtr^.high > rightHandPtr^.high THEN
+            minHigh := rightHandPtr^.high;
+        ELSE
+            minHigh := leftHandPtr^.high;
+        END;
+
+        (* Compare characters until an inequality is found or i = minHigh *)
+        i := 0;
+        LOOP 
+            lc := leftHandPtr^.value^[ i ];
+            rc := rightHandPtr^.value^[ i ];
+            IF lc # rc THEN
+		EXIT;
+            END;
+            IF i >= minHigh THEN
+                EXIT;
+            END;
+            INC( i );
+        END;
+
+        (* Which way did the search go? *)
+        IF lc = rc THEN
+            IF leftHandPtr^.high = rightHandPtr^.high THEN
+                RETURN Intrinsics.equal;
+            END;
+            IF leftHandPtr^.high < rightHandPtr^.high THEN
+                RETURN Intrinsics.less;
+            END;
+            RETURN Intrinsics.greater;
+        END;
+
+        IF lc > rc THEN
+            RETURN Intrinsics.greater;
+        END;
+
+        RETURN Intrinsics.less;
+
+    END SensitiveCompare;
+
+
+PROCEDURE Next(
+        list           : Object;
+    VAR name           : ARRAY OF CHAR;
+    VAR importerObject : SysTypes.ANYPTR
+    )                  : BOOLEAN;
+    VAR
+        nam : Name;
+    BEGIN (* Next *)
+
+	IF NOT Lists.Next( list^.realList, nam, importerObject ) THEN
+	    RETURN FALSE;
+	END;
+
+	NameToString( nam, name );
+	RETURN TRUE;
+
+    END Next;
+    
+
+PROCEDURE MakeFirstNext(
+    list : Object
+    );
+    (* 
+     * Just set up for the "next" call to next.
+     *)
+    BEGIN (* MakeFirstNext *)
+
+	Lists.MakeFirstNext( list^.realList );
+
+    END MakeFirstNext;
+
+
+PROCEDURE GetCurrent(
+        list           : Object;
+    VAR name           : ARRAY OF CHAR;
+    VAR importerObject : SysTypes.ANYPTR
+    );
+    VAR
+	nam : Name;
+    BEGIN  (* GetCurrent *)
+
+	Lists.GetCurrent( list^.realList, nam, importerObject );
+	NameToString( nam, name );
+
+    END GetCurrent;
+
+
+PROCEDURE ChangeCurrentObject(
+    list           : Object;
+    importerObject : SysTypes.ANYPTR
+    );
+    BEGIN (* ChangeCurrentObject *)
+	
+	Lists.ChangeCurrentObject( list^.realList, importerObject );
+
+    END ChangeCurrentObject;
+
+
+PROCEDURE ChangeCurrentName(
+    list    : Object;
+    newName : ARRAY OF CHAR
+    );
+    VAR
+	nam : Name;
+    BEGIN (* ChangeCurrentName *)
+
+	WITH list^ DO
+        
+	    Lists.GetCurrent( realList, nam, DONTCARE );
+	    DisposeName( nam );
+	    FillName( newName, findCase, nam );
+	    Lists.ChangeCurrentKey( realList, nam );
+
+	END; (* WITH *)
+
+    END ChangeCurrentName;
+
+
+PROCEDURE GetCount( 
+    list : Object     (* must be valid *)
+    )    : SysTypes.Card;  (* number of elements in the list *)
+    BEGIN (* GetCount *)
+    
+	RETURN Lists.GetCount( list^.realList );
+
+    END GetCount;
+
+
+PROCEDURE GetOrdering(
+    list : Object
+    )    : Orderings;
+    BEGIN (* GetOrdering *)
+
+	RETURN Lists.GetOrdering( list^.realList );
+
+    END GetOrdering;
+
+
+PROCEDURE GetFindCase(
+    list : Object
+    )    : FindCases;
+    BEGIN (* GetFindCase *)
+	
+	@IF Assert THEN
+	    (* Must assertion check here *)
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+
+	RETURN list^.findCase;
+
+    END GetFindCase;
+
+    
+PROCEDURE NameToString(
+        name   : Name;
+    VAR string : ARRAY OF CHAR
+    );
+    (* 
+     * Fill string with name.value^.
+     *)
+    VAR
+        i       : SysTypes.Card;
+        minHigh : SysTypes.Card;
+    BEGIN (* NameToString *)
+
+        WITH name DO
+
+            IF HIGH( string ) > high THEN
+                minHigh := high;
+                string[ minHigh + 1 ] := 0C;    (* while we know... *)
+            ELSE
+                minHigh := HIGH( string );
+            END;
+
+            FOR i := 0 TO minHigh DO
+                string[ i ] := value^[ i ];
+            END;
+
+        END; (* WITH *)
+
+    END NameToString;
+
+
+PROCEDURE FillName(
+        string   : ARRAY OF CHAR;
+        findCase : FindCases;
+    VAR name     : Name
+    );
+    (*
+     * Take string and allocate a name.value which is String.Length( string )
+     * bytes long.  Copy the string into name.value^ whilst converting
+     * if necessary based on findCase.
+     *
+     * Assert: Never passed a zero length string!
+     *)
+    VAR
+        i : SysTypes.Card;
+    BEGIN (* FillName *)
+
+        WITH name DO
+            high := Strings.Length( string );
+
+	    IF high = 0 THEN
+		INC( high );
+	    END;
+            
+            SafeStorage.ALLOCATE( value, high DIV highToSize );
+
+            DEC( high );         (* adjust for a high, not length *)
+
+	    (*
+	     * Optimized for caseSensitive and caseInsensitive 
+	     * cases.
+	     *)
+            CASE findCase OF
+                allLowerCase:   
+		    Chars.StringToLower( string );
+                |
+	        allUpperCase:   
+		    Chars.StringToUpper( string );
+	        ELSE
+		    (* Nothing to do *)
+            END; (* CASE *)
+
+            FOR i := 0 TO high DO
+                value^[ i ] := string[ i ]; (* simple copy *)
+            END;
+
+        END; (* WITH *)
+    END FillName;
+
+
+PROCEDURE DisposeName(
+    VAR name : Name
+    );
+    (*
+     * Get rid of name^.value
+     *)
+    BEGIN (* DisposeName *)
+
+        WITH name DO
+            SafeStorage.DEALLOCATE( value, ( high + 1 ) DIV highToSize );
+            high  := 0;         (* just in case *)
+            value := NIL;
+        END;
+
+    END DisposeName;
+
+
+BEGIN (* NameLists *)
+
+    @IF SysTypesCheck THEN
+	IF ( highToSize = 0 ) OR ( SysTypes.MINCHAR # 0C ) THEN
+	    ProgErr.Terminate( "NameLists: SysTypesCheck failed." );
+	END;
+    @END
+    Objects.CreateManager( listMgr, SYSTEM.TSIZE( ObjectRec ), 'NameLists' );
+
+    Lists.PRIVATEInitialize;	(* Must come after our list *)
+
+END NameLists.

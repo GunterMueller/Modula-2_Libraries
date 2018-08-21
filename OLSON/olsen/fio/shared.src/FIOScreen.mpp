@@ -1,0 +1,158 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOScreen;
+
+IMPORT
+    IOErrors,
+    FIOBase,
+    ScreenIO,
+    TextIO,
+    SysTypes;
+
+CONST
+    maxAttributeList = 20;	
+	(* Maximum number of attributes in a single format spec *)
+
+CONST
+    firstChar = 'a';	(* Characters of interest in "+" and '-' *)
+    lastChar  = 'u';
+VAR
+    charToAttr : ARRAY [ firstChar .. lastChar ] OF ScreenIO.AttributeSet;
+CONST
+    noAttr = ScreenIO.AttributeSet { };
+
+PROCEDURE Write(
+    DONTCARE1 : SysTypes.ANYPTR; (* importer object *)
+    outFile   : TextIO.Object;   (* we always use ScreenIO, not this *)
+    format    : ARRAY OF CHAR;   (* format string to parse *)
+    DONTCARE2 : SysTypes.SAUPTR; (* address of data to be written *)
+    DONTCARE3 : SysTypes.Card    (* size of data *)
+    )         : TextIO.States;   (* TextIO.ok if all ok *)
+    (*
+     * This is an almost trivial format.
+     * All output goes to the screen and no actual
+     * data is ever written.
+     *
+     * There is a problem: ScreenIO only exports a procedure that 
+     * makes the cursor go to a specific row AND col. The format
+     * on the other hand specifies seperate r and c arguments.
+     * We thus have to use some magic so that we call ScreenIO
+     * only after getting both values.
+     *)
+    VAR
+        list       : ARRAY [ 0 .. maxAttributeList ] OF CHAR;
+        attributes : ScreenIO.AttributeSet;    (* from list *)
+	haveAttr   : BOOLEAN;
+        rowValue   : SysTypes.Card;
+        colValue   : SysTypes.Card;
+	rowSet     : BOOLEAN;
+	colSet     : BOOLEAN;
+        error      : BOOLEAN;
+        i          : SysTypes.Card;
+	ch         : CHAR;
+	turnOn     : BOOLEAN;
+    BEGIN (* Write *)
+	rowSet   := FALSE;
+	colSet   := FALSE;
+	haveAttr := FALSE;
+        error  := FALSE;
+        WHILE ( format[ 0 ] # 0C ) AND NOT error DO
+            ch := FIOBase.GetSpecifier( format );
+	    CASE ch OF
+                '+', '-':  (* Change attributes *)
+		    turnOn := ch = '+';
+                    error := NOT FIOBase.GetString( format, list );
+                    IF NOT error THEN
+			IF NOT haveAttr THEN
+			    attributes := ScreenIO.GetAttributes( );
+			    haveAttr := TRUE;
+			END;
+			i := 0;
+			LOOP
+			    IF i > HIGH( list ) THEN 
+				EXIT; 
+			    END;
+			    ch := list[ i ];
+			    IF ( firstChar > ch ) OR ( ch > lastChar ) 
+			      OR ( charToAttr[ ch ] = noAttr ) THEN
+				error := ch # 0C;
+				EXIT;
+			    END;
+			    IF turnOn THEN
+				attributes := attributes + charToAttr[ ch ];
+			    ELSE
+				attributes := attributes - charToAttr[ ch ];
+			    END;
+			    INC( i );
+			END;
+		    END;
+		|
+                'r' : (* goto row *)
+                    error  := NOT FIOBase.GetCard( format, 10, rowValue );
+		    rowSet := TRUE;
+		|
+                'c' : (* goto col *)
+                    error  := NOT FIOBase.GetCard( format, 10, colValue );
+		    colSet := TRUE;
+            ELSE
+                (* illegal character *)
+                error := TRUE;
+            END (* CASE *);
+        END (* WHILE *);
+
+        IF error OR ( rowSet # colSet ) THEN
+            (* we use the out file to indicate an error *)
+            RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+        ELSE
+            IF rowSet THEN  (* colSet must be the same *)
+                (* must go to both row and col *)
+                ScreenIO.GotoRowCol( rowValue, colValue );
+            END;
+	    IF haveAttr THEN
+		ScreenIO.SetAttributes( attributes );
+	    END;
+            (* ScreenIO calls an error notice if necessary *)
+            RETURN TextIO.ok;
+        END (* IF *);
+    END Write;
+
+
+VAR
+    i : SysTypes.Card;	(* Should be char, but some compilers have trouble *)
+BEGIN (* FIOScreen *)
+    FOR i := ORD( firstChar ) TO ORD( lastChar ) DO
+	charToAttr[ CHR( i ) ] := noAttr;
+    END;
+    charToAttr[ 'a' ] := ScreenIO.AttributeSet { 
+			    ScreenIO.minAttribute .. ScreenIO.maxAttribute };
+    charToAttr[ 'b' ] := ScreenIO.AttributeSet { ScreenIO.bold };
+    charToAttr[ 'd' ] := ScreenIO.AttributeSet { ScreenIO.dim }; 
+    charToAttr[ 'i' ] := ScreenIO.AttributeSet { ScreenIO.inverse };
+    charToAttr[ 'k' ] := ScreenIO.AttributeSet { ScreenIO.blink };
+    charToAttr[ 'u' ] := ScreenIO.AttributeSet { ScreenIO.underline };
+
+    (* register the write procedure *)
+    (* no actual data is written, so noParameter *)
+    FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE,
+        FIOBase.noParameter );
+END FIOScreen.

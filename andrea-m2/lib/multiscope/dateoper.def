@@ -1,0 +1,59 @@
+DEFINITION MODULE DateOperations;
+
+(* Date and calendar procedures *)
+(* J. Andrea, Aug.16/92 *)
+(* Date calculations, dates valid only for 1-jan-1901 to 31-dec-2099 *)
+
+EXPORT QUALIFIED Date,
+                 Today,
+                 StringToDate, DateToString, MakeDate,
+                 LeapYear,
+                 DayOfYear, DayOfWeek,
+                 DaysBetween, AddDays, SubtractDays, Compare,
+                 PhaseOfMoon;
+                 
+TYPE
+   Date = RECORD
+            day, month, year :CARDINAL;
+            number :LONGINT;
+            true   :BOOLEAN;
+          END;
+   
+   PROCEDURE Today( VAR date :Date );
+   (* return the current time as a date *)
+   
+   PROCEDURE StringToDate( string :ARRAY OF CHAR; VAR date :Date );
+   PROCEDURE DateToString( date :Date; VAR string :ARRAY OF CHAR );
+   (* Convert to and from strings in VMS format dd-mmm-yyyy *)
+   
+   PROCEDURE MakeDate( day, month, year :CARDINAL; VAR date :Date );
+   (* create a date from only numeric info *)
+   
+   PROCEDURE LeapYear( year :CARDINAL ) :BOOLEAN;
+   (* is the given year a leap year *)
+                       
+   PROCEDURE DayOfYear( date :Date ) :CARDINAL;
+   (* return the day of the year 1 to 365 (or 366) *)
+   (* a zero is returned for invalid dates *)
+
+   PROCEDURE DayOfWeek( date :Date; VAR name :ARRAY OF CHAR );
+   (* return the day of the week, Sunday, Monday, etc. *)
+   (* an empty string is returned for invalid dates *)
+   
+   PROCEDURE DaysBetween( date1, date2 :Date ) :LONGINT;
+   (* return the number of days between the two given days *)
+   
+   PROCEDURE AddDays( in_date :Date; days :CARDINAL; VAR out_date :Date );
+   (* add the specified number of days to the given date *)
+   
+   PROCEDURE SubtractDays( in_date :Date; days :CARDINAL; VAR out_date :Date );
+   (* subtract the specified number of days from the given date *)
+                          
+   PROCEDURE Compare( date1, date2 :Date ) :CHAR;
+   (* return one of "=", ">", "<", or null (if one date is invalid *)
+
+   PROCEDURE PhaseOfMoon( date :Date; VAR phase :ARRAY OF CHAR );
+   (* return the phase of the moon as a string *)
+   (* an empty string is returned for invalid dates *)
+
+END DateOperations.

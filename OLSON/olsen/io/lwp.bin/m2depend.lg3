@@ -1,0 +1,46 @@
+dirio.obj: ..\..\gen\bin\card32.sym ..\..\gen\bin\dos.sym ..\bin\dirio.sym  \
+           ..\bin\dosioerr.sym ..\bin\dosionam.sym  \
+           ..\..\gen\lwp.bin\dosmonit.sym ..\bin\ioconsts.sym  \
+           ..\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+           ..\..\gen\bin\namelist.sym ..\..\gen\bin\strings.sym  \
+           ..\..\gen\bin\systypes.sym 
+dosbinar.obj: ..\bin\binaryio.sym ..\..\gen\bin\cardconv.sym  \
+              ..\bin\catbinar.sym ..\..\gen\bin\chars.sym ..\bin\confbina.sym  \
+              ..\..\gen\bin\dos.sym ..\bin\dosbinar.sym ..\bin\dosioerr.sym  \
+              ..\..\gen\lwp.bin\dosmonit.sym ..\bin\ioconsts.sym  \
+              ..\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+              ..\..\gen\bin\modinit.sym ..\..\gen\bin\objects.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+iomonito.sym: ..\..\gen\lwp.bin\taskmoni.sym 
+iomonito.obj: iomonito.sym ..\..\gen\lwp.bin\taskmoni.sym 
+ionames.obj: ..\..\gen\bin\cardconv.sym ..\..\gen\bin\chars.sym  \
+             ..\..\gen\bin\dos.sym ..\bin\dirio.sym  \
+             ..\..\gen\lwp.bin\dosmonit.sym ..\bin\ioconsts.sym  \
+             ..\bin\ioerrors.sym ..\bin\ionames.sym  \
+             ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progargs.sym  \
+             ..\..\gen\bin\progerr.sym ..\..\gen\bin\strings.sym  \
+             ..\..\gen\bin\systypes.sym 
+keyboard.obj: ..\..\gen\bin\i8086.sym ..\..\gen\lwp.bin\interrup.sym  \
+              ..\bin\keyboard.sym ..\..\gen\bin\notices.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\gen\lwp.bin\taskmoni.sym  \
+              ..\..\gen\lwp.bin\tasks.sym 
+simpleio.obj: ..\bin\cardio.sym ..\bin\ioerrors.sym iomonito.sym  \
+              ..\bin\intio.sym ..\..\gen\bin\progerr.sym ..\bin\realio.sym  \
+              ..\bin\simpleio.sym ..\bin\stringio.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\gen\lwp.bin\taskmoni.sym  \
+              ..\bin\textio.sym ..\bin\textiopr.sym 
+textio.obj: ..\bin\binaryio.sym ..\..\gen\bin\cardconv.sym  \
+            ..\bin\catbinar.sym ..\..\gen\bin\chars.sym  \
+            ..\..\gen\bin\genconst.sym ..\bin\ioconsts.sym  \
+            ..\bin\ioerrors.sym iomonito.sym ..\..\gen\bin\notices.sym  \
+            ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+            ..\..\gen\bin\progerro.sym ..\..\gen\bin\strings.sym  \
+            ..\..\gen\bin\systypes.sym ..\..\gen\lwp.bin\taskmoni.sym  \
+            ..\bin\textio.sym ..\bin\textiopr.sym 
+textiopr.obj: ..\bin\binaryio.sym ..\bin\ioerrors.sym iomonito.sym  \
+              ..\..\gen\bin\notices.sym ..\..\gen\bin\objects.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\gen\lwp.bin\taskmoni.sym ..\bin\textio.sym  \
+              ..\bin\textiopr.sym 

@@ -1,0 +1,42 @@
+DEFINITION MODULE MoreStrings;
+
+(* misc. extra string functions *)
+
+(* V3.0, J. Andrea, Jun.17/93 -move some extended functions to ExtendStrings *)
+(* V2.0, J. Andrea, Jun.26/92 -add Contains *)
+(* revitalized - J. Andrea, Aug.12/91 *)
+(* V1.0, J. Andrea, Apr 1986 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED EqualSubString,
+                 Locate, Contains;
+
+PROCEDURE EqualSubString( a, b :ARRAY OF CHAR;
+                          start, len :CARDINAL ) :BOOLEAN;
+(*
+ Compare similar substrings of two strings 'a' and 'b'.
+
+ If the specified position of the substring is not completely
+ contained in both 'a' and 'b' then FALSE is returned.
+*)
+
+
+PROCEDURE Locate( string, pattern :ARRAY OF CHAR;
+                  start :CARDINAL ) :CARDINAL;
+(*
+ Find the first occurance of 'pattern' in 'source' starting at the
+ 'start'TH character.
+ If the substring isn't found then a zero is returned.
+ If the substring is found then the relative position in 'source'
+   is returned. Relative positions start at 1, meaning first character.
+*)
+
+
+PROCEDURE Contains( string, pattern :ARRAY OF CHAR ) :BOOLEAN;
+(*
+ Does the 'pattern' occur in 'source', yes or no.
+ The case of characters is not signifigant.
+*)
+
+END MoreStrings.

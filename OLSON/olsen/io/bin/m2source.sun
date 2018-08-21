@@ -1,0 +1,13 @@
+M2Defs= BinaryIO.def BinarySupportIO.def CardIO.def CatBinaryIO.def  \
+        ConfBinaryIO.def DirIO.def IOConsts.def IOErrors.def IONames.def  \
+        IOSearchPaths.def IOVersions.def IntIO.def RealIO.def ScreenIO.def  \
+        SimpleIO.def StringBinaryIO.def StringIO.def TextIO.def  \
+        TextIOPRIVATE.def TextSupportIO.def UnixBinaryIO.def UnixIOErrors.def  \
+        UnixIONames.def 
+M2Imps= BinaryIO.mod BinarySupportIO.mod CardIO.mod CatBinaryIO.mod  \
+        ConfBinaryIO.mod DirIO.mod IOConsts.mod IOErrors.mod IONames.mod  \
+        IOSearchPaths.mod IOVersions.mod IntIO.mod RealIO.mod ScreenIO.mod  \
+        SimpleIO.mod StringBinaryIO.mod StringIO.mod TextIO.mod  \
+        TextIOPRIVATE.mod TextSupportIO.mod UnixBinaryIO.mod UnixIOErrors.mod  \
+        UnixIONames.mod 
+M2Mods= 

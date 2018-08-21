@@ -1,0 +1,53 @@
+DEFINITION MODULE SetOfChar;
+
+(*
+ Some implementations cannot handle SETs of CHAR type because that type has
+ too large a range. This module overcomes that limitation, allowing for
+ 256 character values, from zero to 255.
+*)
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Apr.5/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED CharSet,
+                 Build, Destroy, Empty, Fill,
+                 Incl,  Excl,    In,
+                 Not,   Equal,
+                 Copy,  Duplicate;
+
+TYPE CharSet;   (* opaque *)
+
+PROCEDURE Build( VAR s :CharSet );
+(* create a set *)
+
+PROCEDURE Destroy( VAR s :CharSet );
+(* get rid of the specified set *)
+
+PROCEDURE Empty( s :CharSet );
+(* turn off all elements *)
+
+PROCEDURE Fill( s :CharSet );
+(* turn on all elements *)
+
+PROCEDURE Incl( s :CharSet; c :CHAR );
+(* put the specified character into the set *)
+
+PROCEDURE Excl( s :CharSet; c :CHAR );
+(* take the specified character out of the set *)
+
+PROCEDURE In( s :CharSet; c :CHAR ) :BOOLEAN;
+(* determine if the character is in the set *)
+
+PROCEDURE Not( s :CharSet );
+(* invert the set *)
+
+PROCEDURE Equal( s, t :CharSet ) :BOOLEAN;
+(* compare two sets, return TRUE if they are the same *)
+
+PROCEDURE Copy( s, t :CharSet );
+(* make 't' equal to 's', iff sizes are the same *)
+
+PROCEDURE Duplicate( s :CharSet; VAR t :CharSet );
+(* copy set 's' into a new set 't' *)
+
+END SetOfChar.

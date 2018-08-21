@@ -1,0 +1,228 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE TestIntConv; 
+
+IMPORT 
+    IntConvert,     Objects,       SYSTEM,     
+    GenTestIO,      TestIO,        TestSystem,    StringLib;
+
+TYPE
+    PointerToData = POINTER TO DataRec;
+    DataRec = RECORD
+		  Source,
+		  Target,
+		  Result: StringLib.string;
+		  Num: INTEGER; 
+		  Width: CARDINAL; 
+              END;
+
+VAR
+    DataMgr: Objects.Manager;
+
+(* ---------------------------------------------------------------------- *)
+(* Test construction:                                                     *)
+(* ---------------------------------------------------------------------- *)
+PROCEDURE ToString( Num: INTEGER;  Width: CARDINAL;  
+		    VAR String: StringLib.string ): BOOLEAN;
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    StringLib.short:
+		RETURN IntConvert.ToString( Num, Width, ShortString )
+            |
+	    StringLib.normal:
+		RETURN IntConvert.ToString( Num, Width, NormalString )
+            |
+	    StringLib.long:
+		RETURN IntConvert.ToString( Num, Width, LongString )
+            
+	END;    (* case Size... *)    
+        END;    (* with String... *)
+
+    END ToString;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE FromString( String: StringLib.string; VAR Num: INTEGER )
+		    : BOOLEAN;
+
+    BEGIN
+	WITH String DO CASE Size OF
+	    StringLib.short:
+		RETURN IntConvert.FromString( ShortString, Num )
+            |
+	    StringLib.normal:
+		RETURN IntConvert.FromString( NormalString, Num )
+            |
+	    StringLib.long:
+		RETURN IntConvert.FromString( LongString, Num )
+	END;    (* case Size... *)    
+        END;    (* with String... *)
+
+    END FromString;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Test1( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg )
+	       : BOOLEAN; 
+
+    VAR
+	Ptr: PointerToData;
+
+    BEGIN 
+	Ptr:= Data;
+        WITH Ptr^ DO 
+	    IF NOT FromString( Source, Num ) THEN
+		Msg:= IntConvertSyntax;
+		RETURN FALSE;
+            END;
+	    IF NOT ToString( Num, Width, Result ) THEN
+		Msg:= TooShort;
+		RETURN FALSE;
+            END;
+        END;    (* with Ptr^ *)
+	RETURN TRUE;
+
+    END Test1; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE WriteResults( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg ) 
+	              : BOOLEAN; 
+    VAR
+	Ptr: PointerToData;
+
+    BEGIN 
+	Ptr:= Data;
+         WITH Ptr^ DO 
+	    StringLib.WriteResult( "Result: ", Result );
+	END;
+	RETURN TRUE;
+
+    END WriteResults;
+(* ---------------------------------------------------------------------- *)
+CONST
+    ExpectedResult = 8; 
+    AdjustedResult = 9;
+    IntConvertSyntax = 10;
+    TooShort = 11;
+    FalseResult = 12;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE CompareResults( Data: TestSystem.dataType; VAR Msg: TestIO.ErrMsg ) 
+	              : BOOLEAN; 
+    VAR
+	Ptr: PointerToData;
+
+    BEGIN 
+	Ptr:= Data;
+        WITH Ptr^ DO 
+	    CASE StringLib.CompareStrings( Target, Result ) OF
+		StringLib.equal: 
+		    Msg:= ExpectedResult;
+                |
+		StringLib.adjusted: 
+		    Msg:= AdjustedResult; 
+                |
+		StringLib.nomatch: 
+		    Msg:= FalseResult;
+		    RETURN FALSE;
+            END;    (* case Compare... *)
+	END;
+	RETURN TRUE;
+
+    END CompareResults;
+(* ---------------------------------------------------------------------- *)
+(* Test data collector:                                                   *)
+(* ---------------------------------------------------------------------- *)
+PROCEDURE GetInfo( Data: TestSystem.dataType; 
+		   VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    VAR
+	DataPtr: PointerToData;
+
+(* ---------------------------------------------------------------------- *)
+    BEGIN
+	DataPtr:= Data; 
+        WITH DataPtr^ DO
+	    IF NOT StringLib.GetString( Source, "Source ( integer )", 
+	      " ", StringLib.normalDefault, Msg )
+            THEN
+		RETURN FALSE 
+            END;
+	    IF NOT StringLib.GetString( Target, "Expected result", 
+	"Size of the expected result ( short (3), normal (41), long (81) )", 
+	      StringLib.sizeRequested, Msg ) 
+            THEN
+		RETURN FALSE
+            END;
+	    IF NOT TestIO.GetCard( Width, 
+	      "Width of the result ( any reasonable cardinal )", Msg ) 
+            THEN
+		RETURN FALSE;
+            END;
+	    Result.Size:= Target.Size;
+        END;
+	TestIO.WriteLn( GenTestIO.GetErrOutput() );
+	RETURN TRUE;
+
+    END GetInfo;
+(* ---------------------------------------------------------------------- *)
+(* Initialisation of the test bed:                                        *)
+(* ---------------------------------------------------------------------- *)
+PROCEDURE InitMsgTab;
+
+    BEGIN
+        TestIO.AssignMessage( ExpectedResult, "result like expected" );
+        TestIO.AssignMessage( AdjustedResult, "result adjusted" );	
+        TestIO.AssignMessage( IntConvertSyntax, 
+			      "IntConvert syntax error" );
+        TestIO.AssignMessage( TooShort, "resultstring too short" );	
+        TestIO.AssignMessage( FalseResult, "false result" );	
+
+    END InitMsgTab; 
+(* ---------------------------------------------------------------------- *) 
+PROCEDURE AddComm( Command: ARRAY OF CHAR; 
+		   CmdProc: TestSystem.standardProc );
+
+    VAR KnownData: PointerToData; 
+    
+    BEGIN 
+	Objects.Allocate( DataMgr, KnownData ); 
+	TestSystem.AddCommand( Command, CmdProc, KnownData ); 
+
+    END AddComm; 
+(* ---------------------------------------------------------------------- *) 
+PROCEDURE Init; 
+
+BEGIN 
+    InitMsgTab; 
+    Objects.CreateManager( DataMgr, SYSTEM.TSIZE( DataRec ), "weekend" );
+    AddComm( "Quit", TestSystem.Quit );
+    AddComm( "ciao", TestSystem.Quit );
+    AddComm( "go", Test1 );
+    AddComm( "#test1", Test1 );
+    AddComm( "test1", Test1 );
+
+END Init;
+(* ---------------------------------------------------------------------- *)
+
+BEGIN
+    Init;
+    TestSystem.RunTest( GetInfo, WriteResults, CompareResults,
+			"IntConvert" ) 
+
+END TestIntConv.    

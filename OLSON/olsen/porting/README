@@ -1,0 +1,52 @@
+	    Modula-2 Preprocessor Porting Aides
+
+This directory contains information and some modules to help
+people who need to get the preprocessor running without an
+existing preprocessor to bootstrap.  For more information, 
+see the library manual.  You should already be familiar 
+with the specifications of the preprocessor.
+
+The module hackm2pp should be used in place of m2pp.  The
+preprocessor control variables are defined in its initialization
+body so that you don't have to port ProgArgs or ProgEnviron.
+hack2mpp preprocesses standard input and writes the result to 
+standard output.  (See HackTextIO below)
+
+M2PParser and M2PScanner do not require many modules from the library.
+You should probably keep it that way.  Specifically, they only use:
+
+    CardConvert, Chars, GenConsts, IOConsts, NameLists,
+    ProgErrOutput, SafeStorage, Strings, SYSTEM, SysTypes, TextIO
+
+The modules GenConsts, IOConsts, and SysTypes, ProgErrOutput,
+and SafeStorage do not need to be preprocessed since they will 
+be very different on most implementations.  The other modules
+merely define constants. Port these modules all of these modules 
+first.   Note that you can remove the references to SafeStorage
+for this particular application, but this is more work.
+
+The modules Strings, CardConvert, and Chars are lightly used.
+For the most part, they are used to construct error messages.  
+You should be able to find a suitable equivalent in even the 
+most paultry Modula-2 environments.
+
+HackNameLists is a suitable substitute for NameLists for the
+purposes of the modules M2PParser, M2PScanner, and hackm2pp.
+
+The module TextIO is obviously the deepest into the library structure.
+However, M2PScanner uses a select set of procedures from TextIO
+which have been defined in the module HackTextIO in this directory.
+If you want to port the library, you merely have to port HackTextIO
+to your system.  This will give you the basis of what is required for
+TextIO in any event and it will get the preprocessor running.
+
+After you have ported the necessary files, copy the modules 
+M2PParser and M2PScanner to your working directory and change
+all references from NameLists to HackNameLists and TextIO
+to HackTextIO.  If you haven't ported CardConvert, Chars,
+and Strings, make the appropriate substitutions in the modules
+HackNameLists, M2PParser, and M2PScanner. 
+
+For your convenience, we have included a couple of test files
+and sample output to detect bugs.  Copies these from the
+tools test data directory.

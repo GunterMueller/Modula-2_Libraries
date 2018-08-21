@@ -1,0 +1,212 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Screen;
+IMPORT
+    SYSTEM,         LowLevel,	ProgErr;
+
+CONST
+    null         = 0C;
+    escape       = 33C;
+    normalAttrib = 07C;
+    boldAttrib   = 17C;
+    numCols      = 80;
+    numRows      = 25;
+    rightCol     = numCols - 1;
+    bottomRow    = numRows - 1;
+    screenSize   = numCols * numRows;
+
+TYPE
+    ScreenChar = RECORD
+        CASE BOOLEAN OF
+            TRUE:
+                ch     : CHAR;
+                attrib : CHAR;
+            |
+            FALSE:
+                word   : SYSTEM.WORD;
+        END;
+    END;
+
+TYPE
+    ScreenData	       = ARRAY [ 0 .. bottomRow ], [ 0 .. rightCol ] 
+                           OF ScreenChar;
+VAR
+    screen        : POINTER TO ScreenData;
+    screenAddress : SYSTEM.ADDRESS;
+
+
+
+PROCEDURE Clear;
+    VAR 
+        sc   : ScreenChar;
+    BEGIN (* Clear *)
+
+        WITH sc DO
+            ch := ' ';
+            attrib := normalAttrib;
+        END;
+        LowLevel.FillWord( screenAddress, sc.word, screenSize );
+
+    END Clear;
+
+
+
+PROCEDURE PutCharAt ( point : Coordinate;
+                      char  : CHAR );
+    BEGIN (* PutCharAt *)
+        WITH screen^[ point.y, point.x ] DO
+           attrib := normalAttrib;
+           ch     := char;
+        END;
+        
+    END PutCharAt;
+
+
+
+PROCEDURE PutBoldCharAt ( point : Coordinate;
+                          char  : CHAR );
+    BEGIN (* PutBoldCharAt *)
+        WITH screen^[ point.y, point.x ] DO
+           attrib := boldAttrib;
+           ch     := char;
+        END;
+        
+    END PutBoldCharAt;
+
+
+
+PROCEDURE PutStringAt( point : Coordinate;
+                       str   : ARRAY OF CHAR );
+    VAR
+        i : CARDINAL;
+
+    BEGIN (* PutStringAt *)
+        i := 0;
+        WHILE (i <= HIGH( str )) AND (str[ i ] # null) DO
+
+            WITH screen^[ point.y, point.x ] DO
+                attrib := normalAttrib;
+                ch := str[ i ];
+            END;
+
+            INC( point.x );
+            IF point.x > rightCol THEN
+
+                point.x := 0;
+                INC( point.y );
+
+                IF point.y > bottomRow THEN
+                    LowLevel.MoveLeft( screenAddress,
+                                       screenAddress + numCols,
+                                       screenSize - numCols );
+                    point.y := bottomRow;
+                END;
+            END;
+
+            INC( i );
+
+        END;
+
+        
+    END PutStringAt;
+
+
+PROCEDURE PutBoldStringAt( point : Coordinate;
+                           str   : ARRAY OF CHAR );
+    VAR
+        i : CARDINAL;
+
+    BEGIN (* PutBoldStringAt *)
+        i := 0;
+        WHILE (i <= HIGH( str )) AND (str[ i ] # null) DO
+
+            WITH screen^[ point.y, point.x ] DO
+                attrib := boldAttrib;
+                ch     := str[ i ];
+            END;
+
+            INC( point.x );
+            IF point.x > rightCol THEN
+
+                point.x := 0;
+                INC( point.y );
+
+                IF point.y > bottomRow THEN
+                    LowLevel.MoveLeft( screenAddress,
+                                       screenAddress + numCols,
+                                       screenSize - numCols );
+                    point.y := bottomRow;
+                END;
+            END;
+
+            INC( i );
+
+        END;
+
+        
+    END PutBoldStringAt;
+    
+
+(*
+ * This figures out what type of screen it is and sets the screen
+ * address.
+ *)
+CONST
+    videoInt     	= 10H;
+    getVideoMode 	= 0FH;
+    cgaMonoTextMode  	= 2;
+    cgaColorTextMode  	= 3;
+    maTextMode   	= 7;
+    pageSize		= 1000H;
+    baseCgaPageSeg      = 0B800H;
+    baseMaPageSeg       = 0B000H;
+VAR
+    displayPage : CARDINAL;
+    displayMode : CARDINAL;
+    
+BEGIN (* Screen *)
+
+    SYSTEM.SETREG( SYSTEM.AX, getVideoMode * 100H );
+    SYSTEM.SWI( videoInt );
+    SYSTEM.GETREG( SYSTEM.AX, displayMode );
+    SYSTEM.GETREG( SYSTEM.BX, displayPage );
+
+    displayMode := displayMode MOD 100H;	(* Get AL *)
+    displayPage := displayPage DIV 100H;	(* Get BH *)
+
+    CASE displayMode OF 
+	cgaMonoTextMode,
+	cgaColorTextMode: 
+	    screenAddress.SEGMENT := baseCgaPageSeg;
+	|
+	maTextMode:
+	    screenAddress.SEGMENT := baseMaPageSeg;
+	ELSE
+	    ProgErr.Terminate( "Screen: incorrect display adapter or mode." );
+    END; (* CASE *)
+
+    screenAddress.OFFSET  := displayPage * pageSize;
+
+    screen := screenAddress;
+
+END Screen.    

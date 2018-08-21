@@ -1,0 +1,63 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ModInit;
+(*
+ * Provides a method for securing initialization for a group of
+ * modules which mutually import each other.
+ *
+ * This modules uses the fact that no two modules may have the same
+ * name in a group of shared modules.
+ *
+ * IMPORTANT:
+ *     Most Modula-2 compilers (we have tested) have a bug in the
+ *     "if A imports B" rules.  Specifically, it is possible for
+ *     this module to not be initialized before you call it.  To
+ *     avoid this problem you should import this module in all
+ *     modules (with initialization bodies) which are in the 
+ *     circle of mutual importation.  Note that this is only important
+ *     if the modules call each other during initialization.
+ *)
+EXPORT QUALIFIED 
+    Get,
+    Set;
+
+PROCEDURE Get(
+    moduleName : ARRAY OF CHAR  (* Name of module being tested for init *)
+    )          : BOOLEAN;       (* TRUE => Set was called with "moduleName"*)
+    (*
+     * If the "moduleName" was passed to Set one or more times,
+     * this procedure returns TRUE. If Set has not been called,
+     * it returns FALSE.
+     *)
+
+PROCEDURE Set(
+    moduleName : ARRAY OF CHAR  (* To be marked as initialized *)
+    );
+    (*
+     * Method of indicating (to this module) that "moduleName"
+     * has been initialized. Future calls to Get with the same
+     * "moduleName" as the parameter will return TRUE.
+     *)
+
+END ModInit.
+

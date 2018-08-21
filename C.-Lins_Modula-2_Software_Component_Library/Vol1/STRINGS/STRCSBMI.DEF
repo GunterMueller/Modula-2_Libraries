@@ -1,0 +1,286 @@
+(*
+9			The Bounded Character String
+
+
+A bounded implementation of the String abstraction, described in the previous chapter, is
+presented.  This particular form has the properties: Sequential, Bounded, Managed, and
+Iterator, which describe specific aspects of the implementation as follows:
+
+Sequential:	Can only be used in a non-tasking environment, or by only one task.
+Bounded:	The maximum size of a string is given when the string is created.
+Managed:	Memory space for items and objects is returned to the system when no
+			longer needed.
+Iterator:	Routines for looping over each of the string items are provided.
+
+
+As noted last chapter, strings are nearly always formed of characters, or items that can be
+represented using characters.  For this reason both bounded and unbounded string modules
+will use the Character Items module instead of the more generic Items module.
+
+
+
+Section 9.1 contains the interface to the String Enumerations module which is used by
+the string implementations of this, and the next, chapter.  The bounded string module
+interface follows in Section 9.2 and its implementation in Section 9.3.
+*)
+
+
+
+(*
+9.2		StringCSBMI Interface
+
+
+The interface to the bounded string is presented below.  The purpose and implementation
+specifics of each routine is briefly described along with mention of the complexity
+measure of the actual implementation.
+*)
+
+
+
+DEFINITION MODULE StrCSBMI;
+(*==========================================================
+    Version  : 1.00  29 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structure String (Opaque version)
+               Character Sequential Bounded Managed Iterator
+
+    THE ABSTRACTION
+    This module provides the String data type localized for
+    CHAR items.
+
+    REVISION HISTORY
+    v1.00  29 Apr 1989  C. Lins:
+       Initial implementation.
+==========================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM CharItems IMPORT
+    (*--Type*) Item, AccessProc, ChangeProc, LoopAccessProc,
+               LoopChangeProc;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+FROM StrEnum IMPORT
+    (*--Type*) Exceptions;
+
+    (*-----------------------*)
+
+
+TYPE  String;
+TYPE  StringSize = [ 1 .. 32000 ];
+TYPE  Position   = StringSize;
+CONST NullString = String(NIL);
+
+
+(*	9.2.1		Exceptions
+
+The ModuleID is used by the exception handling mechanism to distinguish this module
+from all other modules.
+
+StringError returns the exception code from the most recent string operation.  A result of
+noerr indicates successful completion of the operation.  O(1).
+
+GetHandler returns the exception handler routine associated with the given exception. 
+Though the routine is a function procedure returning a procedure as its result, the
+HandlerProc  may not be called from within the GetHandler call itself.  The procedure
+result must be first assigned to a procedure variable before invocation.  Exception handlers
+are given an initial value of ExitOnError except for the handler for noerr  which is
+initialized to the null exception handler.  For example, the statement
+
+  GetHandler(overflow)(someErrorCode);
+
+would be flagged as an error by the compiler.  O(1).
+
+SetHandler associates an exception handler routine with the given exception and is the
+inverse of GetHandler.  This routine may be used to override the default settings for the
+exception handlers.  O(1).
+*)
+
+CONST ModuleID = 1;
+
+PROCEDURE StringError ()              : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    theError   : Exceptions  (*-- in    *))
+                                      : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    theError   : Exceptions  (*-- in    *);
+                           theHandler : HandlerProc (*-- in    *));
+
+
+
+(*	9.2.2		Constructors
+
+The Create operation attempts to generate a new, empty string of the given maximum
+size (theSize),  which defines the desired maximum string length.  Since this module uses
+character items, all the standard operations, (such as assignment and comparison), can be
+applied directly and therefore a TypeID and associated user-defined routines are
+unnecessary.  Create returns the new string upon successful completion of the routine.  If
+it is not possible to create the string, the overflow exception is raised and the constant
+NullString  will be returned. O(1).
+
+Destroy takes the given string, clears it of any items, and then destroys the string itself. 
+Where Create defines a string, Destroy is its inverse, making the string undefined. O(1).
+
+Clear takes the given string and removes all of its items.  Clearing the string returns it
+to the empty state. O(1).
+
+The Assign operation attempts to generate a duplicate of the source string (theString) in
+the target string (toString).  The target string is automatically created using the size
+attribute of the source string, if necessary.  If this step is unnecessary, (the target string
+has already been previously created), the target is cleared of its present contents, but the
+size is left unchanged.  There is no guarantee that the client module would desire the
+target string to be defined with the same size as the source.  The minimum requirement
+for the target string size is that it be capable of storing all of the items present in the
+source string.  It may be desirable that the target string size be greater than the source
+string size.  Such a situation could occur during error recovery of a bounded string
+overflow caused by the string length encountering the string size, and the client module
+may effectively attempt to increase the the string size using the assignment mechanism. 
+O(n).
+
+Prepend adds the first string to the beginning of the second string O(mn), Append adds the
+first string to the end of the second string  O(mn), while Insert adds adds the first string to
+the second string at the given string index position.  O(mn).
+
+Delete  removes characters from the given string between the given index positions,
+inclusive.  O(n).
+
+Replace removes characters from the given string from the given index position to the
+end of the string and then inserts the replacement string at the end of the given source
+string.  The length of the source string may grow due to the effects of the replacement.
+
+SetItem changes a single character of the source string at the specified index position.
+O(1).
+
+Construct  allows one to build a dynamic string from the usual Modula-2 form of string. 
+O(n).
+*)
+
+PROCEDURE Create    (    theSize    : StringSize (*-- in    *))
+                                    : String     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Clear     (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Assign    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Prepend   (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Append    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Insert    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *));
+
+PROCEDURE Delete    (VAR theString  : String     (*-- inout *);
+                         fromIndex  : Position   (*-- in    *);
+                         toIndex    : Position   (*-- in    *));
+
+PROCEDURE Replace   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         withString : String     (*-- in    *));
+
+PROCEDURE SetItem   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         theItem    : Item       (*-- in    *));
+
+PROCEDURE Construct (VAR theString   : String        (*-- inout *);
+                         theSubstring: ARRAY OF Item (*-- in    *));
+
+
+
+(*	9.2.3		Selectors
+
+
+IsDefined attempts to determine whether the given string is valid, e.g., has been created
+and not yet destroyed.  How this is accomplished may be as simple or complicated as the
+implementer desires and the requirements of the application.  O(1).
+
+IsEmpty returns true if the given string contains no items, and false otherwise. 
+Undefined strings are considered empty.  O(1).
+
+SizeOf returns the maximum possible size (and therefore, position) for the given string
+O(1), while LengthOf  returns the number of characters present in the string O(1).  The
+function  result from both routines are declared CARDINAL (instead of StringSize or
+Position) as undefined strings cause zero to be returned.
+
+Compare establishes the ordering relation between two strings. IsEqual  returns true if
+two strings contain the same items.
+
+ItemOf retrieves a single item at the given index position from the string O(1); SliceOf
+returns a contiguous sequence of characters from a string between two index positions;
+and SubstringOf  returns the whole string as a contiguous sequence of characters.  Both
+SliceOf and SubstringOf terminate their results with 0C if necessary by the rules of
+Modula-2.
+*)
+
+PROCEDURE IsDefined  (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEmpty    (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE SizeOf     (    theString  : String      (*-- in    *))
+                                     : CARDINAL    (*-- out   *);
+
+PROCEDURE LengthOf   (    theString  : String      (*-- in    *))
+                                     : CARDINAL    (*-- out   *);
+
+PROCEDURE Compare    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : Relation    (*-- out   *);
+
+PROCEDURE IsEqual    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE ItemOf     (    theString  : String      (*-- in    *);
+                          theIndex   : Position    (*-- in    *))
+                                     : Item        (*-- out   *);
+
+PROCEDURE SliceOf    (    theString  : String        (*-- in    *);
+                          fromIndex  : Position      (*-- in    *);
+                          toIndex    : Position      (*-- in    *);
+                      VAR theSlice   : ARRAY OF Item (*-- out   *));
+
+PROCEDURE SubstringOf(    theString  : String        (*-- in    *);
+                      VAR toSubstring: ARRAY OF Item (*-- out   *));
+
+
+
+(*	9.2.4		Iterators
+
+The iterator routines LoopOver and LoopChange provide facilities for looping over some
+or all items of a string, with read-only and read-write access to each item, respectively. 
+theProcess  procedure parameter to these routines returns a BOOLEAN function result
+where TRUE allows the iteration to proceed to the next item and FALSE causes the
+iteration to be terminated.  O(n).
+
+Traverse and TravChange iterators provide facilities for looping over all items of a
+string, with read-only and read-write access to each item, respectively.  O(n).
+
+All four iterators traverse the given string from the item at the first position towards
+items at greater positions within the string.  Obviously, if given an empty string the
+processing procedure will not be invoked.
+*)
+
+PROCEDURE LoopOver   (    theString : String         (*-- in    *);
+                          theProcess: LoopAccessProc (*-- in    *));
+
+PROCEDURE LoopChange (    theString : String         (*-- in    *);
+                          theProcess: LoopChangeProc (*-- in    *));
+
+PROCEDURE Traverse   (    theString : String         (*-- in    *);
+                          theProcess: AccessProc     (*-- in    *));
+
+PROCEDURE TravChange (    theString : String         (*-- in    *);
+                          theProcess: ChangeProc     (*-- in    *));
+
+END StrCSBMI.
+

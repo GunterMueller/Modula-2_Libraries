@@ -1,0 +1,9 @@
+M2Defs= gentesti.def stringli.def testio.def testsyst.def 
+M2Imps= gentesti.mod stringli.mod testio.mod testsyst.mod 
+M2Mods= inttasks.mod pingpong.mod tbytes.mod tcrash.mod tdebug1.mod  \
+        tdebug2.mod tdebugfl.mod testcard.mod testcrc1.mod testintc.mod  \
+        testname.mod testreal.mod teststri.mod thello.mod tint1.mod tint2.mod  \
+        tmess1.mod tmon1.mod tmon2.mod tmon3.mod tmon4.mod tmon5.mod  \
+        tmon6.mod tmon7.mod tmon8.mod tmon9.mod tmonitor.mod tprogarg.mod  \
+        tprogenv.mod tqstring.mod tsemapho.mod tstack.mod tsystype.mod  \
+        ttaskinf.mod ttasktim.mod 

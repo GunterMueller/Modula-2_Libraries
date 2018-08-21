@@ -1,0 +1,664 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Lightweight Processes}
+\label{lwpchapter}
+
+\section{Purpose}
+
+This chapter explains lightweight processes and gives some advice
+on their use.  The \newterm{lightweight process environment} sets up
+multiple processes, called \newterm{tasks}, which use the same address
+space and hence interact as concurrent processes.
+
+Don't expect a tutorial on all aspects of concurrent programming, however.
+That's too big.  We suggest you see the bibliography for some key references 
+instead.
+
+\section{Lightweight Process Environment Structure}
+\label{structure}
+
+Let's look at lightweight processes in more detail.  We begin with the 
+terminology.
+
+\subsection{Threads, Events, Tasks and Interrupt Handlers}
+
+A \newterm{thread} is a CPU-driven stream of execution which runs without
+external interruption by hardware and follows the execution path dictated by
+a deterministic code body.  We use the term ``thread'' to include both
+tasks and interrupt handlers.
+
+Every thread has a \newterm{stack} which holds local variables and local
+state for the thread.  When the CPU executes a thread, its stack pointer(s)
+point to the thread's stack and its instruction pointer points to the next
+instruction which the thread should execute.
+
+An \newterm{event} is an action which, when it happens, may change which
+thread the CPU will execute next.  Lightweight processes manage events.
+We divide events into two types: external and internal events.  
+
+An \newterm{external event} occurs at an arbitrary moment which no thread 
+can predict.  For example, hardware generates an interrupt when it detects 
+an external event.
+We include ticks of the system clock as ``external events'', even though
+these events occur at regular intervals.
+
+An \newterm{internal event} is an event that is triggered by a thread.  Since
+a thread triggers an internal event, it can use the knowledge that it will
+cause the event by preparing states and conditions before the event occurs.
+An internal event amounts to a \newterm{synchronization point} between
+threads that the thread initiating the event sets up and manages.
+An important example of an internal event is the return from an interrupt
+handler that has readied a task to take over the CPU.
+
+\newterm{Interrupt handlers} are threads that react to external events.
+Each handler is attached to a \newterm{vectored interrupt} on the local
+machine; hardware triggers these interrupts.
+
+Although interrupt handlers can trigger internal events, \newterm{tasks}
+react to and manage internal events.  Each task is a thread and has a
+\newterm{priority} that determines which tasks it can \newterm{preempt},
+i.e., take over the CPU from.  Priority constitutes a right acknowledged
+by all tasks and interrupt handlers that, when an event occurs, if it wants
+to run, the highest priority task which has waited longest to run should get
+the CPU.
+
+Interrupt handlers have higher priorities than tasks, since any interrupt
+transfers the CPU to an interrupt handler, no matter which task is
+executing.  Interrupts have priorities in relation to each other, specified
+by system hardware, so one interrupt handler can preempt another.
+
+\subsection{Designing with Interrupt Handlers and Tasks}
+
+Why are tasks sometimes preferable to interrupt handlers?  Because you 
+can create as
+many tasks and internal events as you need, you can plan and prepare for
+internal events, and tasks don't react to external events.
+
+Why are interrupt handlers sometimes preferable to tasks?  Because they 
+react immediately
+to received external data, even if it comes in fast.
+
+Good team program designs use interrupt handlers to get external data fast.
+The interrupt handlers then trigger internal events, which wake up tasks
+to read and interpret the data.  The tasking design uses internal events
+and relative priorities between tasks to assign which work gets done first,
+and which task(s) should do it.  The lightweight process environment manages
+the necessary preemption to get fast transfers of the CPU between tasks.
+
+Because task creation and termination are both cheap, your design should 
+dynamically
+create as many tasks as it needs to keep its problem management simple and
+under control.
+
+\subsubsection{Tasks in Detail}
+
+The module \module{Tasks} manages tasks.  Each task is an instance of the
+object \code{Tasks.\-Object}.  Calling \proc{Tasks.\-Create} creates a task
+with a specific \code{priority}.  You should also tell \proc{Tasks.\-Create}
+how large you want the stack of the task to be.
+
+The lightweight process environment is initialized by the main program
+thread, which is composed from the initialization bodies of all the modules
+\code{IMPORT}ed by the program.  This main program thread becomes its own
+task, and gets \code{TaskConsts.\-default\-Priority} as its priority.
+
+A task is always in one of three states:
+\begin{itemize}
+\item
+ \newterm{Running}.  The task which the CPU is currently executing is
+ running.  Only one task in the lightweight process environment
+ can be in this state.
+\item
+ \newterm{Ready}.  When a task is ready, it can become the running task
+ at a synchronization point, if at this moment it is the task in the set
+ of ready tasks which has the highest priority. If more than one task
+ has the highest priority, it is the task which has been ready for the
+ longest period.
+\item
+ \newterm{Suspended}.  A suspended task is not eligible to run.  Tasks
+ and interrupt handlers can \newterm{ready} a
+ suspended task by calling the procedure \proc{Tasks.\-Ready}.
+\end{itemize}
+
+The procedure calls \proc{Tasks.\-Suspend} and \proc{Tasks.\-Ready} reset the
+state of a task.  \proc{Tasks.\-Suspend} changes the state of the running
+task from running to suspended.  \proc{Tasks.\-Ready} takes a single
+\code{task} argument and changes its state to ready.  If its state
+is already ready, then \proc{Tasks.\-Ready} achieves nothing.
+
+When either \proc{Tasks.\-Suspend} or \proc{Tasks.\-Ready} is called, if
+preemption is enabled (see section \ref{overriding}), a synchronization
+point is reached, and a decision is made as to which task should become the
+running task.  If preemption is disabled, a synchronization point is readied
+only if \proc{Tasks.\-Suspend} is allowed.  In either case, the new running
+task is the eligible task with the highest priority.  If there are no
+eligible tasks, the lightweight processes system runs the idle tasks.
+The idle task is a task internal to the LWP --- its sole function is to
+provide ``something to run'' if all other tasks have been suspended.
+
+If a new task should become the running task, a \newterm{task switch} occurs:
+CPU and old task state is saved, new task and CPU state is restored, and the
+new task becomes the running task.
+
+\subsubsection{Interrupt Handlers in Detail}
+
+Interrupt handlers are not tasks but Modula-2 procedures that are called
+each time a \newterm{vectored interrupt} occurs.  System hardware triggers
+the interrupt, and code from the \module{Interrupts} module then calls the
+relevant interrupt handler.
+
+An interrupt handler handles the conditions associated with the external
+event which triggers it.  For instance, if the external event is the arrival
+of a character at a UART port, the interrupt handler reads the
+character.
+
+After handling the conditions associated with the external event, the
+interrupt handler generates an internal event to inform a task that
+the external event has occurred.  To keep things very safe and simple, the
+lightweight process environment makes only {\em one\/} call available to
+interrupt handlers so that a handler can inform a task: \proc{Tasks.\-Ready}.
+
+An \newterm{interrupt manager} is usually a module that contains the
+interrupt handler and provides entry points for tasks to access the data
+associated with the interrupt.  Tasks call the interrupt manager and are
+either passed the data or suspended until the data is received {\em via\/}
+an interrupt and the interrupt handler then calls \proc{Tasks.\-Ready}.
+
+How this sharing mechanism is implemented is not important to this discussion,
+but it is
+important that the interrupt manager provides mutual exclusion between
+the interrupt handler and the tasks with which it shares data.  The interrupt
+manager can support mutual exclusion by memory-based means or by adjusting
+priorities, as described in the next subsection.
+
+The module \module{Interrupts} manages interrupt handlers.  It offers calls
+to install or de-install an interrupt handler.  The de-installation call
+(\proc{Interrupts.\-Destroy}) restores the previous handler for that interrupt.
+
+Interrupt handlers always run with preemption disabled, so that no task can
+preempt an interrupt handler.  However, one interrupt handler can preempt 
+another
+interrupt handler.  The only \module{Tasks} call that an interrupt handler
+can call is \proc{Tasks.\-Ready}, so no interrupt handler can call any higher
+level concurrency primitive which uses calls in \module{Tasks} other than
+\proc{Tasks.\-Ready}.  If these prohibitions are violated, the \module{Tasks}
+module will cause abnormal termination.
+
+\subsection{Adapting Priorities}
+
+The priorities available to threads form a total ordering, from the lowest
+task priority to the highest task priority, followed by the lowest interrupt
+priority to the highest interrupt priority.
+
+Occasionally, a thread needs to change its priority so that it can exclude
+other threads from the right to preempt its work.  The lightweight process
+environment provides calls to revise priorities, and the local machine or
+language also provides means.
+
+\subsubsection{Temporary Overrides}
+\label{overriding}
+
+We describe here means by which
+\begin{itemize}
+\item
+ a running task can become the highest priority task, or
+\item
+ an executing thread (running task or interrupt handler) can become the
+ highest priority thread.
+\end{itemize}
+
+Each of these means are {\em temporary\/}, since each thread which shifts its
+priority can always return to its old level.  Each means is also connected
+only with the running thread.  If the running thread suspends itself, its
+priority shift does {\em not\/} carry over to the next running thread and
+its priority shift is {\em re-established\/} when the thread again
+becomes the running thread.
+
+A running task can make itself the highest priority task by
+\newterm{disabling preemption}.  Only interrupt handlers can preempt a task
+which disables preemption.  If a task disables preemption, it must
+\newterm{enable preemption} at some later time, or no other task will get a
+chance to run.
+
+Call \proc{Tasks.\-Disallow\-Preemption} to disable preemption.  Call
+\proc{Tasks.\-Allow\-Preemption} to enable preemption.  These calls are
+\newterm{nested}: \proc{Tasks.\-Disallow\-Preemption} increments a nesting
+count; \proc{Tasks.\-Enable\-Preemption} decrements it.  Only when the
+nesting count goes down to zero does \proc{Tasks.\-Enable\-Preemption} really
+enable preemption.  \proc{Tasks.\-Enable\-Preemption} generates a runtime
+range checking error if it is called while preemption is enabled.
+
+The main use of disabling preemption is to deal with tasks and to implement
+higher-level inter-task communications primitives.  If you get some state
+from a task and want to then use this state, you must disable preemption
+before you get the state and keep preemption disabled until you interpret
+the state.  If you don't, this state could change between the time you get
+it and the time you interpret it.
+
+Interrupt handlers always run with preemption disabled.  A synchronization
+point occurs whenever an interrupt handler returns and the running task has
+preemption enabled, or whenever a task enables preemption.  At this point,
+a new decision of which task should run is made, and a task switch may
+occur.  If the task switch does occur, then the new running task
+\newterm{preempts} the old running task.
+
+A running task, or an executing interrupt handler, can make itself the highest
+priority thread by \newterm{disabling interrupts}.  When interrupts have been
+disabled, no interrupt will trigger a new interrupt handler until interrupts
+are again enabled.
+
+On the IBM-PC, Logitech Modula-2 system, calling \proc{SYSTEM.\-DISABLE} will
+disable interrupts, and calling \proc{SYSTEM.\-ENABLE} will enable them again.
+These calls are {\em not\/} nested, so if you call either 
+\proc{SYSTEM.\-DISABLE}
+or \proc{SYSTEM.\-ENABLE} twice in a row, the second
+call achieves nothing at all. 
+
+Because the calls to disable and enable interrupts are {\em not\/} nested,
+any procedure call you make in code surrounded by \proc{SYSTEM.\-DISABLE} and
+\proc{SYSTEM.\-ENABLE} statements may access code that enables interrupts again.
+This surprise can happen, for instance, when you call \code{DOS}.
+
+\subsubsection{Permanent Resets}
+
+You can reset the priority of a task --- any task, not just the running
+task --- by calling \proc{Tasks.\-Set\-Priority} with a \code{task} argument.
+To find out the priority of a task, call \proc{Tasks.\-Get\-Priority}.  To
+get the \code{Tasks.\-Object} that is currently running, call
+\proc{Tasks.\-Get\-Current}.
+
+To set interrupt priorities, many operating systems offer calls and
+assembly language interfaces for \newterm{masking interrupts}.  A masked
+interrupt is disabled until it is unmasked.
+
+Often a system will let you associate an \newterm{interrupt mask} with each
+vectored interrupt.
+
+The interrupt mask defines a set of masked interrupts, which the system
+immediately masks upon the occurrence of an interrupt.  By setting interrupt
+masks appropriately, you can rearrange your interrupt priorities according
+to any scheme you like.
+
+An interrupt mask applies only to a single thread at a time --- either the
+running task or the interrupt to which it is directed.  The mask will change
+when the thread changes and will be restored when the thread executes again.
+
+\subsection{When Events Happen}
+
+A list of the times when one thread changes to another might help you in
+thinking about your program's mechanics:
+\begin{itemize}
+\item
+ When an interrupt occurs, an interrupt handler executes.  This handler can
+ call \proc{Tasks.\-Ready} to ready other tasks.
+\item
+ When an interrupt handler returns, a task resumes control.  If the running
+ task when the interrupt occurred has disabled preemption, it will run again.
+ 
+ Otherwise, the standard rule comes into effect: the highest priority, longest
+ waiting to run task gets the CPU.  Perhaps this task is the running task --- 
+ it
+ definitely is if the interrupt handler never called \proc{Tasks.\-Ready}.
+ If it did call \proc{Tasks.\-Ready}, readying a task whose priority exceeds
+ the priority of the running task, then this new task will run.
+\item
+ When a task calls \proc{Tasks.\-Ready} and preemption is enabled, a task
+ switch occurs if the \code{task} argument has a priority which is
+ higher than the priority of the running task.
+\item
+ When preemption has been disabled, and is enabled again by a call to
+ \proc{Tasks.\-Allow\-Preemption}, a task switch may occur.
+\item
+ If a task calls \proc{Tasks.\-Suspend}, another task will take its place as
+ the running task.  If no tasks are ready, the environment will abnormally
+ terminate.
+\item
+ If a task returns from its main procedure, it dies, and another task takes
+ its place.
+\end{itemize}
+
+\section{PC-DOS Complications}
+
+Lightweight process environments:
+\begin{itemize}
+\item
+ \newterm{Fit inside} another operating system.  A lightweight process
+ environment uses calls offered by a surrounding operating system, instead
+ of building its own calls to replace operating system functions.
+\item
+ \newterm{Extend} the operating system inside of which they fit.  A program
+ running in the lightweight process system works inside a virtual machine,
+ defined by operating system calls {\em plus\/} calls implemented by the
+ lightweight process environment.
+\item
+ Are \newterm{fragile}, in that they can't stop a programmer from using (or
+ abusing) the surrounding operating system to make the lightweight process
+ environment blow up.
+ 
+ There are always \newterm{conventions}, which the system can't enforce, but
+ which a programmer must follow nonetheless, in order that programs in the
+ lightweight process environment can run without blowing up.
+\end{itemize}
+
+The PC-DOS operating system surrounds the lightweight process
+environment, which runs on IBM-PC machines and clones.  PC-DOS conventions
+modify the model of lightweight processes which we've so far introduced.
+
+\subsection{Calling \code{DOS} --- the Non-Reentrancy Problem}
+
+In the Modula-2 Logitech system, if you want to access the operating system,
+you will ultimately call \proc{SYSTEM.\-DOSCALL}.  This procedure calls
+\code{DOS} and leaves return information in specific registers, as
+described in IBM-PC manuals.
+
+The call to \code{DOS} does not enter any special ``kernel'' level of code
+--- it operates entirely at the priority level of the task or interrupt
+handler which calls \code{DOS}.  So another task could preempt your task
+while it executes a call to \code{DOS}.
+
+Fine, you might think.  But a problem arises if the task which preempts
+you, or an interrupt handler, calls \code{DOS} while your task or interrupt
+handler is already executing a call to \code{DOS}.  Your system may crash.
+
+There are code sections within \code{DOS} code, called \newterm{critical
+sections}, in which, if you call \code{DOS} while another procedure is 
+already executing code from one of these sections, \code{DOS} will cause 
+abnormal termination.  \code{DOS} is not
+\newterm{re-entrant}; it won't always survive code execution by more than
+one call at a time.
+
+\subsection{The \code{DOS} Monitor}
+
+We developed a lightweight process environment module \module{DOSMonitor} to
+deal with the non-reentrancy of \code{DOS}.  Before you make one or more
+calls to \code{DOS}, call \proc{DOSMonitor.\-Enter}.  After these calls have
+finished, call \proc{DOSMonitor.\-Exit}.  Put calls to \code{DOS}, i.e.,
+\proc{SYSTEM.\-DOSCALL}s in Logitech Modula-2, only between ``enter'' and 
+``exit'' calls.
+
+If you call \code{DOS} between these ``enter'' and ``exit'' calls, 
+it will not get called while some other procedure is within a
+critical section (an undocumented, but well-known ``critical section'' flag
+in \code{DOS} helps us out here $\ldots$).
+
+\section{Concurrency Primitives}
+
+We've given the low-level story, and we've explained some of the trickiness
+of working within \code{DOS}.  We still have to tell you the higher level
+story.
+
+Since the lightweight process environment implements concurrent tasks,
+it's important that it also implement the basic primitives which any
+standard book on concurrent programming or real time systems will tell
+you are essential to getting such a system running.
+
+At this point, we have to assume you know something about concurrent
+programming, because we may start using terms which you probably won't
+understand without an introduction to the subject.  
+
+\subsection{Atomic Actions with Monitors}
+
+In keeping with the library's policy to not change Modula-2 as a 
+language, the lightweight process environment has implemented
+/em{monitors} as procedure calls \proc{TaskMonitors.\-Enter}
+and \proc{TaskMonitors.\-Exit}.  Call \proc{TaskMonitors.\-Create}
+to create a monitor (\proc{TaskMonitor.\-Object}.
+
+A monitor surrounds a section of code, as the following template demonstrates:
+\begin{verbatim}
+    VAR
+        monitor: TaskMonitor.Object;
+
+        ...
+    PROCEDURE XXX;
+        BEGIN
+            TaskMonitors.Enter( monitor );
+    
+            ... code ...
+    
+            TaskMonitors.Exit( monitor );
+        END XXX;
+
+    BEGIN
+        TaskMonitors.Create( monitor );
+    END Module.
+\end{verbatim}
+
+A monitor enforces the restriction that only one task may execute a code
+section at a time.  If a task is executing a code section and another task
+tries to enter, the monitor will make the second task wait by suspending it.  
+If further tasks
+try to enter, they must also wait.  Tasks enter the monitor (i.e., start to
+execute code surrounded by the monitor) in first to wait, first to enter
+order.
+
+A useful way to look at these \newterm{critical sections} of code --- code
+which would create inconsistent state if more than one task executed it at
+a time --- is as \newterm{atomic actions}: steps you have designed to execute
+in one burst, independent of other ongoing steps in your program.  Your
+higher-level design can see these steps as single indivisible instructions.
+
+Module \module{Task\-Monitors} handles monitors.  In addition to standard
+\proc{Enter} and \proc{Exit} calls, \module{Task\-Monitors} also has a
+\proc{TimedEnter} call, which gives up if it waits longer than
+\code{milliseconds} milliseconds.  \proc{Timed\-Enter} returns a 
+\code{BOOLEAN},
+to inform the caller if it succeeded or gave up.
+
+\proc{Enter} and \proc{Exit} are nested calls, so you must follow multiple
+enters with multiple exits before the next task can enter the code section
+which a monitor surrounds.  If \proc{Exit} is called without a corresponding
+\proc{Enter} having been called (or a successful \proc{Timed\-Enter}) for the
+same \code{TaskMonitor.\-Object}, it will trigger abnormal termination.
+
+\subsection{Timeouts --- Putting Tasks to Sleep}
+
+It's better to put your task to sleep than to continuously poll
+until some condition becomes \code{TRUE}.  Then other tasks can use the
+CPU too.
+
+Module \module{TaskTime} lets you suspend your task for a specific period
+of time.  The call \proc{Sleep} suspends the current task, telling an
+interrupt handler associated with the system clock to ready the task again
+once a certain number of clock ticks have passed by.
+
+If you want to wake up a sleeping task early, call \proc{Wakeup}.
+
+The \proc{Sleep} call takes as a parameter how long you want the running
+task to sleep, in milliseconds.  \proc{Sleep} then translates these
+milliseconds into system clock ticks, by truncating: the milliseconds you
+request are divided by the number of milliseconds {\em per\/} clock tick,
+and any remainder is thrown out.
+
+If you call \proc{Sleep} with a 0 milliseconds argument, we assume you want
+to sleep a little, i.e., give someone else a chance to run while you poll,
+so \proc{Sleep} will put the running task to sleep for one clock tick.
+
+To find out how many milliseconds your system has {\em per\/} clock tick,
+call \proc{Resolution}.  It returns the number of milliseconds as a
+\code{REAL}.
+
+\subsection{Messages and Synchronization}
+
+The lightweight process environment offers the \newterm{rendezvous} concept
+which the Ada programming language adopted some years ago.
+
+The module \module{TaskMessages} has three basic calls: \proc{Send},
+\proc{Receive}, and \proc{Reply}.  Message passing is \newterm{synchronous}:
+no task can send a second message unless it has received a reply to its first
+message.  The advantages of synchronous message passing are that it is easy
+to implement with procedures and that the sending side has no buffer storage
+or acknowledgement problems.
+
+The lightweight process environment implements synchronous message passing
+by suspending the sending task.  The sending task calls \proc{Send},
+which contains three arguments:
+\begin{itemize}
+\item
+ the task which will receive the message, called the \code{recipient}
+  (\module{Task\-Messages} guarantees delivery);
+\item
+ the message, called the \code{request}, contained in an \code{ARRAY OF
+ SYSTEM.\-BYTE}; and
+\item
+ a buffer for the reply, called \code{reply}, another \code{ARRAY OF
+ SYSTEM.\-BYTE}, which must be large enough to receive any reply the
+ recipient might choose to make.
+\end{itemize}
+
+\proc{Send} only returns to the sending task once the message has been
+received, and once the task which receives the message has replied to
+the message.  Until that time, the sending task cannot progress to the
+instruction which follows the call to \proc{Send}.
+
+\proc{Send} puts its message on a \newterm{message queue} owned by the
+recipient task.  This task calls \proc{Receive} to get a message from
+its message queue.  It receives both
+\begin{itemize}
+\item
+ the task which sent the message, called the \code{sender}; and
+\item
+ the message, called the \code{request}, which \code{sender} sent
+ by calling \proc{Send}.
+\end{itemize}
+
+When it receives a message, the recipient task knows that task \code{sender}
+has blocked and is waiting for a reply from the recipient task and no other.
+The recipient task has complete control over when \code{sender} will become
+ready to run again, and knows this when it receives the message.
+
+A task can call \proc{Receive} as often as it wants, without having to
+reply to any of the messages it receives.  The more calls to \proc{Receive}
+it makes, the more it will know about specific tasks which have blocked
+and are waiting for replies.
+
+The task which calls \proc{Receive} {\em also\/} blocks, but only if its
+message queue is empty.  It blocks until another task sends it a message
+by calling \proc{Send}.  Because we don't always want tasks to block for
+what might be forever, \module{Task\-Messages} provides a \proc{Timed\-Receive}
+call to substitute for the \proc{Receive} call.
+
+\proc{Timed\-Receive} quits waiting for a message after a specified number of
+milliseconds, which you pass in the \code{milliseconds} parameter.  It
+returns \code{TRUE} if it received a message, and \code{FALSE} if not.
+
+When a task that has received a message wants to reply to the message,
+it should call \proc{Reply}, passing to it
+\begin{itemize}
+\item
+ the task to which the reply should go, called the \code{sender}, since
+ it sent a message earlier; and
+\item
+ the reply message, called \code{reply}.
+\end{itemize}
+
+The sender, when it calls \proc{Send}, should know the maximum size of
+the reply message.  If the reply message is too large,
+\proc{Reply} will cause abnormal termination.  \proc{Reply} will also
+cause abnormal termination if \code{sender} is not waiting for a reply
+from the running task which calls \proc{Reply}.
+
+Calling \proc{Reply} will make the \code{sender} argument ready to run
+again.
+
+\subsection{The Asymmetry of Rendezvous}
+
+The interaction between \proc{Send}, \proc{Receive}, and \proc{Reply}
+is known as a \newterm{rendezvous}.  It guarantees that all tasks that
+send to another task will block before they get their replies, so it
+offers to the recipient task an opportunity to \newterm{synchronize}
+its data with the data of the tasks which send messages.
+
+Synchronization is the main way in which messages between tasks get
+used, since the shared memory makes information passing more or less
+simple without the need for message mechanisms.
+
+See the definition module of \module{TaskMessages} for more
+detail.
+
+The asymmetry of rendezvous works as follows:
+\begin{itemize}
+\item
+ A sending task knows the name of the receiving task's \code{Tasks.\-Object},
+ but the receiving task does not know the sending task's name until the 
+message is received.
+ 
+ The receiving task acts like a server:  it does not need to know the
+ name of a client until the client requests a service.
+\item
+ A receiving task can receive more than one message before it makes any
+ replies, but a sending task can only send one message, after which it
+ must wait until the reply arrives.
+ 
+ The receiving task has freedom of action and freedom to choose when and
+ in what order it will reply to messages.  The sending task has no freedom
+ at all.
+\end{itemize}
+
+\subsection{Task Specific Notices: Birth, Death, Environment Termination}
+
+The module \module{Task\-Notices} exports procedures which export notices.  See
+the definition module for further information.
+
+Essentially, notices provide a service whereby modules that have an interest
+in an event can \newterm{register} their interest, and modules that detect
+events can \newterm{notify} these modules, to tell them that the event has
+occurred.  The module that detects the event exports a procedure which
+returns a \newterm{notice}, a \code{Notices.\-Object}.
+
+Modules with an interest in the event call \proc{Notices.\-Register} to register
+with the notice.  When it detects that the event has occurred, the detecting
+module ``calls'' the notice, by calling \proc{Notices.\-Call} with the notice
+as a parameter.
+
+\module{Task\-Notices} exports three parameters:
+\begin{itemize}
+\item
+ a \newterm{task birth notice}, returned by \proc{Get\-Birth}.  Procedures
+ registered with this notice are called whenever a task is created.
+ The \code{SYSTEM.\-ADDRESS} parameter to the procedure contains the
+ \code{Tasks.Object} of the newly created task.
+\item
+ a \newterm{task death notice}, returned by \proc{Get\-Death}.  Procedures
+ registered with this notice are called whenever a task dies (by
+ returning from its main procedure).
+\item
+ a \newterm{environment termination notice}, returned by
+ \proc{Get\-Exit\-Request}.  The procedure \proc{Was\-Exit\-Requested} returns
+ \code{TRUE} if the environment termination notice was called, else
+ \code{FALSE}.
+ 
+ The idea behind this notice is that every task should die if the system is 
+ to die
+ normally.  Many tasks won't die until they notice that a task has requested
+ termination.  Some tasks won't die until they become running tasks which run
+ long enough to {\em try\/} to notice.
+ 
+ The environment termination notice, if called, will cause future calls
+ to \proc{Was\-Exit\-Requested} to return \code{TRUE}.  You should register
+ procedures with this notice to guarantee that any tasks which are
+ sleeping will be made ready again, so they can check if termination
+ was requested and then die.
+\end{itemize}
+

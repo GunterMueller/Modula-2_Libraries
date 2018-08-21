@@ -1,0 +1,74 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# This rule is out of the ordinary.
+# The AsmLib must be preprocessed with cpp, because m2pp doesn't
+# understand assembler.
+AsmLib.o: ../sun.src/AsmLib.s
+	/lib/cpp -P $(M2ppFlags) $? > cppAsmLib.s; \
+	$(AS) $(ASFLAGS) -o $@ cppAsmLib.s; \
+	rm -f cppAsmLib.s
+
+# Preprocessor dependencies
+TaskConsts.def: ../sun_lwp.src/TaskConsts.dpp 
+	${StandardM2pp}
+TasksAsm.def: ../sun_lwp.src/TasksAsm.dpp 
+	${StandardM2pp}
+TasksPRIVATE.def: ../sun_lwp.src/TasksPRIVATE.dpp 
+	${StandardM2pp}
+UnixMonitor.def: ../sun_lwp.src/UnixMonitor.dpp 
+	${StandardM2pp}
+Interrupts.def: ../lwp.src/Interrupts.dpp 
+	${StandardM2pp}
+TaskDebug.def: ../lwp.src/TaskDebug.dpp 
+	${StandardM2pp}
+TaskInfo.def: ../lwp.src/TaskInfo.dpp 
+	${StandardM2pp}
+TaskMessages.def: ../lwp.src/TaskMessages.dpp 
+	${StandardM2pp}
+TaskMonitors.def: ../lwp.src/TaskMonitors.dpp 
+	${StandardM2pp}
+TaskNotices.def: ../lwp.src/TaskNotices.dpp 
+	${StandardM2pp}
+TaskSemaphores.def: ../lwp.src/TaskSemaphores.dpp 
+	${StandardM2pp}
+TaskTime.def: ../lwp.src/TaskTime.dpp 
+	${StandardM2pp}
+Tasks.def: ../lwp.src/Tasks.dpp 
+	${StandardM2pp}
+Interrupts.mod: ../sun_lwp.src/Interrupts.mpp 
+	${StandardM2pp}
+TaskConsts.mod: ../sun_lwp.src/TaskConsts.mpp 
+	${StandardM2pp}
+TaskTime.mod: ../sun_lwp.src/TaskTime.mpp 
+	${StandardM2pp}
+TasksPRIVATE.mod: ../sun_lwp.src/TasksPRIVATE.mpp 
+	${StandardM2pp}
+UnixMonitor.mod: ../sun_lwp.src/UnixMonitor.mpp 
+	${StandardM2pp}
+TaskDebug.mod: ../lwp.src/TaskDebug.mpp 
+	${StandardM2pp}
+TaskInfo.mod: ../lwp.src/TaskInfo.mpp 
+	${StandardM2pp}
+TaskMessages.mod: ../lwp.src/TaskMessages.mpp 
+	${StandardM2pp}
+TaskMonitors.mod: ../lwp.src/TaskMonitors.mpp 
+	${StandardM2pp}
+TaskNotices.mod: ../lwp.src/TaskNotices.mpp 
+	${StandardM2pp}
+TaskSemaphores.mod: ../lwp.src/TaskSemaphores.mpp 
+	${StandardM2pp}
+Tasks.mod: ../lwp.src/Tasks.mpp 
+	${StandardM2pp}
+SafeStorage.mod: ../sun.src/SafeStorage.mpp 
+	${StandardM2pp}
+Notices.mod: ../shared.src/Notices.mpp 
+	${StandardM2pp}
+Objects.mod: ../shared.src/Objects.mpp 
+	${StandardM2pp}
+RandomNumbers.mod: ../shared.src/RandomNumbers.mpp 
+	${StandardM2pp}

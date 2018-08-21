@@ -1,0 +1,77 @@
+NOTE: Some of these tests will not run on the PC, because they are
+      for 32 bit integers and cardinals.
+
+There is only one test for CardConvert ( command: #test1 ).
+It takes a CARDINAL in string form, transforms it in 
+machine format, then transforms it back in string form.
+The result is compared against an expected result.
+      Syntax:
+          - Command
+          - Number to be read in
+          - its base
+          - Expected number
+          - its base
+          - Static length of the string the machine - readable
+            number will be written in. There are 3 options: 
+            short ( 3 digits ), normal ( 40 digits ), long ( 80 digits ).
+          - Required width. There are 3 options: 2, 10, 20.
+
+There is one test for "IntConvert" ( command: test1 ).
+It reads an INTEGER in string form, transforms it into
+machine readable form and back into the string form.
+     Syntax:
+         - Command
+         - The number to be read in
+         - The static length of the string the machine readable
+           form of the number is converted to
+         - The required width
+There is one test for RealConvert ( command: #test1 ).
+It reads a real number, transforms it into machine 
+readable form, then back into human readable form.
+     Syntax:
+         - Number
+         - Format of the result. There are 3 options: floating,
+           engineering, scientific, according to the converting
+           procedures available in "RealConvert".
+         - Size of the result. There are 3 options: short ( 3 digits ),
+           long ( 40 digits ), long ( 80 digits ).
+         - Total width of the result
+         - Fraction width of the result 
+         - Exponent width of the result ( optional, if the required format 
+           is scientific or engineering ).
+
+Data for the command "length".
+  Syntax:
+       - command
+       - size of the string
+       - the string itself
+       - expected length
+ 
+Data for the command "position".
+Syntax:
+      - command
+      - size of string1
+      - string1
+      - size of pattern
+      - pattern
+      - start index
+      - stop index
+      - expected result ( index )
+Data for the command "justify".
+Syntax:
+       - command
+       - size of the string
+       - the string itself
+       - size of the pattern
+       - the pattern itself
+       - justification ( left, center, rigth )
+       - size of the result 
+       - the result itself
+Data for the command "compare".
+Syntax:
+       - command
+       - size of string1
+       - string1
+       - size of string2
+       - string2
+       - expected result ( intrinsics.compareResults )

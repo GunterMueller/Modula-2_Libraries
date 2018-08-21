@@ -1,0 +1,83 @@
+DEFINITION MODULE PackArray;
+
+(* Operations on arrays of cardinals using dynamic memory,
+   the cardinals should be small so that they can be effectively packed into
+   word items in order to save memory space. *)
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Jun.15/93 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant array.
+* If 'ok' is FALSE, then the resultant will not exist.
+*)
+
+EXPORT QUALIFIED Array,                            (* the type *)
+                 Build, Destroy,                   (* creation/deletion *)
+                 Put, Get,                         (* element access *)
+                 Size, Min, Max, Compare,          (* status *)
+                 Assign,                           (* modify all elements *)
+                 Copy,                             (* copy every element *)
+                 Duplicate;                        (* new copy *)
+
+TYPE Array;   (* opaque *)
+
+PROCEDURE Build( VAR a :Array; minimum, maximum :CARDINAL;
+                 number_elements :CARDINAL );
+(*
+ Create an array of the specified number of elements,
+ also supply the minimum and maximum values for the data items.
+   This is intended to be used for small values ( say 0 to 8 or so ) so that
+ those values (taking 3 or 4 bits to represent) could be packed together into
+ larger data items in order to save memory space. Large values can be used
+ but if course the space saving efficiency will be lessened.
+   It's not really the absolute values that are wanted, but the difference
+ between them. For instance picking 100, 107 as the values is a difference of
+ 8 which will fit in 4 bits.
+*)
+
+PROCEDURE Destroy( VAR a :Array );
+(* Get rid for the specified object *)
+
+PROCEDURE Put( a :Array; element :CARDINAL; value :CARDINAL );
+(*
+ Put the specified value into the array at 'element'.
+ Trying to putting a value outside the specified range will cause the value
+ to be set to the range end (minimum or maximum).
+*)
+
+PROCEDURE Get( a :Array; element :CARDINAL ) :CARDINAL;
+(*
+ Return the value at 'element'.
+ Trying to get an element outside the array will result in a zero returned.
+*)
+
+PROCEDURE Size( a :Array; VAR bits, bytes, elements :CARDINAL );
+(*
+ Return the specifics about how the array is implemented.
+ bits  = number of bits used to implement the packed value,
+ bytes = number of bytes in the whole array (overhead excluded),
+ elements = number of elements in the array.
+*)
+
+PROCEDURE Min( a :Array ) :CARDINAL;
+(* Return the minimum value *)
+
+PROCEDURE Max( a :Array ) :CARDINAL;
+(* Return the maximum value *)
+
+PROCEDURE Compare( a, b :Array ) :BOOLEAN;
+(* Compare two, return TRUE if they are the same *)
+
+PROCEDURE Assign( a :Array; x :CARDINAL );
+(* Set all elements to 'x' *)
+
+PROCEDURE Copy( a, b :Array );
+(* Copy 'a' into 'b', if the sizes, etc. are exactly the same *)
+
+PROCEDURE Duplicate( a :Array; VAR b :Array );
+(* Make a duplicate of 'a' into a new 'b' *)
+
+END PackArray.

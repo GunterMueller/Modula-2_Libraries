@@ -1,0 +1,66 @@
+DEFINITION MODULE CardArrays;
+
+(* Operations on a dynamic array of cardinals *)
+
+(* V1.1, J, Andrea, JUn.22/93 -add Duplicate *)
+(* V1.0, J, Andrea, May.18/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant matrix.
+* If 'ok' is FALSE, then the resultant matrix will not exist.
+*)
+
+EXPORT QUALIFIED CardArray,                        (* the type *)
+                 Build, Destroy,                   (* matrix creation/deletion*)
+                 Put, Get,                         (* element access *)
+                 Size, Compare,                    (* status *)
+                 Assign,                           (* set elements *) 
+                 Copy, Duplicate,                  (* new copy *)
+                 Min, Max,                         (* basic operations *)
+                 Add, Multiply;                    (* basic operations *)
+
+TYPE CardArray;   (* opaque *)
+
+PROCEDURE Build( VAR a :CardArray; min_index, max_index :CARDINAL );
+(* create a new array of the specified size *)
+
+PROCEDURE Destroy( VAR a :CardArray );
+(* get rid for the specified CardArray *)
+
+PROCEDURE Put( a :CardArray; index :CARDINAL; value :CARDINAL );
+(* put the specified value into the CardArray at the index *)
+
+PROCEDURE Get( a :CardArray; index :CARDINAL ) :CARDINAL;
+(* return the value at 'index' *)
+
+PROCEDURE Size( a :CardArray; VAR min_index, max_index :CARDINAL );
+(* return the size of the array *)
+
+PROCEDURE Min( a :CardArray ) :CARDINAL;
+(* return the minimum value in the array *)
+
+PROCEDURE Max( a :CardArray ) :CARDINAL;
+(* return the maximum value in the array *)
+
+PROCEDURE Compare( a, b :CardArray ) :BOOLEAN;
+(* compare two arrays, return TRUE if they are the same in size and contents *)
+
+PROCEDURE Assign( a :CardArray; x :CARDINAL );
+(* set all elements in the array to 'x' *)
+
+PROCEDURE Copy( a, b :CardArray );
+(* copy all of 'a' into 'b', iff sizes are same *)
+
+PROCEDURE Duplicate( a :CardArray; VAR b :CardArray );
+(* copy 'a' into a new 'b' *)
+
+PROCEDURE Add( a :CardArray; x :CARDINAL );
+(* add 'x' to all elements of 'a' *)
+
+PROCEDURE Multiply(  a :CardArray; x :CARDINAL );
+(* multiply 'x' by all elements of 'a' *)
+
+END CardArrays.

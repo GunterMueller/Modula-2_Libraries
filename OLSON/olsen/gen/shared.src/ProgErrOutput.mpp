@@ -1,0 +1,191 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ProgErrOutput;
+(*
+ * Shared between SunOS and MsDosOS.  
+ * 
+ * MsDosOS:
+ *    We output to handle number 1 instead of handle number 2, because
+ *    you can't redirect the output to number 2.
+ *)
+IMPORT 
+    (* Import only the bare essentials *)
+    ASCII,
+    SYSTEM,
+    SysTypes;
+
+@IF SunOS THEN
+    IMPORT
+	UnixCsys_file;
+    VAR
+	newline     : ARRAY [ 0 .. 0 ] OF CHAR;
+@END (* SunOS *)
+
+@IF MsDosOS THEN
+    IMPORT
+	DOS;
+    @IF Tasks THEN
+	IMPORT
+	    DosMonitor;
+    @END (* Tasks *)
+    VAR
+	newline     : ARRAY [ 0 .. 1 ] OF CHAR;
+@END (* MsDosOS *)
+
+VAR
+    writeString : WriteStringProc;
+    writeLn     : PROC;
+
+
+PROCEDURE WriteString(
+    string : ARRAY OF CHAR
+    );
+    BEGIN (* WriteString *)
+	writeString( string );
+    END WriteString;
+
+
+PROCEDURE WriteLn;
+    BEGIN (* WriteLn *)
+	writeLn();
+    END WriteLn;
+
+
+PROCEDURE Install(
+        newWriteString : WriteStringProc;
+        newWriteLn     : PROC;
+    VAR oldWriteString : WriteStringProc;
+    VAR oldWriteLn     : PROC
+    );
+    BEGIN (* Install *)
+
+	oldWriteString := writeString;
+	oldWriteLn     := writeLn;
+	writeString    := newWriteString;
+	writeLn        := newWriteLn;
+
+    END Install;
+
+
+PROCEDURE DefaultWriteString(
+    (*IN*)VAR string : ARRAY OF CHAR
+    );
+    (*
+     * Writes string to the standard error file for the particular
+     * implementation.
+     *
+     * INPUT:
+     *    string,   does not have to be null terminated.
+     *)
+    VAR
+	length   : SysTypes.Card;
+	@IF SunOS THEN
+	    DONTCARE : SysTypes.Int;
+	@END
+	@IF MsDosOS THEN
+	    DONTCARE : SysTypes.Card;
+	@END
+    BEGIN (* DefaultWriteString *)
+
+	(* fabricate Strings.Length rather than import it *)
+	length := 0;
+	LOOP
+	    IF string[ length ] = 0C THEN 
+		EXIT;
+	    END;
+	    INC( length );
+	    IF length > HIGH( string ) THEN
+		EXIT;
+	    END;
+	END; (* LOOP *)
+
+	@IF SunOS THEN
+	    DONTCARE := UnixCsys_file.write( UnixCsys_file.stdErrorHandle, 
+				             SYSTEM.ADR( string ), length );
+	@END (* SunOS *)
+
+	@IF MsDosOS THEN
+	    @IF Tasks THEN 
+		DosMonitor.Enter; 
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.write, DOS.stdOutputHandle, length,
+			    SYSTEM.ADR( string ), DONTCARE, DONTCARE);
+	    @IF Tasks THEN 
+		DosMonitor.Exit; 
+	    @END (* Tasks *)
+	    
+	@END (* MsDosOS *)
+
+    END DefaultWriteString;
+
+
+PROCEDURE DefaultWriteLn;
+    (*
+     * Note that we didn't call DefaultWriteString, because there is 
+     * procedure level selective registering.
+     *)
+    VAR
+	@IF SunOS THEN
+	    DONTCARE : SysTypes.Int;
+	@END
+	@IF MsDosOS THEN
+	    DONTCARE : SysTypes.Card;
+	@END
+    BEGIN (* DefaultWriteLn *)
+
+	@IF SunOS THEN
+	    DONTCARE := UnixCsys_file.write( UnixCsys_file.stdErrorHandle, 
+					     SYSTEM.ADR( newline ), 
+					     HIGH( newline ) + 1 );
+	@END (* SunOS *)
+
+	@IF MsDosOS THEN
+	    @IF Tasks THEN 
+		DosMonitor.Enter; 
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.write, DOS.stdOutputHandle, 
+				HIGH( newline ) + 1,
+				SYSTEM.ADR( newline ), DONTCARE, DONTCARE);
+	    @IF Tasks THEN 
+		DosMonitor.Exit; 
+	    @END (* Tasks *)
+	@END (* MsDosOS *)
+
+    END DefaultWriteLn;
+    
+
+BEGIN (* ProgErrOutput *)
+
+    @IF SunOS THEN
+	newline[ 0 ] := ASCII.lf;
+    @END (* SunOS *)
+
+    @IF MsDosOS THEN
+	newline[ 0 ] := ASCII.cr;
+	newline[ 1 ] := ASCII.lf;
+    @END (* MsDosOS *)
+
+    writeString  := DefaultWriteString;
+    writeLn      := DefaultWriteLn;
+
+END ProgErrOutput.

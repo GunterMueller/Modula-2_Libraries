@@ -1,0 +1,30 @@
+DEFINITION MODULE ShuffleFast;
+
+(*
+ These routines are for randomly picking numbers from a sequential list
+ so that no number is picked more than once.
+ Applications are card shuffling type operations where a set of objects
+ need to be rearranged/picked randomly.
+
+ First call Create to build a list, then use Next to get numbers randomly.
+ Call Reset to reset the list to have all 'size' numbers available again.
+ If Next is called more than 'size' times, a Reset will be forced.
+*)
+
+(* John Andrea, Apr.2/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+
+EXPORT QUALIFIED Deck, Create, Reset, Next;
+
+
+TYPE
+    Deck;   (* opaque *)
+
+PROCEDURE Create( VAR d :Deck; size :CARDINAL );
+
+PROCEDURE Reset( d :Deck );
+
+PROCEDURE Next( d :Deck ) :CARDINAL;
+
+END ShuffleFast.

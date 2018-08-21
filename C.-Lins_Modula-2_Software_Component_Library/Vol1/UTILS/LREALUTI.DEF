@@ -1,0 +1,27 @@
+DEFINITION MODULE LRealUtils;
+(*==========================================================
+    Version  : 1.0	Sat, Mar 4, 1989	C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Primitive Utility - Long Real Utilities
+
+    Revision History
+    v1.0	Sat, Mar 4, 1989	C. Lins
+      Initial JPI Modula-2 implementation.
+	Copyright (C) 1989 Charles A. Lins. All rights reserved.
+==========================================================*)
+
+PROCEDURE Min   (    left  : LONGREAL  (*--in   *);
+                     right : LONGREAL  (*--in   *))
+                           : LONGREAL  (*--out  *);
+
+PROCEDURE Max   (    left  : LONGREAL  (*--in   *);
+                     right : LONGREAL  (*--in   *))
+                           : LONGREAL  (*--out  *);
+
+PROCEDURE MinOf (    theNumbers : ARRAY OF LONGREAL (*--in   *))
+                                : LONGREAL          (*--out  *);
+
+PROCEDURE MaxOf (    theNumbers : ARRAY OF LONGREAL (*--in   *))
+                                : LONGREAL          (*--out  *);
+
+END LRealUtils.

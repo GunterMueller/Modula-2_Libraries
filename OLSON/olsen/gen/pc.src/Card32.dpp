@@ -1,0 +1,169 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Card32;
+(* 
+ * Provides operations on 32-bit CARDINALs (comparison, arithmetic,
+ * increment/decrement, and various 32-bit cardinal constants).
+ *
+ * Some operations are provided with 16 bit operands which yield
+ * 32 bit results.
+ *
+ * Note that all operations are range checked and will cause
+ * program termination in the event of errors.
+ *)
+IMPORT 
+    Intrinsics,
+    SysTypes;
+
+EXPORT QUALIFIED 
+    Compare,    Add,             LINC16,         Subtract,       
+    LDEC16,     Multiply,        Multiply16x16,  Divide,         
+    Mod,        DivideAndMod,    Zero,           One,            
+    Two,        MAXCARDINAL16,   ToCard16,       FromCard16;
+
+PROCEDURE Compare(
+    left  : SysTypes.CARDINAL32;        (* Left side of comparison *)
+    right : SysTypes.CARDINAL32         (* Right side of comparison *)
+    )     : Intrinsics.CompareResults;  (* Less, equal or greater *)
+    (*
+     * Compare the "left" with the "right".
+     *)
+
+PROCEDURE Add(
+        addend : SysTypes.CARDINAL32;  (* Quantity to be added to *)
+        augend : SysTypes.CARDINAL32;  (* Amount to be added *)
+    VAR sum    : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Add the augend to the addend to get the sum.
+     *)
+
+PROCEDURE LINC16(
+    VAR addend : SysTypes.CARDINAL32;  (* Quantity to be added to *)
+        augend : SysTypes.CARDINAL16   (* Amount to be added *)
+    );
+    (*
+     * Add the augend to the addend and store the result back in the addend.
+     *)
+
+PROCEDURE Subtract(
+        minuend    : SysTypes.CARDINAL32;  (* Quantity to be subt. from *)
+        subtrahend : SysTypes.CARDINAL32;  (* Amount to be subtracted *)
+    VAR difference : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Subtract the subtrahend from the minuend to yield the difference.
+     *)
+
+PROCEDURE LDEC16(
+    VAR minuend    : SysTypes.CARDINAL32;  (* Quantity to be subt. from *)
+        subtrahend : SysTypes.CARDINAL16   (* Amount to be subtracted *)
+    );
+    (*
+     * Subtract the subtrahend from the minuend and put
+     * the result back in the minuend.
+     *)
+                   
+PROCEDURE Multiply(
+        multiplicand : SysTypes.CARDINAL32;  (* Quantity to be multiplied *)
+        multiplier   : SysTypes.CARDINAL32;  (* Amount to multiply by *)
+    VAR product      : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Multiply the multiplicand by the multiplier to get the product.
+     *)
+
+PROCEDURE Multiply16x16(
+        multiplicand : SysTypes.CARDINAL16;  (* Quantity to be multiplied *)
+        multiplier   : SysTypes.CARDINAL16;  (* Amount to multiply by *)
+    VAR product      : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Multiply the multiplicand by the multiplier to get the product.
+     *)
+
+PROCEDURE Divide(
+        dividend : SysTypes.CARDINAL32;  (* Quantity to be divided *)
+        divisor  : SysTypes.CARDINAL32;  (* Amount to divide by *)
+    VAR quotient : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Divide the dividend by the divisor to yield the quotient.
+     *)
+
+PROCEDURE Mod(
+        dividend  : SysTypes.CARDINAL32;  (* Quantity to be divided *)
+        divisor   : SysTypes.CARDINAL32;  (* Amount to divide by *)
+    VAR remainder : SysTypes.CARDINAL32   (* Result *)
+    );
+    (*
+     * Divide the dividend by the divisor to yield the remainder.
+     *)
+
+PROCEDURE DivideAndMod(
+        dividend  : SysTypes.CARDINAL32;  (* Quantity to be divided *)
+        divisor   : SysTypes.CARDINAL32;  (* Amount to divide by *)
+    VAR quotient  : SysTypes.CARDINAL32;  (* Result (quotient) *)
+    VAR remainder : SysTypes.CARDINAL32   (* Result (remainder) *)
+    );
+    (*
+     * Divide the dividend by the divisor to yield the quotient
+     * and the remainder.
+     *)
+
+PROCEDURE Zero(
+    VAR card32 : SysTypes.CARDINAL32  (* Is set to 0 *)
+    );
+
+PROCEDURE One(
+    VAR card32 : SysTypes.CARDINAL32  (* Is set to 1 *)
+    );
+    
+PROCEDURE Two(
+    VAR card32 : SysTypes.CARDINAL32  (* Is set to 2 *)
+    );
+    
+PROCEDURE MAXCARDINAL16(
+    VAR card32 : SysTypes.CARDINAL32  (* Is set to SysTypes.MAXCARDINAL16 *)
+    );
+
+PROCEDURE ToCard16(
+        card32     : SysTypes.CARDINAL32;  (* To convert *)
+    VAR low16Bits  : SysTypes.CARDINAL16;  (* Least sign. bits of CARDINAL32 *)
+    VAR high16bits : SysTypes.CARDINAL16   (* Most sign. bits of CARDINAL32 *)
+    );
+    (*
+     * Decompose the card32 into its parts: "high16bits" and "low16bits".
+     *)
+
+PROCEDURE FromCard16(
+        low16Bits  : SysTypes.CARDINAL16; (* Least sign. bits of CARDINAL32 *)
+        high16bits : SysTypes.CARDINAL16; (* Most sign. bits of CARDINAL32 *)
+    VAR card32     : SysTypes.CARDINAL32  (* Converted to *)
+    );
+    (*
+     * Create card32 from the parts: "low16bits" and "high16bits".
+     *)
+
+END Card32.
+

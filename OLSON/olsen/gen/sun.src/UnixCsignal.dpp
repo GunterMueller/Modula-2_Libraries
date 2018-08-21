@@ -1,0 +1,138 @@
+DEFINITION FOR C MODULE UnixCsignal;
+(* 
+ * See the file:
+ *    /usr/include/signal.h
+ *
+ * See the man pages:
+ *     signal(3), alarm(3C), kill(2), killpg(2), sigvec(2),
+ *     sigsetmask(2), sigblock(2), sigpause(2), sigstack(2).
+ *)
+IMPORT
+    UnixCsys_types;
+CONST
+    NSIG	= 32; 	
+
+    SIGHUP	= 1;	
+    SIGINT	= 2; 	
+    SIGQUIT	= 3;	
+    SIGILL	= 4;	 
+    SIGTRAP	= 5;	
+    SIGIOT	= 6;	
+    SIGEMT	= 7;	
+    SIGFPE	= 8;	
+    SIGKILL 	= 9;	
+    SIGBUS  	= 10;	
+    SIGSEGV 	= 11;	
+    SIGSYS  	= 12;	
+    SIGPIPE 	= 13;	
+    SIGALRM 	= 14;	
+    SIGTERM 	= 15;	
+    SIGURG  	= 16;	
+    SIGSTOP 	= 17;	
+    SIGTSTP 	= 18;	
+    SIGCONT 	= 19;	
+    SIGCHLD 	= 20;	
+    SIGTTIN 	= 21;	
+    SIGTTOU 	= 22;	
+    SIGIO   	= 23;	
+    SIGXCPU 	= 24;	
+    SIGXFSZ 	= 25;	
+    SIGVTALRM 	= 26;	
+    SIGPROF 	= 27;	
+    SIGWINCH 	= 28;	
+    SIGLOST     = 29;	
+    SIGUSR1     = 30;	
+    SIGUSR2     = 31;	
+
+TYPE
+    struct_sigvec = RECORD
+        sv_handler : PROC;     
+        sv_mask    : INTEGER;  
+	CASE : BOOLEAN OF
+
+	    TRUE:
+                sv_flags : INTEGER;    
+	    |
+	    FALSE:
+                sv_onstack : INTEGER;  
+	END;
+    END;
+    Sigvec = POINTER TO struct_sigvec;	
+
+CONST
+    SV_ONSTACK   = 0001H;  
+    SV_INTERRUPT = 0002H;  
+    SV_RESETHAND = 0004H;  
+
+TYPE
+    struct_sigstack = RECORD
+        ss_sp      : UnixCsys_types.caddr_t;	
+        ss_onstack : INTEGER;           	
+    END;
+    Sigstack = POINTER TO struct_sigstack;  
+
+TYPE 
+    struct_sigcontext = RECORD
+	sc_onstack : INTEGER;	
+	sc_mask    : INTEGER;	
+	sc_sp      : INTEGER;	
+	sc_pc      : INTEGER;	
+	sc_ps      : INTEGER;	
+    END;
+    sigcontext = POINTER TO struct_sigcontext;
+
+TYPE
+    Handler = PROCEDURE(
+	INTEGER,     
+	INTEGER,     
+	sigcontext   
+    );
+
+CONST
+    BADSIG  = -1;
+    SIG_DFL = 0;
+    SIG_IGN = 1;
+
+PROCEDURE signal(
+    signal  : CARDINAL;
+    handler : PROC
+    )       : PROC;
+
+PROCEDURE sigsetmask(
+    mask : BITSET
+    )    : BITSET;
+
+PROCEDURE sigblock(
+    mask : BITSET
+    )    : BITSET;
+
+PROCEDURE sigpause(
+    mask : BITSET
+    );
+
+PROCEDURE sigvec( 
+    sig  : INTEGER;
+    vec  : Sigvec;
+    ovec : Sigvec
+    )    : INTEGER;
+
+PROCEDURE sigstack(
+    ss  : Sigstack;
+    oss : Sigstack
+    )   : INTEGER;
+
+PROCEDURE alarm(
+    seconds : CARDINAL
+    )       : INTEGER;
+
+PROCEDURE kill(
+    pid : INTEGER;
+    sig : INTEGER
+    )   : INTEGER;
+
+PROCEDURE killpg(
+    pgrp : INTEGER;
+    sig  : INTEGER
+    )    : INTEGER;
+
+END UnixCsignal.

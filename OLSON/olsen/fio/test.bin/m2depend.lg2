@@ -1,0 +1,205 @@
+fiotest.lnk: ..\bin\formatio.sym ..\..\io\bin\simpleio.sym  \
+             ..\..\io\bin\textio.sym 
+fiotest.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+             ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+             ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+             ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+             ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+             ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+             ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+             ..\bin\fioreal.lnk ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+             ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+             ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+             ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+             ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+             ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+             ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+             ..\..\gen\bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+             ..\..\gen\bin\realconv.lnk ..\..\io\bin\realio.lnk  \
+             ..\..\gen\bin\safestor.lnk ..\..\io\bin\simpleio.lnk  \
+             ..\..\io\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+             ..\..\gen\bin\systypes.lnk ..\..\io\bin\textio.lnk  \
+             ..\..\io\bin\textiopr.lnk fiotest.lnk 
+tbool.lnk: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+           ..\..\io\bin\simpleio.sym ..\..\io\bin\textio.sym 
+tbool.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+           ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+           ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+           ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk ..\..\gen\bin\dos.lnk  \
+           ..\..\io\bin\dosbinar.lnk ..\..\io\bin\dosioerr.lnk  \
+           ..\bin\fiobase.lnk ..\bin\fiobool.lnk ..\bin\fiocard.lnk  \
+           ..\bin\fioint.lnk ..\bin\fiopriva.lnk ..\bin\fioreal.lnk  \
+           ..\bin\fiostrin.lnk ..\bin\formatio.lnk ..\..\gen\bin\genconst.lnk  \
+           ..\..\gen\bin\i8086.lnk ..\..\io\bin\ioconsts.lnk  \
+           ..\..\io\bin\ioerrors.lnk ..\..\gen\bin\intconve.lnk  \
+           ..\..\io\bin\intio.lnk ..\..\gen\bin\intrinsi.lnk  \
+           ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+           ..\..\gen\bin\namelist.lnk ..\..\gen\bin\notices.lnk  \
+           ..\..\gen\bin\objects.lnk ..\..\gen\bin\progerr.lnk  \
+           ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+           ..\..\io\bin\realio.lnk ..\..\gen\bin\safestor.lnk  \
+           ..\..\io\bin\simpleio.lnk ..\..\io\bin\stringio.lnk  \
+           ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+           ..\..\io\bin\textio.lnk ..\..\io\bin\textiopr.lnk tbool.lnk 
+tdatafio.lnk: ..\bin\datafio.sym ..\..\io\bin\ioconsts.sym  \
+              ..\..\io\bin\ioversio.sym ..\..\gen\bin\intrinsi.sym  \
+              ..\bin\simplefi.sym ..\..\io\bin\simpleio.sym  \
+              ..\..\gen\bin\strings.sym 
+tdatafio.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\..\io\bin\cardio.lnk ..\..\io\bin\catbinar.lnk  \
+              ..\..\gen\bin\chars.lnk ..\..\io\bin\confbina.lnk  \
+              ..\bin\conffio.lnk ..\..\gen\bin\dos.lnk ..\bin\datafio.lnk  \
+              ..\..\io\bin\dirio.lnk ..\..\io\bin\dosbinar.lnk  \
+              ..\..\io\bin\dosioerr.lnk ..\..\io\bin\dosionam.lnk  \
+              ..\bin\fiobase.lnk ..\bin\fiobool.lnk ..\bin\fiocard.lnk  \
+              ..\bin\fioint.lnk ..\bin\fiopriva.lnk ..\bin\fioreal.lnk  \
+              ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+              ..\..\io\bin\ionames.lnk ..\..\io\bin\ioversio.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+              ..\..\gen\bin\progargs.lnk ..\..\gen\bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\..\io\bin\realio.lnk ..\..\gen\bin\safestor.lnk  \
+              ..\bin\simplefi.lnk ..\..\io\bin\simpleio.lnk  \
+              ..\..\io\bin\stringbi.lnk ..\..\io\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\io\bin\textio.lnk ..\..\io\bin\textiopr.lnk tdatafio.lnk 
+tfioscre.lnk: ..\..\io\bin\cardio.sym ..\bin\fioscree.sym ..\bin\formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\bin\screenio.sym  \
+              ..\..\io\bin\stringio.sym ..\..\io\bin\textio.sym 
+tfioscre.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+              ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+              ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+              ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+              ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+              ..\bin\fioreal.lnk ..\bin\fioscree.lnk ..\bin\fiostrin.lnk  \
+              ..\bin\formatio.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\..\io\bin\ioconsts.lnk  \
+              ..\..\io\bin\ioerrors.lnk ..\..\gen\bin\intconve.lnk  \
+              ..\..\io\bin\intio.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\bin\notices.lnk  \
+              ..\..\gen\bin\objects.lnk ..\..\gen\bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\..\io\bin\realio.lnk ..\..\gen\bin\safestor.lnk  \
+              ..\..\io\bin\screenio.lnk ..\..\io\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\io\bin\textio.lnk ..\..\io\bin\textiopr.lnk tfioscre.lnk 
+tintcard.lnk: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+tintcard.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+              ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+              ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+              ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+              ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+              ..\bin\fioreal.lnk ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+              ..\..\gen\bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\..\io\bin\realio.lnk  \
+              ..\..\gen\bin\safestor.lnk ..\..\io\bin\simpleio.lnk  \
+              ..\..\io\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\io\bin\textio.lnk  \
+              ..\..\io\bin\textiopr.lnk tintcard.lnk 
+tisvalid.lnk: ..\..\gen\bin\objects.sym ..\bin\simplefi.sym 
+tisvalid.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+              ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+              ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+              ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+              ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+              ..\bin\fioreal.lnk ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+              ..\..\gen\bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\..\io\bin\realio.lnk  \
+              ..\..\gen\bin\safestor.lnk ..\bin\simplefi.lnk  \
+              ..\..\io\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\io\bin\textio.lnk  \
+              ..\..\io\bin\textiopr.lnk tisvalid.lnk 
+treal.lnk: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+           ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+           ..\..\io\bin\textio.sym 
+treal.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+           ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+           ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+           ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk ..\..\gen\bin\dos.lnk  \
+           ..\..\io\bin\dosbinar.lnk ..\..\io\bin\dosioerr.lnk  \
+           ..\bin\fiobase.lnk ..\bin\fiobool.lnk ..\bin\fiocard.lnk  \
+           ..\bin\fioint.lnk ..\bin\fiopriva.lnk ..\bin\fioreal.lnk  \
+           ..\bin\fiostrin.lnk ..\bin\formatio.lnk ..\..\gen\bin\genconst.lnk  \
+           ..\..\gen\bin\i8086.lnk ..\..\io\bin\ioconsts.lnk  \
+           ..\..\io\bin\ioerrors.lnk ..\..\gen\bin\intconve.lnk  \
+           ..\..\io\bin\intio.lnk ..\..\gen\bin\intrinsi.lnk  \
+           ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+           ..\..\gen\bin\namelist.lnk ..\..\gen\bin\notices.lnk  \
+           ..\..\gen\bin\objects.lnk ..\..\gen\bin\progerr.lnk  \
+           ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+           ..\..\io\bin\realio.lnk ..\..\gen\bin\safestor.lnk  \
+           ..\..\io\bin\simpleio.lnk ..\..\io\bin\stringio.lnk  \
+           ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+           ..\..\io\bin\textio.lnk ..\..\io\bin\textiopr.lnk treal.lnk 
+tsimplef.lnk: ..\..\io\bin\ioerrors.sym ..\bin\simplefi.sym  \
+              ..\..\io\bin\simpleio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+tsimplef.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+              ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+              ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+              ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+              ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+              ..\bin\fioreal.lnk ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+              ..\..\gen\bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\..\io\bin\realio.lnk  \
+              ..\..\gen\bin\safestor.lnk ..\bin\simplefi.lnk  \
+              ..\..\io\bin\simpleio.lnk ..\..\io\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\io\bin\textio.lnk ..\..\io\bin\textiopr.lnk tsimplef.lnk 
+tstring.lnk: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+             ..\..\io\bin\simpleio.sym ..\..\io\bin\textio.sym 
+tstring.exe: ..\..\io\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+             ..\..\gen\bin\cardconv.lnk ..\..\io\bin\cardio.lnk  \
+             ..\..\io\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+             ..\..\io\bin\confbina.lnk ..\bin\conffio.lnk  \
+             ..\..\gen\bin\dos.lnk ..\..\io\bin\dosbinar.lnk  \
+             ..\..\io\bin\dosioerr.lnk ..\bin\fiobase.lnk ..\bin\fiobool.lnk  \
+             ..\bin\fiocard.lnk ..\bin\fioint.lnk ..\bin\fiopriva.lnk  \
+             ..\bin\fioreal.lnk ..\bin\fiostrin.lnk ..\bin\formatio.lnk  \
+             ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+             ..\..\io\bin\ioconsts.lnk ..\..\io\bin\ioerrors.lnk  \
+             ..\..\gen\bin\intconve.lnk ..\..\io\bin\intio.lnk  \
+             ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+             ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+             ..\..\gen\bin\notices.lnk ..\..\gen\bin\objects.lnk  \
+             ..\..\gen\bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+             ..\..\gen\bin\realconv.lnk ..\..\io\bin\realio.lnk  \
+             ..\..\gen\bin\safestor.lnk ..\..\io\bin\simpleio.lnk  \
+             ..\..\io\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+             ..\..\gen\bin\systypes.lnk ..\..\io\bin\textio.lnk  \
+             ..\..\io\bin\textiopr.lnk tstring.lnk 

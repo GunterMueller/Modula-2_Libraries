@@ -1,0 +1,462 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE SimpleIO;
+(* 
+ * DOn't have Assert around the TerminateWithError because this isn't
+ * really assertion check which is costly.  It provides semantics to the
+ * library.  It is a post-condition and not a pre-condition.
+ *
+ * Tasks NOTE: 
+ *     This may not be right, but we terminate with the Monitor locked.
+ *     The semantics of the Tasking stuff at Olsen says that the program
+ *     exits if the caller is terminated.  If other Tasks semantics are chosen,
+ *     then a different approach will have to be taken.
+ *)
+IMPORT
+    CardIO,
+    IntIO,
+    IOErrors,
+    ProgErr,
+    RealIO,
+    StringIO,
+    SysTypes,
+    TextIO,
+    TextIOPRIVATE;
+
+@IF Tasks THEN
+    IMPORT
+	IOMonitors,
+	TaskMonitors;
+    VAR
+	inputMonitor  : TaskMonitors.Object;
+	outputMonitor : TaskMonitors.Object;
+@END (* Tasks *)
+
+
+PROCEDURE TerminateWithError(
+    file : TextIOPRIVATE.Object
+    );
+    (*  
+     * Terminate program due to error/end state on file.
+     *)
+    BEGIN (* TerminateWithError *)
+
+	TextIO.PrintErrorMessage( TextIO.Object( file ), '' );
+	ProgErr.Terminate( 'SimpleIO: I/O error.' );
+
+    END TerminateWithError;
+
+
+PROCEDURE NumWriteError;
+    (*
+     * If we get an error writing, then we should try to see if
+     * it was just a bad parameter.  In this case, we just ignored
+     * the error.  This is SimpleIO, right?
+     *)
+    BEGIN (* NumWriteError *)
+
+	(*
+	 * If the error isn't badParameter or the badParameter error
+	 * couldn't be reset, the blow up!
+	 *)
+	IF ( TextIOPRIVATE.output^.errorState # IOErrors.badParameter ) OR
+	   ( TextIO.SetError( TextIO.Object( TextIOPRIVATE.output ), 
+			      IOErrors.ok ) = TextIO.error ) THEN
+	    TerminateWithError( TextIOPRIVATE.output );
+	END;
+    END NumWriteError;
+
+
+PROCEDURE NumReadError;
+    (*
+     * If we get an error during reading (or hit end of line), then
+     * we have to figure out what it is and act accordingly.
+     *)
+    BEGIN (* NumReadError *)
+
+	(* 
+	 * If the error isn't badData or we couldn't correct the error,
+	 * then blow up!
+	 *)
+	IF ( TextIOPRIVATE.input^.errorState # IOErrors.badData ) OR
+	   ( TextIO.SetError( TextIO.Object( TextIOPRIVATE.input ), 
+			      IOErrors.ok ) = TextIO.error )  THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+    END NumReadError;
+
+
+PROCEDURE EOF(
+    ) : BOOLEAN;
+    BEGIN  (* EOF *)
+
+	@IF Assert THEN
+	    IF TextIOPRIVATE.input^.state = TextIO.error THEN
+		TerminateWithError( TextIOPRIVATE.input );
+	    END;
+	@END (* Assert *)
+
+	RETURN TextIOPRIVATE.input^.state = TextIO.endOfFile;
+    END EOF;
+
+
+PROCEDURE EOL(
+    ) : BOOLEAN;
+    BEGIN  (* EOL *)
+
+	@IF Assert THEN
+	    IF TextIOPRIVATE.input^.state = TextIO.error THEN
+		TerminateWithError( TextIOPRIVATE.input );
+	    END;
+	@END (* Assert *)
+
+	RETURN TextIOPRIVATE.input^.state = TextIO.endOfLine;
+    END EOL;
+
+
+PROCEDURE ReadChar(
+    VAR toRead : CHAR
+    );
+    BEGIN (* ReadChar *)
+
+	IF TextIO.Read( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+    END ReadChar;
+
+
+PROCEDURE ReadString(
+    VAR toRead : ARRAY OF CHAR
+    );
+    BEGIN  (* ReadString *)
+
+	IF StringIO.Read( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+    END ReadString;
+
+
+PROCEDURE ReadInt(
+    VAR toRead : SysTypes.Int
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* ReadInt *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := IntIO.Read( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+		    = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    NumReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+    END ReadInt;
+
+
+PROCEDURE ReadCard(
+    VAR toRead : SysTypes.Card
+    )          : BOOLEAN;
+    VAR
+	result   : BOOLEAN;
+    BEGIN (* ReadCard *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := CardIO.Read( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+		    = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    NumReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+    END ReadCard;
+
+
+PROCEDURE ReadReal(
+    VAR toRead : SysTypes.Real
+    )          : BOOLEAN;
+    VAR
+	result : BOOLEAN;
+    BEGIN (* ReadReal *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := RealIO.Read( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+		    = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    NumReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END ReadReal;
+
+
+PROCEDURE ReadReal64(
+    VAR toRead : SysTypes.REAL64
+    )          : BOOLEAN;
+    VAR
+	result : BOOLEAN;
+    BEGIN (* ReadReal64 *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := RealIO.Read64( TextIO.Object( TextIOPRIVATE.input ), toRead ) 
+		    = TextIO.ok;
+
+	IF NOT result AND ( TextIOPRIVATE.input^.state = TextIO.error ) THEN
+	    NumReadError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+    END ReadReal64;
+
+
+PROCEDURE ReadLn;
+    BEGIN  (* ReadLn *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	IF TextIO.ReadLn( TextIO.Object( TextIOPRIVATE.input ) ) 
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.input );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+    END ReadLn;
+
+
+PROCEDURE WriteChar(
+    toWrite : CHAR
+    );
+    BEGIN  (* WriteChar *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF TextIO.Write( TextIO.Object( TextIOPRIVATE.output ), toWrite ) 
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.output );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteChar;
+
+
+PROCEDURE WriteString(
+    toWrite : ARRAY OF CHAR
+    );
+    BEGIN  (* WriteString *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF StringIO.Write( TextIO.Object( TextIOPRIVATE.output ), toWrite ) 
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.output );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteString;
+
+
+
+PROCEDURE WriteInt(
+    toWrite : SysTypes.Int;
+    width   : SysTypes.Card
+    );
+    BEGIN (* WriteInt *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF IntIO.Write( TextIO.Object( TextIOPRIVATE.output ), toWrite, width )
+	  = TextIO.error THEN
+	    NumWriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteInt;
+
+
+PROCEDURE WriteCard(
+    toWrite : SysTypes.Card;
+    width   : SysTypes.Card
+    );
+    BEGIN (* WriteCard *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF CardIO.Write( TextIO.Object( TextIOPRIVATE.output ), toWrite, width )
+	  = TextIO.error THEN
+	    NumWriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteCard;
+
+
+PROCEDURE WriteFloating(
+    toWrite       : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card
+    );
+    BEGIN (* WriteFloating *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF RealIO.WriteFloating( TextIO.Object( TextIOPRIVATE.output ), 
+	  toWrite, totalWidth, fractionWidth ) = TextIO.error THEN
+	    NumWriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteFloating;
+
+
+PROCEDURE WriteScientific(
+    toWrite       : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card;
+    exponentWidth : SysTypes.Card
+    );
+    BEGIN (* WriteScientific *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF RealIO.WriteScientific( TextIO.Object( TextIOPRIVATE.output ), 
+	  toWrite, totalWidth, fractionWidth, exponentWidth ) = TextIO.error 
+	    THEN NumWriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteScientific;
+
+
+PROCEDURE WriteEngineering(
+    toWrite       : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card;
+    exponentWidth : SysTypes.Card
+    );
+    BEGIN (* WriteEngineering *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF RealIO.WriteEngineering( TextIO.Object( TextIOPRIVATE.output ), 
+	  toWrite, totalWidth, fractionWidth, exponentWidth ) = TextIO.error 
+	    THEN NumWriteError;
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteEngineering;
+
+
+PROCEDURE WriteLn;
+    BEGIN  (* WriteLn *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	IF TextIO.WriteLn( TextIO.Object( TextIOPRIVATE.output ) )
+	  = TextIO.error THEN
+	    TerminateWithError( TextIOPRIVATE.output );
+	END;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+    END WriteLn;
+
+BEGIN (* SimpleIO *)
+    
+    @IF Tasks THEN
+	inputMonitor  := IOMonitors.GetInput();
+	outputMonitor := IOMonitors.GetOutput();
+    @END (* Tasks *)
+
+END SimpleIO.

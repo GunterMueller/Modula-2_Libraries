@@ -1,0 +1,326 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOInt;
+(* 
+ * Reading and writing integer via formatio is the same as cardinals and ints.
+ * We have to determine the size of the objects.
+ * We do as many manipulations in BiggestINTEGER as possible, since this makes 
+ * things easier.
+ *)
+
+IMPORT 
+    FIOBase,
+    FormatIO,
+    IntIO,
+    IOErrors,
+    IntConvert,
+    ModInit,	(* MUST BE HERE -- See ConfFIO *)
+    Strings,
+    StringIO,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+CONST
+    prompt = "Enter an integer `[ [Int] .. [Int] `]: ";
+    (* Default modifiers are used when user doesn't supply a value *)
+    defaultWidth         = 0;
+    defaultFillChar      = ' ';
+    defaultJustification = Strings.justifyRight;
+   
+TYPE
+    IntPtr     = RECORD
+	@IF M2V2 THEN
+	    CASE CARDINAL OF	(* Case tag is version 1.0 *)
+	@ELSE
+	    CASE : CARDINAL OF	(* Correct version of case tag *)
+	@END
+	    0: adr : SysTypes.SAUPTR;
+	    |
+	    1: ptr16 : POINTER TO SysTypes.INTEGER16;
+	    @IF SunM2 THEN
+	       |
+	       2: ptr32 : POINTER TO SysTypes.INTEGER32;
+	       |
+	       3: ptr8  : POINTER TO SysTypes.INTEGER8;
+	    @END (* SunM2 *)
+      END; (* CASE *)
+    END;
+
+    MaxIntString = ARRAY [ 0 .. 32 ] OF CHAR;
+    @IF LogitechM2 THEN
+	BiggestINTEGER   = SysTypes.INTEGER16;
+    @END (* LogitechM2 *)
+    @IF SunM2 THEN
+	BiggestINTEGER   = SysTypes.INTEGER32;
+    @END (* SunM2 *)
+
+   
+PROCEDURE Write(
+    DONTCARE : SysTypes.ANYPTR;
+    outFile  : TextIO.Object;
+    format   : ARRAY OF CHAR;
+    dataAdr  : SysTypes.SAUPTR;
+    length   : SysTypes.Card
+    )        : TextIO.States;
+    VAR
+	intPtr : IntPtr;
+	int    : BiggestINTEGER;
+	intStr : MaxIntString;
+	modifiers    : FIOBase.ModifierValues;
+    BEGIN (* Write *)
+
+	intPtr.adr := dataAdr;
+	@IF SunM2 THEN
+	    (* Check out the size and set up int accordingly *)
+	    IF length = SYSTEM.TSIZE( SysTypes.INTEGER8 ) THEN
+		int := intPtr.ptr8^;
+	    ELSIF length = SYSTEM.TSIZE( SysTypes.INTEGER16 ) THEN
+		int := intPtr.ptr16^;
+	    ELSIF length = SYSTEM.TSIZE( SysTypes.INTEGER32 ) THEN
+		int := intPtr.ptr32^;
+	    ELSE
+		RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	    END;
+	@END (* SunM2 *)
+
+	@IF LogitechM2 THEN
+	    int := intPtr.ptr16^;
+	@END (* LogitechM2 *)
+
+	(* establish defaults *)
+	WITH modifiers DO
+	    width         := defaultWidth;
+	    fillChar      := defaultFillChar;
+	    justification := defaultJustification;
+	END;
+
+	(* scan for default modifiers *)
+	IF NOT FIOBase.ScanModifiers( format, FIOBase.writeModifierSet,
+	    outFile, modifiers, format ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+	(* We aren't expecting any other command characters *)
+	IF format[ 0 ] # 0C THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END; (* WHILE *)
+
+	IF NOT IntConvert.ToString( int, 0, intStr ) THEN
+	    RETURN TextIO.SetError(outFile, IOErrors.badParameter);
+	END;
+
+	WITH modifiers DO
+	    RETURN StringIO.WriteJustifiedField(
+		outFile, intStr, justification, width, fillChar );
+	END; (* WITH *)
+
+    END Write;
+
+   
+PROCEDURE GetInt(
+    VAR formatString : ARRAY OF CHAR;
+    VAR modifier     : INTEGER
+    )                : BOOLEAN;
+    VAR
+	intString : MaxIntString;
+    BEGIN (* GetInt *)
+
+	RETURN FIOBase.GetString( formatString, intString ) AND
+	       IntConvert.FromString( intString, modifier );
+
+    END GetInt;
+
+
+PROCEDURE Read(
+    DONTCARE   : SysTypes.ANYPTR;
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    dataAdr    : SysTypes.SAUPTR;
+    length     : SysTypes.Card;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    (*
+     * Figures out the type of int (SunM2) and then proceeds to 
+     * get the parameters.  After getting the defaults, it goes to
+     * the "locals" which are "u" and "l" for upper and lower bounds.
+     * Finally, it enters the standard read loop.  Since this is a
+     * formatted object, we return badData on endOfLine being encountered.
+     *)
+     VAR
+        intPtr    : IntPtr;
+	int	    : BiggestINTEGER;
+        error      : BOOLEAN;
+        state      : TextIO.States;
+	modifiers  : FIOBase.ModifierValues;
+        upper      : BiggestINTEGER;
+        lower      : BiggestINTEGER;
+	@IF SunM2 THEN
+	    (* several sizes, so have to set dynamically *)
+            maxUpper  : BiggestINTEGER;
+	    maxLower  : BiggestINTEGER;
+	@END (* SunM2 *)
+	@IF LogitechM2 THEN
+	    CONST
+	        (* Only one size INTEGER and is checked by FIO *)
+	        maxUpper = SysTypes.MAXINTEGER16;
+	        maxLower = SysTypes.MININTEGER16;
+	 @END (* LogitechM2 *)
+      BEGIN (* Read *)
+
+      @IF SunM2 THEN
+	 (* Check out the size and set up the size dependent parameters *)
+	 IF length = SYSTEM.TSIZE( SysTypes.INTEGER8 ) THEN
+	    maxUpper := SysTypes.MAXINTEGER8;
+	    maxLower := SysTypes.MININTEGER8;
+	 ELSIF length = SYSTEM.TSIZE( SysTypes.INTEGER16 ) THEN
+	    maxUpper := SysTypes.MAXINTEGER16;
+	    maxLower := SysTypes.MININTEGER16;
+	 ELSIF length = SYSTEM.TSIZE( SysTypes.INTEGER32 ) THEN
+	    maxUpper := SysTypes.MAXINTEGER32;
+	    maxLower := SysTypes.MININTEGER32;
+	 ELSE
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	 END;
+      @END (* SunM2 *)
+
+      (* LogitechM2 is sized checked by FormatIO *)
+
+      (* scan for default modifiers *)
+      IF prompting THEN
+	 modifiers.messageOutput := FALSE;
+         IF NOT FIOBase.ScanModifiers(format, FIOBase.readModifierSet,
+            promptFile, modifiers, format) THEN
+	     RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	 END;
+      END;
+      
+      upper := maxUpper;
+      lower := maxLower;
+      WHILE format[0] # 0C DO
+         CASE FIOBase.GetSpecifier( format ) OF
+            'l' : error := NOT GetInt( format, lower );
+           |'u' : error := NOT GetInt( format, upper );
+            ELSE  error := TRUE;
+	 END; (* CASE *)
+         IF error THEN
+            RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+	 END;
+      END; (* WHILE *)
+      
+      (* Verify that the guy has a correct parameter *)
+      IF ( upper < lower ) OR ( upper > maxUpper ) OR ( lower < maxLower ) 
+	THEN RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+      END;
+      
+      (* 
+       * we have the parameters: repeat the read until a valid value is read 
+       * Note that a message may have been put out.  If one hasn't,
+       * then we don't prompt (unless the guy gets something wrong).
+       *)
+      LOOP  
+	 IF prompting AND NOT modifiers.messageOutput THEN
+	     error := ( FormatIO.Write2( promptFile, prompt, lower, upper )
+			# TextIO.ok ) OR
+		      ( TextIO.Flush( promptFile ) # TextIO.ok );
+	 
+	     IF error THEN
+		(* Got an error during prompting, no retry! *)
+		RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	     END;
+	 END;
+         
+         (* now, do the read as requested *)
+         state := IntIO.Read( inFile, int );
+
+	 (* First figure out if there was an error *)
+	 IF state = TextIO.ok THEN
+
+	    (* Do the range check *)
+	    IF ( lower <= int ) AND ( int <= upper ) THEN
+
+	       (* We're looking at some heavy case variant record action! *)
+	       intPtr.adr := dataAdr;
+	       @IF SunM2 THEN
+		  (* Should be case, but there is sun bug on case statements *)
+		  IF length = SYSTEM.TSIZE( SysTypes.INTEGER8 ) THEN
+		     intPtr.ptr8^ := int;
+		  ELSIF length = SYSTEM.TSIZE( SysTypes.INTEGER16 ) THEN
+		     intPtr.ptr16^ := int;
+		  ELSE (* length = SYSTEM.TSIZE( SysTypes.INTEGER32 ) *)
+		     intPtr.ptr32^ := int;
+		  END;
+	       @END (* SunM2 *)
+
+	       @IF LogitechM2 THEN
+		  intPtr.ptr16^ := int;
+	       @END (* LogitechM2 *)
+
+	       RETURN TextIO.ok;
+	    END; (* bounds check *)
+	    
+	    (* Got a range error *)
+	    state := TextIO.SetError( inFile, IOErrors.badData );
+	 END; (* IF state *)
+
+	 (* Nothing we can do if we aren't prompting! *)
+         IF NOT prompting THEN
+	     IF state = TextIO.endOfLine THEN	(* expected int *)
+		RETURN TextIO.SetError( inFile, IOErrors.badData );
+	     END;
+             RETURN state;
+	 END;
+
+	 (* We are prompting, so use the standard procedure for errors *)
+	 state := FIOBase.PromptForReread( promptFile, inFile );
+	 IF state # TextIO.ok THEN
+	    RETURN state;
+	 END;
+
+	 modifiers.messageOutput := FALSE; (* Force a re-prompt at the top. *)
+
+      END; (* LOOP *)
+         
+    END Read;
+      
+
+BEGIN (* FIOInt *)
+
+    @IF SunM2 THEN
+        FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE,
+			       FIOBase.noSizeCheck );
+
+        FIOBase.RegisterRead( formatName, Read, FIOBase.DONTCARE,
+			      FIOBase.noSizeCheck );
+    @END (* SunM2 *)
+
+    @IF LogitechM2 THEN
+        FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE,
+			       SYSTEM.TSIZE( SysTypes.Int ) );
+
+        FIOBase.RegisterRead( formatName, Read, FIOBase.DONTCARE,
+			      SYSTEM.TSIZE( SysTypes.Int ) );
+    @END (* LogitechM2 *)
+
+END FIOInt.

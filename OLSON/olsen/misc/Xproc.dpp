@@ -1,0 +1,315 @@
+(*$Copyright************************************************
+Copyright 1987, 1988 by Digital Equipment Corporation, Maynard, Massachusetts,
+and the Massachusetts Institute of Technology, Cambridge, Massachusetts.
+
+                        All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its 
+documentation for any purpose and without fee is hereby granted, 
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in 
+supporting documentation, and that the names of Digital or MIT not be
+used in advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.  
+
+DIGITAL DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+DIGITAL BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+SOFTWARE.
+
+******************************************************************)
+
+DEFINITION FOR C MODULE Xproc;
+(*
+ * Structures and functions of Xlib.
+ *)
+FROM UnixCtypes IMPORT
+    p_char,
+    pp_char;
+
+IMPORT
+    X,
+    Xlib,
+    Xutil;
+
+
+(*
+ * Display Functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 1)
+ *)
+
+PROCEDURE XOpenDisplay(
+    display_name : p_char  (* NULL means use $DISPLAY *)
+    )            : Xlib.Display;
+
+PROCEDURE XBlackPixel(
+    display       : Xlib.Display;
+    screen_number : INTEGER
+    )             : CARDINAL;
+
+PROCEDURE XWhitePixel(
+    display       : Xlib.Display;
+    screen_number : INTEGER
+    )             : CARDINAL;
+
+PROCEDURE XDefaultRootWindow(
+    display : Xlib.Display
+    )       : X.Window;
+
+PROCEDURE XDefaultScreen(
+    display : Xlib.Display
+    )       : INTEGER;
+
+PROCEDURE XCloseDisplay(
+    display : Xlib.Display
+    );
+
+
+(*
+ * Window Functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 3)
+ *)
+
+PROCEDURE XCreateWindow(
+    display     : Xlib.Display;
+    parent      : X.Window;
+    x           : INTEGER;
+    y           : INTEGER;
+    width       : CARDINAL;
+    height      : CARDINAL;
+    borderWidth : CARDINAL;
+    depth       : INTEGER;
+    class       : CARDINAL;
+    visual      : Xlib.Visual;
+    valuemask   : CARDINAL;
+    attributes  : Xlib.XSetWindowAttributes
+    )           : X.Window;
+
+PROCEDURE XCreateSimpleWindow(
+    display     : Xlib.Display;
+    parent      : X.Window;
+    x           : INTEGER;
+    y           : INTEGER;
+    width       : CARDINAL;
+    height      : CARDINAL;
+    borderWidth : CARDINAL;
+    border      : CARDINAL;
+    background  : CARDINAL
+    )           : X.Window;
+
+PROCEDURE XDestroyWindow(
+    display : Xlib.Display;
+    w       : X.Window
+    );
+
+PROCEDURE XMapWindow(
+    display : Xlib.Display;
+    w       : X.Window
+    );
+
+
+(*
+ * Graphics Resource Functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 5)
+ *)
+
+PROCEDURE XCreatePixmap(
+    display : Xlib.Display;
+    d       : X.Drawable;
+    width   : CARDINAL;
+    height  : CARDINAL;
+    depth   : CARDINAL
+    )       : X.Pixmap;
+
+PROCEDURE XFreePixmap(
+    display : Xlib.Display;
+    pixmap  : X.Pixmap
+    );
+
+PROCEDURE XCreateGC(
+    display          : Xlib.Display;
+    d                : X.Drawable;
+    valuemask_create : INTEGER;
+    values           : Xlib.XGCValues
+    )                : Xlib.GC;
+
+PROCEDURE XFreeGC(
+    display : Xlib.Display;
+    gc      : Xlib.GC
+    );
+
+
+(*
+ * Graphics functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 6)
+ *)
+
+PROCEDURE XClearArea(
+    display   : Xlib.Display;
+    w         : X.Window;
+    x         : INTEGER;
+    y         : INTEGER;
+    width     : CARDINAL;
+    height    : CARDINAL;
+    exposures : BOOLEAN
+    );
+    
+PROCEDURE XClearWindow(
+    display : Xlib.Display;
+    w       : X.Window
+    );
+
+PROCEDURE XCopyArea(
+    display      : Xlib.Display;
+    src_drawable : X.Drawable;
+    dst_drawable : X.Drawable;
+    gc           : Xlib.GC;
+    src_x        : INTEGER;
+    src_y        : INTEGER;
+    width        : CARDINAL;
+    height       : CARDINAL;
+    dst_x        : INTEGER;
+    dst_y        : INTEGER
+    );
+
+PROCEDURE XDrawPoint(
+    display : Xlib.Display;
+    d       : X.Drawable;
+    gc      : Xlib.GC;
+    x       : INTEGER;
+    y       : INTEGER
+    );
+
+PROCEDURE XDrawLine(
+    display : Xlib.Display;
+    d       : X.Drawable;
+    gc      : Xlib.GC;
+    x1      : INTEGER;
+    y1      : INTEGER;
+    x2      : INTEGER;
+    y2      : INTEGER
+    );
+
+
+(*
+ * Event-handling functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 8)
+ *)
+
+PROCEDURE XSelectInput(
+    display    : Xlib.Display;
+    w          : X.Window;
+    event_mask : INTEGER
+    );
+
+PROCEDURE XFlush(
+    display : Xlib.Display
+    );
+
+PROCEDURE XNextEvent(
+    display      : Xlib.Display;
+    event_return : Xlib.XEvent
+    );
+
+
+(*
+ * Predefined property functions.
+ * (See Xlib - C Language X Interface,
+ * chapter 9)
+ *)
+
+PROCEDURE XSetStandardProperties(
+    display     : Xlib.Display;
+    w           : X.Window;
+    window_name : p_char;
+    icon_name   : p_char;
+    icon_pixmap : X.Pixmap;
+    argv        : pp_char;
+    argc        : INTEGER;
+    hints       : Xutil.XSizeHints
+    );
+
+PROCEDURE XSetWMHints(
+    display : Xlib.Display;
+    window  : X.Window;
+    wmhints : Xutil.XWMHints
+    );
+
+
+(*
+ * Application Utility Functions
+ * (See Xlib - C Language X Interface,
+ * chapter 10)
+ *)
+
+PROCEDURE XCreateImage(
+    display        : Xlib.Display;
+    visual         : Xlib.Visual;
+    depth          : CARDINAL;
+    format         : INTEGER;
+    offset         : INTEGER;
+    data           : p_char;
+    width          : CARDINAL;
+    height         : CARDINAL;
+    bitmap_pad     : INTEGER;
+    bytes_per_line : INTEGER
+    )              : Xlib.XImage;
+
+PROCEDURE XGetPixel(
+    ximage : Xlib.XImage;
+    x      : INTEGER;
+    y      : INTEGER
+    )      : CARDINAL;
+
+PROCEDURE XPutPixel(
+    ximage : Xlib.XImage;
+    x      : INTEGER;
+    y      : INTEGER;
+    pixel  : CARDINAL
+    );
+
+PROCEDURE XDestroyImage(
+    ximage : Xlib.XImage
+    );
+
+PROCEDURE XReadBitmapFile(
+        display       : Xlib.Display;
+        d             : X.Drawable;
+        filename      : p_char;
+    VAR width_return  : CARDINAL;
+    VAR height_return : CARDINAL;
+    VAR bitmap_return : X.Pixmap;
+    VAR x_hot_return  : INTEGER;
+    VAR y_hot_return  : INTEGER
+    );
+
+PROCEDURE XWriteBitmapFile(
+    display  : Xlib.Display;
+    filename : p_char;
+    bitmap   : X.Pixmap;
+    width    : CARDINAL;
+    height   : CARDINAL;
+    x_hot    : INTEGER;
+    y_hot    : INTEGER
+    );
+
+PROCEDURE XCreatePixmapFromBitmapData(
+    display : Xlib.Display;
+    d       : X.Drawable;
+    data    : p_char;
+    width   : CARDINAL;
+    height  : CARDINAL;
+    fg      : CARDINAL;
+    bg      : CARDINAL;
+    depth   : CARDINAL
+    )       : X.Pixmap;
+
+END Xproc.

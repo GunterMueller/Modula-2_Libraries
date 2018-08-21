@@ -1,0 +1,205 @@
+(*
+6.4	StackSBMN Interface
+
+The interface to the bounded stack is presented below.  The purpose and implementation
+specifics of each routine is briefly described along with mention of the complexity
+measure of the actual implementation.
+*)
+
+
+DEFINITION MODULE StkSBMN;
+
+(*==========================================================
+    Version  : 1.00  29 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Stack (Opaque version)
+               Sequential Bounded Managed Non-Iterator
+
+    INTRODUCTION
+    This module provides the definition of the bounded stack
+    composed of generic Items.
+
+    REVISION HISTORY
+    v1.00  29 Apr 1989  C. Lins:
+      Initial implementation
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM StackEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+
+    (*-----------------------*)
+
+TYPE  Stack;
+TYPE  SizeRange  = [1..8100];
+
+CONST NullStack  = Stack(NIL);
+
+
+(*
+6.4.1	Exceptions
+
+The ModuleID  is used by the exception handling mechanism to distinguish this module
+from other modules.
+
+StackError  returns the exception code from the most recent stack operation.  A result of
+noerr indicates successful completion of the operation. O(1).
+
+GetHandler returns the exception handler routine associated with the given exception.
+Though the routine is a function procedure returning a procedure as its result, the
+HandlerProc may not be called from within the GetHandler call itself. The procedure
+result must be first assigned to a procedure variable before invocation. Exception handlers
+are given an initial value of ExitOnError except for the handler for noerr which is
+initialized to the null exception handler. O(1).
+
+SetHandler associates an exception handler routine with the given exception and is the
+inverse of GetHandler.  This routine may be used to override the default settings for the
+exception handlers. O(1).
+*)
+
+CONST ModuleID = 3;
+
+PROCEDURE StackError ()              : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+                          theHandler : HandlerProc (*-- in    *));
+
+
+(*
+6.4.2	Constructors
+
+The Create operation attempts to generate a new, empty stack of the given maximum
+size (theSize) and Item operations associated with the given data type identifier (theType).
+
+For the bounded form of stack, it is necessary to define the maximum depth desired and
+this is done using theSize parameter.  The TypeID is the method by which Items of any
+data type are supported.  Using theType, the component can assign one item to another
+and release any dynamically allocated resources associated with an Item without
+knowledge of the Item's internal composition.  In this way, one may create a stack whose
+items consist of other (dynamically allocated) structures, as well as stacks consisting of
+the basic data types.  Create returns the new stack upon successful completion of the
+routine.  If it is not possible for the stack to be created, the exception overflow is raised
+and the constant NullStack  is returned. O(1).
+
+Destroy  takes the given stack, clears it of any items, and then destroys the stack itself.
+Where Create makes a defined stack, Destroy is its inverse, making the stack undefined.
+O(1).
+
+Clear  takes the given stack and removes all of its items.  theType attribute of the stack
+(assigned when the stack was created) is used to retrieve the item deallocation routine for
+the items of the stack.  Clearing the stack returns it to the empty state. O(n).
+
+The Assign  operation attempts to generate a duplicate of the source stack (theStack) in
+the target stack (toStack).  The target stack is automatically created using the size and data
+type attributes of the source stack, if necessary.  If this step is unnecessary, (the target
+stack has already been previously created), the target is cleared of its present contents, its
+data type is set to that of the source stack but the size is left unchanged. O(n).
+
+There is no guarantee that the client module would desire the target stack to be defined
+with the same size as the source.  The minimum requirement for the target stack size is
+that it must be capable of storing all of the items present in the source stack.  It may be
+desirable that the target stack size be greater than the source stack size.  Such a situation
+could occur during error recovery of a bounded stack overflow caused by the stack depth
+encountering the stack size, and the client module may effectively attempt to increase the
+the stack size using the assignment mechanism.
+
+In order to allow Items of any data type, a method must be provided to assign the contents
+of one item to another item.  This is accomplished, as above for Create, through the
+TypeID of the source stack.
+
+The Push  operation adds items to the given stack.  The given item is placed on the stack
+top.  If the depth is already at its maximum size for the given stack the overflow
+exception will be raised and the stack remains unchanged. O(1).
+
+The Pop  operation removes the topmost item from the given stack.  If the given stack is 
+empty on entry to Pop  the underflow  exception will be raised and the stack remains
+unchanged. O(1).
+
+PopTopOf  is a convenience routine combining the semantics of the constructor Pop and
+the selector TopOf.  The only difference from Pop is that the item's value is not disposed
+of, but is returned instead. O(1).
+*)
+
+
+PROCEDURE Create    (    theSize   : SizeRange (*-- in    *);
+                         theType   : TypeID    (*-- in    *))
+                                   : Stack     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE Clear     (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE Assign    (    theStack  : Stack     (*-- in    *);
+                     VAR toStack   : Stack     (*-- inout *));
+
+PROCEDURE Push      (VAR toStack   : Stack     (*-- inout *);
+                         theItem   : Item      (*-- in    *));
+
+PROCEDURE Pop       (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE PopTopOf  (VAR theStack  : Stack     (*-- inout *))
+                                   : Item      (*-- out   *);
+
+
+(*
+6.4.3	Selectors
+
+IsDefined  attempts to determine whether the given stack is valid, e.g., has been created
+and not yet destroyed.  How this is accomplished may be as simple or complicated as the
+implementor desires and the requirements of the application. O(1).
+
+IsEmpty  returns true if the given stack contains no items; in other words, its depth is
+zero.  Undefined stacks are always considered empty. O(1).
+
+IsEqual  returns true if the left and right stacks contain the same items.  Obviously, both
+must also have the same data type and have been created.  An undefined stack is not equal
+to any other stack, including itself. O(n).
+
+The routines SizeOf  and TypeOf  return the values given the stack when it was created,
+and both are provided so the user of the module need not maintain separate variables
+recording this information. O(1).
+
+DepthOf  returns the number of items present on the given stack.  Undefined stacks are
+considered to have a depth of zero. O(1).
+
+TopOf  returns the item at the current stack top.  If the stack is empty a stack underflow
+occurs and the NullItem is returned (since some Item must be).  Undefined stacks also
+cause the NullItem to be returned. O(1).
+*)
+
+PROCEDURE IsDefined (    theStack  : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE IsEmpty   (    theStack  : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE IsEqual   (    left      : Stack     (*-- in    *);
+                         right     : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE SizeOf    (    theStack  : Stack     (*-- in    *))
+                                   : CARDINAL  (*-- out   *);
+
+PROCEDURE TypeOf    (    theStack  : Stack     (*-- in    *))
+                                   : TypeID    (*-- out   *);
+
+PROCEDURE DepthOf   (    theStack  : Stack     (*-- in    *))
+                                   : CARDINAL  (*-- out   *);
+
+PROCEDURE TopOf     (    theStack  : Stack     (*-- in    *))
+                                   : Item      (*-- out   *);
+
+END StkSBMN.
+

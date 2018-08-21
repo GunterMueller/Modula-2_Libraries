@@ -1,0 +1,98 @@
+DEFINITION MODULE StkSBUI;
+(*==========================================================
+    Version  : 1.00  29 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Stack (Opaque version)
+               Sequential Bounded Unmanaged Iterator
+
+    REVISION HISTORY
+    v1.00  29 Apr 1989  C. Lins:
+      Initial implementation from StackSBMI module.
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc, ChangeProc,
+               LoopChangeProc;
+
+FROM StackEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+    (*-----------------------*)
+
+TYPE  Stack;
+TYPE  SizeRange  = [1..8100];
+
+CONST NullStack  = Stack(NIL);
+
+    (*-----------------------*)
+
+CONST ModuleID = 5;
+
+PROCEDURE StackError ()              : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+                          theHandler : HandlerProc (*-- in    *));
+
+    (*-----------------------*)
+
+PROCEDURE Create    (    theSize   : SizeRange (*-- in    *))
+                                   : Stack     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE Clear     (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE Assign    (    theStack  : Stack     (*-- in    *);
+                     VAR toStack   : Stack     (*-- inout *));
+
+PROCEDURE Push      (VAR toStack   : Stack     (*-- inout *);
+                         theItem   : Item      (*-- in    *));
+
+PROCEDURE Pop       (VAR theStack  : Stack     (*-- inout *));
+
+PROCEDURE PopTopOf  (VAR theStack  : Stack     (*-- inout *))
+                                   : Item      (*-- out   *);
+
+    (*-----------------------*)
+
+PROCEDURE IsDefined (    theStack  : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE IsEmpty   (    theStack  : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE IsEqual   (    left      : Stack     (*-- in    *);
+                         right     : Stack     (*-- in    *))
+                                   : BOOLEAN   (*-- out   *);
+
+PROCEDURE SizeOf    (    theStack  : Stack     (*-- in    *))
+                                   : CARDINAL  (*-- out   *);
+
+PROCEDURE DepthOf   (    theStack  : Stack     (*-- in    *))
+                                   : CARDINAL  (*-- out   *);
+
+PROCEDURE TopOf     (    theStack  : Stack     (*-- in    *))
+                                   : Item      (*-- out   *);
+
+    (*-----------------------*)
+
+PROCEDURE LoopOver   (    theStack  : Stack          (*-- in    *);
+                          theProcess: LoopAccessProc (*-- in    *));
+
+PROCEDURE LoopChange (    theStack  : Stack          (*-- in    *);
+                          theProcess: LoopChangeProc (*-- in    *));
+
+PROCEDURE Traverse   (    theStack  : Stack          (*-- in    *);
+                          theProcess: AccessProc     (*-- in    *));
+
+PROCEDURE TravChange (    theStack  : Stack          (*-- in    *);
+                          theProcess: ChangeProc     (*-- in    *));
+
+END StkSBUI.
+

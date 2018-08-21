@@ -1,0 +1,63 @@
+Interrupts.sym: ../bin/SysTypes.sym ../bin/UnixCsignal.sym 
+Interrupts.o: Interrupts.sym ../bin/Notices.sym ../bin/Objects.sym  \
+              ../bin/ProgErr.sym ../bin/SafeStorage.sym ../bin/SysTypes.sym  \
+              Tasks.sym TasksAsm.sym TasksPRIVATE.sym ../bin/UnixCerrno.sym  \
+              ../bin/UnixCsignal.sym ../bin/UnixError.sym 
+Notices.o: ../bin/Notices.sym ../bin/Objects.sym ../bin/ProgErr.sym  \
+           ../bin/ProgErrOutput.sym ../bin/SafeStorage.sym  \
+           ../bin/SysTypes.sym Tasks.sym 
+Objects.o: ../bin/CardConvert.sym ../bin/GenConsts.sym ../bin/Objects.sym  \
+           ../bin/ProgErr.sym ../bin/ProgErrOutput.sym ../bin/SafeStorage.sym  \
+           ../bin/Strings.sym ../bin/SysTypes.sym Tasks.sym 
+RandomNumbers.o: ../bin/ProgErr.sym ../bin/RandomNumbers.sym  \
+                 ../bin/SysTypes.sym TaskMonitors.sym  \
+                 ../bin/UnixCsys_time.sym 
+SafeStorage.o: ../bin/ProgErr.sym ../bin/SafeStorage.sym ../bin/SysTypes.sym  \
+               ../bin/UnixCerrno.sym ../bin/UnixCmalloc.sym UnixMonitor.sym 
+TaskConsts.sym: ../bin/GenConsts.sym ../bin/SysTypes.sym 
+TaskConsts.o: TaskConsts.sym 
+TaskDebug.sym: 
+TaskDebug.o: Interrupts.sym ../bin/Notices.sym ../bin/ProgErr.sym  \
+             ../bin/ProgErrOutput.sym ../bin/SysTypes.sym TaskConsts.sym  \
+             TaskDebug.sym TaskInfo.sym TaskNotices.sym Tasks.sym  \
+             TasksPRIVATE.sym ../bin/UnixCsignal.sym 
+TaskInfo.sym: ../bin/SysTypes.sym Tasks.sym 
+TaskInfo.o: ../bin/CardConvert.sym ../bin/ProgErr.sym  \
+            ../bin/ProgErrOutput.sym ../bin/SysTypes.sym TaskConsts.sym  \
+            TaskInfo.sym Tasks.sym TasksPRIVATE.sym 
+TaskMessages.sym: ../bin/SysTypes.sym TaskTime.sym Tasks.sym 
+TaskMessages.o: ../bin/Bytes.sym ../bin/Objects.sym ../bin/ProgErr.sym  \
+                ../bin/ProgErrOutput.sym ../bin/SysTypes.sym TaskConsts.sym  \
+                TaskInfo.sym TaskMessages.sym TaskTime.sym Tasks.sym 
+TaskMonitors.sym: TaskTime.sym 
+TaskMonitors.o: ../bin/CardConvert.sym ../bin/Notices.sym ../bin/Objects.sym  \
+                ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+                ../bin/Strings.sym ../bin/SysTypes.sym TaskConsts.sym  \
+                TaskInfo.sym TaskMonitors.sym TaskTime.sym Tasks.sym 
+TaskNotices.sym: ../bin/Notices.sym 
+TaskNotices.o: ../bin/Notices.sym ../bin/SysTypes.sym TaskInfo.sym  \
+               TaskNotices.sym Tasks.sym TasksPRIVATE.sym 
+TaskSemaphores.sym: ../bin/SysTypes.sym TaskTime.sym 
+TaskSemaphores.o: ../bin/Notices.sym ../bin/Objects.sym ../bin/ProgErr.sym  \
+                  ../bin/ProgErrOutput.sym ../bin/Strings.sym  \
+                  ../bin/SysTypes.sym TaskConsts.sym TaskInfo.sym  \
+                  TaskSemaphores.sym TaskTime.sym Tasks.sym 
+TaskTime.sym: ../bin/SysTypes.sym Tasks.sym 
+TaskTime.o: ../bin/IntConvert.sym Interrupts.sym ../bin/Intrinsics.sym  \
+            ../bin/Notices.sym ../bin/Objects.sym ../bin/ProgErr.sym  \
+            ../bin/ProgErrOutput.sym ../bin/SysTypes.sym TaskInfo.sym  \
+            TaskTime.sym Tasks.sym ../bin/UnixCsignal.sym  \
+            ../bin/UnixCsys_time.sym ../bin/UnixError.sym 
+Tasks.sym: ../bin/SysTypes.sym TaskConsts.sym 
+Tasks.o: ../bin/CardConvert.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+         ../bin/Strings.sym ../bin/SysTypes.sym TaskConsts.sym Tasks.sym  \
+         TasksAsm.sym TasksPRIVATE.sym ../bin/UnixCsignal.sym 
+TasksAsm.sym: ../bin/SysTypes.sym 
+TasksPRIVATE.sym: ../bin/Objects.sym ../bin/SysTypes.sym TaskConsts.sym  \
+                  Tasks.sym TasksAsm.sym ../bin/UnixCsignal.sym 
+TasksPRIVATE.o: ../bin/ProgErr.sym ../bin/ProgErrOutput.sym  \
+                ../bin/SafeStorage.sym ../bin/Strings.sym ../bin/SysTypes.sym  \
+                TaskConsts.sym Tasks.sym TasksAsm.sym TasksPRIVATE.sym  \
+                ../bin/UnixCexit.sym ../bin/UnixCsys_file.sym UnixMonitor.sym 
+UnixMonitor.sym: 
+UnixMonitor.o: UnixMonitor.sym 

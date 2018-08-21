@@ -1,0 +1,114 @@
+DEFINITION MODULE DQSBMI;
+(*===========================================================
+    Version  : 1.00  16 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Deque (Opaque version)
+      Non-Priority Non-Balking Sequential Bounded Managed Iterator
+
+    REVISION HISTORY
+    v1.00  16 May 1989  C. Lins:
+	  Initial TopSpeed Modula-2 implementation.
+	(C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM QEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*--------------------*)
+
+TYPE  Deque;
+TYPE  DequeSize = [1..8100];
+TYPE  Location  = (front, back);
+CONST NullDeque = Deque(NIL);
+
+
+(*---------------------------------*)
+(*--	EXCEPTIONS	--*)
+
+CONST ModuleID = 13;
+
+PROCEDURE DequeError () : Exceptions (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+	theHandler : HandlerProc (*-- in    *));
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+	: HandlerProc (*-- out   *);
+
+
+(*---------------------------------*)
+(*--	CONSTRUCTORS	--*)
+
+PROCEDURE Create  (    theType  : TypeID    (*-- in    *);
+	theSize  : DequeSize (*-- in    *))
+	: Deque     (*-- out   *);
+
+PROCEDURE Destroy (VAR theDeque : Deque     (*-- inout *));
+
+PROCEDURE Clear   (VAR theDeque : Deque     (*-- inout *));
+
+PROCEDURE Assign  (    theDeque : Deque     (*-- in    *);
+	VAR toDeque  : Deque     (*-- inout *));
+
+PROCEDURE Arrive  (VAR theDeque : Deque     (*-- inout *);
+       	       	       theItem  : Item      (*-- in    *);
+					   theEnd   : Location  (*-- in    *));
+
+PROCEDURE Depart  (VAR theDeque : Deque     (*-- inout *);
+					   theEnd   : Location  (*-- in    *));
+
+
+(*---------------------------------*)
+(*--	SELECTORS	--*)
+
+PROCEDURE IsDefined (    theDeque : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty   (    theDeque : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    left     : Deque    (*-- in    *);
+	right    : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    theDeque : Deque    (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE SizeOf    (    theDeque : Deque    (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf    (    theDeque : Deque    (*-- in    *))
+	: TypeID   (*-- out   *);
+
+PROCEDURE FrontOf   (    theDeque : Deque    (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+PROCEDURE RearOf    (    theDeque : Deque    (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+PROCEDURE EndOf     (    theDeque : Deque    (*-- in    *);
+	theEnd   : Location (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+
+(*---------------------------------*)
+(*--	ITERATORS	--*)
+
+PROCEDURE LoopOver (    theDeque  : Deque	(*-- in    *);
+	theProcess: LoopAccessProc (*-- in    *);
+						theEnd    : Location       (*-- in    *));
+
+PROCEDURE Traverse (    theDeque  : Deque	(*-- in    *);
+	theProcess: AccessProc     (*-- in    *);
+						theEnd    : Location       (*-- in    *));
+
+END DQSBMI.

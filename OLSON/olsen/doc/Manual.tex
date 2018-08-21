@@ -1,0 +1,67 @@
+\documentstyle[11pt]{book}   	 % Specifies the document style.
+
+% LaTeX preamble:
+\makeindex			
+
+\title{The Olsen \& Associates \\
+	Portable Modula-2 Library \\
+	Programmer's Guide} 
+\author{Olsen \& Associates}
+
+\date{10 October 1988\\
+	Version 1.0}
+
+\begin{document}           	% End of preamble and beginning of text.  
+
+\parindent 0pt
+\parskip 2ex
+\parsep 2ex
+
+\maketitle
+
+% Create a table of contents
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+
+% PREFACE
+\chapter*{Preface}
+\pagestyle{myheadings}\markboth{PREFACE}{PREFACE}
+\addcontentsline{toc}{chapter}{Preface}
+\input{Preface.tex}
+
+% CHAPTERS
+\pagenumbering{arabic}
+
+\input{Intro.tex}
+\input{Install.tex}
+\input{IntroIO.tex}
+\input{Files.tex}
+\input{Errors.tex}
+\input{MoreFIO.tex}
+\input{Objects.tex}
+\input{Tasks.tex}
+\input{ProcVar.tex}
+\input{Classes.tex}
+
+% APPENDICES
+\appendix
+
+\input{Modules.tex}
+\input{m2pp.tex}
+\input{Impl.tex}
+\input{TasksDesign.tex}
+\input{Coding.tex}
+
+%BIBLIOGRAPHY -- Home brew.
+\chapter*{Bibliography}
+\pagestyle{myheadings}\markboth{BIBLIOGRAPHY}{BIBLIOGRAPHY}
+\addcontentsline{toc}{chapter}{Bibliography}
+\input{Bib.tex}
+
+%INDEX 
+\begin{theindex}
+\input\jobname.index
+\end{theindex}
+
+\end{document}

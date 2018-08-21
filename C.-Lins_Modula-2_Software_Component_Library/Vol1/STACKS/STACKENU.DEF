@@ -1,0 +1,62 @@
+DEFINITION MODULE StackEnum; 
+(*==============================================================
+    Version  : 1.05  16 Apr 1989  C. Lins
+    Compiler : Bob Campbell's MPW Modula-2 Compiler
+    Component: Stack Structure Utility - Standard Enumerations
+
+    THE ABSTRACTION
+    This module provides centralized definitions of the operations
+    and exceptions for all stack modules.
+
+    REVISION HISTORY
+    v1.04  07 Jan 1988  C. Lins:
+        Initial TML Modula-2 implementation
+    v1.05  16 Apr 1989  C. Lins:
+        Added ComponentID constant.
+==============================================================*)
+
+CONST ComponentID = 256;
+
+    (*---------------------------------*)
+    (*--       STACK OPERATIONS      --*)
+
+TYPE  Operations = (
+                    (*-- Module Initialization *)
+                    modinit,
+
+                    (*-- Constructors *)
+                    create, destroy, clear, assign, push, pop, poptopof,
+
+                    (*-- Selectors *)
+                    isdefined, isempty, isequal, sizeof, typeof,
+                    topof, depthof,
+
+                    (*-- Iterators *)
+                    loopover, loopchange, traverse, travchange,
+
+                    (*-- Guarded Concurrent Operations *)
+                    seize, release
+                   );
+
+TYPE  Constructors = Operations [ create    .. poptopof   ];
+TYPE  Selectors    = Operations [ isdefined .. depthof    ];
+TYPE  Iterators    = Operations [ loopover  .. travchange ];
+TYPE  GuardedOps   = Operations [ seize     .. release    ];
+
+
+    (*---------------------------------*)
+    (*--      STACK EXCEPTIONS       --*)
+
+TYPE  Exceptions = (noerr,      (*-- Nothing went wrong, all's well. *)
+                    initfailed, (*-- Module initialization failure. *)
+                    overflow,   (*-- Stack cannot grow big enough for
+                                  -- the requested operation. *)
+                    typeerror,  (*-- Type mismatch between stacks *)
+                    undefined,  (*-- Stack has not been Created. Or
+                                  -- the stack has been Destroyed. *)
+                    underflow   (*-- Stack is already empty. *)
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END StackEnum.

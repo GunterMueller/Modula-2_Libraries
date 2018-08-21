@@ -1,0 +1,7 @@
+M2Defs= 
+M2Imps= 
+M2Mods= BinTest.mod CardIOTest.mod CardIOTimer.mod ChangeDir.mod DirTest.mod  \
+        Hello.mod IntIOTest.mod RealIOTest.mod RealIOTimer.mod  \
+        tAsynchRealIO.mod tCopy.mod tCopyObject.mod tDirIOList.mod  \
+        tIONames.mod tIOVersions.mod tListWithInfo.mod tScreenIO.mod  \
+        tStringBinaryIO.mod 

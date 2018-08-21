@@ -1,0 +1,1002 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE UnixBinaryIO;
+(*
+ * Implements the Unix class of BinaryIO.
+ *
+ * Throughout this module, the following terms are used:
+ *     local      - the Object declared in this module (classBasedInfo).
+ *     file       - the BinaryIO.Object.
+ *     private    - the CatBinaryIO.Object.
+ *     unixReturn - the values returned by unix functions.
+ *     result     - value returned by the procedure.
+ * 
+ * ASSERT:
+ * Note that we don't need to do assertion checking on the procedures
+ * which we don't export.  They can't be called unless they were assigned
+ * by "Open" in this module which means that the "file" is implemented
+ * by this class.  Exported procedures must check the file and the
+ * classBasedInfo, because it could be passed a valid BinaryIO file which
+ * is implemented by another class.
+ *
+ * errno:
+ * We maintain the value from the last system call, but it isn't set on
+ * success (only failure).  SetError (however) doesn't call this module,
+ * it merely manages the internal error state.  Therefore, we don't know
+ * when the guy resets the errno.  Since we don't check it, it isn't
+ * a big deal, but we do export GetError which returns the "errno".  In
+ * this routine, we have to deal with this case specially.
+ *
+ * bytesWritten = 0:
+ * We don't check for this case, because Unix shouldn't do it.  If
+ * Unix does it, then it must be an error.  Even if the file is set
+ * for non-blocking, it would return EWOULDBLOCK.  This may turn up
+ * as a bug in some Unix system, someday...
+ *
+ * Nasty errors:
+ * There are some nasty errors in here which screw up the file.  For example,
+ * if the guy calls GetEnd and it can't return back to the original position
+ * of the file.  In this case, we set the error.  If the guy wants to reset
+ * it, it is his problem.
+ *
+ * lseek:
+ * There is a terrible description in the manual which leaves the world
+ * of seeks particular ambiguous as follows:
+ * 
+ *       Upon successful completion, the resulting  pointer  location
+ *       as measured in bytes from beginning of the file is returned.
+ *       Some devices are incapable of seeking.   The  value  of  the
+ *       pointer associated with such a device is undefined.
+ *
+ * However, the manual then proceeds to say:
+ *
+ *  RETURN VALUE
+ *       Upon successful completion, a non-negative  (long)  integer,
+ *       the  current  file pointer value, is returned.  Otherwise, a
+ *       value of -1 is returned and errno is  set  to  indicate  the
+ *       error.
+ *
+ * As a result of this, we don't allow indexing on "tty" or files which
+ * return ESPIPE (sockets and pipes).  Note that all of this is thrown
+ * out when you don't have assertion checking (isIndexable isn't checked
+ * in BinaryIO).   Pretty crazy game.
+ *
+ * ??DefaultOpen:
+ * There is a debate.  Currently, DefaultOpen sets up the file so that
+ * the handleSupplied is true and Close will not call Unix (see Close).
+ * So the standard files can't be gotten rid of by just closing the 
+ * BinaryIO.Objects for GetInput, GetOutput, and GetErrorOutput.  We
+ * could easily turn this feature off by setting handleSupplied to FALSE
+ * after we call BinaryIO.Open in DefaultOpen.  However, if the guy is
+ * really worried about file handles, then he can close them himself.
+ *
+ * Tasks NOTE:
+ *     UnixAsynchIO handles all of the non-blocking/signals magic for
+ *     us 
+ *
+ * TODO:
+ *    RJN - Do we need a termination procedure?
+ *)
+IMPORT
+    BinaryIO,
+    CardConvert,
+    CatBinaryIO,
+    Chars,
+    ConfBinaryIO,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    ModInit,	(* MUST BE HERE -- SEE ConfBinaryIO *)
+    Objects,
+    ProgErrOutput,	
+    ProgErr,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    UnixIOErrors,
+    UnixIONames,
+    UnixCerrno,
+    UnixCfcntl,
+    UnixCsys_file,	
+    UnixCsys_stat;
+
+@IF Tasks THEN
+    IMPORT
+	UnixAsynchIO;
+@END
+
+CONST
+    moduleName = 'UnixBinaryIO';
+
+   
+TYPE
+    Object    = POINTER TO ObjectRec; (* CatBinaryIO.ObjectRec.classBasedInfo *)
+    ObjectRec = RECORD
+        handle         : SysTypes.Int; (* Unix file handle             *)
+        errno          : SysTypes.Int; (* most recent error code       *)
+	handleSupplied : BOOLEAN;      (* Was handle supplied on open? *)	
+	openPath       : UnixIONames.Path;   (* Saved for GetOpenPath *)
+	@IF Tasks THEN
+	    asynch     : UnixAsynchIO.Object;	(* AsynchIO object *)
+	@END
+    END;
+
+VAR
+    objectMgr      : Objects.Manager;
+    toUnixOpenMode : ARRAY BinaryIO.Modes OF SysTypes.Int;
+    @IF Tasks THEN
+	toAsynchEvents : ARRAY BinaryIO.Modes OF UnixAsynchIO.Events;
+    @END
+    methodTable : CatBinaryIO.MethodTable;   
+    @IF Tasks THEN
+	asynchMethodTable : CatBinaryIO.MethodTable;   
+    @END
+      
+PROCEDURE GetHandle(
+    file : BinaryIO.Object
+    )    : SysTypes.Int;
+    (*
+     * Exported procedure, so it must do assertion checking on both
+     * the file and the classBasedInfo.
+     *)
+    VAR
+        local   : Object;
+	private : CatBinaryIO.Object;
+    BEGIN (* GetHandle*)
+
+	private := CatBinaryIO.Object( file );
+	@IF ASSERT THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, private );
+	@END (* ASSERT *)
+
+	local   := Object( private^.classBasedInfo );
+	@IF ASSERT THEN
+	    Objects.Assert( objectMgr, local );
+	@END (* ASSERT *)
+
+	RETURN local^.handle;
+    END GetHandle;
+
+
+PROCEDURE GetError(
+    file : BinaryIO.Object
+    )    : SysTypes.Int;
+    (*
+     * Exported procedure, so it must do assertion checking on both
+     * the file and the classBasedInfo.  Note also that we must check
+     * the errorState of the file.  If it is not in error, then we
+     * return UnixCerrno.Eok.  This case occurs, when someone does
+     * a SetError and then calls this routine.
+     *)
+    VAR
+        local   : Object;
+	private : CatBinaryIO.Object;
+    BEGIN (* GetError*)
+
+	private := CatBinaryIO.Object( file );
+	@IF ASSERT THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, private );
+	@END (* ASSERT *)
+
+	local   := Object( private^.classBasedInfo );
+	@IF ASSERT THEN
+	    Objects.Assert( objectMgr, local );
+	@END (* ASSERT *)
+
+	IF private^.errorState = IOErrors.ok THEN
+	    local^.errno := UnixCerrno.Eok;
+	END;
+
+	RETURN local^.errno;
+    END GetError;
+
+
+PROCEDURE Open(
+          VAR private : CatBinaryIO.Object;
+    (*IN*)VAR path    : ARRAY OF CHAR;
+    (*IN*)VAR options : ARRAY OF CHAR
+    )                 : IOErrors.Errors;
+    (*
+     * We allocate the object first, because we must copy the path.
+     * We check the options and try to do the open, if necessary.  
+     * Then, we make sure isInteractive and isIndexable are set correctly.   
+     * Note that both these values are initialized to FALSE.
+     *)
+    VAR
+	result      : IOErrors.Errors;
+	tmpHandle   : SysTypes.Int;
+	local       : Object;
+	DONTCARE    : SysTypes.Int;
+	haveOptions : BOOLEAN;
+    BEGIN (* Open *)
+
+	WITH private^ DO
+	    LOOP (* For forward exists *)
+		Objects.Allocate( objectMgr, local );
+
+		IF NOT UnixIONames.CopyPath( path, local^.openPath ) THEN
+		    tmpHandle := -1;
+		    result := IOErrors.illegalName;
+		    EXIT;
+		END;
+
+		(* Do we have to open the file? *)
+		haveOptions := options[ 0 ] # 0C;
+		IF haveOptions THEN
+		    IF NOT SeparateOptions( options, tmpHandle ) THEN
+			result := IOErrors.badParameter;
+			EXIT;
+		    END;
+		ELSE
+		    (* File handle wasn't supplied, try to open *)
+		    tmpHandle := UnixCsys_file.open( 
+				    path, toUnixOpenMode[ openMode ], 0 );
+		    IF tmpHandle = -1 THEN
+			result := UnixIOErrors.ErrnoToIOError();
+			EXIT;
+		    END;
+		END;
+
+		(*
+		 * Figure out some things about the file.
+		 * 	   IsInteractive ==> isatty
+		 *     IsIndexable   ==> not a tty, not a pipe, & not appendOnly.
+		 *)
+		isInteractive := UnixCsys_file.isatty( tmpHandle ) = 1;
+
+		(* Do we have to check for the file being indexable? *)
+		IF NOT isInteractive AND ( openMode # BinaryIO.appendOnly ) THEN
+		    (* Figure out if it is indexable by seeking. *)
+		    isIndexable := UnixCsys_file.lseek( tmpHandle, 0, 
+					    UnixCsys_file.L_INCR ) # -1;
+
+		    IF NOT isIndexable THEN
+			(* 
+			 * We got some type of error (seek returned -1 ).
+			 * If it is ESPIPE, then the file is just not indexable.
+			 * If there was another error, then we have to check
+			 * the optionHandle to see if we have to close the file.
+			 *)
+			IF UnixCerrno.errno # UnixCerrno.ESPIPE THEN
+			    result := UnixIOErrors.ErrnoToIOError();
+			    EXIT;
+			END; 
+		    END; (* IF NOT isIndexable *)
+		END;  (* IF isInteractive *)
+
+
+		(* 
+		 * The operating system interface stuff is ok, proceed normally 
+		 * Assign the procedures to the CatBinaryIO.Object, then
+		 * finish initializing the classBasedInfo.
+		 *)
+		methods := SYSTEM.ADR( methodTable );
+		WITH local^ DO
+		    handle         := tmpHandle;
+		    errno          := UnixCerrno.Eok;
+		    handleSupplied := haveOptions;
+		    (* path already initialized *)
+		    @IF Tasks THEN
+			(*
+			 * If this is an asynchronous file, then we must
+			 * set up the method table to react properly.
+			 *)
+			IF NOT UnixAsynchIO.Create( asynch, handle, 
+					  toAsynchEvents[ openMode ] ) THEN
+			    UnixAsynchIO.SetInvalid( asynch );
+			ELSE
+			    methods := SYSTEM.ADR( asynchMethodTable );
+			END;
+		    @END
+		END; (* WITH local *)
+		classBasedInfo := local;
+
+		RETURN IOErrors.ok;
+
+	    END; (* LOOP For forward exits *)
+	END; (* WITH *)
+
+
+	Objects.Deallocate( objectMgr, local );
+	IF ( tmpHandle # -1 ) AND NOT haveOptions THEN
+	    DONTCARE := UnixCsys_file.close( tmpHandle );
+	END;
+
+	RETURN result;
+
+    END Open;
+
+
+
+PROCEDURE MakeOptions(
+        handleToUse : FileHandles;
+    VAR result      : ARRAY OF CHAR
+    );
+    BEGIN (* MakeOptions *)
+	
+	IF HIGH( result ) < maxOptionsLength - 1 THEN
+	    ProgErr.Terminate( 
+	       "UnixBinaryIO.MakeOptions: result string is too short." );
+	END;
+
+	(* Will always work *)
+	CardConvert.DONTCARE := CardConvert.ToString( 
+		handleToUse, Chars.maxBase, maxOptionsLength, result );
+
+	(* Mark it as our "type" *)
+	result[ 0 ] := CatBinaryIO.classOptionsChar;
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(
+        options     : ARRAY OF CHAR;
+    VAR handleToUse : SysTypes.Int
+    )               : BOOLEAN;
+    (*
+     * Need to specify an integer here for the convenience of Open.
+     *)
+    VAR
+	card : SysTypes.Card;	(* Need a temporary to do range check *)
+    BEGIN (* SeparateOptions *)
+
+	(* Will always work *)
+	IF options[ 0 ] # CatBinaryIO.classOptionsChar THEN
+	    RETURN FALSE;
+	END;
+
+	options[ 0 ] := ' ';	(* So we can convert easily *)
+	IF ( NOT CardConvert.FromString( options, Chars.maxBase, card ) ) OR
+	   ( card < minFileHandle ) OR ( card > maxFileHandle ) THEN
+	    RETURN FALSE;
+	END;
+
+	handleToUse := card;
+	RETURN TRUE;
+    END SeparateOptions;
+
+
+PROCEDURE Close(
+    VAR private : CatBinaryIO.Object
+    )           : IOErrors.Errors;
+    (* 
+     * If the handle wasn't user supplied, then try to close it.
+     * Return the error state of the close, if it was bad.
+     *)
+    VAR
+        local  : Object;
+	result : IOErrors.Errors;
+    BEGIN (* Close *)
+
+	result := IOErrors.ok;
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		IF NOT handleSupplied AND 
+		  ( UnixCsys_file.close( local^.handle ) = -1 ) THEN
+		    result := UnixIOErrors.ErrnoToIOError();
+		END;
+	    END; (* WITH local *)
+
+	END; (* WITH private *)
+
+	Objects.Deallocate( objectMgr, local );
+
+	RETURN result;
+
+    END Close;
+
+
+@IF Tasks THEN
+    PROCEDURE AsynchClose(
+	VAR private : CatBinaryIO.Object
+	)           : IOErrors.Errors;
+	(* 
+	 * All we have to do is destroy the asynch part of the object
+	 * and then call the regular Close.
+	 *)
+	VAR
+	    local  : Object;
+	    result : IOErrors.Errors;
+	BEGIN (* AsynchClose *)
+
+	    local := Object( private^.classBasedInfo );
+	    UnixAsynchIO.Destroy( local^.asynch );
+	    RETURN Close( private );
+
+	END AsynchClose;
+@END (* Tasks *)
+
+
+PROCEDURE SetErrnoAndError(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Saves code all over the place. 
+     *)
+    VAR
+	local : Object;
+    BEGIN (* SetErrnoAndError *)
+
+	local := private^.classBasedInfo;
+	local^.errno := UnixCerrno.errno;
+
+	RETURN BinaryIO.SetError( BinaryIO.Object( private ),
+	    UnixIOErrors.ErrnoToIOError() );
+    END SetErrnoAndError;
+
+
+PROCEDURE ReadBytes(
+        private    : CatBinaryIO.Object;
+        buffer     : SysTypes.SAUPTR;
+        bufferSize : SysTypes.Card;
+    VAR bytesRead  : SysTypes.Card
+    )              : BinaryIO.States;
+    (* 
+     * Try to read from Unix.  If it doesn't succeed, then set the
+     * errno and error.   If the read returns 0, then return endOfFile.
+     *)
+    VAR
+	local      : Object;
+        unixReturn : SysTypes.Int;
+    BEGIN (* ReadBytes *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		unixReturn := UnixCsys_file.read( handle, buffer, bufferSize );
+		IF unixReturn = -1 THEN
+		    bytesRead := 0;
+		    RETURN SetErrnoAndError( private );
+		END;
+
+		IF unixReturn = 0 THEN
+		    state := BinaryIO.endOfFile;
+		END;
+
+	    END; (* WITH local *)
+
+	    bytesRead := SysTypes.Card( unixReturn );
+	    RETURN state;
+
+	END; (* WITH private *)
+    END ReadBytes;
+
+
+@IF Tasks THEN
+    PROCEDURE AsynchReadBytes(
+	    private    : CatBinaryIO.Object;
+	    buffer     : SysTypes.SAUPTR;
+	    bufferSize : SysTypes.Card;
+	VAR bytesRead  : SysTypes.Card
+	)              : BinaryIO.States;
+	(* 
+	 * Try to read from Unix on a file which is set up for 
+	 * non-blocking I/O.  If the read succeeds (returns 0 or greater),
+	 * then return just like ReadBytes.  Otherwise, we check to 
+	 * see if it is a real error or EWOULDBLOCK.  In the latter case,
+	 * we call UnixAsynchIO to block until either one of two events
+	 * occurs: the task is readied w/o new data or there is data
+	 * available.  The former case returns with an known error which 
+	 * must be handled by the importer.
+	 *)
+	VAR
+	    local      : Object;
+	    unixReturn : SysTypes.Int;
+	    events     : UnixAsynchIO.Events;
+	BEGIN (* AsynchReadBytes *)
+
+	    WITH private^ DO
+		local := Object( classBasedInfo );
+		WITH local^ DO
+
+		    LOOP
+			unixReturn := UnixCsys_file.read( handle, buffer, 
+							  bufferSize );
+			IF unixReturn >= 0 THEN
+			    IF unixReturn = 0 THEN
+				state := BinaryIO.endOfFile;
+			    END;
+			    EXIT;
+			END;
+
+			(*
+			 * If it is a real error, then clear and return
+			 *)
+			IF UnixCerrno.errno # UnixCerrno.EWOULDBLOCK THEN
+			    bytesRead := 0;
+			    RETURN SetErrnoAndError( private );
+			END;
+			    
+			events := UnixAsynchIO.Events { UnixAsynchIO.read };
+			IF NOT UnixAsynchIO.Wait( asynch, events ) THEN
+			    bytesRead := 0;
+			    UnixCerrno.errno := UnixCerrno.EWOULDBLOCK;
+			    RETURN SetErrnoAndError( private );
+			END;
+
+		    END; (* LOOP *)
+     
+		END; (* WITH local *)
+
+		bytesRead := SysTypes.Card( unixReturn );
+		RETURN state;
+
+	    END; (* WITH private *)
+
+	END AsynchReadBytes;
+@END (* Tasks *)
+
+	
+PROCEDURE WriteBytes(
+        private      : CatBinaryIO.Object;
+        buffer       : SysTypes.SAUPTR;
+        bufferSize   : SysTypes.Card;  
+    VAR bytesWritten : SysTypes.Card
+    )                : BinaryIO.States;
+    VAR
+	local      : Object;
+        unixReturn : SysTypes.Int;
+    BEGIN (* WriteBytes *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		unixReturn := UnixCsys_file.write( handle, buffer, bufferSize );
+		IF unixReturn = -1 THEN
+		    bytesWritten := 0;
+		    RETURN SetErrnoAndError( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    bytesWritten := SysTypes.Card( unixReturn );
+	    state := BinaryIO.ok;
+	    RETURN state;
+
+	END; (* WITH private *)
+    END WriteBytes;
+
+
+@IF Tasks THEN
+    PROCEDURE AsynchWriteBytes(
+	    private      : CatBinaryIO.Object;
+	    buffer       : SysTypes.SAUPTR;
+	    bufferSize   : SysTypes.Card;  
+	VAR bytesWritten : SysTypes.Card
+	)                : BinaryIO.States;
+	(*
+	 * This procedure handles writes to non-blocking files.  There
+	 * are several complications writes can: be partial,
+	 * return failure, return EWOULDBLOCK, and succeed (amount written
+	 * is amount returned).  In the last case, we just return.  In
+	 * the failure case, we return as well.  The other two cases
+	 * are what UnixAsynchIO handles.
+	 *)
+	VAR
+	    local      : Object;
+	    unixReturn : SysTypes.Int;
+	    events     : UnixAsynchIO.Events;
+	    toWrite    : SysTypes.Card;
+	BEGIN (* AsynchWriteBytes *)
+	    WITH private^ DO
+
+		local := Object( classBasedInfo );
+		WITH local^ DO
+
+		    toWrite := bufferSize;
+		    LOOP
+			unixReturn := UnixCsys_file.write( handle, buffer, 
+							   bufferSize );
+			IF SysTypes.Card( unixReturn ) = toWrite THEN
+			    (* We always write bufferSize bytes *)
+			    bytesWritten := bufferSize;
+			    state := BinaryIO.ok;
+			    RETURN state;
+			END;
+
+			(* If we wrote some data, then adjust size and adr *)
+			IF unixReturn # -1 THEN
+			    DEC( toWrite, unixReturn );
+			    INC( buffer, unixReturn );
+			ELSE
+			    IF UnixCerrno.errno # UnixCerrno.EWOULDBLOCK THEN
+				(* Was an error, return sofort! *)
+				EXIT;
+			    END;
+			END;
+			    
+			(*
+			 * Try to block
+			 *)
+			events := UnixAsynchIO.Events { UnixAsynchIO.write };
+			IF NOT UnixAsynchIO.Wait( asynch, events ) THEN
+			    (* Indicate standard error code *)
+			    UnixCerrno.errno := UnixCerrno.EWOULDBLOCK;
+			    EXIT;
+			END;
+
+		    END; (* LOOP *)
+
+		END; (* WITH local *)
+
+		bytesWritten := bufferSize - toWrite;
+		RETURN SetErrnoAndError( private );
+
+	    END; (* WITH private *)
+	END AsynchWriteBytes;
+@END (* Tasks *)
+
+
+PROCEDURE Flush(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * This is probably a SUNism, but "fsync" seems like a neat thing
+     * to do here.
+     *)
+    VAR
+        local      : Object;
+    BEGIN (* Flush *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		IF UnixCsys_file.fsync( handle ) = -1 THEN
+		    RETURN SetErrnoAndError( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END Flush;
+
+
+PROCEDURE Truncate(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * This is probably another SUNism, but "ftruncate" seems like
+     * the right thing.  First we have to get the current file position
+     * which is turns out to be the amount we want to truncate.
+     *)
+    VAR
+        local : Object;
+	size  : SysTypes.INTEGER32;
+    BEGIN (* Truncate *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		(* Seek to the current position *)
+		size := UnixCsys_file.lseek( handle, 0, 
+					UnixCsys_file.L_INCR );
+		IF size = -1 THEN
+		    RETURN SetErrnoAndError( private );
+		END;
+
+		IF UnixCsys_stat.ftruncate( handle, 
+				SysTypes.CARDINAL32( size ) ) = -1 THEN
+		    RETURN SetErrnoAndError( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END Truncate;
+
+
+(*
+ * Start of routines to support random access to file positions.
+ *)
+
+PROCEDURE GetEnd(
+        private : CatBinaryIO.Object;
+    VAR index   : BinaryIO.Index
+    )           : BinaryIO.States;
+    (*
+     * Note the forward exit LOOP.   There are three seeks that have
+     * to be performed.  Get the current position, get the end of
+     * file position, and then seek back to the old current position.
+     * If any of these seeks fail, then the operation is halted and
+     * an EXIT is performed.  The bottom of the LOOP is success.
+     *)
+    VAR
+	currentIndex : SysTypes.INTEGER32;
+	endIndex     : SysTypes.INTEGER32;
+	local        : Object;
+    BEGIN (* GetEnd *)
+
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		LOOP (* Used for forward exits only *)
+		    (* 
+		     * First, get current index location, 
+		     * so we can return later 
+		     *)
+		    currentIndex := UnixCsys_file.lseek( handle, 0, 
+						     UnixCsys_file.L_INCR );
+		    IF currentIndex = -1 THEN
+			EXIT;	(* Couldn't get the current index! *)
+		    END;
+
+		    (* Get the end of file index *)
+		    endIndex := UnixCsys_file.lseek( handle, 0, 
+						     UnixCsys_file.L_XTND );
+		    IF endIndex = -1 THEN
+			EXIT;	(* Couldn't seek to the end *)
+		    END;
+
+		    (* Return to the original currentIndex *)
+		    IF UnixCsys_file.lseek( handle, 
+			SysTypes.CARDINAL32( currentIndex ), 
+			UnixCsys_file.L_SET ) # currentIndex THEN
+			EXIT;	(* Couldn't return back to the old position *)
+		    END;
+
+		    (* Everything OK, return the endIndex *)
+		    index := BinaryIO.Index( endIndex );
+		    RETURN state;
+
+		END; (* LOOP *)
+
+		(* Something went wrong, tell the caller *)
+		RETURN SetErrnoAndError( private );
+
+	    END; (* WITH local *)
+	END; (* WITH private *)
+    END GetEnd;
+
+
+PROCEDURE GetIndex(
+        private : CatBinaryIO.Object;
+    VAR index   : BinaryIO.Index
+    )           : BinaryIO.States;
+    (* 
+     * Just call seek and make sure it is ok.
+     *)
+    VAR
+	currentIndex : SysTypes.INTEGER32;
+	local        : Object;
+    BEGIN (* GetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		currentIndex := UnixCsys_file.lseek( handle, 0, 
+						 UnixCsys_file.L_INCR );
+		IF currentIndex = -1 THEN
+		    (* Couldn't get the currentIndex *)
+		    RETURN SetErrnoAndError( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    index := BinaryIO.Index( currentIndex );
+	    RETURN state;
+
+	END; (* WITH private *)
+    END GetIndex;
+
+
+PROCEDURE SetIndex(
+    private : CatBinaryIO.Object;
+    index   : BinaryIO.Index
+    )       : BinaryIO.States;
+    (* 
+     * The reason we do the "end check" (inside ASSERT) is because of
+     * the following "feature" of seek.  The question I have is:
+     * what does "far beyond" mean?
+     *
+     *   NOTES
+     *       Seeking far beyond the end of a file, then writing,  creates
+     *       a  gap or "hole", which occupies no physical space and reads
+     *       as zeros.
+     *) 
+    VAR
+	endIndex  : BinaryIO.Index;
+	unixIndex : SysTypes.INTEGER32;
+	local     : Object;
+    BEGIN (* SetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		@IF ASSERT THEN
+		    (* 
+		     * Make sure the clown doesn't try to seek past EOF.
+		     * In Unix, this creates a nice gap in the file.
+		     *)
+		    IF GetEnd( private, endIndex ) = BinaryIO.error THEN
+			RETURN BinaryIO.error;
+		    END;
+
+		    (* We know the structure of an index, so... *)
+		    IF endIndex < index THEN
+			RETURN BinaryIO.SetError( BinaryIO.Object( private ),
+						  IOErrors.invalidIndex );
+		    END;
+		@END (* ASSERT *)
+	    
+		(* Do the seek and check the result *)
+		unixIndex := UnixCsys_file.lseek( handle, 
+				    index, UnixCsys_file.L_SET );
+		IF unixIndex = -1 THEN
+		    RETURN SetErrnoAndError( private );
+		END;
+		state := BinaryIO.ok;
+
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END SetIndex;
+
+
+PROCEDURE GetOpenPath(
+        private : CatBinaryIO.Object;
+    VAR path    : IOConsts.Path
+    );
+    VAR
+	local     : Object;
+    BEGIN (* GetOpenPath *)
+
+	local := Object( private^.classBasedInfo );
+	Strings.Assign( local^.openPath, path );
+
+    END GetOpenPath;
+
+(*
+ * Initialization 
+ *)
+TYPE
+    SetProc = PROCEDURE(
+        BinaryIO.Object
+    ) : BinaryIO.States;
+
+PROCEDURE DefaultOpen(
+    handle : SysTypes.Int;
+    mode   : BinaryIO.Modes;
+    path   : ARRAY OF CHAR;
+    set    : SetProc
+    );
+    (*
+     * This routine is only called if we are the default class as specified
+     * in ConfBinaryIO.  This means that we don't have to construct a full
+     * BinaryIO options string, just one with our options.
+     *)
+    VAR
+	file        : BinaryIO.Object;
+	options     : Options;
+	ioError     : IOErrors.Errors;
+	state       : BinaryIO.States;
+	errorString : IOErrors.String;
+    BEGIN (* DefaultOpen *)
+
+	(* Make our options. *)
+	MakeOptions( handle, options );
+
+	(* Try the open *)
+	IF BinaryIO.Open( file, path, mode, options ) = IOErrors.ok THEN
+	    (* Set the default file to the new file. *)
+	    BinaryIO.DONTCARE := set( file );
+	END;
+
+	(* If we don't open, then there is something funny going on,
+	   but is perfectly normal for Unix. *)
+    END DefaultOpen;
+
+
+VAR
+    tmpName     : BinaryIO.ClassName;
+
+BEGIN (* UnixBinaryIO *)
+
+    @IF SysTypesCheck THEN
+	IF SysTypes.bitsPerArrayCHAR # SysTypes.bitsPerSAU THEN
+	    ProgErr.Terminate( "UnixBinaryIO: SysTypesCheck failed." );
+	END;
+    @END (* SysTypesCheck *)
+
+    (* Initialize local data before doing anything *)
+    toUnixOpenMode[ BinaryIO.readOnly  ] := UnixCfcntl.O_RDONLY;
+    toUnixOpenMode[ BinaryIO.appendOnly ] := 
+	UnixCfcntl.O_APPEND + UnixCfcntl.O_WRONLY;
+    toUnixOpenMode[ BinaryIO.readWrite ] := UnixCfcntl.O_RDWR;
+
+    @IF Tasks THEN
+	toAsynchEvents[ BinaryIO.readOnly  ] := 
+	    UnixAsynchIO.Events { UnixAsynchIO.read };
+	toAsynchEvents[ BinaryIO.appendOnly ] := 
+	    UnixAsynchIO.Events { UnixAsynchIO.write };
+	toAsynchEvents[ BinaryIO.readWrite ] := 
+	    UnixAsynchIO.Events { UnixAsynchIO.read, UnixAsynchIO.write };
+    @END
+
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), 
+			   moduleName );
+
+    WITH methodTable DO
+	close       := Close;
+	readBytes   := ReadBytes;
+	writeBytes  := WriteBytes;
+	flush       := Flush;
+	truncate    := Truncate;
+	getEnd      := GetEnd;
+	getIndex    := GetIndex;
+	setIndex    := SetIndex;
+	getOpenPath := GetOpenPath;
+    END; (* WITH *)
+
+    @IF Tasks THEN
+	WITH asynchMethodTable DO
+	    close       := AsynchClose;
+	    readBytes   := AsynchReadBytes;
+	    writeBytes  := AsynchWriteBytes;
+	    flush       := Flush;
+	    truncate    := Truncate;
+	    getEnd      := GetEnd;
+	    getIndex    := GetIndex;
+	    setIndex    := SetIndex;
+	    getOpenPath := GetOpenPath;
+	END; (* WITH *)
+    @END
+
+    (* 
+     * Must register before initializing default files, because
+     * DefaultOpen calls BinaryIO.
+     *)
+
+    CatBinaryIO.Register( className, Open );
+
+    (* 
+     * Only initialize the default files, if we are the default class.
+     *)
+    ConfBinaryIO.GetDefaultClassName( tmpName );
+    IF Strings.Compare( tmpName, className ) = Intrinsics.equal THEN
+
+	DefaultOpen( UnixCsys_file.stdInputHandle, BinaryIO.readOnly, 
+		     'Standard Input', BinaryIO.SetInput );
+
+	DefaultOpen( UnixCsys_file.stdOutputHandle, BinaryIO.appendOnly, 
+		     'Standard Output', BinaryIO.SetOutput );
+
+	DefaultOpen( UnixCsys_file.stdErrorHandle, BinaryIO.appendOnly, 
+		     'Standard Error Output', BinaryIO.SetErrorOutput );
+    END;
+
+END UnixBinaryIO.

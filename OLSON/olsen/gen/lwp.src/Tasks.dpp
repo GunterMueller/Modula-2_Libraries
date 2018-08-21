@@ -1,0 +1,373 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Tasks;
+(*
+ * A task is an independent thread of control.
+ *
+ * Tasks execute asynchronously to one another, but can synchronize
+ * with the primitives defined in this module. A task runs in a control
+ * thread, that is, a Modula-2 procedure passed in at its invocation.
+ * A task's state is maintained by this module in a stack. Given that
+ * there is only one processor, there can be only one task running at
+ * a given instant. This task is called the "current" or "active" task.
+ * The active task has the highest priority (or equal to the maximum)
+ * of all the tasks in the system which are "ready". A task is ready
+ * if it is not "suspended".
+ *
+ * Synchronization:
+ *     Synchronization occurs when one task waits (suspends) for
+ *     a Ready by another task. All tasks run in the same memory
+ *     space, they thus can communicate with each other during
+ *     synchronization points. For example, task A sets a variable
+ *     saying it wants to talk to task B and task A suspends then
+ *     itself. Task B comes along and finds that task A is awaiting
+ *     information, B puts the information in a common data area
+ *     and then B readies A. Task A checks the common data area
+ *     for B's information upon awakening. The modules TaskMessages
+ *     and TaskMonitors generalize this technique so that the low
+ *     level primitives provided are not usually needed.
+ *
+ * Preemption:
+ *     Preemption is the change of the active task on an involuntary
+ *     basis. The above example was an example of an voluntary task
+ *     switch, that is, A relinquished the processor to B so that B
+ *     could communicate some information to A. This module supports
+ *     involuntary change of a task's position as active. Preemption
+ *     is based solely on priority. If task C is of higher priority
+ *     than task D and C becomes "ready", task D will relinquish the
+ *     processor to C in deference to C's higher priority. Specifically,
+ *     task D is preempted by task C.
+ *
+ *     (Dis)AllowPreemption break the rules. They are used by tasks
+ *     needing a global control of the processor. Typical applications
+ *     will probably not need these, because TaskTime, TaskMessages,
+ *     and TaskMonitors are usually more than sufficient.
+ *
+ * Tasks are instantiated by Create and from then on they are peers
+ * with their creator. Given that there may be conditions or resources
+ * associated with a task, there are ways about finding about creation
+ * and termination of tasks. See the modules TaskNotices and TaskInfo
+ * for notification methods.
+ *
+ * Termination:
+ *     The system can terminate in many different ways. There are two
+ *     types of termination: normal and abnormal:
+ *
+ *     There are two ways to terminate normally: all the tasks dying
+ *     normally or when ExitSystem is called. The module TaskNotices
+ *     provides a method for requesting termination of the system so
+ *     that tasks which are in library modules may terminate normally.
+ *     Note that ExitSystem stops all other tasks (except the calling
+ *     task) immediately. This may be a problem if those tasks are
+ *     modifying critical data structures in the system, etc. See
+ *     TaskNotices for a more detailed discussion.
+ *
+ *     There are three ways to terminate abnormally: ProgErr.Terminate,
+ *     PanicSystem, and RebootSystem. ProgErr.Terminate should be used
+ *     when a task (or interrupt-handler) encounters an assertion fault.
+ *     PanicSystem is reserved for cases of dire emergency. It is up to
+ *     the application to determine exactly what situations are dire.
+ *     RebootSystem is even more dire. One should read the descriptions
+ *     found below before choosing an abnormal termination method.
+ *)
+IMPORT
+    SysTypes,
+    TaskConsts;
+
+EXPORT QUALIFIED
+    Object,             Proc,             DONTCARE,        Create,
+    Suspend,            Ready,            GetCurrent,      GetName,
+    GetPriority,        SetPriority,      SetInvalid,      IsValid,
+    DisallowPreemption, AllowPreemption,  ExitSystem,      PanicSystem,
+    PanicHandler,       RebootSystem,     InstallPanicHandler;
+
+TYPE
+    Object;
+
+TYPE
+    Proc  = PROCEDURE(
+        SysTypes.ANYPTR (* importerObject, passed unmodified to created *)
+    );
+    (*
+     * Initial thread of a task.
+     *)
+CONST
+    DONTCARE = NIL;
+    (*
+     * Can be passed as importerObject.
+     *)
+
+PROCEDURE Create(
+    VAR task           : Object;                 (* Will be valid *)
+        anyName        : ARRAY OF CHAR;          (* For debugging *)
+        thread         : Proc;                   (* Thread of execution *)
+        importerObject : SysTypes.ANYPTR;        (* Passed to thread *)
+        initPriority   : TaskConsts.Priorities;  (* Initial priority *)
+        stackSize      : TaskConsts.StackSizes   (* Max stack size allowed *)
+    );
+    (* 
+     * Invokes a task whose context of execution is governed
+     * by the thread of execution, priority, and stack-size.
+     *
+     * Before the thread is initiated, the task's internal state
+     * is created and the TaskNotices.GetBirth() is called. The
+     * argument to the notice is the Object for the newly born task
+     * which will be returned by Create. Procedures registered with
+     * TaskInfo are also called on birth of a task.  
+     *
+     * The task receives a single parameter "importerObject" from the
+     * parent. This parameter may be DONTCARE, but normally provides
+     * information to be used by the newly created task.
+     *
+     * Normal termination (death) occurs when the procedure "thread"
+     * does a RETURN statement. Upon death TaskNotices.GetDeath( )
+     * and procedures registered with TaskInfo are called. Note that
+     * if the system is terminated in any other way, the currently
+     * "living" tasks do not terminate normally, thus TaskNotices
+     * and TaskInfo are not notified of this event. See the module
+     * Notices if you would like to be notified with the system
+     * (program) terminates.
+     *
+     * One should refer to the modules TaskInfo and TaskNotices
+     * for more details about task births and deaths.
+     *
+     * Warning: may not be called from an interrupt-handler.
+     *)
+
+    (*
+     * Processor transactions: synchronization between Objects.
+     *)
+PROCEDURE Suspend;
+    (*
+     * Relinquish the processor to the next best ready to run task.
+     *
+     * The task system guarantees that there is always a "next best".
+     * A task should call this routine when it knows that another
+     * task or an interrupt-handler (see Interrupts) will ready it.
+     * There is no other way to be readied.
+     *
+     * If preemption is disallowed at the time of this call, the
+     * task will be suspended and the preemption state will saved.
+     * Upon return from this call, the preemption state will be as
+     * it was when the call was entered. Note that preemption may
+     * be allowed after this task is suspended, thus shared data
+     * structures should be in a stable state before this procedure
+     * is called.
+     * 
+     * PC IMPLEMENTATION NOTE:
+     *     This procedure uses push/pop flags not SYSTEM.DISABLE/ENABLE.
+     *     A task which relinquishes the processor with interrupts
+     *     disabled will thus be readied (when this procedure returns)
+     *     into the same processor state.
+     *
+     * Warning: may not be called from an interrupt-handler.
+     *)
+
+PROCEDURE Ready(
+    task : Object  (* Must be valid *)
+    );
+    (* 
+     * Cause the task to become ready.
+     *
+     * If the task has higher priority than the currently running task,
+     * the task will preempt the currently running task.
+     *
+     * This procedure may be called by any type of control thread
+     * (including Interrupts), but care should be taken to maintain
+     * proper system state. 
+     *)
+
+    (* 
+     * State Transactions: extract/modify the Object's fundamental state.
+     *)
+PROCEDURE GetCurrent(
+    ) : Object;  (* Current task: always valid identifier *)
+    (*
+     * State gathering operation to get the "active" or currently
+     * running task.
+     *
+     * Warning: may not be called from an interrupt-handler.
+     *)
+
+PROCEDURE GetName(
+        task : Object;          (* Must be valid *)
+    VAR name : TaskConsts.Name  (* Same as passed to Create *)
+    );
+    (*
+     * State gathering operation to obtain a task's name.
+     *
+     * Names need not be unique and the name returned will
+     * be silently truncated if "name" isn't large enough.
+     *)
+
+PROCEDURE GetPriority(
+    task : Object                  (* Must be valid *)
+    )    : TaskConsts.Priorities;  (* Current priority of task *)
+    (*
+     * State gathering operation to obtain a task's priority.
+     *)
+
+PROCEDURE SetPriority(
+    task     : Object;                (* Must be valid *)
+    priority : TaskConsts.Priorities  (* New value for task's priority *)
+    );
+    (*
+     * Change the task's priority as specified. This may cause
+     * preemption of the caller. It can be called by the currently
+     * running task.
+     *
+     * Use:
+     *    It is unwise to rely on priority modifications for data
+     *    sharing between tasks. The purpose of this procedure is
+     *    to allow a foreground/background approach to system
+     *    resources, that is, priorities are useful for putting
+     *    a task (or group of tasks) "ahead" of other tasks in
+     *    the system as in a scheduling facility.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR task : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Initializes the task variable to an invalid object.
+     *)
+
+PROCEDURE IsValid(
+    task : Object    (* In any state *)
+    )    : BOOLEAN;  (* Task is invalid => FALSE *)
+    (*
+     * Indicates whether the task is a valid Object
+     * (tasks become invalid when they die).
+     *
+     * To use this routine properly, it should be called from
+     * a non-preemptable section (see DisallowPreemption below).
+     *)
+
+    (*
+     * Low level access to global processor state management.
+     *
+     * The rest of this module is usually needed for device drivers
+     * and implementors of new task synchronization primitives.
+     *)
+
+    (*
+     * With the following two procs, one can control the preemption
+     * state of the system. If preemption is disabled, the current
+     * task may not be preempted by any other task in the system
+     * (regardless of its priority). These primitives are used as
+     * absolute control over globally shared data (e. g. message
+     * management). See the modules TaskMessages and TaskMonitors
+     * for the normal localized Task synchronization primitives.
+     *
+     * Note, however, that preemption is involuntary. If the current
+     * task voluntarily relinquishes the processor (only allowed via
+     * Suspend), it will be suspended and the preemption state of the
+     * system will change to the value saved for the next best task
+     * to run. The basic purpose is to allow a test/set at the task
+     * priority level, e. g.
+     *     DisallowPreemption;
+     *         WHILE condition DO
+     *             Suspend;
+     *         END;
+     *         Set condition;
+     *     AllowPreemption;
+     *)
+PROCEDURE DisallowPreemption;
+    (* 
+     * Disallows preemption of the current task by other tasks.
+     *
+     * Interrupts are enabled. This procedure may be called in an
+     * interrupt disabled section and the interrupt state will be
+     * preserved throughout the processing of the call.
+     *
+     * The calls may be nested.
+     *)
+
+PROCEDURE AllowPreemption;
+    (*
+     * Allows preemption (by one level).
+     *
+     * If this the least nested of the Disallow/Allow pairs,
+     * this routine may cause the current task to be preempted.
+     *
+     * Interrupt state is maintained throughout this call.
+     *)
+
+PROCEDURE ExitSystem;
+    (*
+     * Immediately terminate the system, but in a normal way.
+     *
+     * No other task will get to run after this procedure is called
+     * and this procedure does not return. The termination code will
+     * get to execute (see Notices).
+     *
+     * Warning: not be called from an interrupt-handler.
+     *)
+
+PROCEDURE PanicSystem(
+    msg : ARRAY OF CHAR  (* Attempt to put this out *)
+    );
+    (*
+     * Abort the system as soon as possible!
+     *
+     * Attempt to put out a message, but it may not get out (because
+     * DOS is not re-entrant). This is your basic "go directly to the
+     * OS, do not collect $200."
+     *
+     * This procedure is to be used in the most extreme cases (usually
+     * involving errors in interrupt handlers). If a PanicHandler has
+     * been installed, then use it instead of the above algorithm.
+     *
+     * NOTE:
+     *     Recursive panics are prevented and cause a reboot,
+     *     because it is assumed the system is really beyond...
+     *)
+
+    (*
+     * Surgeon General's Warning: Installing personalized panic
+     * handlers can be extremely dangerous.
+     *)
+TYPE
+    PanicHandler = PROCEDURE(
+        ARRAY OF CHAR  (* Passed message *)
+    );
+
+PROCEDURE InstallPanicHandler(
+        newPanicHandler : PanicHandler;  (* To be called by PanicSystem *)
+    VAR oldPanicHandler : PanicHandler   (* Previous procedure *)
+    );
+    (*
+     * Install a handler for "panic" situations.
+     *
+     * During the termination procedure of the module which has
+     * registered, it may be useful to re-install the previous
+     * panic handler for special considerations.
+     *)
+
+PROCEDURE RebootSystem;
+    (*
+     * If at all possible, causes the computer to restarted
+     * as if the power had been switched off and then on.
+     *)
+
+END Tasks.

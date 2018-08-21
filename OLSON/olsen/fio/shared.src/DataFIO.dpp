@@ -1,0 +1,478 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE DataFIO;
+(*
+ * Support repetitive input and output of data from text files.
+ *
+ * A data item is a named entity with a type defined in the data
+ * file.  The file contains a list of ( name, type, value ) tuples.
+ * The tuples may be read/written in an arbitrary order.
+ *
+ * Input/Output syntax:
+ *     The input file contains a list of tuples.
+ *     A tuple looks like:
+ *
+ *     "[" <inputFormat> "]" <white-space> <name> <white-space>
+ *         "=" <white-space> <value> ";"
+ *
+ *     The input is somewhat line oriented in that the ";" character
+ *     indicates that the rest of the line should be taken as comment.
+ *     Clearly this limits the use of ";" characters in the "name",
+ *     "inputFormat", and "value" fields. If the first occurrence of
+ *     a non-white-space character on the line is a ";", then the
+ *     entire line will be taken as a comment.
+ *
+ * Names:
+ *     1) must not contain white-space characters (see Chars.IsWhiteSpace),
+ *     2) there may be no duplicate names in the file,
+ *     3) must not contain a ";" character (there is no escape character).
+ *
+ * Input formats (types):
+ *     1) must be a valid FormatIO command which reads a single value,
+ *     2) "value" must be readable with the specified format,
+ *     3) must not contain a ";" character (there is no escape character).
+ *
+ *     The full FormatIO syntax is recognized, thus the escape character
+ *     for FormatIO may be used.
+ *
+ * Values:
+ *     1) must be terminated by a ";", but may span several lines,
+ *     2) leading white-space is deleted before it is passed to FormatIO,
+ *     3) must not contain a ";" character (there is no escape character),
+ *     4) values may not be empty, that is, a FormatIO.Read1 should
+ *        always return "TextIO.ok".
+ *
+ * Example input tuple:
+ *     [Card]  someNumber = 45;
+ *     The value "45" would be passed to FormatIO to be parsed.
+ *     The "[Card]" FormatIO.Read routine would not see the blank
+ *     or the ";" characters. Instead it would see "TextIO.endOfFile"
+ *     after the "5".
+ * 
+ * Arrays:
+ *     Arrays are supported in a very simple manner. Procedures are
+ *     provided to construct new names from a base name and an index.
+ *     The syntax of arrays is defined such that the newly constructed
+ *     name conforms to a normal name. The array element "index" routines
+ *     may be repetitively called to simulate multi-dimensional arrays.
+ *     It is suggested, however, that Vectors and/or Matrices should
+ *     be used wherever possible to simplify input formats and management.
+ *     See the array constructor routines for more details.
+ *
+ * Object/File Management:
+ *     There are really three types of files associated with a single
+ *     "object" in this module. The input file is opened once and read
+ *     once. If there is a syntax error in the file, then the caller
+ *     is terminated in the call to Open.   The "object" may be saved
+ *     back to a text file at any point during normal operation (as long
+ *     as the file is not marked readOnly).  This module supports version
+ *     management for saved files.    You may also write the "object" 
+ *     to an arbitrary text file (this is independent of access).  A third 
+ *     type of text file associated with an "object" is its "log".  A
+ *     log file has the same name and version of the file that was read
+ *     in the open call.  With the exception that the suffix is changed
+ *     to indicated it is a log file.
+ *
+ * Version Control:
+ *     This module uses IOVersions to do file management.  See this
+ *     module for more details about OpenVersionModes.  The only 
+ *     unique mode for 
+ *     of a version cycle is used when calling Save or you may write
+ *     your o
+ * File mode:
+ *     The object opened is always read/write. It is like a data base.
+ *     One may save the current state of the data base in a file. Note
+ *     that the data base may not be "augmented", that is, the name
+ *     space of the parameters is defined by the input file and one
+ *     cannot add any new names to this space. If a new name is to be
+ *     added, then an entirely new file must be written or the file
+ *     must be edited by a user (or a module other than this one).
+ *
+ * Default files:
+ *     To simplify input, the default TextIO files may be used.
+ *     The procedures GetDefault and SetDefault associate a default
+ *     input file with this module. If SetDefault has not been called,
+ *     GetDefault will return a file object which is associated with
+ *     TextIO.GetInput. Note that standard input will be read until
+ *     TextIO.endOfFile if GetDefault is called before SetDefault.
+ *     See the descriptions of the procedures for more details.
+ *
+ * Errors:
+ *     The intention of this module is to support "known" data files.
+ *     If the data file is not properly formated or the input parameters
+ *     to the procedures in this module are not valid, then the caller
+ *     will be terminated. The preconditions of the calls are (for the
+ *     most part) specified at each call declaration, but the following
+ *     are causes for termination:
+ *         1) invalid objects,
+ *         2) file input/output syntax errors (e.g. no ";" in values),
+ *         3) if a file does not exist on input,
+ *         4) if a file does exist on output (see WriteNewVersion),
+ *         5) attempt to write a new version of a "noVersion" file,
+ *         6) request to operate on a non-existing "name",
+ *         7) inputFormat passed to Put/Get incorrectly specified.
+ *     Note that there are exceptions to these rules. Several procedures 
+ *     are provided to allow the importer to check "pre-conditions"
+ *     before attempting an operation. Exceptions are noted in the
+ *     procedure for which they apply.  
+ *
+ * In the event of termination, an appropriate error message will be output.
+ *)
+IMPORT
+    GenConsts,
+    IOConsts,
+    IOVersions,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED
+    Object,              AccessModes,		VersionModes,
+    OpenVersionModes,	 SaveVersionModes,	DONTCARE,
+    Open,                Close,                 FileExists,
+    SetInvalid,  	 IsValid,
+    maxNameLength,       maxInputFormatLength,  Name,
+    InputFormat,         Get,           	Put,
+    Exists,		 Append,		AppendComment,
+    IndexByNumber,       IndexByString,
+    Save,		 GetLogFile,            WriteToTextFile,
+    GetSaveVersion, 	 GetOpenVersion,        GetOpenPath,           
+    SetDefault,          GetDefault;
+
+TYPE
+    Object;
+	(*
+	 * Analog to a read/write data base.
+	 *)
+
+    AccessModes = (
+	readOnly,	(* You may not Put, Append, AppendComment, or Write *)
+	readWrite,	(* All ops are legal, writes must be new *)
+	readOverwrite	(* All ops are legal, writes ok even if file exists *)
+    );
+    (*
+     * A "cycle" is defined by the low and high values passed to Open.
+     * The values InCycle are values in the range with wrap-around.
+     * See the module IOVersions for more details.
+     *)
+    VersionModes = (	(* How to modify "path" passed to Open *)
+	nextVersionInCycle, (* Append version which is next in cycle *)
+	noVersion,	    (* Use the path as a plain value (no version) *)
+	specificVersion,    (* Append the version # passed to call *)
+	lowestInCycle,	    (* Read "lowest" version which exists in cycle *)
+	highestInCycle,	    (* Read "highest" version which exists in cycle *)
+	newestInCycle,	    (* Read the most recently written version *)
+	oldestInCycle	    (* Read the lest recently written version *)
+    );
+    OpenVersionModes  = [ noVersion .. oldestInCycle ];
+    SaveVersionModes = [ nextVersionInCycle .. specificVersion ];
+
+CONST
+    DONTCARE = IOVersions.minNumber;
+
+PROCEDURE Open(
+    VAR file     : Object;            (* In any state, will be valid *)
+        path     : ARRAY OF CHAR;     (* Identifies the file to be read *)
+	access   : AccessModes;	      (* What operations to allow *)
+        version  : VersionModes;      (* How to find first read version *)
+	low      : IOVersions.Number; (* First number in the version cycle *)
+	high     : IOVersions.Number; (* Last "" *)
+	specific : IOVersions.Number  (* Only valid in specificVersion mode *)
+    );
+    (*
+     * Opens the specified "path" using the access and version modes.
+     *
+     * The object returned is always valid and is always read/write,
+     * that is, Put/Get may be called. If "noVersion" is specified
+     * for the version, the version number is ignored on the file.
+     * If mostRecentVersion is specified, then the caller is passed
+     * the most recent version of the file.
+     *
+     * Termination can be caused for incorrect input syntax or
+     * non-existing file. See FileExists for a precondition check.
+     *)
+
+PROCEDURE Close(
+    VAR file : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * The file object is closed and its associated log file
+     * (if it was used).
+     *)
+
+PROCEDURE FileExists(
+    path     : ARRAY OF CHAR;     (* Identifies the file to be read *)
+    version  : VersionModes;      (* Which version to use *)
+    low      : IOVersions.Number; (* First number in the version cycle *)
+    high     : IOVersions.Number; (* Last "" *)
+    specific : IOVersions.Number  (* Only valid in specificVersion mode *)
+    )	     : BOOLEAN;		  (* TRUE => Open would succeed *)
+    (*
+     * Combine the specified path and version into a file system
+     * name and test to see if it exists.  See Open for a better
+     * description of the parameters.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR file : Object  (* In any state, will be invalid *)
+    );
+    (*   
+     * Initializes the file variable to an invalid object.
+     *)  
+
+PROCEDURE IsValid(
+    file : Object	(* may be in any state *)
+    )    : BOOLEAN;	(* TRUE => file is valid *)
+
+(*
+ * Data read/write.
+ *
+ * Note that the "inputFormat" is always associated with the "name".
+ * The "inputFormat" is treated as the type of the value associated
+ * with the name. It is also describes how to "get" the value.
+ *
+ * The procedures Get and Put are type checked. If the type of the
+ * variable is incorrect, or the data within the file are incorrectly
+ * formated, or the specified name does not exist in "file", the caller
+ * will be terminated.
+ *)
+CONST
+    maxNameLength        = 4 * GenConsts.maxIdentifierLength;
+    maxInputFormatLength = maxNameLength;
+    (*
+     * This is M2, so we need to define string lengths.
+     * Are these big enough?
+     *)
+TYPE
+    Name         = ARRAY[ 0 .. maxNameLength - 1 ] OF CHAR;
+    InputFormat  = ARRAY[ 0 .. maxInputFormatLength ] OF CHAR;
+
+PROCEDURE Get(
+        file        : Object;               (* Must be valid *)
+        name        : ARRAY OF CHAR;        (* Name of variable in file *)
+        inputFormat : ARRAY OF CHAR;        (* How to read the value *)
+    VAR value       : ARRAY OF SysTypes.ANY (* Correctly parsed value *)
+    );
+    (*
+     * Gets the value of the specified variable from the file.
+     *
+     * The most recent value is returned, that is, if Put
+     * has been called since Open, the value will be of the last Put.
+     *
+     * The caller will be terminated if the name, inputFormat,
+     * or value are not correct.
+     *)
+
+PROCEDURE Put(
+    file         : Object;               (* Must be valid and writable *)
+    name         : ARRAY OF CHAR;        (* Must exist in the file *)
+    inputFormat  : ARRAY OF CHAR;        (* The type of the value *)
+    outputFormat : ARRAY OF CHAR;        (* How to output value *)
+    value        : ARRAY OF SysTypes.ANY (* The data to be stored *)
+    );
+    (*
+     * Associate a new value with the "name" and "file".
+     *
+     * The "inputFormat" is checked to make sure it agrees with the
+     * file and the "outputFormat" is used to put the data in the file.
+     * Note that output formats are usually often more complicated
+     * than input formats, thus the "inputFormat" is a minimum check
+     * against the type. A simple example is that one can output a
+     * "[Card]" and read it in as a "[Real]", "[Card]", or "[Int]".
+     * The purpose is to allow a flexible and nicely formated data
+     * file while still retaining strict "enough" type checking on
+     * the input.
+     *
+     * Changes are not actually written to a text file
+     * until Save or WriteToTextFile are called.
+     *
+     * The caller will be terminated if the resulting output contains
+     * a ';' character. If the name and/or "inputFormat" do not agree
+     * with the file, the caller will be terminated.
+     *)
+
+PROCEDURE Exists(
+    file        : Object;         (* Must be valid *)
+    name        : ARRAY OF CHAR;  (* Any string of characters *)
+    inputFormat : ARRAY OF CHAR   (* How to interpret value *)
+    )           : BOOLEAN;        (* All okay and exists => TRUE *)
+    (*
+     * Tests whether the "name" with specified "inputFormat" is
+     * associated with the file.
+     *)
+     
+(*
+ * Appending values 
+ *)
+PROCEDURE Append(
+    file         : Object;               (* Must be valid and writable *)
+    name         : ARRAY OF CHAR;        (* Must not exist in the file *)
+    inputFormat  : ARRAY OF CHAR;        (* The type of the value *)
+    outputFormat : ARRAY OF CHAR;        (* How to output value *)
+    value        : ARRAY OF SysTypes.ANY;(* The data to be stored *)
+    comment      : ARRAY OF CHAR	 (* Appears to the right of value *)
+    );
+    (*
+     * Appends the specified inputFormat, name, value, and comment to
+     * the specified file.
+     *)
+
+PROCEDURE AppendComment(
+    file    : Object;          (* Must be valid and writable *)
+    comment : ARRAY OF CHAR    (* Appears on its own line *)
+    );
+    (*
+     * Puts a comment at the end of the file.
+     *)
+
+(*
+ * Array indexing support.
+ *)
+
+PROCEDURE IndexByNumber(
+        arrayName      : ARRAY OF CHAR;  (* Base name to be indexed *)
+        index          : SysTypes.Int;   (* A little more flexible than card *)
+    VAR indexedElement : Name            (* Newly created name *)
+    );
+
+PROCEDURE IndexByString(
+        arrayName      : ARRAY OF CHAR;  (* Base name to be indexed *)
+        index          : ARRAY OF CHAR;  (* String *)
+    VAR indexedElement : Name            (* Newly created name *)
+    );
+    (*
+     * The two procedures support arrays in data files.
+     *
+     * An array element is indexed by a "name". The names must follow
+     * the same syntax as other names, that is, they must not contain
+     * white space characters. An "indexedElement" looks like:
+     *     indexedElement ::= <arrayName> "[" <index> "]"
+     * The index may be an integer or an arbitrary string.  
+     *
+     * An indexedElement may in turn be used as an arrayName, thus
+     * we provide multi-dimensional arrays.
+     *
+     * The caller will be terminated if either the "index" or "arrayName"
+     * contain white-space characters or if the resulting "indexedElement"
+     * is too long.
+     *)
+
+(*
+ * File management facilities.
+ *)
+PROCEDURE Save(
+    file     : Object; 		   (* Must be valid and writable *)
+    version  : SaveVersionModes;
+    specific : IOVersions.Number
+    );
+    (*
+     * Save the current state of the data file into a text file.  The
+     * name used is the same as the one passed to open.  The version
+     * mode effects the file actually written.  If the destined text file 
+     * exists and the mode is not readOverwrite, then the caller will
+     * After the file has been opened, WriteToTextFile is called and 
+     * the text file is closed.  If the specific version mode is used 
+     * and it is outside the cycle, the next version in the cycle will 
+     * be the "low" value passed to Open.
+     *)
+
+PROCEDURE GetLogFile(
+    file : Object          (* Must be valid *)
+    )    : TextIO.Object;  (* Log file associated with file *)
+    (*
+     * With each file there is an associated log file.
+     *
+     * The log file is named with a version number similar to what is
+     * returned by GetOpenVersion. The file may be used for anything,
+     * but a good idea is for it to be related to a test run.
+     *
+     * The log file is only opened upon the first call to this procedure.
+     * This module assumes that the log file should not exist. If it does,
+     * the caller will be terminated. (Clearly, with defaultInput this
+     * rule does not apply.)
+     *)
+
+PROCEDURE WriteToTextFile(
+    source : Object;        (* Must be valid *)
+    dest   : TextIO.Object  (* Must be valid, opened in "TextIO.appendOnly" *)
+    );
+    (* 
+     * Write the current version of the source to the specified dest.
+     *
+     * The purpose of this procedure is to record the input into a
+     * log file. However, it can be used for any other purposes which
+     * require a copy of the current state of "source". The output
+     * format will look identical to the input format with the exception
+     * that variables which have been put will contain those new values.
+     * This procedure has no effect on the state of the "source" file.
+     *)
+
+PROCEDURE GetSaveVersion(
+    file : Object              (* Must be valid *)
+    )    : IOVersions.Number;  (* Current version of the file *)
+    (*
+     * Returns the version number of the last Save operation.
+     * If "noVersion" was specified to Open, then this call will
+     * return "ok", but the value will be meaningless.
+     *)
+
+PROCEDURE GetOpenVersion(
+    file : Object              (* Must be valid *)
+    )    : IOVersions.Number;  (* Current version of the file *)
+    (*
+     * Returns the current version number of the input file opened.
+     * If "noVersion" was specified on Open, then this call will
+     * return "ok", but the value will be meaningless.
+     *)
+
+PROCEDURE GetOpenPath(
+        file     : Object;        (* Must be valid *)
+    VAR openPath : IOConsts.Path  (* Identical value passed to Open *)
+    );
+
+(*
+ * Defaults file management.
+ *)
+PROCEDURE SetDefault(
+    newDefault : Object  (* Value to be returned by GetDefault *)
+    );
+    (*
+     * Set the value to be returned by GetDefault.
+     *)
+
+PROCEDURE GetDefault(
+    ) : Object;  (* Default file object *)
+    (*
+     * This procedure returns the "default" file.
+     *
+     * If SetDefault has been called, the value is the same as passed
+     * to the last call of SetDefault. If SetDefault has not been called,
+     * a new file object is created. The file TextIO.GetInput( ) is then
+     * read as if it were passed to open in "readOnly mode".
+     * The log file is TextIO.GetErrorOutput( ).
+     *
+     * Note that this module only reads standard input in the case that
+     * GetDefault is called and SetDefault has not been called.  
+     *)
+
+END DataFIO.
+

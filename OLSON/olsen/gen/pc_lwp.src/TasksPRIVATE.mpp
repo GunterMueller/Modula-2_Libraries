@@ -1,0 +1,1053 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TasksPRIVATE;
+(*
+ * Stacks:
+ * There are three types of stacks in our world: interrupts, tasks,
+ * and other.  There are three domains of control: Logitech, Dos, and us.
+ * We don't care about Dos, because whenever Dos calls us it is from one
+ * of the other two stacks.  If the guy is playing games with Dos, then he
+ * shouldn't be calling tasking primitives.  (This appears to only happen
+ * inside device drivers.)
+ *
+ * The stacks in our world are very simple.  The stack segment base is
+ * offset 0 and the maximum size is the top of stack.  If we run out of
+ * stack, it is because we approach the 0 offset.  Logitech 3.0 uses this
+ * same approach (version 2.0 requires a more complicated approach).
+ *
+ * This module must differentiate between the stacks of tasks and interrupts.
+ * Since Logitech stacks are similar enough to our stacks, we try to match
+ * them.  This module is called from a Logitech stack which
+ * we must muck with (see CreateMain) to make the "main" Logitech process
+ * be a first class citizen in our world.  The problem is that when Logitech
+ * processes die, they kill the whole program and when Tasks die, they just
+ * are disposed of by the deathTask.  Therefore, we replace the final
+ * return value on main's stack with the "TaskEpilogue".  When all the
+ * tasks are dead, the system terminates (or the system has terminated
+ * abnormally via the many other methods).
+ *)
+IMPORT
+    ASCII,
+    DOS,
+    DosMonitor,
+    I8086,
+    ProgErr,
+    @IF LogitechM2V2 THEN
+	System,
+    @ELSE
+        RTSMain,
+    @END
+    SafeStorage,	
+    SYSTEM,
+    SysTypes,
+    TaskConsts,
+    Tasks;
+
+CONST
+    errMustBeTask      = "Tasks: operation legal only for tasks.";
+    errMustBeInterrupt = 
+        "Interrupts: operation legal only for interrupt handlers.";
+    panicInsideDOS     = "Tasks: system running on internal DOS stack.";
+    taskNotFound       = "Tasks: allocated task list is munged.";
+    taskAssertError    = "Tasks: invalid object.";
+    
+
+(* One can never be too sure *)
+(*$R-*)
+(*$T-*)
+(*$S-*)
+(*$O-*)
+PROCEDURE SwitchRunning;
+    (*
+     * The code is pretty straightforward, but it is
+     * half assembly language so be careful.  Note that we smash the
+     * stack while we are running from it.  This is extremely dangerous
+     * and one should not make arbitrary changes.
+     *
+     * ASSUMES:
+     *    - Interrupts are disabled and the flags were pushed
+     * 	    on the stack before the call.
+     *    - This procedure must be call far.  This is fixed in the
+     *      initialization code of this module.
+     *	  - preemptionLevel is at a lower point in the stack than
+     * 	    the local variables and temp space allocated by the compiler.
+     *	  - running is the save area.
+     *)
+
+    BEGIN (* SwitchRunning *)
+
+	(*
+	 * We are giving up the processor voluntarily.  This means
+	 * we don't need to save all the registers.  We need to 
+	 * save preemptionLevel and intStackTop for the current task
+	 * before we switch to the new task.
+	 *)
+
+	WITH running^.stackBase.ptr^ DO
+
+	    SYSTEM.GETREG( SYSTEM.SS, intStackTop.adr.SEGMENT );
+	    (*
+	     * To compute the offset, we get BP and adjust it.  The current
+	     * BP is pointing in the middle of the intStackTop.  There is
+	     * always enough room for a save of the registers.
+	     *)
+	    SYSTEM.GETREG( SYSTEM.BP, intStackTop.adr.OFFSET );
+	    DEC( intStackTop.adr.OFFSET, 
+		(* Push   *) + SYSTEM.TSIZE( IntStackTopRec )
+		(* Pop BP *) - SYSTEM.TSIZE( Register16 )
+		(* Pop IP *) - SYSTEM.TSIZE( Register16 )
+		(* Pop CS *) - SYSTEM.TSIZE( Register16 )
+		(* Popf   *) - SYSTEM.TSIZE( Register16 ) );
+
+	    (*
+	     * Everything is saved that needs to be saved except BP and
+	     * preemptionLevel.  We can do this operation safely because
+	     * savedPreemptionLevel and savedBP are fairly low down in
+	     * the save area. savedAX really points to the BP save area
+	     * of this procedure (see IntStackTopRec) and saveBP needs to
+	     * be updated, hence the magic savedAX and savedBP stuff.
+	     * NOTE: If Logitech were to saveBP right after IP, things
+	     *	     would be much better, but this will have to do.
+	     *)
+	    WITH intStackTop.ptr^ DO
+		savedBP := savedAX;	(* We know where it lives (really) *)
+		savedPreemptionLevel := preemptionLevel;
+	    END; (* WITH *)
+
+	    @IF LogitechM2V2 AND Debug THEN
+		(* To help debugging, we save some values for Logitech 2.0. *)
+		WITH running^ DO
+		    logitech.BP := intStackTop.ptr^.savedBP;
+		    logitech.IP := intStackTop.ptr^.savedIP;
+		    logitech.CS := intStackTop.ptr^.savedCS;
+		END; (* WITH *)
+	    @END (* LogitechM2V2 Debug *)
+	END; (* WITH *)
+
+
+	(*
+	 * Now we can switch to the new head of the readyQueue.
+	 * It is all out from here.
+	 *)
+	running := readyQueue;
+
+	(* Get the new stack *)
+	WITH running^.stackBase.ptr^.intStackTop.adr DO
+	    SYSTEM.SETREG( SYSTEM.DX, SEGMENT );
+	    SYSTEM.SETREG( SYSTEM.CX, OFFSET );
+	END;
+	SYSTEM.CODE( 08EH, 0D2H );	 	(* Mov SS, DX *)
+	SYSTEM.CODE( 089H, 0CCH );	 	(* Mov SP, CX *)
+
+	(* 
+	 * Start restoring the registers.  SS points to the correct
+	 * stack, but SP points to savedPreemptionLevel in the intStackTop.
+	 *)
+	SYSTEM.CODE( I8086.Pop + SYSTEM.AX );	(* pop savedPreemptionLevel *)
+	SYSTEM.GETREG( SYSTEM.AX, preemptionLevel );
+	SYSTEM.CODE( 01FH );			(* Pop DS *)
+	SYSTEM.CODE( I8086.Pop + SYSTEM.DI );
+	SYSTEM.CODE( I8086.Pop + SYSTEM.SI );
+	SYSTEM.CODE( I8086.Pop + SYSTEM.BP );
+	SYSTEM.CODE( 007H );			(* Pop ES *)
+	SYSTEM.CODE( I8086.Pop + SYSTEM.BX );
+	SYSTEM.CODE( I8086.Pop + SYSTEM.DX );
+	SYSTEM.CODE( I8086.Pop + SYSTEM.CX );
+	SYSTEM.CODE( I8086.Pop + SYSTEM.AX );
+
+	(* 
+	 * We have restored all the easy registers and it is time to go to 
+	 * the new running task by restoring the IP, CS, and flags.
+	 *)
+	SYSTEM.CODE( I8086.Iret );
+
+	(* DOES NOT RETURN *)
+
+    END SwitchRunning;
+(*$R=*)
+(*$T=*)
+(*$S=*)
+(*$O=*)
+
+
+PROCEDURE NormalizeAddress(
+    adr : SYSTEM.ADDRESS	(* address to be normalized *)
+    )   : SYSTEM.ADDRESS;	(* SEGMENT adjusted *)
+    BEGIN (* NormalizeAddress *)
+    
+	WITH adr DO
+	    INC( SEGMENT, OFFSET DIV bytesPerParagraph );
+	    OFFSET := OFFSET MOD bytesPerParagraph;
+        END; (* WITH *)
+	
+	RETURN adr;
+
+    END NormalizeAddress;
+
+
+PROCEDURE AdjustStack(
+    VAR adr : SysTypes.SAUPTR (* address to be set to adjusted *)
+    )       : SysTypes.Card;	(* Number of bytes lost to adjustment *)
+    (*
+     * This procedure is for PC lovers.
+     *)
+    VAR
+	result : SysTypes.Card;
+    BEGIN (* AdjustStack *)
+    
+	WITH adr DO
+	    INC( SEGMENT, OFFSET DIV bytesPerParagraph );
+	    OFFSET := OFFSET MOD bytesPerParagraph;
+	    IF OFFSET = 0 THEN
+		RETURN 0;
+	    END;
+
+	    (* Lose a couple of bytes *)
+	    result := bytesPerParagraph - OFFSET;
+	    OFFSET := 0;
+	    INC( SEGMENT );		       
+
+        END; (* WITH *)
+	
+	RETURN result;
+
+    END AdjustStack;
+
+(*
+ * Memory management.
+ *)
+TYPE
+    (* 
+     * The following declaration is used to create a task.  We need to
+     * setup the proper values on the stack to make it look like TaskEnvelope
+     * is being called when, in fact, it is being Switched to.  The
+     * stack is just like a regular interrupt stack with the bottom 
+     * containing the parameters and return address.  In Logitech, 
+     * parameters are pushed left to right, so the lowest address 
+     * contains the last parameter.  Note that we never get to the
+     * returnAdr, thus it is set to boot vector.
+     * 
+     * The stack will look like:
+     *	    parent				<<< Bottom
+     *	    entryPoint
+     *	    importerObject			
+     *	    returnAdr.SEGMENT
+     *	    returnAdr.OFFSET
+     *	    initial flags
+     *	    TaskEnvelope.SEGMENT
+     *	    TaskEnvelope.OFFSET
+     *      some registers
+     *      invalidBP
+     *      other registers...  
+     *      allowPreemption    			<<< Top
+     * Note that the initial flags have interrupts enabled.
+     *)
+    (*$A-*)
+    CreateStackTopRec = RECORD
+	intStack   : IntStackTopRec;
+	returnAdr  : SYSTEM.ADDRESS;
+	impObj     : SysTypes.ANYPTR;
+	entryPoint : Tasks.Proc;
+	parent     : Object;
+    END; (* CreateStackTopRec *)
+    (*$A=*)
+
+    CreateStackTop = POINTER TO CreateStackTopRec;
+
+CONST
+    objectMagic     = 0BEACH;	  (* Some nice number *)
+    @IF NOT LogitechM2V2 THEN
+	stackMagic  = 0FA50H;     (* RTSMain.CheckValue isn't exported! *)
+    @END
+    invalidMagic    = 0;	  (* Number which isn't magic *)
+
+VAR
+    initialLevel    : Register16;
+
+PROCEDURE Allocate(
+        stack          : TaskConsts.StackSizes; (* Size to be allocated *)
+        thread         : Tasks.Proc;            (* thread passed to Create *)
+        importerObject : SysTypes.ANYPTR;       (* passed to Create *)
+    VAR task           : Object                 (* OUT: partially initialized *)
+    );
+    (*
+     * Allocation in on the PC is hard, because we must align the stackBase
+     * at a paragraph boundary.  Therefore, we allocate a little more than
+     * the guy asked for so we can make sure things align properly and
+     * give the guy as much as he wants.
+     *
+     * ASSUMES: in critical section already.
+     *)
+    VAR
+	realSize   : SysTypes.Card;
+	i          : SysTypes.Card;
+	realAdr    : SYSTEM.ADDRESS;
+       createStack : CreateStackTop;
+    BEGIN (* Allocate *)
+    
+	INC( stack, bytesPerParagraph );    (* Add a little slop *)
+	realSize := stack + SYSTEM.TSIZE( ObjectRec );
+	SafeStorage.ALLOCATE( realAdr, realSize );
+	
+	task := NormalizeAddress( realAdr );	(* Help Interrupts out *)
+
+	WITH task^ DO
+	    magic := objectMagic;
+	    (* state, priority, nextReady, otherNext not initialized *)
+	    
+	    stackBase.adr := task;
+	    WITH stackBase.adr DO
+		INC( OFFSET, SYSTEM.TSIZE( ObjectRec ) );
+	    END;
+	    
+	    (* adjust OFFSET to 0 and decrease size *)
+	    DEC( stack, AdjustStack( stackBase.adr ) );
+
+	    (* Another restriction on stack sizes is that they be even *)
+	    IF ODD( stack ) THEN
+		DEC( stack );
+	    END;
+	    stackSize := stack;	   (* Save for TaskDebug *)
+	    
+	    @IF NOT LogitechM2V2 THEN
+		(* Bytewise copy from Logitech process descriptor to
+		   our task's intStackTop *)
+		(* So that we can fool the Logitech run-time system
+		   into believing that we are a genuine Logitech "Process" ...*)
+		stackBase.logitech^ := RTSMain.activProcess^ ;
+	    @END
+
+	    (* But, of course, we have a different stack ptr so readjust *)
+	    WITH stackBase.ptr^ DO
+		WITH intStackTop.adr DO
+		    OFFSET  := stack - SYSTEM.TSIZE( CreateStackTopRec );
+		    SEGMENT := stackBase.adr.SEGMENT;
+		    lowestSP := OFFSET;
+		END;
+		@IF NOT LogitechM2V2 THEN
+		    magic := stackMagic;
+		@END
+	    END; (* WITH *)
+
+	    (* Save in the task record *)
+	    createStack := stackBase.ptr^.intStackTop.adr;
+
+	    WITH createStack^ DO
+		(* LogitechM2V2: debug values set on first switch *)
+		WITH intStack DO
+		    (* The other registers don't matter *)
+		    savedPreemptionLevel := initialLevel;
+		    savedBP    := invalidBP;
+		    savedIP    := taskEnvelopeAdr.OFFSET;
+		    savedCS    := taskEnvelopeAdr.SEGMENT;  
+		    savedFlags := Register16( 
+			    I8086.FlagsRegister { I8086.intEnableFlag } );
+		    @IF LogitechM2V2 AND Debug THEN
+			(* Fill in the necessary parts of Logitech's process
+			   descriptor so we can use mortimer *)
+			logitech.BP := savedBP;
+			logitech.SS := stackBase.adr.SEGMENT;
+			logitech.CS := savedCS;
+			logitech.IP := savedIP;
+			logitech.status := System.stopped; (* ~suspended *)
+		    @END
+		END; (* WITH *)
+		WITH returnAdr DO
+		    (* We should never get to this address *)
+		    SEGMENT := 0FFFFH;	(* reboot vector *)
+		    OFFSET  := 0H;
+		END;
+		(* These are the parameters to TaskEnvelope *)
+		impObj     := importerObject;
+		entryPoint := thread;
+		parent     := running;
+	    END; (* WITH createStack *)
+
+	    allocSize := realSize;	  (* Save for Deallocate *)
+	    allocAdr  := realAdr;	  (* Unnormalized value *)
+		(* Insert in list of tasks *)
+	    nextAlloc := allocRoot;
+	    allocRoot := task ;
+	    
+	    (* info & name not initialized *)
+
+	END; (* WITH *)
+	
+    END Allocate;
+
+
+PROCEDURE Deallocate(
+    VAR task : Object	 (* IN: valid task; OUT: invalid task *)
+    );
+    (*
+     * Deallocates the current task (and its stack).  First removes
+     * it from the list of tasks.
+     *)
+    VAR
+	toFind : Object ;
+	curr   : Object ;
+	prev   : Object ;
+    BEGIN (* Deallocate *)
+    
+	toFind := task ;
+	IF allocRoot = toFind THEN
+	    allocRoot := allocRoot^.nextAlloc;
+	ELSE
+	    prev := allocRoot;
+	    curr := allocRoot^.nextAlloc;
+	    LOOP
+		IF curr = NIL THEN
+		    (* Didn't find, but it may be the mainTask *)
+		    IF ( task # mainTask ) OR ( mainTask = NIL ) THEN
+			ProgErr.Terminate( taskNotFound );
+		    END;
+		    (* Otherwise, we are deallocating main task *)
+		    task := NIL;
+		    mainTask^.magic := invalidMagic;
+		    mainTask := NIL;
+		    RETURN;    (* All done with "deallocation" *)
+		END;
+		
+		IF curr = toFind THEN
+		    EXIT;
+		END;
+		prev := curr;
+		curr := curr^.nextAlloc;
+	    END; (* LOOP *)
+	    
+	    (* Delete from the list *)
+	    prev^.nextAlloc := curr^.nextAlloc;
+        END;
+	
+	(* Now get rid of it *)
+	WITH task^ DO
+	    magic := invalidMagic;
+	    SafeStorage.DEALLOCATE( allocAdr, allocSize );
+	END; (* WITH *)
+
+    END Deallocate;
+
+
+PROCEDURE Traverse(
+    callWithTasks  : Iterator;	     (* will be called for each task in list*)
+    importerObject : SysTypes.ANYPTR (* passed to callWithTasks unmodified *)
+    );
+    (*
+     * Special cases mainTask, but otherwise straightforward.
+     * Procedure must be mutex protected, so don't need to worry about
+     * tasks dying or being created (unless the upcall is stupid, but
+     * this is a private procedure).
+     *)
+    VAR
+	curr : Object ;
+    BEGIN (* Traverse *)
+    
+	(* Do the first one *)
+	IF mainTask # NIL THEN
+	    callWithTasks( importerObject, mainTask );
+	END;
+
+	curr := allocRoot;
+	WHILE curr # NIL DO
+	    WITH curr^ DO
+		callWithTasks( importerObject, curr );
+		curr := nextAlloc;
+	    END; (* WITH *)
+	END; (* WHILE *)
+    
+    END Traverse;
+    
+
+PROCEDURE IsValid( 
+    task : Object      (* may be in any state *)
+    )    : BOOLEAN;    (* TRUE => "task" is a valid Object at time of call. *)
+    (*
+     * Don't want to access "task^", because this may cause errors (pointers
+     * to random memory aren't pretty things).  Therefore, we start with
+     * allocRoot and search for the value we are interested.  Since the
+     * mainTask is a special case (probably uncommon????), we check it
+     * last.
+     *)
+    VAR
+	t : Object ;
+    BEGIN (* IsValid *)
+    
+	t := allocRoot;
+	REPEAT
+	    IF t = task THEN
+		RETURN TRUE ;
+	    END ;
+	    t := t^.nextAlloc;
+	UNTIL t = NIL ;
+	RETURN ( task = mainTask ) AND ( mainTask # NIL );
+
+    END IsValid;
+
+
+PROCEDURE Assert(
+    task : Object      (* must be valid or caller will be terminated. *)
+    );
+    (*
+     * Go for the gold and be quick about it!  Don't care about mem errors.
+     *)
+    BEGIN (* Assert *)
+    
+	IF task^.magic # objectMagic THEN
+	    ProgErr.Terminate( taskAssertError );
+	END;
+	
+    END Assert;
+
+(*
+ * Mutual exclusion managment.
+ *)
+VAR
+    mutexOwner : Object;
+	(*
+	 * This is the task which owns the mutex of the objectMgr.
+	 * If it is NIL, then there is no owner.
+	 *)
+    mutexQueue : Object;
+	(*
+	 * This is the head of the queue of waiting tasks to enter
+	 * a mutually excluded section of the objectMgr.  Note that
+	 * this queue is not kept in a first come first serve basis.
+	 * It is highly unlikely that this queue will get to be long
+	 * nor will it be a critical resource, therefore we make it
+	 * on a last come first served basis.  It saves code and is
+	 * faster.
+	 *)
+    mutexNestingLevel : SysTypes.Card;
+	(*
+	 * This variable indicates the nesting level of the owner
+	 * of the mutex.
+	 *)
+
+PROCEDURE Enter;
+    (*
+     * We must do the entire queue manipulation in a non-preemptable
+     * section.  We always insert at the head of the queue.  Note
+     * that the task can be awoken for any number of reasons, thus
+     * the need for a loop around the suspend and the inQueue variable.
+     *)
+    VAR
+	inQueue : BOOLEAN;
+    BEGIN (* Enter *)
+
+	inQueue := FALSE;	(* Only insert ourself once *)
+
+	Tasks.DisallowPreemption;
+	    
+	    LOOP 
+		(* Is the mutex completely free (likely) *)
+		IF mutexOwner = NIL THEN
+		    mutexNestingLevel := 1;
+		    mutexOwner := running;
+		    EXIT;
+		END;
+		(* Are we already the owner? *)
+		IF mutexOwner = running THEN
+		    INC( mutexNestingLevel );
+		    EXIT;
+		END;
+
+		(* Have to wait, but are we already in the queue? *)
+		IF NOT inQueue THEN
+		    inQueue := TRUE;
+		    (* Insert at the head *)
+		    running^.otherNext := mutexQueue;
+		    mutexQueue := running;
+		END;
+
+		(* Wait for an Exit by the owner *)
+		Tasks.Suspend;
+	    END; (* LOOP *)
+
+	Tasks.AllowPreemption;
+
+    END Enter;
+
+
+PROCEDURE Exit;
+    (*
+     * We must do the entire queue manipulation in a non-preemptable
+     * section.  We always delete at the head of the queue.  Note
+     * that we don't ready the queue head unless the mutexNestingLevel 
+     * is 0 (no more outstanding Enters).  Note that if we Ready the
+     * head of mutexQueue we cannot free up the mutex, we must assign
+     * it at the time we do the freeing.
+     *)
+    BEGIN (* Exit *)
+
+	Tasks.DisallowPreemption;
+
+	    @IF Assert THEN
+		(* Make sure we are the owner *)
+		IF mutexOwner # running THEN
+		    ProgErr.Terminate( 
+			"TasksPRIVATE: Exit called without Enter!" ); 
+		END;
+	    @END (* Assert *)
+
+	    DEC( mutexNestingLevel );
+	    (* If we don't have any more Enters outstanding *)
+	    IF mutexNestingLevel = 0 THEN
+		(* If there isn't anyone waiting, then just free up mutex *)
+		IF mutexQueue = NIL THEN
+		    (* Free up the mutex *)
+		    mutexOwner := NIL;
+		ELSE
+		    (* Assign the new owner and tell it to go *)
+		    mutexOwner := mutexQueue;
+		    Tasks.Ready( Tasks.Object( mutexOwner ) );
+
+		    (* Delete the head *)
+		    mutexQueue := mutexQueue^.otherNext;
+		END;
+	    END;
+
+	Tasks.AllowPreemption;
+
+    END Exit;
+
+
+PROCEDURE DefaultPanicHandler( 
+    msg : ARRAY OF CHAR 
+    );
+    (*
+     * Print a message directly to DOS.  We can't call ProgErrOutput,
+     * because we really don't know what it will call.
+     *
+     * After we print the message, we terminate simply and quickly.
+     *)
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* DefaultPanicHandler *)
+	
+	IF DosMonitor.criticalSectionFlag^ = 0C THEN
+	    (*
+	     * Have to do the slow but steady approach, because we
+	     * want to make sure all the characters get output and
+	     * most strings passed to this guy will not be null terminated.
+	     *)
+	    i := 0;
+	    WHILE ( i <= HIGH( msg ) ) AND ( msg[ i ] # 0C ) DO
+		SYSTEM.DOSCALL( DOS.displayOutput, msg[ i ] );
+		INC( i );
+	    END;
+	    SYSTEM.DOSCALL( DOS.displayOutput, ASCII.cr );
+	    SYSTEM.DOSCALL( DOS.displayOutput, ASCII.lf );
+	END;
+
+	@IF NOT LogitechM2V2 THEN
+	    (*
+	     * There is no way to avoid calling termination procedures.
+	     * If we just exit to DOS, the RTS won't have a chance to
+	     * clean up any mess.  This is obviously dangerous, but 
+	     * more critical applications can install their own panic handlers.
+	     *)
+	    RTSMain.Terminate( RTSMain.Fatal );
+	@ELSE
+	    (*
+	     * We terminate with a HALT.  We will not call termination
+	     * procedures in the event of a panic.   With luck the system
+	     * will be restored properly.
+	     *)
+	    HALT;
+	@END
+
+    END DefaultPanicHandler;
+
+
+PROCEDURE ExitSystem;
+    (*
+     * This procedure exits the tasking system immediately.  We want
+     * to make sure that no-one else runs, so we make the running task
+     * maxPriority + 1 and exit to the run-time system.  Before we 
+     * exit, we must make sure no one is inside DOS.  This is done
+     * by calling DosMonitor.Enter without a following DosMonitor.Exit.
+     *)
+    BEGIN (* ExitSystem *)
+	
+	SYSTEM.DISABLE;
+	    preemptionLevel := firstLevelDisallow;
+	    WITH running^ DO 
+		priority := TaskConsts.maxPriority + 1;
+	    END; (* WITH *)
+
+	    (* Grab Dos and don't let go! *)
+	    DosMonitor.Enter;
+
+
+	@IF NOT LogitechM2V2 THEN
+	    RTSMain.Terminate( RTSMain.Normal );
+	@ELSE
+	    (*
+	     * This is the way you tell the run-time system that you are
+	     * terminating normally.  How's this for modularity.  A global
+	     * variable exported from a module which is a pointer into
+	     * run-time system memory.
+	     *)
+	     System.curProcess^^.status := System.normal;
+
+	     (* This interrupt switches to the initial rts stack *)
+	     SYSTEM.SETREG( SYSTEM.AX, 11 ); (* Call Terminate *)
+	     SYSTEM.SWI( SYSTEM.RTSVECTOR );
+
+	@END
+        (* DOES NOT RETURN *)
+
+    END ExitSystem;
+
+
+PROCEDURE RebootSystem;
+    (*
+     * On the 8088, you can jump to FFFF:0 to get a hardware reset.
+     *)
+    BEGIN (* RebootSystem *)
+	
+	(* JUMP 00 *)
+	SYSTEM.CODE( 0EAH, 00, 00, 0FFH, 0FFH );
+
+    END RebootSystem;
+
+VAR
+    oldTerminate    : ProgErr.TerminationHandler;
+    oldDosEnter     : PROC;
+    oldDosExit      : PROC;
+PROCEDURE Terminate( 
+    mode : ProgErr.TerminationModes 
+    );
+    (*
+     * Clean up after ourselves.
+     *)
+    VAR
+	task     : Object;
+	DONTCARE : PROC;
+    BEGIN (* Terminate *)
+
+	(* Deinstall what we installed! *)
+	IF initialLevel = allowPreemption THEN
+	    DosMonitor.Install( oldDosEnter, oldDosExit, DONTCARE, DONTCARE );
+	END;
+
+	(* 
+	 * Probably should deallocate the tasks in the case of
+	 * normaly termination.
+	 *)
+
+	oldTerminate( mode );	(* Do proper chaining *)
+
+    END Terminate;
+
+
+@IF LogitechM2V2 THEN
+    VAR
+	oldRunTimeTerminate : PROC;
+@END
+PROCEDURE RunTimeTerminate;
+    (*
+     * This is called by the run-time system when an error occurs
+     * or upon normal termination.  This means several things: 
+     *	   - Interrupts are currently disabled.
+     *	   - We are running on the run-time system's stack.
+     * 	   - The current running task is not necessarily the
+     * 	     cause of the termination (could be an interrupt handler).
+     *
+     * Therefore, this procedure must make sure.
+     *     - The current task is not preempted.
+     *     - Suspend must not be called (we don't know the system state)
+     *
+     * If someone is inside DOS, then we have a dilema.  Anyone of the
+     * termination routines may want to call DOS.  The program will  be
+     * solved if the guy calls Dos.Enter and it calls Sleep.  The result
+     * will be that Suspend will be called, but suspendNotAllowed will
+     * be true which will cause a terminate message to go out.  The
+     * system will get a double termination error and none of the termination
+     * code will be called.  Note that during normal termination, we will
+     * not be inside DOS and during abnormal termination, most of the
+     * termination code does nothing.
+     *
+     * Note that this procedure may be called in the event of a Panic. 
+     *)
+    BEGIN (* RunTimeTerminate *)
+
+	suspendNotAllowed  := TRUE;
+	preemptionLevel    := firstLevelDisallow;
+	restoreInterrupts;	(* can execute multiple times *)
+
+	@IF LogitechM2V2 THEN
+	    IF NOT systemPanicked THEN
+		oldRunTimeTerminate;
+	    END;
+	@END
+    
+    END RunTimeTerminate;
+
+
+TYPE
+    (* 
+     * This is highly implementation dependent, but for Logitech
+     * this type is used as follows:
+     * 	VAR
+     *	    callFrame : CallFarStackTop;
+     *	BEGIN
+     *      WITH callFrame.adr DO
+     * 		SYSTEM.GETREG( SYSTEM.BP, OFFSET );
+     * 		SYSTEM.GETREG( SYSTEM.SS, SEGMENT );
+     *      END; (* WITH *)
+     * Once this is done, the "callFrame" is position correctly.
+     *)
+    (*$A-*) (* Must be packed *)
+    CallFarStackTopRec = RECORD
+	(* Local variables go here *)
+	previousBP    : Register16;	(* dynamic stack link pointer *)
+	returnIP      : Register16;	(* offset of address to return to *)
+	returnCS      : Register16;	(* segment of return address *)
+	(* Parameters go here *)
+    END;
+    (*$A=*)
+
+    CallFarStackTop = RECORD
+	CASE @IF NOT M2V2 THEN : @END BOOLEAN OF
+	    TRUE:
+		ptr : POINTER TO CallFarStackTopRec;	(* to access call 
+							   frame. *)
+	    |
+	    FALSE:
+		adr : SYSTEM.ADDRESS;	(* to play address games *)
+	END;
+    END;
+    
+VAR
+    mainTaskRec : ObjectRec;	  (* We don't allocate this one *)
+
+PROCEDURE CreateMain(
+    taskEpilogueAdr : SYSTEM.ADDRESS
+    );
+    (* 
+     * Initialization of the first task is a little complicated, because
+     * we must build a task around the currently running control thread.
+     * The tricky pare
+     *)
+    VAR
+	i       : SysTypes.Card;
+	stack   : CallFarStackTop;    (* Used to traverse to the bottom *)
+	rtsAdr  : SYSTEM.ADDRESS;
+    BEGIN (* CreateMain *)
+    
+
+	(* We normalize to help out Interrupts performance *)
+	mainTask := NormalizeAddress( SYSTEM.ADR( mainTaskRec ) );
+	
+	WITH mainTaskRec DO
+	    WITH stackBase.adr DO
+		OFFSET  := 0;
+		SYSTEM.GETREG( SYSTEM.SS, SEGMENT );
+	    END;
+	    WITH stackBase.ptr^.intStackTop.adr DO
+		SEGMENT := stackBase.adr.SEGMENT;  (* Make sure seg set once*)
+		(* All other values in stackBase are ignored for mainTask *)
+	    END;
+	    (* stackSize set below *)
+
+	    magic     := objectMagic;
+	    state     := readyOrRunning;
+	    priority  := TaskConsts.defaultPriority;
+	    nextReady := NIL;
+	    otherNext := NIL;
+	    
+	    FOR i := 0 TO HIGH( info ) DO
+		info[ i ] := NIL;
+	    END;
+	    name      := "Main";
+	END;
+	
+	WITH stack.adr DO
+	    SYSTEM.GETREG( SYSTEM.BP, OFFSET );
+	    SYSTEM.GETREG( SYSTEM.SS, SEGMENT );
+	END;
+	
+	@IF LogitechM2V2 THEN
+	    (*
+	     * We want to dig to the bottom of the stack which will
+	     * look like the picture below.  The run-time system
+	     * return address is the first thing on the stack and it
+	     * is the thing we want to replace with Epilogue.  Note
+	     * that all calls are call fars (including the last), because
+	     * they are all initialization bodies.
+	     *     RTS.CS		<< Stack bottom
+	     *     RTS.IP
+	     *     invalidBP		<< where to stop
+	     *     ...
+	     *     someReturnCS
+	     *     someReturnIP
+	     *     currentBP		<< stack points here now.
+             *)
+	    WHILE stack.ptr^.previousBP # invalidBP DO
+		WITH stack.adr DO
+		    OFFSET := stack.ptr^.previousBP;
+		END;
+	    END; (* WHILE *)
+	@ELSE
+	    (*
+	     * We want to dig to the bottom of the stack which will
+	     * look like the picture below.  Looking at RTSMain.Execute,
+	     * one finds that it saves BP and tries to look like a real 
+	     * procedure.  This means that all procedures between us and 
+	     * the RTS are call fars (module init bodies are always call fars).
+	     * Therefore, we can use the simple search technique of searching 
+	     * for the segment.
+	     *    
+	     *     RTSMain.Execute+N    << Return address inside RTSExecute.
+	     *     ...
+	     *     someReturnIP
+	     *     currentBP		<< stack points here now.
+	     *)
+	    rtsAdr := SYSTEM.ADDRESS( RTSMain.Execute ); (* XXX *)
+	    
+	    (* Search for the RTS segment *)
+	    WHILE stack.ptr^.returnCS # rtsAdr.SEGMENT DO
+		WITH stack.adr DO
+		    OFFSET := stack.ptr^.previousBP;
+		END;
+	    END; (* WHILE *)
+	@END
+	
+	(* 
+	 * Don't have to callOnBirth, because TaskInfo initializes after us.
+	 * However, this task is now a first class citizen, so we must
+	 * have an Epilogue (viz. Barnaby Jones).  The stack is now pointing
+	 * at the last call frame which should be the run-time system.
+	 *)
+	WITH stack.ptr^ DO
+	    returnIP := taskEpilogueAdr.OFFSET;
+	    returnCS := taskEpilogueAdr.SEGMENT;
+	END; (* WITH *)
+	
+	(* Final thing is to save the task stackSize *)
+	mainTaskRec.stackSize := stack.adr.OFFSET;    (* Approximate *)
+	
+    END CreateMain;
+
+PROCEDURE DoNothing;
+    END DoNothing;
+
+PROCEDURE Initialize(
+    taskEpilogue : PROC
+    );
+    (*
+     * This procedure is called by Tasks, because we have a circular
+     * import.  It initializes local variables and converts the
+     * current call chain into a "task" via CreateMain.  
+     * 
+     * NOTE: this procedure should be called from the init body of Tasks,
+     *	     because we want all procedures in the call chain to be far calls.
+     *)
+
+    @IF LogitechM2V2 THEN
+	CONST
+	    installTermProc  = 29H;             
+	    (* 
+	     * Install termination procedure with the run-time system. 
+	     * CX:BX contains new address and upon return CX:BX contains
+	     * previous registrant.
+	     *)
+    @END
+
+    VAR
+	forceToBeCallFar1 : PROCEDURE( SYSTEM.ADDRESS );
+        forceToBeCallFar2 : PROC;
+	@IF LogitechM2V2 THEN
+	    tmpAdr            : SYSTEM.ADDRESS;
+	@END
+
+    BEGIN (* Initialize *)
+    
+	mutexOwner := NIL;
+	mutexQueue := NIL;
+	mutexNestingLevel := 0;
+
+	(* 
+	 * This is very Logitech specific, but we want to make SwitchRunning
+	 * a far call.  This is simply done by setting it to a proc var.
+	 *)
+	forceToBeCallFar1 := CreateMain; (* Make sure things are nice *)
+        forceToBeCallFar2 := SwitchRunning;
+	CreateMain( SYSTEM.ADDRESS( taskEpilogue ) );
+
+	allocRoot  := NIL;    (* Nothing allocated yet *)
+	running    := mainTask;
+	readyQueue := mainTask;
+
+	breakReceived := FALSE;
+	deathTask     := NIL;
+	restoreInterrupts := DoNothing;
+
+	suspendNotAllowed := FALSE;
+	systemPanicked    := FALSE;
+
+	IF NOT TaskConsts.AllowPreemption() THEN
+	    initialLevel := firstLevelDisallow;
+	ELSE
+	    initialLevel := allowPreemption;
+	    (* Only bother installing the DosMonitor if preemptable *)
+	    (*
+	     * Right now, we don't allow multiple entries inside dos (via
+	     * the DOS critical section flag).  We require absolute mutual
+	     * exclusion by disallowing preemption.  TaskTime installs another
+	     * DosMonitor which uses the critical section flag.
+	     *)
+	    DosMonitor.Install( Tasks.DisallowPreemption, Tasks.AllowPreemption,
+				oldDosEnter, oldDosExit );
+	END;
+	preemptionLevel := initialLevel;
+	
+	(* 
+	 * Now we tell other modules about us.
+	 *)
+	ProgErr.InstallTerminationHandler( Terminate, oldTerminate );
+
+	(*
+	 * Lastly, we install ourselves at the RunTimeTerminate handler.
+	 * We need to do a few things before the termination procedures
+	 * are called and ProgErr installs before us, so we get called first.
+	 *)
+
+	@IF NOT LogitechM2V2 THEN
+	    RTSMain.InstallTermProc( RunTimeTerminate );
+	@ELSE
+	    tmpAdr := SYSTEM.ADDRESS( RunTimeTerminate );
+	    SYSTEM.SETREG( SYSTEM.CX, tmpAdr.SEGMENT );
+	    SYSTEM.SETREG( SYSTEM.BX, tmpAdr.OFFSET);
+	    SYSTEM.SETREG( SYSTEM.AX, installTermProc );
+	    SYSTEM.SWI( SYSTEM.RTSVECTOR );
+	    SYSTEM.GETREG( SYSTEM.CX, tmpAdr.SEGMENT );
+	    SYSTEM.GETREG( SYSTEM.BX, tmpAdr.OFFSET );
+	    oldRunTimeTerminate := PROC( tmpAdr );
+	@END
+
+    END Initialize;
+
+(* Initialization done by Initialize which is called by Tasks *)
+END TasksPRIVATE.

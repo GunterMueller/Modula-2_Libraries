@@ -1,0 +1,21 @@
+DEFINITION MODULE LewertsScale;
+
+EXPORT QUALIFIED Scale;
+
+      PROCEDURE Scale( data_min, data_max :REAL; approx_inc :CARDINAL;
+                       VAR scale_min, scale_max, scale_inc :REAL );
+(*
+*     From the known data minimum and maximum, and an approximate
+*     number of increments wanted, use this algorithm to find the
+*     scaling numbers for a graph that will be nicely scaled number
+*     around the data range.
+*
+*     Taken from an algorithm given in:
+*            Computer Language magazine
+*            September 1989, Vol. 6, No. 9
+*            "Composing Well Tempered Linear Scales"
+*            by Tom Steppe
+*            pp. 49 - 65
+*)
+
+END LewertsScale.

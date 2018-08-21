@@ -1,0 +1,57 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE FIOString;
+(*
+ * This module allows string input and output via FormatIO.
+ *
+ * Write format options:
+ *     'w' - total width of the output string (default = 0)
+ *     'j' - type of justification (default = justifyLeft)
+ *     'f' - fill character to be used during justification (default = ' ')
+ *
+ * Read format options:
+ *     'm' - followed by a string indicates a prompt to be written
+ *           (default = 'Enter a string: ')
+ *
+ * Prompted reads are supported, but they never cause a re-read,
+ * that is, data errors stay errors. The user only gets one shot
+ * to enter the string.
+ *
+ * Note: on reads, if "endOfLine" is reached, a null string
+ * is returned the end of line is cleared.
+ *
+ * PORTABILITY WARNING: 
+ *     For systems where SysTypes.bitsPerArrayCHAR is not the same
+ *     as SysTypes.bitsPerSAU, arrays passed to this FormatIO type
+ *     should be defined as: ARRAY [ 0 .. N - 1 ] OF CHAR; where
+ *     N = ( bitsPerArrayCHAR DIV bitsPerSAU ) * desiredLength.
+ *)
+EXPORT QUALIFIED
+    stringFormatName,
+    charFormatName;
+
+CONST
+    stringFormatName = 'String';  (* ARRAY OF CHAR *)
+    charFormatName   = 'Char';    (* A single CHAR *)
+
+END FIOString.

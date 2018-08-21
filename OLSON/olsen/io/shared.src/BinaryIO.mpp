@@ -1,0 +1,795 @@
+(**************************************************************************)
+(* Copyright 1987, 1988 by Olsen & Associates, Zurich, Switzerland.       *)
+(*                                                                        *)
+(*                          All Rights Reserved                           *)
+(*                                                                        *)
+(* Permission to use, copy, modify, and distribute this software and its  *)
+(* documentation for any purpose and without fee is hereby granted,       *)
+(* provided that the above copyright notice appear in all copies, and     *)
+(* that both that copyright notice and this permission notice appear in   *)
+(* supporting documentation, and that all modifications of this software  *)
+(* or its documentation not made by O&A or its agents are accompanied     *)
+(* by a prominent notice stating who made the modifications and the date  *)
+(* of the modifications.                                                  *)
+(*                                                                        *)
+(* O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS      *)
+(* DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND *)
+(* FITNESS, IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR  *)
+(* CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF   *)
+(* USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR  *)
+(* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR *)
+(* PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.                     *)
+(**************************************************************************)
+
+IMPLEMENTATION MODULE BinaryIO;
+(*
+ * Uses classes, and all that stuff.  RJN - comment this!
+ *)
+IMPORT
+    CardConvert,
+    CatBinaryIO,
+    Intrinsics,
+    IOConsts,
+    IOErrors, 
+    Objects,
+    ProgErr,        
+    ProgErrOutput,
+    Strings,
+    SYSTEM,
+    SysTypes;
+    
+@IF LogitechM2 THEN
+    IMPORT
+	Card32; 
+@END (* LogitechM2 *)
+
+@IF M2V2 OR LogitechM2 THEN
+    FROM SYSTEM IMPORT SIZE;
+@END
+
+TYPE
+    Object = CatBinaryIO.Object;	(* not such a big secret, eh... *)
+
+PROCEDURE Open(
+    VAR file    : Object;
+	path    : ARRAY OF CHAR;
+	mode    : Modes;
+	options : ARRAY OF CHAR
+    )           : IOErrors.Errors;
+    (*
+     * If the options string is empty, then just call the defaultOpen.
+     * Otherwise, parse the Options string.  If the class is empty,
+     * then use the defaultOpen.
+     *)
+    VAR
+	result    : IOErrors.Errors;
+	open      : CatBinaryIO.Open;
+	className : ClassName;
+    BEGIN (* Open *)
+	
+	open   := CatBinaryIO.defaultOpen;
+
+	(* Do we have to parse our options? *)
+	IF options[ 0 ] = CatBinaryIO.binaryOptionsChar THEN
+	    (* 
+	     * Delete out part from the options string and look up the class 
+	     * name.  Note that we allow the case for "empty" class string
+	     * to mean "default".
+	     *)
+	    IF NOT SeparateOptions( options, className ) OR
+	         ( ( className[ 0 ] # 0C ) AND
+		   NOT CatBinaryIO.FindClass( className, open ) ) THEN
+		RETURN IOErrors.badParameter;
+	    END;
+	END;
+	
+	(* Have a valid class *)
+
+	LOOP (* Used for forward exits only *)
+	    Objects.Allocate( CatBinaryIO.objectMgr, file );
+
+	    (*
+	     * Have to initialize the object before calling the
+	     * class open.
+	     *)
+	    WITH file^ DO
+		openMode         := mode;
+		isIndexable      := FALSE;
+		isInteractive    := FALSE;
+		state            := ok;
+		errorState       := IOErrors.ok;
+		stateBeforeError := ok;
+	    END; (* WITH *)
+
+	    (* Try to open the file *)
+	    result := open( file, path, options );
+	    IF result # IOErrors.ok THEN
+		EXIT;
+	    END;
+
+	    RETURN IOErrors.ok;
+
+	END; (* LOOP *)
+
+	(*
+	 * Open failed from name problems or class open failing.
+	 *)
+	Objects.Deallocate( CatBinaryIO.objectMgr, file );
+	RETURN result;
+    END Open;
+
+
+PROCEDURE MakeOptions(
+        className    : ARRAY OF CHAR;
+	classOptions : ARRAY OF CHAR;
+    VAR result       : ARRAY OF CHAR
+    );
+    CONST
+	lengthError = "BinaryIO: options string too short.";
+    BEGIN (* MakeOptions *)
+	
+	IF HIGH( result ) >= maxOptionsLength - 1 THEN
+	    (* 
+	     * We truncate className, if we have to when we call Justify.
+	     * This goes according to the rules of CatBinaryIO.  Note
+	     * that we use " " as the fill character, since class names
+	     * may not have spaces in them.
+	     *)
+	    Strings.Concat( CatBinaryIO.binaryOptionsChar, className, result );
+	    Strings.Justify( result, Strings.justifyLeft, 
+			     maxOptionsLength, ' ' );
+	    (* If the classOptions fit, then all is ok. *)
+	    IF ( classOptions[ 0 ] = 0C ) OR
+	      Strings.InsertOK( result, Strings.EOS, classOptions ) THEN
+		RETURN;
+	    END;
+	END;
+
+	ProgErr.Terminate( lengthError );
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(
+    VAR options   : ARRAY OF CHAR;
+    VAR className : ClassName
+    )             : BOOLEAN;
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* SeparateOptions *)
+
+	(* Must be at least as large as our options. *)
+	IF Strings.Length( options ) < maxOptionsLength THEN
+	    RETURN FALSE;
+	END;
+
+	IF NOT Strings.Position( options, Strings.BOS, Strings.EOS, ' ', i ) OR
+	   ( i >= maxOptionsLength ) THEN
+	    i := maxOptionsLength;
+	END;
+
+	(* Is the className empty? *)
+	IF i = 1 THEN
+	    className := '';
+	ELSE
+	    (* Get out the class name *)
+	    Strings.Substring( options, 1, i - 1, className );
+	END;
+
+	(* Get rid of our part of the options *)
+	Strings.Delete( options, Strings.BOS, maxOptionsLength - 1 );
+
+	RETURN TRUE;
+    END SeparateOptions;
+
+
+PROCEDURE Close(
+    VAR file : Object
+    )        : IOErrors.Errors;
+    VAR
+	result : IOErrors.Errors;
+    BEGIN (* Close *)
+
+	@IF Assert THEN
+	    IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file ) THEN
+		RETURN IOErrors.notOpen;
+	    END;
+	@END (* Assert *)
+
+	result := file^.methods^.close( file );
+
+	Objects.Deallocate( CatBinaryIO.objectMgr, file );
+
+	RETURN result;
+    END Close;
+
+
+PROCEDURE SetInvalid(
+    VAR file : Object
+    );
+    BEGIN (* SetInvalid *)
+
+	file := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE ReadBlock(
+        file  : Object;
+    VAR block : ARRAY OF SysTypes.ANY
+    )         : States;
+    VAR
+	amountRead : SysTypes.Card;
+	bufferSize : SysTypes.Card;
+	buffer     : SysTypes.SAUPTR;
+    BEGIN (* ReadBlock *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.readAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF file^.state = endOfFile THEN
+		RETURN SetError( file, IOErrors.readPastEOF );
+	    END;
+	@END (* Assert *)
+
+	bufferSize := SIZE( block );
+	buffer     := SYSTEM.ADR( block );
+	LOOP
+	    CASE file^.methods^.readBytes( file, buffer, bufferSize, 
+					   amountRead ) OF
+		error:
+		    EXIT;
+		|
+		endOfFile:
+		    (* Was this our first read? *)
+		    IF bufferSize = HIGH( block ) + 1 THEN
+			EXIT;
+		    END;
+		    (* Partial read is an error *)
+		    RETURN SetError( file, IOErrors.readPastEOF );
+		|
+		ok:
+		    DEC( bufferSize, amountRead );
+		    IF bufferSize = 0 THEN
+			EXIT;
+		    END;
+		    INC( buffer, amountRead );
+	    END; (* CASE *)
+	END; (* LOOP *)
+
+	RETURN file^.state;
+    END ReadBlock;
+
+
+PROCEDURE ReadBytes(
+        file        : Object;
+	buffer      : SysTypes.SAUPTR;
+	bufferSize  : SysTypes.Card; 
+    VAR amountRead  : SysTypes.Card
+    )               : States;
+    BEGIN (* ReadBytes *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.readAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF file^.state = endOfFile THEN
+		RETURN SetError( file, IOErrors.readPastEOF );
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.readBytes( file, buffer, bufferSize, amountRead ); 
+    END ReadBytes;
+
+
+PROCEDURE WriteBlock(
+    file  : Object;
+    block : ARRAY OF SysTypes.ANY
+    )     : States;
+    VAR
+	DONTCARE : SysTypes.Card;
+    BEGIN (* WriteBlock *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.writeBytes( file, SYSTEM.ADR( block ), 
+					  SIZE( block ),
+					  DONTCARE );
+    END WriteBlock;
+
+
+PROCEDURE WriteBytes(
+        file          : Object;
+	buffer        : SysTypes.SAUPTR;
+	bufferSize    : SysTypes.Card;  
+    VAR amountWritten : SysTypes.Card
+    )                 : States;
+    BEGIN (* WriteBytes *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.writeBytes( file, buffer, bufferSize, 
+					  amountWritten );
+    END WriteBytes;
+
+
+PROCEDURE GetState(
+    file : Object
+    )    : States;
+    BEGIN (* GetState *)
+
+	(* Not in Assert section, because this is inquisitive *)
+	IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file) THEN
+	    RETURN error;
+	END;
+
+	RETURN file^.state;
+    END GetState;
+
+
+PROCEDURE GetError(
+    file : Object
+    )    : IOErrors.Errors;
+    BEGIN (* GetError *)
+
+	(* Not in Assert section, because this is inquisitive *)
+	IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file) THEN
+	    RETURN IOErrors.notOpen;
+	END;
+
+	RETURN file^.errorState;
+    END GetError;
+
+
+PROCEDURE SetError(
+    file     : Object;
+    newError : IOErrors.Errors
+    )        : States;
+    BEGIN (* SetError *)
+
+	@IF Assert THEN
+	    IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+
+	    (* Is this a first-time "set"? *)
+	    IF errorState = IOErrors.ok THEN
+
+		(* Is this a no-op? *)
+		IF newError = IOErrors.ok THEN
+		    RETURN ok;
+		END;
+
+		(* set the error state and state value in the event of reset *)
+		stateBeforeError := state;
+		state            := error;
+
+	    ELSIF newError = IOErrors.ok THEN
+		(* 
+		 * We just cleared an error, return to state before error 
+		 * occurred and reset the stateBeforeError to ok.
+		 *)
+		state  		 := stateBeforeError;
+		stateBeforeError := ok;
+	    END;
+
+	    errorState := newError;	(* Set the new error *)
+
+	    RETURN state;
+
+	END; (* WITH *)
+   END SetError;
+
+
+PROCEDURE GetOpenPath(
+        file : Object;
+    VAR path : IOConsts.Path
+    );
+    BEGIN (* GetOpenPath *)
+
+	(* Not in Assert section, because this is inquisitive *)
+	IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file ) THEN
+	    (* File isn't open, nothing to say! *)
+	    path[ 0 ] := 0C;
+	END;
+
+	file^.methods^.getOpenPath( file, path );
+    END GetOpenPath;
+
+
+PROCEDURE Flush(
+    file : Object
+    )    : States;
+    BEGIN (* Flush *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.flush( file );
+    END Flush;
+
+
+PROCEDURE Truncate(
+    file : Object
+    )    : States;
+    BEGIN (* Truncate *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.truncate( file );
+    END Truncate;
+
+
+PROCEDURE PrintErrorMessage(
+    file    : Object;
+    message : ARRAY OF CHAR
+    ); 
+    (* 
+     * Error messages look like:
+     * 	  'filename: message'.
+     * We don't put the seek position for several reasons:
+     *    1. What is it used for?  If you get a data error, then
+     *       maybe it would be useful, but the application will have
+     *       imposed the higher level semantics of the error so it
+     *       will have a better explanation of the error.
+     *    2. If you query for the file position, you are changing the
+     *       state of the underlying file object (possibly).  This means
+     *       that in the act of displaying the current state of the file
+     *       you may be changing it (the getIndex fails).
+     *    3. I can't figure out how to get around (2), so I am not going
+     *       to do it. -- RJN
+     *)
+    VAR
+	errorMsg : IOErrors.String;
+	openPath : IOConsts.Path;
+    BEGIN (* PrintErrorMessage *)
+
+	(* Is the file open? *)
+	IF NOT Objects.IsValid( CatBinaryIO.objectMgr, file ) THEN
+	    ProgErrOutput.WriteString( 'BinaryIO: ' );
+	    IOErrors.ToString( IOErrors.notOpen, errorMsg );
+	    ProgErrOutput.WriteString( errorMsg );
+	    ProgErrOutput.WriteLn;
+	    RETURN;
+	END;
+
+	WITH file^ DO
+
+	    methods^.getOpenPath( file, openPath );
+	    ProgErrOutput.WriteString( '"' );
+	    ProgErrOutput.WriteString( openPath );
+	    ProgErrOutput.WriteString( '": ' );
+	    IF message[ 0 ] # 0C THEN
+		ProgErrOutput.WriteString( message );
+	    ELSE
+		IOErrors.ToString( file^.errorState, errorMsg );
+		ProgErrOutput.WriteString( errorMsg );
+	    END;
+	    ProgErrOutput.WriteLn;
+
+	END; (* WITH *)
+    END PrintErrorMessage;
+
+
+PROCEDURE GetMode(
+    file : Object
+    )    : Modes;
+    BEGIN (* GetMode *)
+
+	@IF Assert THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.openMode;
+    END GetMode;
+
+
+PROCEDURE IsInteractive(
+    file : Object
+    )    : BOOLEAN;
+    BEGIN (* IsInteractive *)
+
+	@IF Assert THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.isInteractive;
+    END IsInteractive;
+
+
+PROCEDURE IsIndexable(
+    file : Object
+    )    : BOOLEAN;
+    BEGIN (* IsIndexable *)
+
+	@IF Assert THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.isIndexable;
+    END IsIndexable;
+
+
+PROCEDURE IndexToString(
+        toConvert : Index;
+    VAR result    : IndexString
+    );
+    (*
+     * IMPLEMENTATION SPECIFIC.  Works for Logitech and Sun.
+     *)
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* IndexToString *)
+	@IF LogitechM2 THEN
+	    DONTCARE := CardConvert.ToString32( toConvert, 10, 0, result );
+	@ELSE
+	    DONTCARE := CardConvert.ToString( toConvert, 10, 0, result );
+	@END
+    END IndexToString;
+
+
+(* 
+ * The following is a global value.  The abstraction presented is that
+ * all files shared the same indexes (Compare and Calculate don't take
+ * file parameters).  This may turn out to be fatal mistake, but...
+ *)
+@IF LogitechM2 THEN
+    VAR
+	firstIndex : Index;   (* Initialized in module body *)
+@ELSE (* NOT LogitechM2 *)
+    CONST
+	firstIndex = 0;	
+@END (* LogitechM2 *)
+    
+
+PROCEDURE GetStart(
+        file  : Object;
+    VAR index : Index
+    )         : States;
+    BEGIN (* GetStart *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.anyAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF NOT file^.isIndexable THEN 
+		RETURN SetError( file, IOErrors.illegalOp );
+	    END;
+	@END (* Assert *)
+
+	index := firstIndex;
+
+	RETURN file^.state;
+    END GetStart;
+
+
+PROCEDURE GetEnd(
+        file  : Object;
+    VAR index : Index
+    )         : States;
+    BEGIN (* GetEnd *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.anyAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF NOT file^.isIndexable THEN 
+		RETURN SetError( file, IOErrors.illegalOp );
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.getEnd( file, index );
+    END GetEnd;
+
+
+PROCEDURE GetIndex(
+        file  : Object;
+    VAR index : Index
+    )         : States;
+    BEGIN (* GetIndex *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.anyAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF NOT file^.isIndexable THEN 
+		RETURN SetError( file, IOErrors.illegalOp );
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.getIndex( file, index );
+    END GetIndex;
+
+
+PROCEDURE SetIndex(
+    file  : Object;
+    index : Index
+    )     : States;
+    BEGIN (* SetIndex *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.anyAccess ) THEN
+		RETURN error;
+	    END;
+
+	    IF NOT file^.isIndexable THEN 
+		RETURN SetError( file, IOErrors.illegalOp );
+	    END;
+	@END (* Assert *)
+
+	RETURN file^.methods^.setIndex( file, index );
+    END SetIndex;
+
+
+PROCEDURE CalculateIndex(
+        baseIndex   : Index;
+	numElements : SysTypes.Int;
+	elementSize : SysTypes.Card;
+    VAR resultIndex : Index
+    );
+    VAR
+	tmp : Index;
+	
+    BEGIN (* CalculateIndex *)
+	
+	@IF LogitechM2 THEN
+
+	    Card32.Multiply16x16( ABS( numElements ), elementSize, tmp );
+	    IF numElements < 0 THEN
+		Card32.Subtract( baseIndex , tmp, resultIndex );
+	    ELSE
+		Card32.Add( baseIndex, tmp, resultIndex );
+	    END;
+
+	@ELSE (* NOT LogitechM2 *)
+
+	    tmp := Index( ABS( numElements ) ) * elementSize;
+	    IF numElements < 0 THEN
+		resultIndex := baseIndex - tmp;
+	    ELSE
+		resultIndex := baseIndex + tmp;
+	    END;
+
+	@END (* LogitechM2 *)
+    END CalculateIndex;
+
+
+PROCEDURE CompareIndex(
+    left  : Index;
+    right : Index
+    )     : Intrinsics.CompareResults;
+    BEGIN (* CompareIndex *)
+
+	@IF LogitechM2 THEN
+
+	    RETURN Card32.Compare( left, right );
+
+	@ELSE (* NOT LogitechM2 *)
+
+	    IF left < right THEN
+		RETURN Intrinsics.less;
+	    ELSIF left = right THEN
+		RETURN Intrinsics.equal;
+	    ELSE 
+		RETURN Intrinsics.greater;
+	    END;
+
+	@END (* LogitechM2 *)
+    END CompareIndex;
+
+VAR
+    input       : Object;
+    output      : Object;
+    errorOutput : Object;
+
+PROCEDURE GetInput(
+    ) : Object;
+    BEGIN (* GetInput *)
+
+	RETURN input;
+
+    END GetInput;
+
+
+PROCEDURE GetOutput(
+    ) : Object;
+    BEGIN (* GetOutput *)
+
+	RETURN output;
+
+    END GetOutput;
+
+
+PROCEDURE GetErrorOutput(
+    ) : Object;
+    BEGIN (* GetErrorOutput *)
+
+	RETURN errorOutput;
+
+    END GetErrorOutput;
+
+
+PROCEDURE SetInput(
+    file : Object
+    )    : States;
+    BEGIN (* SetInput *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.readAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	input := file;
+	RETURN file^.state;
+    END SetInput;
+
+
+PROCEDURE SetOutput(
+    file : Object
+    )    : States;
+    BEGIN (* SetOutput *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	output := file;
+	RETURN file^.state;
+    END SetOutput;
+
+
+PROCEDURE SetErrorOutput(
+    file : Object
+    )    : States;
+    BEGIN (* SetErrorOutput *)
+
+	@IF Assert THEN
+	    IF NOT CatBinaryIO.IsValid( file, CatBinaryIO.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	errorOutput := file;
+	RETURN file^.state;
+    END SetErrorOutput;
+
+
+BEGIN (* BinaryIO *)
+
+    @IF SysTypesCheck THEN
+	IF SysTypes.bitsPerSAU # SysTypes.bitsPerANY THEN
+	    ProgErr.Terminate( "BinaryIO: SysTypesCheck failed!" );
+	END;
+    @END
+
+    @IF LogitechM2 THEN
+	Card32.Zero( firstIndex );
+    @END (* LogitechM2 *)
+
+END BinaryIO.

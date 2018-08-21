@@ -1,0 +1,363 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TaskDebug;
+(*
+ * A simple little module which prints out the task state information
+ * upon request or when the program crashes.
+ *)
+IMPORT
+    Interrupts,
+    Notices,		
+    ProgErr,	
+    ProgErrOutput,	
+    SysTypes,
+    TaskInfo,
+    TaskNotices,	
+    Tasks, 		
+    TasksPRIVATE,	
+    TaskConsts;
+@IF LogitechM2 THEN
+    IMPORT
+	DOS;
+@END
+@IF SunM2 THEN
+    IMPORT
+	UnixCsignal;
+@END
+
+
+CONST
+    header = "          ***** Current Task State Information *****";
+
+PROCEDURE PrintAll;
+    (*
+     * It is a good idea to freeze the world while printing
+     * out the information so we disable preemption for the entire
+     * print.  This is not called during termination, because we
+     * can be in a funny state during termination (even though
+     * we are the only task running).
+     *)
+    BEGIN (* PrintAll *)
+
+	Tasks.DisallowPreemption;
+	    TasksPRIVATE.Enter;
+		InternalPrintAll;
+	    TasksPRIVATE.Exit;
+	Tasks.AllowPreemption;
+
+    END PrintAll;
+    
+
+PROCEDURE PrintOne(
+    DONTCARE : SysTypes.ANYPTR;
+    task     : TasksPRIVATE.Object
+    );
+    BEGIN (* PrintOne *)
+
+	TaskInfo.Print( Tasks.Object( task ) );
+    
+    END PrintOne;
+
+
+PROCEDURE InternalPrintAll;
+    (*
+     * Prints out the task information of all the tasks with a pretty
+     * header.  This must be called from protected section or from
+     * termination code.
+     *)
+    VAR
+	private : TasksPRIVATE.Object;
+    BEGIN (* InternalPrintAll *)
+	
+	ProgErrOutput.WriteLn;	(* Skip a line *)
+	ProgErrOutput.WriteString( header );
+	ProgErrOutput.WriteLn;
+	TasksPRIVATE.Traverse( PrintOne, NIL );
+	ProgErrOutput.WriteLn;
+
+    END InternalPrintAll;
+
+(*
+ * User interrupt handling.  There are two types of user interrupts
+ * which can occur: BIOS and DOS.  We must catch both.  However,
+ * the same handler can satisfy both.  A Task must execute PrintAll,
+ * so the interrupt handler merely readies the task.  The task looks
+ * at the mode to decide what to do.  In the case of doNothing this
+ * may be inefficient, but it is simpler and the guy can't do too
+ * many ctrl-breaks.  And this is only for debugging.
+ *)
+VAR
+    userInterruptMode : UserInterruptModes;
+
+PROCEDURE SetUserInterruptMode( 
+    mode : UserInterruptModes 
+    );
+    BEGIN (* SetUserInterruptMode *)
+
+	(* This is an atomic assignment *)
+	userInterruptMode := mode;
+
+    END SetUserInterruptMode;
+
+
+VAR
+    taskWhichWasInterrupted  : Tasks.Object;	
+	(* TasksPRIVATE.running at time of interrupt handler *)
+    pleaseExit	      	     : BOOLEAN;
+	(* Set by the please exit request handler *)
+
+PROCEDURE UserInterruptTask( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (*
+     * Gets woken up when a user interrupt occurs and does the
+     * operation according to the mode.  
+     *)
+    VAR
+	name : TaskConsts.Name;
+    BEGIN (* UserInterruptTask *)
+	
+	Tasks.DisallowPreemption;
+
+	    LOOP
+		IF pleaseExit THEN
+		    EXIT;
+		END;
+		Tasks.Suspend;
+
+		CASE userInterruptMode OF
+		    doNothingOnUserInterrupt:
+			(* Ho hum *)
+		    |
+		    printOnUserInterrupt:
+			PrintAll;
+		    |
+		    terminateOnUserInterrupt:
+			(* 
+			 * We must verify that the task being interrupted is
+			 * valid, before referencing the pointer.
+			 *)
+			ProgErrOutput.WriteString( 
+				"TaskDebug: user interrupt" );
+			IF Tasks.IsValid( taskWhichWasInterrupted ) THEN
+			    Tasks.GetName( taskWhichWasInterrupted, name );
+			    ProgErrOutput.WriteString( " in task '" );
+			    ProgErrOutput.WriteString( name );
+			    ProgErrOutput.WriteString( "'." );
+			    ProgErrOutput.WriteLn;
+			END;
+			ProgErr.Terminate( "" );
+		END; (* CASE *)
+
+	    END; (* LOOP *)
+	
+	Tasks.AllowPreemption;
+
+    END UserInterruptTask;
+
+@IF LogitechM2 THEN
+    CONST
+	biosCtrlBreakInt     = 1BH;		(* DOS has different value *)
+
+    VAR
+	biosCtrlBreakHandler : Interrupts.Object; 
+	dosCtrlBreakHandler  : Interrupts.Object; 
+
+    PROCEDURE TerminateUserInterrupts;
+	(*
+	 * All we have to do is destroy the user interrupt handlers.  Note
+	 * they may be already destroy, but this is no matter.
+	 *)
+	BEGIN (* TerminateUserInterrupts *)
+
+	    Interrupts.Destroy( dosCtrlBreakHandler );
+	    Interrupts.Destroy( biosCtrlBreakHandler );
+
+	END TerminateUserInterrupts;
+@END (* LogitechM2 *)
+
+@IF SunM2 THEN
+    VAR
+	sigIntHandler : Interrupts.Object; 
+
+    PROCEDURE TerminateUserInterrupts;
+	(*
+	 * All we have to do is destroy the user interrupt handlers.  Note
+	 * they may be already destroy, but this is no matter.
+	 *)
+	BEGIN (* TerminateUserInterrupts *)
+
+	    Interrupts.Destroy( sigIntHandler );
+
+	END TerminateUserInterrupts;
+@END (* SunM2 *)
+
+VAR
+    userInterruptTask : Tasks.Object;
+
+PROCEDURE ExitRequestHandler( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (*
+     * Called when TaskNotices.GetExitRequest() is called.
+     * We have to destroy the interrupt handlers first, because
+     * we may get a ctrl break before the whole system terminates.
+     *)
+    BEGIN (* ExitRequestHandler *)
+
+	(*
+	 * Make sure nothing gets printed out when the "userInterruptTask"
+	 * starts running, hence doNothingOnUserInterrupt. Destroy interrupt
+	 * handlers before requesting the task to die.
+	 *)
+	TerminateUserInterrupts;
+
+	pleaseExit        := TRUE;
+	userInterruptMode := doNothingOnUserInterrupt;	
+	Tasks.Ready( userInterruptTask );
+
+    END ExitRequestHandler;
+
+
+PROCEDURE UserInterruptHandler( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    (*
+     * Save the guy we interrupted and wake up the task which we
+     * need to perform the operation.  Note that we can't call
+     * Tasks.GetCurrent, because interrupt handlers are not allowed
+     * to do this.
+     *)
+    BEGIN (* UserInterruptHandler *)
+
+	taskWhichWasInterrupted  := Tasks.Object( TasksPRIVATE.running );
+	IF NOT pleaseExit THEN
+	    Tasks.Ready( userInterruptTask );
+	END;
+
+    END UserInterruptHandler;
+
+
+PROCEDURE InitializeUserInterrupts;
+    (*
+     * We need to grab both the DOS and BIOS interrupts.  Creates
+     * the task which actually processes the interrupt requests.
+     * The userInterruptTask runs at maxPriority so that we can guarantee
+     * fast service of interrupts.
+     *)
+    BEGIN (* InitializeUserInterrupts *)
+	
+	(*
+	 * The initialization order is strict.
+	 *)
+	userInterruptMode := terminateOnUserInterrupt;
+	pleaseExit 	  := FALSE;
+	(* Create the task *)
+	Tasks.Create( userInterruptTask, "TaskDebug", UserInterruptTask,
+		      Tasks.DONTCARE, TaskConsts.maxPriority, 
+		      TaskConsts.GetDefaultStackSize() );
+
+	(* The task needs this notice, but it is blocked *)
+	Notices.Register( TaskNotices.GetExitRequest(), ExitRequestHandler );
+
+	@IF LogitechM2 THEN
+	    (* The interrupt handlers *)
+	    Interrupts.Create( biosCtrlBreakHandler, UserInterruptHandler,
+			       Interrupts.DONTCARE, biosCtrlBreakInt,
+			       Interrupts.doNotChain );
+	    Interrupts.Create( dosCtrlBreakHandler, UserInterruptHandler,
+			       Interrupts.DONTCARE, DOS.ctrlBreakExitInterrupt,
+			       Interrupts.doNotChain );
+	@END (* LogitechM2 *)
+
+	@IF SunM2 THEN
+	    Interrupts.Create( sigIntHandler, UserInterruptHandler,
+			       Interrupts.DONTCARE, UnixCsignal.SIGINT,
+			       Interrupts.callPrevious );
+	@END (* SunM2 *)
+
+    END InitializeUserInterrupts;
+
+(*
+ * Termination management.
+ *)
+VAR
+    terminationMode : TerminationModes;
+
+PROCEDURE SetTerminationMode( 
+    mode : TerminationModes 
+    );
+    BEGIN (* SetTerminationMode *)
+
+	(* This is an atomic operation on the 8088 *)
+	terminationMode := mode;
+
+    END SetTerminationMode;
+
+
+PROCEDURE Terminate( 
+    faultingTask : SysTypes.ANYPTR 
+    );
+    (*
+     * Depending on the termination mode, print out information about
+     * the terminiation.  After printing out the information, clean
+     * up user interrupts.
+     *)
+    VAR
+	private : TasksPRIVATE.Object;
+    BEGIN (* Terminate *)
+
+	(* Turn off our user interrupt code *)
+	userInterruptMode := doNothingOnUserInterrupt;	
+
+	IF terminationMode # doNotPrintOnTermination THEN
+	    IF ( terminationMode = printOnTermination ) OR
+	       ( faultingTask # Notices.normalTermination ) THEN
+
+		(* No one else is running (or shouldn't be) *)
+		InternalPrintAll;
+
+		IF terminationMode = printOnAbnormalTermination THEN
+		    private := faultingTask;
+		    ProgErrOutput.WriteString( "System terminated in task: " );
+		    ProgErrOutput.WriteString( private^.name );
+		    ProgErrOutput.WriteLn;
+		END;
+	    END;
+	END;
+
+	(*
+	 * Now do clean up in all cases.
+	 *)
+	TerminateUserInterrupts;
+
+    END Terminate;
+    
+BEGIN (* TaskDebug *)
+
+    terminationMode := printOnAbnormalTermination;
+    InitializeUserInterrupts;
+
+    Notices.Register( Notices.GetTerminationNotice(), Terminate );
+
+END TaskDebug.

@@ -1,0 +1,62 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ConfFIO;
+(*
+ * This module is imported to by FormatIO to provide configurable
+ * FormatIO systems.  The TerminateOnErrors procedure is provided
+ * to provide easy debugging of complex format strings.
+ *)
+EXPORT QUALIFIED
+    TerminateOnErrors,
+    ErrorModes,
+    SetErrorMode;
+
+PROCEDURE TerminateOnErrors(
+    ) : BOOLEAN;  (* Should print and terminate => TRUE *)
+    (*
+     * This procedure is a static value that determines what should 
+     * happen when an error occurs in a FormatIO format. The errors
+     * governed by this procedure are:
+     *     1) errors in the format string itself,
+     *     2) incorrect number or size of parameters to FormatIO.
+     *
+     * If an error occurs as the result of user input, the caller
+     * should not be terminated (unless the program ignores error
+     * codes).
+     *)
+
+TYPE
+    ErrorModes = (
+        terminateOnErrors,    (* Above procedure will return true *)
+        returnErrorsToCaller  (* Above will return false *)
+    );
+
+PROCEDURE SetErrorMode(
+    newMode : ErrorModes  (* What to do in case of error *)
+    );
+    (*
+     * Allows you to set the terminate on errors flag.
+     *)
+
+END ConfFIO.
+

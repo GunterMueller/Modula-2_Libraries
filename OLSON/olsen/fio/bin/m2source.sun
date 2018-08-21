@@ -1,0 +1,7 @@
+M2Defs= ConfFIO.def ConvertFIO.def DataFIO.def ErrorFIO.def FIOBase.def  \
+        FIOBool.def FIOCard.def FIOInt.def FIOPRIVATE.def FIOReal.def  \
+        FIOScreen.def FIOString.def FormatIO.def SimpleFIO.def 
+M2Imps= ConfFIO.mod ConvertFIO.mod DataFIO.mod ErrorFIO.mod FIOBase.mod  \
+        FIOBool.mod FIOCard.mod FIOInt.mod FIOPRIVATE.mod FIOReal.mod  \
+        FIOScreen.mod FIOString.mod FormatIO.mod SimpleFIO.mod 
+M2Mods= 

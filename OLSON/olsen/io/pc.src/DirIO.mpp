@@ -1,0 +1,1144 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DirIO;
+(*
+ * The following system configurations are supported by this module:
+ *      CPU: Intel iAPX family
+ *      OS:  MS-DOS 2.X/3.X
+ *      Compiler: Logitech 2.0
+ *
+ * Note it is very important that the definitions for createTextFile,
+ * createBinaryFile, and createDirectory correlate exactly with the 
+ * semantics of SeparateOptions.
+ *)
+IMPORT
+    DOS,		SYSTEM,		DosIONames,
+    IOErrors,		IOConsts,	Card32,		DosIOErrors,
+    Strings,		NameLists,      Intrinsics,	SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+	DosMonitor;
+@END (* Tasks *)
+
+CONST
+    chmodGetMode = 0; 
+    chmodSetMode = 1; 
+	(* 
+	 * There are two modes to DOS.chmod: set and get.
+	 *)
+PROCEDURE GetAttributes( VAR path       : ARRAY OF CHAR;  (* VAR IS HACK *)
+			 VAR dosPath    : DosIONames.Path;
+			 VAR attributes : BITSET;
+			 VAR dosError   : SysTypes.Card )
+				        : BOOLEAN;
+    (*
+     * Many of the routines in this module need access to the type of 
+     * the entry.  They also need to do a DosIONames.CopyPath.  This
+     * routine does all that for them and more.
+     *
+     * NOTE: When FALSE is returned, the other values may be invalid.
+     *)
+    BEGIN (* GetAttributes *)
+
+	(* Must make sure the string we send DOS has null termination *)
+	IF NOT DosIONames.CopyPath( path, dosPath ) THEN
+	    (* 
+	     * The following error code translates to "IOErrors.illegalName".
+	     * Even if it doesn't it will return an error.
+	     *)
+	    dosError := DOS.invalidDriveWasSpecified;
+	    RETURN FALSE;
+	END;
+
+	(* 
+	 * Do a direct call to "chmod" in chmodGetMode.   This saves many
+	 * procedure calls.
+	 *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.chmod, SYSTEM.ADR( dosPath ), 
+			    chmodGetMode, attributes, dosError );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN dosError = DOS.success;
+
+    END GetAttributes;
+
+
+PROCEDURE ModeCheckOut(     mode    : CreateModes;
+			VAR path    : ARRAY OF CHAR;	(* VAR IS HACK *)
+			VAR dosPath : DosIONames.Path;
+			VAR result  : IOErrors.Errors )
+				    : BOOLEAN;
+    (*
+     * This routine is shared between CreateEntry and RenameEntry.
+     * Makes the path ASCIIZ with DosIONames.   Then we must do the mode 
+     * handling/verification properly.  If the file does not exist, 
+     * then both modes are identical.  In the case the file exists, we 
+     * must return failure in mustBeNewPath.  Otherwise (overwritePath), 
+     * we must delete the already existing file.  
+     *
+     * NOTE: result is only valid if the return is FALSE.
+     *)
+    VAR
+	DONTCARE : BITSET;
+	dosError : SysTypes.Card;
+    BEGIN (* ModeCheckOut *)
+
+	(* 
+	 * If the file is notFound, then there is nothing to do.
+	 * Otherwise, we check for "success", i.e. the file was found.
+	 * If that isn't true, then we had an error on the chmod.
+	 *)
+	IF NOT GetAttributes( path, dosPath, DONTCARE, dosError ) THEN
+	    IF ( dosError = DOS.fileNotFound ) OR 
+	       ( dosError = DOS.pathNotFound )THEN
+		RETURN TRUE;
+	    END;
+	    (* Unexpected return result, byebye *)
+	    result := DosIOErrors.ToIOError( dosError );
+	    RETURN FALSE;
+	END;
+
+	CASE mode OF 
+	    mustBeNewPath:
+		result := IOErrors.alreadyExists;
+	    |
+	    overwritePath:
+		(* This routine figures out right thing to do *)
+		result := DeleteEntry( path );
+	END; (* CASE *)
+
+	RETURN result = IOErrors.ok;
+
+    END ModeCheckOut;
+
+
+PROCEDURE CreateEntry( path    : ARRAY OF CHAR;
+		       options : ARRAY OF CHAR;
+		       mode    : CreateModes )
+			       : IOErrors.Errors;
+    (*
+     * First figure out the options via SeparateOptions.  Then we check
+     * out the file's existence/mode relation ship (and make the file ASCIIZ)
+     * via ModeCheckOut.  If all goes ok, then we create the directory or
+     * file depending upon the requested options.
+     *)
+    CONST
+	illegalAttributes = { DOS.volumeLabelAttributeBit };
+	    (* We can't modify this bit or set it. *)
+    VAR
+	dosPath	      : DosIONames.Path;
+	attributes    : BITSET;
+	tempHandle    : SysTypes.Card;
+	dosError      : SysTypes.Card;
+	DONTCARE1     : IOErrors.Errors;
+	DONTCARE2     : SysTypes.Card;
+	result	      : IOErrors.Errors;
+    BEGIN  (* CreateEntry *)
+	
+	(* Always have attributes *)
+	IF NOT SeparateOptions( options, attributes ) OR
+	   ( attributes * illegalAttributes # {} ) THEN
+	    RETURN IOErrors.badParameter;
+	END;
+
+	(* Sets result on FALSE and always sets dosPath *)
+	IF NOT ModeCheckOut( mode, path, dosPath, result ) THEN
+	    RETURN result;
+	END;
+
+	(* 
+	 * We have to do the proper creation based on the attribute bits.
+	 *)
+	IF DOS.directoryAttributeBit IN attributes THEN
+
+	    (* 
+	     * Create the directory first and then set its mode.
+	     *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.mkdir, SYSTEM.ADR( dosPath ), dosError );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+
+	    IF dosError # DOS.success THEN
+		RETURN DosIOErrors.ToIOError( dosError );
+	    END;
+
+	    (* Set attributes as requested, but don't set "directoryBit"! *)
+	    EXCL( attributes, DOS.directoryAttributeBit );
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.chmod, SYSTEM.ADR( dosPath ), 
+				chmodSetMode, attributes, dosError );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+
+	    IF dosError = DOS.success THEN
+		RETURN IOErrors.ok;
+	    END;
+
+	    (* Failed to set attributes, must clean up *)
+	    DONTCARE1 := DeleteEntry( path );
+	    RETURN DosIOErrors.ToIOError( dosError );
+	END;
+
+	(* Not a directory, just a plain file *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.creat, SYSTEM.ADR( dosPath ), attributes, 
+			    tempHandle, dosError );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* Unable to create the file *)
+	IF dosError # DOS.success THEN
+	    RETURN DosIOErrors.ToIOError( dosError );
+	END;
+
+	(* Have to close the file handle we just opened *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.close, tempHandle, DONTCARE2 );
+        @IF Tasks THEN 
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN IOErrors.ok;
+
+    END CreateEntry;
+
+
+CONST
+    (* Values associated with the various attributes of files *)
+    readOnlyFileChar	 = 'r';
+    hiddenFileChar	 = 'h';
+    systemFileChar	 = 's';
+    volumeLabelChar	 = 'v';
+    directoryChar	 = 'd';	
+    archiveChar	 	 = 'a';
+
+    (*  
+     * The options string of DirIO is a fully packed expansion of
+     * the attribute bits of a file.
+     *)
+    readOnlyFileIndex	 = 0;
+    hiddenFileIndex	 = 1;
+    systemFileIndex	 = 2;
+    volumeLabelIndex	 = 3;
+    directoryIndex	 = 4;
+    archiveIndex	 = 5;
+    lastIndex	 	 = 6;
+
+PROCEDURE MakeOptions(     attributes : BITSET;
+		       VAR result     : Options );
+    (* 
+     * Creates a string that has capital letters for set fields
+     * and lower case for not set fields.  The string is strictly
+     * ordered for ease of implementation and to make sure people
+     * aren't playing games.
+     *)
+    BEGIN (* MakeOptions *)
+
+	IF DOS.readOnlyFileAttributeBit IN attributes THEN
+	    result[ readOnlyFileIndex ] := CAP( readOnlyFileChar );
+	ELSE
+	    result[ readOnlyFileIndex ] := readOnlyFileChar;
+	END;
+
+	IF DOS.hiddenFileAttributeBit IN attributes THEN
+	    result[ hiddenFileIndex ] := CAP( hiddenFileChar );
+	ELSE
+	    result[ hiddenFileIndex ] := hiddenFileChar;
+	END;
+
+	IF DOS.systemFileAttributeBit IN attributes THEN
+	    result[ systemFileIndex ] := CAP( systemFileChar );
+	ELSE
+	    result[ systemFileIndex ] := systemFileChar;
+	END;
+
+	IF DOS.volumeLabelAttributeBit IN attributes THEN
+	    result[ volumeLabelIndex ] := CAP( volumeLabelChar );
+	ELSE
+	    result[ volumeLabelIndex ] := volumeLabelChar;
+	END;
+
+	IF DOS.directoryAttributeBit IN attributes THEN
+	    result[ directoryIndex ] := CAP( directoryChar );
+	ELSE
+	    result[ directoryIndex ] := directoryChar;
+	END;
+
+	IF DOS.archiveAttributeBit IN attributes THEN
+	    result[ archiveIndex ] := CAP( archiveChar );
+	ELSE
+	    result[ archiveIndex ] := archiveChar;
+	END;
+
+	result[ lastIndex ] := 0C;	(* must null terminate *)
+	
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(     options    : ARRAY OF CHAR;
+		           VAR attributes : BITSET )
+				          : BOOLEAN;
+    (* 
+     * Splits a string that is exactly formated from MakeOptions.
+     *)
+    BEGIN (* SeparateOptions *)
+
+	(* 
+	 * Verify that the string is *exactly* the correct length.
+	 *)
+	IF ( HIGH( options ) < archiveIndex ) OR 
+	   ( ( HIGH( options ) >= lastIndex ) AND ( options[ lastIndex ] # 0C ) )
+	  THEN RETURN FALSE;
+	END;
+
+	attributes := {};	(* normal file *)
+
+	IF options[ readOnlyFileIndex ] = CAP( readOnlyFileChar ) THEN
+	    INCL( attributes, DOS.readOnlyFileAttributeBit );
+	ELSIF options[ readOnlyFileIndex ] # readOnlyFileChar THEN
+	    RETURN FALSE;
+	END;
+
+	IF options[ hiddenFileIndex ] = CAP( hiddenFileChar ) THEN
+	    INCL( attributes, DOS.hiddenFileAttributeBit );
+	ELSIF options[ hiddenFileIndex ] # hiddenFileChar THEN
+	    RETURN FALSE;
+	END;
+
+	IF options[ systemFileIndex ] = CAP( systemFileChar ) THEN
+	    INCL( attributes, DOS.systemFileAttributeBit );
+	ELSIF options[ systemFileIndex ] # systemFileChar THEN
+	    RETURN FALSE;
+	END;
+
+	IF options[ volumeLabelIndex ] = CAP( volumeLabelChar ) THEN
+	    INCL( attributes, DOS.volumeLabelAttributeBit );
+	ELSIF options[ volumeLabelIndex ] # volumeLabelChar THEN
+	    RETURN FALSE;
+	END;
+
+	IF options[ directoryIndex ] = CAP( directoryChar ) THEN
+	    INCL( attributes, DOS.directoryAttributeBit );
+	ELSIF options[ directoryIndex ] # directoryChar THEN
+	    RETURN FALSE;
+	END;
+
+	IF options[ archiveIndex ] = CAP( archiveChar ) THEN
+	    INCL( attributes, DOS.archiveAttributeBit );
+	ELSIF options[ archiveIndex ] # archiveChar THEN
+	    RETURN FALSE
+	END;
+
+	RETURN TRUE;
+	
+    END SeparateOptions;
+
+
+PROCEDURE RenameEntry( oldPath : ARRAY OF CHAR;
+		       newPath : ARRAY OF CHAR;
+		       mode    : CreateModes )
+			       : IOErrors.Errors;
+    (*
+     * See if there is anything to rename, before we delete anything.
+     * Check out the mode next, and then finally call DOS rename.
+     *)
+    VAR
+	oldDosPath : DosIONames.Path;
+	newDosPath : DosIONames.Path;
+	dosError   : SysTypes.Card;
+	result     : IOErrors.Errors;
+	DONTCARE   : BITSET;
+    BEGIN (* RenameEntry *)
+
+	(* Sets oldDosPath and determines existence of it *)
+	IF NOT GetAttributes( oldPath, oldDosPath, DONTCARE, dosError ) THEN
+	    (* Wasn't found or another error *)
+	    RETURN DosIOErrors.ToIOError( dosError );
+	END;
+
+	(* Sets result on FALSE and always sets newDosPath *)
+	IF NOT ModeCheckOut( mode, newPath, newDosPath, result ) THEN
+	    RETURN result;
+	END;
+
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.renameAFile, SYSTEM.ADR( oldDosPath ), 
+			    SYSTEM.ADR( newDosPath ), dosError );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* Did everything turn out ok? *)
+	IF dosError = DOS.success THEN
+	    RETURN IOErrors.ok;
+	END;
+
+	(* Some type of error *)
+	RETURN DosIOErrors.ToIOError( dosError);
+
+    END RenameEntry;
+
+
+PROCEDURE DeleteEntry( path : ARRAY OF CHAR )
+			    : IOErrors.Errors;
+    (*
+     * First figure out the type of the entry.  If it doesn't exist,
+     * then nothing to do.  Otherwise, call the correct deletion
+     * routine based on the mode of the directory.
+     *)
+    VAR
+	dosPath    : DosIONames.Path;
+	attributes : BITSET;
+	dosError   : SysTypes.Card;
+    BEGIN (* DeleteEntry *)
+
+	(* Sets oldDosPath and determines existence of it *)
+	IF NOT GetAttributes( path, dosPath, attributes, dosError ) THEN
+	    (* Wasn't found or another error *)
+	    RETURN DosIOErrors.ToIOError( dosError );
+	END;
+
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    (* 
+	     * CAUTION: This is a very simple Tasks section, thus the
+	     *          code saving.   If you add complexity, surround
+	     *		each DOSCALL by a DosMonitor.Enter/Exit.
+	     *)
+	    IF DOS.directoryAttributeBit IN attributes THEN
+		SYSTEM.DOSCALL( DOS.rmdir, SYSTEM.ADR( dosPath ), dosError );
+	    ELSE
+		SYSTEM.DOSCALL( DOS.unlink, SYSTEM.ADR( dosPath ), dosError );
+	    END;
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+	
+	IF dosError = DOS.success THEN
+	    RETURN IOErrors.ok;
+	END;
+
+	RETURN DosIOErrors.ToIOError( dosError );
+
+    END DeleteEntry;
+
+
+PROCEDURE EntryExists( path : ARRAY OF CHAR )
+			    : IOErrors.Errors;
+    VAR
+	dosPath  : DosIONames.Path;
+	dosError : SysTypes.Card;
+	DONTCARE : BITSET;
+    BEGIN (* EntryExists *)
+
+	IF GetAttributes( path, dosPath, DONTCARE, dosError ) THEN
+	    RETURN IOErrors.ok;
+	END;
+	RETURN DosIOErrors.ToIOError( dosError );
+
+    END EntryExists;
+
+PROCEDURE ConvertToInfo(
+    VAR toConvert  : DOS.MatchingFileDTA;  (* IN ONLY: to translate *)
+    VAR result     : EntryInfo  (* with all fields filled in *)
+    )	           : BOOLEAN;   (* FALSE => dta is bad *)
+    (*
+     * Unpacks the record structure of MatchinfFileDTA into the more
+     * useful EntryInfo.
+     *)
+    VAR
+	tmp : SysTypes.Card;
+    BEGIN (* ConvertToInfo *)
+
+	WITH result DO
+
+	    attributes := BITSET( ORD( toConvert.attributes ) );
+	    Card32.FromCard16( toConvert.sizeLowWord, toConvert.sizeHighWord, 
+			       size );
+
+	    (* 
+	     * Decompose the arcane DOS time/date packing formats into
+	     * the more sane DOS.Date/Time formats.  Note that we have to
+	     * do range checking, because you are never sure what you get
+	     * from DOS.
+	     *)
+	    (* Years *)
+	    tmp := toConvert.date DIV DOS.yearShift + DOS.firstYear;
+	    IF tmp > (* MAX( Year ) *) DOS.lastYear THEN
+		RETURN FALSE;	(* range error *)
+	    END;
+	    date.year := tmp;
+
+	    (* Months *)
+	    tmp := ( toConvert.date DIV DOS.monthShift ) MOD DOS.monthSize;
+	    IF tmp > (* MAX( Months ) *) 12 THEN
+		RETURN FALSE; 	(* range error *)
+	    END;
+	    date.month := tmp;
+
+	    (* Days *)
+	    tmp := toConvert.date MOD DOS.daySize;
+	    IF tmp > (* MAX( Days ) *) 31 THEN
+		RETURN FALSE; 	(* range error *)
+	    END;
+	    date.day := tmp;
+
+	    (* Hours *)
+	    tmp := toConvert.time DIV DOS.hourShift;
+	    IF tmp > (* MAX( Hours ) *) 23 THEN
+		RETURN FALSE;	(* range error *)
+	    END;
+	    time.hour := tmp;
+
+	    (* Minutes *)
+	    tmp := ( toConvert.time DIV DOS.minuteShift ) MOD DOS.minuteSize;
+	    IF tmp > (* MAX( Minutes ) *) 59 THEN
+		RETURN FALSE; 	(* range error *)
+	    END;
+	    time.minute := tmp;
+
+	    (* Bi-seconds (Couldn't afford the other bits...) *)
+	    tmp := ( toConvert.time MOD DOS.secondSize ) * 2;
+	    IF tmp > (* MAX( Seconds ) *) 59 THEN
+		RETURN FALSE; 	(* range error *)
+	    END;
+	    time.second := tmp;
+	END; (* WITH *)
+
+	(* The date conversion went fine.... *)
+	RETURN TRUE;
+
+    END ConvertToInfo;
+
+
+PROCEDURE GetEntryInfo(     path : ARRAY OF CHAR;
+			VAR info : EntryInfo )
+				 : IOErrors.Errors;
+    (*
+     * This routine is really a pain in the neck.  DOS does not provide
+     * a simple "stat" like Unix DOS.  Instead you have to set-up a DTA
+     * and do a FindFirst/Next sequence.  Oh wait, you might think that
+     * we could reduce the number of DOSCALLs.  The problem is that although
+     * chmod and getdate/time are provided, there is no getsize (except
+     * for a FCB version which means even more hassle).  
+     *
+     * Note that we have to check for FindFirst and then make sure that
+     * the clown didn't pass us a wildcard which means we have to call
+     * FindNext after the call to FindFirst.
+     *)
+    CONST
+	searchAttributes = { DOS.hiddenFileAttributeBit, 
+			     DOS.systemFileAttributeBit,
+			     DOS.directoryAttributeBit };
+	    (*
+	     * This is the type of entries to search for when we are
+	     * looking for files with FindFirst.
+	     *)
+    VAR
+	dosPath    : DosIONames.Path;
+	oldDTA     : SYSTEM.ADDRESS;	     (* So we can restore later *)
+	dta        : DOS.MatchingFileDTA;    (* The one we are looking for *)
+	dosError1  : SysTypes.Card;
+	dosError2  : SysTypes.Card;
+
+    BEGIN (* GetEntryInfo *)
+
+	(* make sure path name is null-terminated *)
+	IF NOT DosIONames.CopyPath( path, dosPath ) THEN  
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* Get the entry's attributes the good ol' brain damaged DOS way *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    (* 
+	     * CAUTION: we must lock out all DOSCALLs while we have a different
+	     *          DTA in place.
+	     *)
+	    SYSTEM.DOSCALL( DOS.getDiskTransferAddress, oldDTA );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, SYSTEM.ADR( dta ) );
+	    SYSTEM.DOSCALL( DOS.findFirstMatchingFile, SYSTEM.ADR( dosPath ),
+			    searchAttributes, dosError1 );
+(* 
+ * REVIEWER: If we call FindNext, what guarantee do we have that DOS doesn't
+ *           smash the DTA with the valid return value when FindNext fails.
+ *           It is explicitly vague in the documentation, that is, it says:
+ *		"If a matching file is found, the DTA is set as described in
+ *               call 4EH (FindFirst).  If no more matching files are 
+ * 		 found, an error code is returned."
+ *	     This does not say anything about trashing the DTA.  I am assuming
+ *           they will leave well enough alone.
+ *)
+	    SYSTEM.DOSCALL( DOS.findNextMatchingFile, dosError2 );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, oldDTA );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* 
+	 * dosError1 -> did we find anything on the first try?
+	 * dosError2 -> was there a wild card? 
+	 *)
+	IF dosError1 # DOS.success THEN
+	    RETURN DosIOErrors.ToIOError( dosError1 );
+	END;
+
+	IF dosError2 = DOS.success THEN
+	    RETURN IOErrors.illegalName;	(* clown passed a wildcard *)
+	END;
+	
+	IF NOT ConvertToInfo( dta, info ) THEN
+	    RETURN IOErrors.otherError;
+	END;
+	
+	RETURN IOErrors.ok;
+
+    END GetEntryInfo;
+
+
+PROCEDURE SetEntryInfo( path : ARRAY OF CHAR; 
+			info : EntryInfo )
+			     : IOErrors.Errors;
+    (*
+     * We set the date/time before we set the mode to make sure there
+     * aren't priviledge problems.
+     *)
+    CONST
+	illegalAttributes = { DOS.directoryAttributeBit,
+			      DOS.volumeLabelAttributeBit };
+	    (* Bits which aren't allowed to be different *)
+	setDateTime       = 1; (* Mode of DOSCALL which set's the date/time *)
+    VAR
+	dosPath     : DosIONames.Path;
+	currentInfo : EntryInfo;
+	result      : IOErrors.Errors;
+	DONTCARE1   : BOOLEAN;
+	DONTCARE2   : SysTypes.Card;
+	dosError    : SysTypes.Card;
+	dosDate     : SysTypes.CARDINAL16;
+	dosTime     : SysTypes.CARDINAL16;
+	tempHandle  : SysTypes.Card;
+    BEGIN (* SetEntryInfo *)
+
+	(* First, get the oldInfo so we can compare with the new *)
+	result := GetEntryInfo( path, currentInfo ); 
+	IF result # IOErrors.ok THEN
+	    RETURN result;
+	END;
+
+	WITH currentInfo DO
+	    @IF ASSERT THEN
+		(* 
+		 * Make sure the clown isn't trying to set bits 
+		 * he is not supposed to 
+		 *)
+		IF ( attributes / info.attributes ) * illegalAttributes # {} 
+		  THEN RETURN IOErrors.badParameter;
+		END;
+	    @END (* ASSERT *)
+
+	    (* Make sure name is null terminated *)
+	    DONTCARE1 := DosIONames.CopyPath( path, dosPath );
+
+	    (*
+	     * Change the file's date/time, if needed.  The check is faster
+	     * than doing a DOSCALL.
+	     *)
+	    IF ( date.year # info.date.year ) OR
+	       ( date.month # info.date.month ) OR
+	       ( date.day # info.date.day ) OR
+	       ( time.hour # info.time.hour ) OR
+	       ( time.minute # info.time.minute ) OR
+	       ( time.second # info.time.second ) THEN
+		(* Set the time and date *)
+		WITH info DO
+		    dosDate := ( date.year - DOS.firstYear ) * DOS.yearShift +
+			       date.month * DOS.monthShift + date.day;
+		    dosTime := time.hour * DOS.hourShift +
+			       time.minute * DOS.minuteShift +
+			       time.second DIV 2; (* bi-seconds *)
+		END; (* WITH *)
+
+		(* 
+		 * To alter the date and time, one must open the file
+		 * first and then do the DOSCALL to change the date/time.
+		 * Note that this doesn't need to be done as an atomic
+		 * operation, but it just seems easier.
+		 *)
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.open, SYSTEM.ADR( dosPath ), 
+				    DOS.readAccess, tempHandle, dosError );
+
+		    (* Only do the operation, if the open was successful *)
+		    IF dosError = DOS.success THEN
+			SYSTEM.DOSCALL( DOS.getSetFileDateAndTime, tempHandle, 
+				setDateTime, dosDate, dosTime, dosError );
+			(* Always close the handle *)
+			SYSTEM.DOSCALL( DOS.close, tempHandle, DONTCARE2 );
+		    END;
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    RETURN DosIOErrors.ToIOError( dosError );
+		END;
+
+	    END; (* IF date/time changed *)
+
+	    (* Do we need to set the attributes? *)
+	    IF attributes # info.attributes THEN
+		(* Mask out the bits we can't set *)
+		info.attributes := info.attributes - illegalAttributes;
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.chmod, SYSTEM.ADR( dosPath ), 
+				    chmodSetMode, info.attributes,  dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    RETURN DosIOErrors.ToIOError( dosError );
+		END;
+	    END;
+
+	    RETURN IOErrors.ok;
+
+	END; (* WITH currentInfo *)
+
+    END SetEntryInfo;
+
+
+PROCEDURE CompareSizes(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left smaller than right *)
+    BEGIN (* CompareSizes *)
+	
+	RETURN Card32.Compare( left.size, right.size );
+    
+    END CompareSizes;
+
+PROCEDURE CompareChangeDates(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left older than right *)
+    BEGIN (* CompareChangeDates *)
+    
+	(* Ugh... *)
+	IF left.date.year > right.date.year THEN
+	    RETURN newer;
+	ELSIF left.date.year < right.date.year THEN
+	    RETURN older;
+	ELSIF left.date.month > right.date.month THEN
+	    RETURN newer;
+	ELSIF left.date.month < right.date.month THEN
+	    RETURN older;
+	ELSIF left.date.day > right.date.day THEN
+	    RETURN newer;
+	ELSIF left.date.day < right.date.day THEN
+	    RETURN older;
+ 	ELSIF left.time.hour > right.time.hour THEN
+	    RETURN newer;
+	ELSIF left.time.hour < right.time.hour THEN
+	    RETURN older;
+	ELSIF left.time.minute > right.time.minute THEN
+	    RETURN newer;
+	ELSIF left.time.minute < right.time.minute THEN
+	    RETURN older;
+	ELSIF left.time.second > right.time.second THEN
+	    RETURN newer;
+	ELSIF left.time.second < right.time.second THEN
+	    RETURN older;
+	END;
+	
+	RETURN Intrinsics.equal;
+	
+    END CompareChangeDates;
+    
+    
+PROCEDURE GetDefault( VAR path : IOConsts.Path )
+			       : IOErrors.Errors;
+    (*
+     * Get the drive and then get the current directory.
+     * The maximum path cannot be greater than 64 characters according
+     * to the "Dos" manual, so we don't have to worry about overruns
+     * since this was taken into account in the definition of IOConsts.
+     *)
+    CONST
+	defaultDrive = 0;	(* Valid only for DOS.pwd *)
+    VAR
+	driveNum : SysTypes.Card;
+	pathName : DosIONames.Path;
+	dosError : SysTypes.Card;
+    BEGIN (* GetDefault *)
+
+	(* Get the default drive number *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.getCurrentDrive, driveNum );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* Convert the drive number into a letter *)
+	path[ 0 ] := 'A';
+	INC( path[ 0 ], driveNum );
+
+	path[ 1 ] := ':';	(* put in the manditory separator *)
+	path[ 2 ] := '\';	(* Dos.pwd doesn't return a leading '\' *)
+
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.pwd, defaultDrive, SYSTEM.ADR( path[ 3 ] ), 
+			    dosError );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* Dos null terminates the name. *)
+
+	IF dosError = DOS.success THEN
+	    RETURN IOErrors.ok;
+	END;
+	RETURN DosIOErrors.ToIOError( dosError );
+
+    END GetDefault;
+
+
+PROCEDURE SetDefault( path : ARRAY OF CHAR )
+			   : IOErrors.Errors;
+    (*
+     * See the note in the definition module.  If the path contains a drive,
+     * then we change drives.   Note we do the "chdir" first to verify that
+     * the path is entirely valid, before changing the drive. 
+     *)
+    VAR
+	dosPath  : DosIONames.Path;
+	driveNum : SysTypes.Card;
+	dosError : SysTypes.Card;
+	DONTCARE : SysTypes.Card;
+    BEGIN (* SetDefault *)
+
+	(* We need to check this first... *)
+	IF path[ 0 ] = 0C THEN
+	    RETURN IOErrors.illegalName;	(* cd "" is non-sense *)
+	END;
+
+	(* make sure name is null terminated *)
+	IF NOT DosIONames.CopyPath( path, dosPath ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* Set the directory *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.chdir, SYSTEM.ADR( dosPath ), dosError );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	(* Is everything ok so far? *)
+	IF dosError # DOS.success THEN
+	    RETURN DosIOErrors.ToIOError( dosError );
+	END;
+
+	(* Is there a drive letter specification? *)
+	IF path[ 1 ] # ':' THEN
+	    (* No drive letter, so no drive change *)
+	    RETURN IOErrors.ok;
+	END;
+
+	(* 
+	 * Copy out the drive letter from the path.  It must
+	 * be syntactically correct or the "chdir" above would
+	 * not have worked.
+	 *)
+	driveNum := ORD( CAP( path[ 0 ] ) ) - ORD( 'A' );
+
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.selectDisk, driveNum, DONTCARE );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+	(*  
+	 * This call returns the drive letter (not dosError).
+	 * If the drive spec is invalid, then the previous call
+	 * would have failed.
+	 *)
+
+	 RETURN IOErrors.ok;
+
+    END SetDefault;
+
+
+CONST
+    listAttributes = {     (* What we find in directory lists *)
+	DOS.hiddenFileAttributeBit,
+	DOS.systemFileAttributeBit,
+	DOS.directoryAttributeBit 
+    };
+
+PROCEDURE SetupListPath(
+    VAR directory : ARRAY OF CHAR; (* IN ONLY: directory to search for *)
+    VAR toFind	  : IOConsts.Path  (* OUT: path with proper match values *)
+    )             : BOOLEAN;	   (* FALSE => illegalName *)
+    (*
+     * Appends the matchAllFiles value to the directory and puts in toFind.
+     *)
+    CONST
+	matchAllFiles       = '*.*';
+	matchAllFilesLength = 3;
+    VAR
+	length   : SysTypes.Card;
+	lengthOK : BOOLEAN;
+    BEGIN (* SetupListPath *)
+
+	length := Strings.Length( directory );
+	(* Is the name already absolute? *)
+	IF length = 0  THEN
+	    lengthOK := TRUE;
+	    toFind   := '';	(* current directory *)
+	ELSIF ( directory[ length - 1 ] = '\' ) OR
+	   ( directory[ length - 1 ] = ':' ) THEN 
+	    lengthOK := Strings.AssignOK( directory, toFind );
+	ELSE
+	    lengthOK := Strings.ConcatOK( directory, "\", toFind );
+	    INC( length );	(* for check below *)
+	END;
+
+	(* 
+	 * If we couldn't append the search pattern and null (for ASCIIZ),
+	 * then the name is illegal.
+	 *)
+	RETURN lengthOK AND
+	   Strings.InsertOK( toFind, Strings.EOS, matchAllFiles ) AND
+	   ( matchAllFilesLength + length <= IOConsts.maxPathLength );
+
+    END SetupListPath;
+    
+
+PROCEDURE List( directory	   : ARRAY OF CHAR;
+		calledForEachEntry : ListHandler;
+		importerObject     : SysTypes.ANYPTR )
+				   : IOErrors.Errors;
+    (*
+     * Listing directories in DOS is kind of cumbersome, because
+     * it is a "stateful" procedure.  Given that we may want recursive
+     * calls, we have to set/restore the DTA each time we call findFirst
+     * and findNext.  We also must put a "search pattern" on the end of
+     * the directory which was passed in.  This is again a cumbersome
+     * process, because the act of appending to the directory may cause
+     * the path to be too long.
+     *)
+    VAR
+	entry    : IOConsts.Entry;
+	oldDta   : SYSTEM.ADDRESS;
+	dta      : DOS.MatchingFileDTA;
+	toFind   : IOConsts.Path;
+	dosError : SysTypes.Card;
+    BEGIN (* List *)
+
+	IF NOT SetupListPath( directory, toFind ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* 
+	 * Find the first file
+	 *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.getDiskTransferAddress, oldDta );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, SYSTEM.ADR( dta ) );
+	    SYSTEM.DOSCALL( DOS.findFirstMatchingFile, SYSTEM.ADR( toFind ), 
+			    SysTypes.Card( listAttributes ), dosError );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, oldDta );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	WHILE dosError = DOS.success DO
+
+	    (* 
+	     * We don't return "." or ".." which can be check simply
+	     * by looking for the first character being ".".  There are
+	     * sometimes advantages to the simplicity of DOS.
+	     *)
+	    IF dta.name[ 0 ] # '.' THEN	
+		(* Call the handler and terminate if requested *)
+		IF NOT calledForEachEntry( importerObject, dta.name ) THEN
+		    RETURN IOErrors.ok;
+		END;
+	    END;
+
+	    (*
+	     * Find the next file
+	     *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.getDiskTransferAddress, oldDta );
+		SYSTEM.DOSCALL( DOS.setDiskTransferAddress, SYSTEM.ADR( dta ) );
+		SYSTEM.DOSCALL( DOS.findNextMatchingFile, dosError );
+		SYSTEM.DOSCALL( DOS.setDiskTransferAddress, oldDta );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+
+	END; (* LOOP *)
+
+	IF dosError = DOS.noMoreFiles THEN
+	    RETURN IOErrors.ok;	(* directory found, but no one home *)
+	END;
+
+	(* Something went wrong *)
+	RETURN DosIOErrors.ToIOError( dosError );
+
+    END List;
+
+
+PROCEDURE DefaultListHandler( nameList : SysTypes.ANYPTR;
+			      toInsert : ARRAY OF CHAR )
+				       : BOOLEAN;
+    BEGIN (* DefaultListHandler *)
+
+	NameLists.Insert( NameLists.Object( nameList ), toInsert,
+			  NameLists.DONTCARE );
+	RETURN TRUE;
+
+    END DefaultListHandler;
+
+			
+PROCEDURE ListWithInfo( 
+    directory	       : ARRAY OF CHAR;
+    calledForEachEntry : ListWithInfoHandler;
+    importerObject     : SysTypes.ANYPTR
+    )		       : IOErrors.Errors;
+    (*
+     * Does the same thing as list, but 
+     *)
+    VAR
+	entry    : IOConsts.Entry;
+	info     : EntryInfo;
+	oldDta   : SYSTEM.ADDRESS;
+	dta      : DOS.MatchingFileDTA;
+	toFind   : IOConsts.Path;
+	dosError : SysTypes.Card;
+    BEGIN (* ListWithInfo *)
+
+	IF NOT SetupListPath( directory, toFind ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* 
+	 * Find the first file
+	 *)
+	@IF Tasks THEN
+	    DosMonitor.Enter;
+	@END (* Tasks *)
+	    SYSTEM.DOSCALL( DOS.getDiskTransferAddress, oldDta );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, SYSTEM.ADR( dta ) );
+	    SYSTEM.DOSCALL( DOS.findFirstMatchingFile, SYSTEM.ADR( toFind ), 
+			    SysTypes.Card( listAttributes ), dosError );
+	    SYSTEM.DOSCALL( DOS.setDiskTransferAddress, oldDta );
+	@IF Tasks THEN
+	    DosMonitor.Exit;
+	@END (* Tasks *)
+
+	WHILE dosError = DOS.success DO
+
+	    (* 
+	     * We don't return "." or ".." which can be check simply
+	     * by looking for the first character being ".".  There are
+	     * sometimes advantages to the simplicity of DOS.
+	     *)
+	    IF dta.name[ 0 ] # '.' THEN	
+		IF NOT ConvertToInfo( dta, info ) THEN
+		    RETURN IOErrors.otherError;
+		END;
+
+		(* Call the handler and terminate if requested *)
+		IF NOT calledForEachEntry( importerObject, dta.name, info ) 
+		  THEN RETURN IOErrors.ok;
+		END;
+	    END;
+
+	    (*
+	     * Find the next file
+	     *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.getDiskTransferAddress, oldDta );
+		SYSTEM.DOSCALL( DOS.setDiskTransferAddress, SYSTEM.ADR( dta ) );
+		SYSTEM.DOSCALL( DOS.findNextMatchingFile, dosError );
+		SYSTEM.DOSCALL( DOS.setDiskTransferAddress, oldDta );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+
+	END; (* LOOP *)
+
+	IF dosError = DOS.noMoreFiles THEN
+	    RETURN IOErrors.ok;	(* directory found, but no one home *)
+	END;
+
+	(* Something went wrong *)
+	RETURN DosIOErrors.ToIOError( dosError );
+
+    END ListWithInfo;
+
+
+END DirIO.

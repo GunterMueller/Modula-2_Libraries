@@ -1,0 +1,23 @@
+#
+# LOCAL "environment" for makes in the current directory.  See the 
+# global file "rules.mak" and the sample "environ.mak" in the 
+# same location.
+
+include ..\..\bin\rules.mak
+include m2source.mak
+
+# What's special about this directory
+# Logitech 3.0 linker doesn't understand relative paths in the "path".
+# M2Path	= ..\..\gen\bin
+M2Path		= $(Root)\gen\bin
+LocalM2SYM	= $(M2Path)
+LocalM2OBJ	= $(M2Path)
+LocalM2LIB	= $(M2Path)
+LocalM2REF 	= $(M2Path)
+LocalM2MAP	= $(M2Path)
+LocalM2MOD	= $(M2Path)
+InstallFiles	= $(LibInstallFiles)
+InstallDir 	= $(LibInstallDir)
+
+# THIS COMMAND SHOULD BE THE LAST ONE IN THIS FILE.
+export M2PPVARS M2SYM M2OBJ M2LIB M2MAP

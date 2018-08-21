@@ -1,0 +1,135 @@
+************************************************************************** 
+* Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.       *
+*                                                                        * 
+*                          All Rights Reserved                           * 
+*                                                                        * 
+* Permission to use, copy, modify, and distribute this software and its  * 
+* documentation for any purpose and without fee is hereby granted,       * 
+* provided that the above copyright notice appear in all copies, and     * 
+* that both that copyright notice and this permission notice appear in   * 
+* supporting documentation, and that all modifications of this software  * 
+* or its documentation not made by O&A or its agents are accompanied     * 
+* by a prominent notice stating who made the modifications and the date  * 
+* of the modifications.                                                  * 
+*                                                                        * 
+* O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS      * 
+* DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND * 
+* FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR * 
+* CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF   * 
+* USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR  * 
+* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR * 
+* PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.                     * 
+**************************************************************************
+
+
+			  Olsen & Associates
+	 Portable Modula-2 Library Version 1.0 (October 1988)
+			      Order Form
+			    
+To obtain a copy of this software, you may simply copy it from a friend
+or fill out the order form below and, at your option, the questionnaire 
+which follows.  Olsen & Associates is not in the business of software
+distribution, therefore we kindly request that you do not submit orders 
+for more than 1 copy of any item below.  If you need more copies, please 
+make them yourself.
+
+For orders outside North America, please pay the Swiss Franc (SFr) prices 
+below by check or money order and send your order to:
+
+	Portable Modula-2 Library 
+	Olsen & Associates
+	Seefeldstrasse 233
+	CH-8008 Zurich
+	Switzerland
+	
+	
+Within North America, please pay the United States Dollar (US$) prices
+below by check or money order and send your order to:
+
+	Portable Modula-2 Library
+	JLB Enterprises
+	PO Box 148
+	Ardmore, PA 19003
+	USA
+
+-------------------------- C U T   H E R E ------------------------------
+
+
+Name		_________________________________________________________
+
+Company Name	_________________________________________________________
+
+Address		_________________________________________________________
+
+	        _________________________________________________________
+
+	        _________________________________________________________
+
+
+In case of problems with your order, we would like to have:
+
+Telephone	_________________________________________________________
+
+Electronic Mail Address _________________________________________________
+
+
+   Price Per Item	Description of Items
+US Orders | Elsewhere
+	  |
+ 25 US$   |  50 SFr     1600 bpi Unix tar tape 
+	  |
+ 50 US$	  | 100 SFr	1/4" Cartridge QIC-24 Unix tar tape
+	  |
+ 30 US$	  |  60 SFr     96 TPI (HD) PC-DOS (2.0+) floppy disks
+	  | 
+  5 US$   |  10 SFr	BINARY ONLY floppy available for Logitech 3.00
+	  |		This item is only available as an add on to one
+	  |		of the above source distributions.
+	  |
+ 20 US$	  |  60 SFr	Manual: printed on an Apple Laser Writer
+	  |		The LaTeX source for the manual is provided 
+	  |		on the source tapes and floppies.
+          |
+  N/A     |________SFr  Outside Europe and U.S. add 20 SFr PER ITEM
+	  |		(except BINARY ONLY) for shipping.
+	  |
+=========================================================================
+
+
+______________________  Total cost of items requested plus any additional
+			shipping charges.  Please indicate the currency.
+
+IMPORTANT: Please circle the price of the items you want, so we know
+	   what to send you!
+
+
+	    
+			OPTIONAL QUESTIONNAIRE
+		    
+		    
+1. Are you interested in receiving information about updates? _________
+
+2. Are you going to port the library to another system? _________
+   If yes, please fill out the information below:
+   
+   Architecture:     __________________________________________________
+   
+   Operating System: __________________________________________________
+   
+   Compiler:         __________________________________________________
+   
+   Will you send us a copy of the ported version? _________
+   
+3. Have you worked with other Modula-2 libraries? _________
+   If yes, please list them below concisely:
+   
+   ____________________________________________________________________
+
+4. Can we give your name as a source for copies of the library? _______
+
+5. Can we give your name as someone who would help people with the
+   library (for installation or otherwise)? ________
+
+6. Any other comments, suggestions, opinions, etc.?
+
+

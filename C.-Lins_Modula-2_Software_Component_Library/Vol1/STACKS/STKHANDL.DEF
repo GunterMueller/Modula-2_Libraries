@@ -1,0 +1,30 @@
+(*
+This module provides a simple exception handler for the
+various Stack abstractions. Given an error code, it reports
+the exception to standard output in the following format:
+### Error "<error text>" raised in Routine "<routine name>" in Module <module #>
+
+The system beep is made before issuing the message and a WriteLn
+follows the message display.
+
+*)
+
+DEFINITION MODULE StkHandlers;
+(*==============================================================
+    Version  : 1.00  28 Apr 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Stack Exception Handlers Utility
+
+    REVISION HISTORY
+    v1.00  28 Apr 1989  C. Lins:
+        Initial implementation
+==============================================================*)
+
+FROM StackEnum IMPORT
+  (*--type*) Operations, Exceptions;
+
+PROCEDURE WriteHandler (    theModule : CARDINAL  (*--in   *);
+                            theOperation : Operations (*--in   *);
+                            theException : Exceptions (*--in   *));
+
+END StkHandlers.

@@ -1,0 +1,80 @@
+DEFINITION MODULE WordHash;
+
+(* Reserved Word Hash Table for Modula-2
+*  coded by J. Andrea, Jan 1986
+*  from
+*        Minimal Perfect Hash Functions for Reserved Word Lists
+*        R.W. Sebeasta and M.A. Taylor
+*        SigPlan Notices, V20, #12, December 1985
+* 
+*  The function HashValue returns a cardinal which can be compared with the
+*    values of the word values, not_a_reserved_word is returned if the input
+*    string is not a Modula-2 reserved word
+*
+*)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+       HashValue,
+       not_a_reserved_word,
+       and,     array,     begin,     by,     case,     const,  definition,
+       div,     do,        else,      elsif,  end,      exit,   export,
+       for,     from,      if,        implementation,   import,
+       in,      loop,      mod,       module, not,      of,     or,
+       pointer, procedure, qualified, record, repeat,   return, set,
+       then,    to,        type,      until,  var,      while,  with;
+
+(* sorted by value *)
+CONST 
+       not_a_reserved_word = 32767;
+       else       =  0;
+       exit       =  1;
+       end        =  2;
+       while      =  3;
+       then       =  4;
+       repeat     =  5;
+       elsif      =  6;
+       module     =  7;
+       type       =  8;
+       do         =  9;
+       set        = 10;
+       pointer    = 11;
+       export     = 12;
+       not        = 13;
+       case       = 14;
+       mod        = 15;
+       procedure  = 16;
+       definition = 17;
+       return     = 18;
+       record     = 19;
+       for        = 20;
+       in         = 21;
+       or         = 22;
+       from       = 23;
+       var        = 24;
+       begin      = 25;
+       const      = 26;
+       of         = 27;
+       to         = 28;
+       if         = 29;
+       div        = 30;
+       and        = 31;
+       qualified  = 32;
+       by         = 33;
+       loop       = 34;
+       with       = 35;
+       until      = 36;
+       array      = 37;
+       import     = 38;
+       implementation = 39;
+
+
+CONST (* not exported *)
+     min_hash = 0;   max_hash = 39;
+
+ 
+
+PROCEDURE HashValue( string :ARRAY OF CHAR ) :CARDINAL;
+
+
+END WordHash.

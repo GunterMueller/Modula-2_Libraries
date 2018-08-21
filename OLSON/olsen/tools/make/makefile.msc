@@ -1,0 +1,15 @@
+# Makefile for make!
+ 
+.SUFFIXES: .obj .c .h 
+ 
+OBJS    =    check.obj input.obj macro.obj main.obj \
+	make.obj reader.obj rules.obj
+ 
+.c.obj:
+	cc /al $*;
+
+make.exe:        $(OBJS)
+	clink check+input+macro+main+make+reader+rules,make;
+ 
+$(OBJS):    h.h
+

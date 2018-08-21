@@ -1,0 +1,16 @@
+DEFINITION FOR C MODULE UnixChost;
+(* 
+ * See the man page: 
+ *     gethostname(2).
+ *)
+PROCEDURE gethostname(
+    VAR name    : ARRAY OF CHAR;
+	namelen : INTEGER
+    );
+
+PROCEDURE sethostname(
+    name    : ARRAY OF CHAR;
+    namelen : INTEGER
+    );
+
+END UnixChost.

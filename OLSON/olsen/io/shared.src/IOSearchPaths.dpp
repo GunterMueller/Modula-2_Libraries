@@ -1,0 +1,87 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE IOSearchPaths;
+(*
+ * Provides simple file searching facilities using environment variables.
+ *)
+IMPORT
+    IOConsts,
+    NameLists;
+
+EXPORT QUALIFIED
+    rootPathSeparator,	 rootPathEnvironName,   pathSeparator,
+    pathEnvironName,     GetFromEnviron,        FindInPath;
+
+CONST
+    (* 
+     * IMPLSPEC values for separators. 
+     *)
+    @IF MsDosOS THEN
+	rootPathSeparator   = ';';	(* O&A environment variable. *)
+	rootPathEnvironName = "ROOTPATH";
+	pathSeparator       = ';';	(* PATH variable in UNIX *)
+	pathEnvironName     = "PATH";
+    @END (* MsDosOS *)
+    @IF SunOS THEN
+	rootPathSeparator   = ' ';	(* O&A environment variable. *)
+	rootPathEnvironName = "RootPath";
+	pathSeparator       = ':';	(* PATH variable in UNIX *)
+	pathEnvironName     = "PATH";
+    @END (* SunOS *)
+
+PROCEDURE GetFromEnviron(
+    environName : ARRAY OF CHAR;    (* Variable name *)
+    separator   : CHAR;             (* Used to split value of variable *)
+    paths       : NameLists.Object  (* Where new paths are inserted *)
+    )           : BOOLEAN;          (* Was found and modified => TRUE *)
+    (*
+     * Looks up the environment variable "environName" via the
+     * module ProgEnviron.
+     *
+     * If found, it assumes the value of environment variable is
+     * to be separated into a list of IOConsts.Path values. The
+     * separator character is used to split the string. The names
+     * are then inserted into the "paths" list from left to right.
+     *
+     * UNIX IMPLEMENTATION SPECIFIC:
+     *     The path variable is cleaned of all "control characters".
+     *     If the separator is a space, then control characters will
+     *     be interpreted as a separator.
+     *)
+
+PROCEDURE FindInPath(
+        toFind     : ARRAY OF CHAR;     (* Name to be sought for *)
+	paths      : NameLists.Object;  (* Used if toFind is relative *)
+    VAR foundEntry : IOConsts.Path      (* Existing file entry *)
+    )              : BOOLEAN;           (* Was found to match => TRUE *)
+    (*
+     * Search for the specified name using the search path specified.
+     *
+     * If the name is already "absolute", then the "paths" variable
+     * is not used. The search is in order of "paths". Each value in
+     * "paths" is prepended to the toFind value, if "DirIO.EntryExists"
+     * returns true for that combination, then the combination is
+     * returned in foundEntry.
+     *)
+
+END IOSearchPaths.

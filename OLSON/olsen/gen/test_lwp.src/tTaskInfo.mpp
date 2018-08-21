@@ -1,0 +1,261 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tTaskInfo;
+IMPORT
+    TaskInfo,		Tasks,	TaskConsts,	Objects,	
+    ProgErrOutput,	SYSTEM,	ProgErr;
+
+TYPE
+    Object    = POINTER TO ObjectRec;
+    ObjectRec = RECORD
+	name	  : TaskConsts.Name;
+	type	  : ARRAY [ 0 .. 10 ] OF CHAR;
+    END;
+VAR
+    objectMgr : Objects.Manager;
+
+PROCEDURE Birth1( task : Tasks.Object )
+			   : SYSTEM.ADDRESS;
+    VAR
+	p : Object; 
+    BEGIN (* Birth1 *)
+
+	Objects.Allocate( objectMgr, p );
+	WITH p^ DO
+	    Tasks.GetName( task, name );
+	    type := "Type1";
+	    ProgErrOutput.WriteString( "Type 1 Birth: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	RETURN p;
+
+    END Birth1;
+
+
+PROCEDURE Death1( task : Tasks.Object;
+		      a    : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Death1 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 1 Death: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	Objects.Deallocate( objectMgr, p );
+
+    END Death1;
+
+
+PROCEDURE Print1( a : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Print1 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 1 Print: " );
+	    ProgErrOutput.WriteString( name );
+	END;
+
+    END Print1;
+
+
+PROCEDURE Birth2( task : Tasks.Object )
+			   : SYSTEM.ADDRESS;
+    VAR
+	p : Object; 
+    BEGIN (* Birth2 *)
+
+	Objects.Allocate( objectMgr, p );
+	WITH p^ DO
+	    Tasks.GetName( task, name );
+	    type := "Type2";
+	    ProgErrOutput.WriteString( "Type 2 Birth: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	RETURN p;
+
+    END Birth2;
+
+
+PROCEDURE Death2( task : Tasks.Object;
+		      a    : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Death2 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 2 Death: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	Objects.Deallocate( objectMgr, p );
+
+    END Death2;
+
+PROCEDURE Print2( a : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Print2 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 2 Print: " );
+	    ProgErrOutput.WriteString( name );
+	END;
+
+    END Print2;
+
+
+PROCEDURE Birth3( task : Tasks.Object )
+			   : SYSTEM.ADDRESS;
+    VAR
+	p : Object; 
+    BEGIN (* Birth3 *)
+
+	Objects.Allocate( objectMgr, p );
+	WITH p^ DO
+	    Tasks.GetName( task, name );
+	    type := "Type3";
+	    ProgErrOutput.WriteString( "Type 3 Birth: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	RETURN p;
+
+    END Birth3;
+
+
+PROCEDURE Death3( task : Tasks.Object;
+		      a    : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Death3 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 3 Death: " );
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteLn;
+	END;
+	Objects.Deallocate( objectMgr, p );
+
+    END Death3;
+
+PROCEDURE Print3( a : SYSTEM.ADDRESS );
+    VAR
+	p : Object;
+    BEGIN (* Print3 *)
+
+	p := a;
+	WITH p^ DO
+	    ProgErrOutput.WriteString( "Type 3 Print: " );
+	    ProgErrOutput.WriteString( name );
+	END;
+
+    END Print3;
+
+VAR
+    group1 : TaskInfo.Object;
+    group2 : TaskInfo.Object;
+    group3 : TaskInfo.Object;
+
+PROCEDURE HrDoktorTask( DONTCARE : SYSTEM.ADDRESS );
+    BEGIN (* HrDoktorTask *)
+
+	TaskInfo.SetCurrent( group1, TaskInfo.GetCurrent( group1 ) );	
+	ProgErrOutput.WriteString( "Task information: " );
+	TaskInfo.Print( Tasks.GetCurrent() );
+
+    END HrDoktorTask;
+
+PROCEDURE StartTask( name : ARRAY OF CHAR );
+    VAR
+	t : Tasks.Object;
+    BEGIN (* StartTask *)
+	
+	ProgErrOutput.WriteString( "Starting: " );
+	ProgErrOutput.WriteString( name );
+	ProgErrOutput.WriteLn;
+	Tasks.Create( t, name, HrDoktorTask, Tasks.DONTCARE, 
+		      Tasks.GetPriority( Tasks.GetCurrent() ) - 1,
+		      TaskConsts.GetDefaultStackSize() );
+
+    END StartTask;
+
+VAR
+    oldTerminate : ProgErr.TerminationHandler;
+
+PROCEDURE Terminate( mode : ProgErr.TerminationModes );
+    BEGIN (* Terminate *)
+	IF mode = ProgErr.normalTermination THEN
+	    TaskInfo.Destroy( group1 );
+	    ProgErrOutput.WriteString( "Destroy Type 1" );
+	    ProgErrOutput.WriteLn;
+	    TaskInfo.Destroy( group3 );
+	    ProgErrOutput.WriteString( "Destroy Type 3" );
+	    ProgErrOutput.WriteLn;
+	    Objects.PrintStatus;
+	    Objects.DestroyManager( objectMgr );
+	END;
+	oldTerminate( mode );
+    END Terminate;
+
+BEGIN (* tTaskInfo *)
+    
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), "tTaskInfo" );
+
+    StartTask( "One" );
+
+    TaskInfo.Create( group1, Birth1, Death1, Print1 );
+
+    StartTask( "Two" );
+
+    TaskInfo.Create( group2, Birth2, Death2, Print2 );
+
+    StartTask( "Three" );
+
+    ProgErrOutput.WriteString( "Destroy Type 2" );
+    ProgErrOutput.WriteLn;
+    TaskInfo.Destroy( group2 );
+
+    ProgErrOutput.WriteString( "Create Type 3" );
+    ProgErrOutput.WriteLn;
+
+    TaskInfo.Create( group3, Birth3, Death3, Print3 );
+
+    ProgErrOutput.WriteString( "About to instal termination handler" );
+    ProgErrOutput.WriteLn;
+
+    ProgErr.InstallTerminationHandler( Terminate, oldTerminate );
+
+    HrDoktorTask( Tasks.DONTCARE );	(* Print out our stuff *)
+
+
+END tTaskInfo.

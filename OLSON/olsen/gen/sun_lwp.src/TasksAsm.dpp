@@ -1,0 +1,101 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION FOR C MODULE TasksAsm;
+(*
+ * Assembly language routines for the module Tasks (and interrupts).
+ * Also defines the stack structure used for saving task information
+ * on the top of the stack.  Both of these switching procedures
+ * call TasksPRIVATE.SwitchRunning which takes a stack pointer as
+ * an argument and returns a stack pointer to be switched to.  The
+ * procedures in this module merely do the necessary assembly language
+ * part of the game.
+ *)
+IMPORT
+    SysTypes;
+
+TYPE
+    Register32 = SysTypes.CARDINAL32;
+    Register16 = SysTypes.CARDINAL16;
+    Mask       = SysTypes.BITSET32;
+    
+VAR
+    tasksSavedPC   : Register32;  (* value passed in sigcontext *)
+    tasksSavedPSL  : Register16;  (* ditto *)
+    tasksSavedMask : Mask;	  (* must be set in all cases of SwitchRun *)
+    
+PROCEDURE TasksSwitchRunning;
+    (*
+     * Called by tasks to switch running tasks.  Assumes that tasksSavedMask
+     * contains the mask of the running task.
+     *)
+
+PROCEDURE InterruptsSwitchRunning; 
+    (*
+     * Interrupts should set sigcontext.sc_pc to this value before
+     * returning from a signal handler which is to cause a process switch.
+     * Assumes that tasksSaved values have been set properly.
+     *)
+     
+TYPE
+    SavedStack = POINTER TO SavedStackRec;
+    SavedStackRec = RECORD
+	signalMask  : Mask;	 (* signals to be set upon switch *)
+	errno       : INTEGER;	 (* errno to be set upon switch *)
+	(* floating point here *)
+	registerD0  : Register32;	(* Order of moveml instruction *)
+	registerD1  : Register32;
+	registerD2  : Register32;
+	registerD3  : Register32;
+	registerD4  : Register32;
+	registerD5  : Register32;
+	registerD6  : Register32;
+	registerD7  : Register32;
+	registerA0  : Register32;    
+	registerA1  : Register32;    
+	registerA2  : Register32;    
+	registerA3  : Register32;    
+	registerA4  : Register32;    
+	registerA5  : Register32;    
+	registerA6  : Register32;
+	registerCCR : Register16;
+	registerPC  : Register32;
+    END;
+
+(*
+ * These two addresses are needed to figure out where we get called.
+ *)
+PROCEDURE m2_init;
+PROCEDURE main;
+
+(*
+ * The following is only used by TasksPRIVATE.  It is the procedure
+ * which actually does the task switching.
+ *)
+TYPE
+    TaskSwitcher = PROCEDURE (
+	SysTypes.SAUPTR		(* Running's top of stack *)
+	) : SysTypes.SAUPTR;	(* Stack top for new running *)
+VAR
+    taskSwitcher : TaskSwitcher;
+	(* Only should be set during Disallowed sections *)
+END TasksAsm.

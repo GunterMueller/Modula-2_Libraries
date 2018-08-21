@@ -1,0 +1,123 @@
+(*
+8.3 List Utilities - Interface
+
+In this section is provided a list utilities module for singly-linked
+unbounded lists.  The routines implement such useful list operations as:
+
+Constructors
+ù constructing a list from an array of items (Construct and Build),
+ù inserting an item or a list to the end of a list (AddToTail and Append),
+
+Selectors
+ù retrieving the link to the last item of a list (LastOf),
+
+The reader should find it trivial to generate equivalent modules
+for the other list structures and adding other list operations to those
+given here.
+*)
+
+DEFINITION MODULE ListSUMTools; 
+(*==========================================================
+    Version  : 1.00  18 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Tools - Structure Utility - Singly-Linked List
+
+    Revision History
+    v1.00  18 May 1989  C. Lins
+      Initial TopSpeed Modula-2 implementation.
+	(C) Copyright 1989 Charles A. Lins
+=============================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ListSUM IMPORT
+    (*--Type*) List;
+
+    (*--------------------*)
+
+(*
+8.3.1 Type Declarations
+
+Position 
+*)
+
+TYPE  Position     = CARDINAL;
+CONST NullPosition = 0;
+
+
+    (*--------------------*)
+
+(*
+8.3.2 Constructors
+
+Construct builds a list from an array of Items.  If theList is not
+empty it is cleared of its contents before the construction commences.
+Build is similar except that only the first n items (numItems) are used to
+construct the list.
+
+AddToTail adds theItem to the end of theList.  Complexity: O(n).
+
+Split divides theList into two lists at theItem.  If theItem is not present
+in theList then the toList is unchanged.
+*)
+
+PROCEDURE Construct (    theItems : ARRAY OF Item (*-- in    *);
+	VAR theList  : List	(*-- inout *));
+
+PROCEDURE Build     (    theItems : ARRAY OF Item (*-- in    *);
+	numItems : CARDINAL      (*-- in    *);
+	VAR theList  : List	(*-- inout *));
+
+PROCEDURE AddToTail (    theItem  : Item	(*-- in    *);
+	VAR theList  : List	(*-- inout *));
+
+PROCEDURE Split     (VAR theList  : List	(*-- inout *);
+	theItem  : Item	(*-- in    *);
+	VAR toList   : List	(*-- inout *));
+
+
+(*
+8.3.3 Selectors
+
+LastOf returns the list containing the last item of theList or the NullList
+if theList is empty.
+
+PositionOf searches for theItem in theList returning theItem's position such
+that:
+	Position = 1 when theItem is at the front of theList,
+	Position = LengthOf(theList) when theItem is at the end of theList, and
+	Position = 0 when theItem is not present within theList.
+
+LocationOf returns a list beginning with the item at theIndex in theList.  If
+theList does not have such a positionthe NullList is returned.
+*)
+
+PROCEDURE LastOf     (    theList : List     (*-- in    *))
+	: List     (*-- out   *);
+
+PROCEDURE PositionOf (    theItem : Item     (*-- in    *);
+	theList : List     (*-- in    *))
+							: Position (*-- out   *);
+
+PROCEDURE LocationOf (    theIndex: Position (*-- in    *);
+	theList : List     (*-- in    *))
+							: List     (*-- out   *);
+
+END ListSUMTools.
+
+(*
+
+References
+
+[]  A. Aho, J. Hopcroft, and J. Ullman, Data Structures and Algorithms,
+    Addison-Wesley, Reading, MA 1983
+[1] G. Booch, Software Components with Ada Structures, Tools, and Subsystems,
+	Benjamin/Cummings, Menlo Park, CA 1987
+[2] G.H. Gonnet, Handbook of Algorithms and Data Structures,
+    Addison-Wesley, London England 1984
+[]	D. Knuth, The Art of Computer Programming, Volume 1, Fundamental Algorithms,
+    Addison-Wesley, Reading, MA 1973
+[]	N. Wirth, Algorithms and Data Structures, Prentice-Hall, Englewood
+    Cliffs, NJ 1986
+*)

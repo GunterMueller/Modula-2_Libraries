@@ -1,0 +1,69 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tIsValid;
+
+IMPORT    Objects,         SimpleFIO,       SYSTEM;
+
+
+VAR manager                                     : Objects.Manager;
+    object1, object2, object3, object4, object5 : SYSTEM.ADDRESS; 
+    DONTCARE                                    : ARRAY[1..1] OF CHAR;
+    testObject                                  : SYSTEM.ADDRESS;
+    result                                      : BOOLEAN;
+
+
+BEGIN (* tIsValid *)
+     Objects.CreateManager(manager,512,DONTCARE);
+    
+    (* Create 5 valid objects *) 			  
+     Objects.Allocate(manager,object1); 
+     Objects.Allocate(manager,object2); 
+     Objects.Allocate(manager,object3); 
+     Objects.Allocate(manager,object4); 
+     Objects.Allocate(manager,object5); 
+ 
+     SimpleFIO.Write1("Object 1 = [Card,b16]H[NL]",object1); 
+     SimpleFIO.Write1("Object 2 = [Card,b16]H[NL]",object2); 
+     SimpleFIO.Write1("Object 3 = [Card,b16]H[NL]",object3); 
+     SimpleFIO.Write1("Object 4 = [Card,b16]H[NL]",object4); 
+     SimpleFIO.Write1("Object 5 = [Card,b16]H[NL]",object5); 
+
+     REPEAT
+	 SimpleFIO.PromptedRead1("[Card,b16,mEnter an address: ][NL]", 
+				testObject );
+	 result := Objects.IsValid( manager, testObject );
+	 SimpleFIO.Write1("IsValid returned = [Bool][NL]", result );
+     UNTIL testObject = NIL;
+
+
+    Objects.Deallocate(manager,object1);
+    Objects.Deallocate(manager,object2);
+    Objects.Deallocate(manager,object3);
+    Objects.Deallocate(manager,object4);
+    Objects.Deallocate(manager,object5);
+    (* Destroy all objects again *)
+
+    Objects.DestroyManager(manager);
+
+END tIsValid.
+

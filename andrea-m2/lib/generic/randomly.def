@@ -1,0 +1,54 @@
+DEFINITION MODULE Randomly;
+
+(* procedures for getting random numbers *)
+(* J. Andrea, Jun.2/92 - add NormalRandom *)
+(* J. Andrea, Oct.4/91, add min and max input to RandomReal *)
+(* J. Andrea, Sep.10/91, add "1 to n-1" procedure *)
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+        RandomReal, NormalRandom,
+        Choose_0_To_N, Choose_0_To_N_Minus_1, 
+        Choose_1_To_N, Choose_1_To_N_Minus_1, 
+        InputSeed, MakeSeed;
+
+
+PROCEDURE RandomReal( min, max :REAL ) :REAL;
+(* return a real number X, such that:  min >= X < max  *)
+
+
+PROCEDURE NormalRandom( mean, sigma :REAL ) :REAL;
+(* return a real number X, as a random value over a normal distribution
+   given the mean and sigma *)
+   
+
+PROCEDURE Choose_0_To_N( n :CARDINAL) :CARDINAL;
+(* return a cardinal A, with given N, such that:  0 >= A <= N *)
+
+
+PROCEDURE Choose_0_To_N_Minus_1( n :CARDINAL) :CARDINAL;
+(* return a cardinal A, with given N, such that:  0 >= A <= N-1 *)
+
+
+PROCEDURE Choose_1_To_N( n :CARDINAL) :CARDINAL;
+(* return a cardinal A, with given N, such that:  1 >= A <= N *)
+
+
+PROCEDURE Choose_1_To_N_Minus_1( n :CARDINAL) :CARDINAL;
+(* return a cardinal A, with given N, such that:  1 >= A <= N-1 *)
+
+
+PROCEDURE InputSeed( seed :INTEGER );
+(* Use this procedure to start the random sequence with you own seed.
+   The seed should be a large odd value.
+   Using the same seed will result in the same sequence. *)
+   
+
+PROCEDURE MakeSeed;
+(* create a seed from the current time of day. *)
+(* This procedure is called as the startup for this module and so
+   there is generally no need to call this procedure *)
+
+
+END Randomly.

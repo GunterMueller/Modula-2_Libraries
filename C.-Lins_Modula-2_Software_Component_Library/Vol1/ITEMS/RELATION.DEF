@@ -1,0 +1,65 @@
+DEFINITION MODULE Relations;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tool - Relational Operators Utility
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    INTRODUCTION
+    This module provides definitions for the standard Modula-2 relations
+    and relational operators, along with routines for mapping one type to
+    the other, deriving the NOT of a relational operator, and testing for
+    a given relational operator implying that another relational operator
+    is also true.
+
+    PROPRIETARY NOTICES
+    "Relations.DEF" Copyright (C) 1989 Charles A. Lins.
+====================================================================*)
+
+(*
+    Relation defines the minimum set of relational operators from which all
+    others may be derived.  The following equivalent notations should be noted:
+	# -> NOT EqualTo
+	<= -> NOT GreaterThan
+	>= -> NOT LessThan.
+
+    RelOp defines the standard Modula-2 relational operators.
+*)
+
+TYPE  Relation = (		(*-- Ordering Relations *)
+		  less, 	(*-- <	less than	*)
+		  equal,	(*-- =	equal to	*)
+		  greater,	(*-- >	greater than	*)
+		  incomparable	(*-- ?	failure result	*)
+		 );
+
+TYPE  RelOp    = (		(*-- Relational Operators	 *)
+		  lt,		(*-- <	less than		 *)
+		  le,		(*-- <=	less than or equal to	 *)
+		  eq,		(*-- =	equal to		 *)
+		  ne,		(*-- #	not equal to		 *)
+		  gt,		(*-- >	greater than		 *)
+		  ge,		(*-- >=	greater than or equal to *)
+		  unordered	(*-- ?	failure result		 *)
+		 );
+
+
+PROCEDURE RelToRelOp (	  theRelation: Relation (*-- in    *))
+				     : RelOp	(*-- out   *);
+
+PROCEDURE RelOpToRel (	  theRelOp   : RelOp	(*-- in    *))
+				     : Relation (*-- out   *);
+
+    (*-----------------------*)
+
+PROCEDURE NotRelOpOf (	  theRelOp   : RelOp	(*-- in    *))
+				     : RelOp	(*-- out   *);
+
+PROCEDURE AImpliesB  (	  left	     : RelOp	(*-- in    *);
+			  right      : RelOp	(*-- in    *))
+				     : BOOLEAN	(*-- out   *);
+
+END Relations.

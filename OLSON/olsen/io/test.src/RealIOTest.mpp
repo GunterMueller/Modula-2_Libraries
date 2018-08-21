@@ -1,0 +1,131 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE RealIOTest;
+IMPORT 
+    SimpleIO,	SysTypes;
+   
+VAR
+    real  : REAL;
+    @IF SunM2 THEN
+	real64 : SysTypes.REAL64;
+    @END (* SunM2 *)
+    width : CARDINAL;
+    fraction : CARDINAL;
+    exponent : CARDINAL;
+
+BEGIN (* RealIOTest *)
+    LOOP
+	SimpleIO.WriteString('Enter a real: ');
+	IF SimpleIO.ReadReal( real ) THEN
+	    IF real = 0.0 THEN
+		EXIT;
+	    END;
+	    LOOP
+		SimpleIO.ReadLn;
+		SimpleIO.WriteString('Enter an output width: ');
+		IF SimpleIO.ReadCard( width ) THEN
+		    EXIT;
+		END;
+	    END; (* LOOP *)
+	    LOOP
+		SimpleIO.ReadLn;
+		SimpleIO.WriteString('Enter a fraction width: ');
+		IF SimpleIO.ReadCard( fraction ) THEN
+		    EXIT;
+		END;
+	    END; (* LOOP *)
+	    LOOP
+		SimpleIO.ReadLn;
+		SimpleIO.WriteString('Enter an exponent width: ');
+		IF SimpleIO.ReadCard( exponent ) THEN
+		    EXIT;
+		END;
+	    END; (* LOOP *)
+
+	    SimpleIO.WriteString( "Flo: " );
+	    SimpleIO.WriteFloating(real, width, fraction);
+	    SimpleIO.WriteLn;
+	    SimpleIO.WriteString( "Sci: " );
+	    SimpleIO.WriteScientific(real, width, fraction, exponent);
+	    SimpleIO.WriteLn;
+	    SimpleIO.WriteString( "Eng: " );
+	    SimpleIO.WriteEngineering(real, width, fraction, exponent);
+	    SimpleIO.WriteLn;
+
+	ELSIF SimpleIO.EOF() THEN
+	    SimpleIO.WriteLn;
+	    RETURN;	(* for SunM2 help, below *)
+	END;
+	SimpleIO.ReadLn;
+    END; (* LOOP *)
+
+    @IF SunM2 THEN
+
+	SimpleIO.ReadLn;
+	LOOP
+	    SimpleIO.WriteString('Enter a real 64: ');
+	    IF SimpleIO.ReadReal64( real64 ) THEN
+		IF real64 = 0.0 THEN
+		    EXIT;
+		END;
+		LOOP
+		    SimpleIO.ReadLn;
+		    SimpleIO.WriteString('Enter an output width: ');
+		    IF SimpleIO.ReadCard( width ) THEN
+			EXIT;
+		    END;
+		END; (* LOOP *)
+		LOOP
+		    SimpleIO.ReadLn;
+		    SimpleIO.WriteString('Enter a fraction width: ');
+		    IF SimpleIO.ReadCard( fraction ) THEN
+			EXIT;
+		END;
+		END; (* LOOP *)
+		LOOP
+		    SimpleIO.ReadLn;
+		    SimpleIO.WriteString('Enter an exponent width: ');
+		    IF SimpleIO.ReadCard( exponent ) THEN
+			EXIT;
+		    END;
+		END; (* LOOP *)
+
+		SimpleIO.WriteString( "Flo: " );
+		SimpleIO.WriteFloating(real64, width, fraction);
+		SimpleIO.WriteLn;
+		SimpleIO.WriteString( "Sci: " );
+		SimpleIO.WriteScientific(real64, width, fraction, exponent);
+		SimpleIO.WriteLn;
+		SimpleIO.WriteString( "Eng: " );
+		SimpleIO.WriteEngineering(real64, width, fraction, exponent);
+		SimpleIO.WriteLn;
+
+	    ELSIF SimpleIO.EOF() THEN
+		SimpleIO.WriteLn;
+		EXIT;
+	    END;
+	    SimpleIO.ReadLn;
+	END; (* LOOP *)
+    @END (* SunM2 *)
+
+END RealIOTest.

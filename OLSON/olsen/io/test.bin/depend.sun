@@ -1,0 +1,44 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+ttCopy: ../test_sun.src/ttCopy.sh 
+	${StandardScript}
+BinTest.mod: ../test.src/BinTest.mpp 
+	${StandardM2pp}
+CardIOTest.mod: ../test.src/CardIOTest.mpp 
+	${StandardM2pp}
+CardIOTimer.mod: ../test.src/CardIOTimer.mpp 
+	${StandardM2pp}
+ChangeDir.mod: ../test.src/ChangeDir.mpp 
+	${StandardM2pp}
+DirTest.mod: ../test.src/DirTest.mpp 
+	${StandardM2pp}
+Hello.mod: ../test.src/Hello.mpp 
+	${StandardM2pp}
+IntIOTest.mod: ../test.src/IntIOTest.mpp 
+	${StandardM2pp}
+RealIOTest.mod: ../test.src/RealIOTest.mpp 
+	${StandardM2pp}
+RealIOTimer.mod: ../test.src/RealIOTimer.mpp 
+	${StandardM2pp}
+tCopy.mod: ../test.src/tCopy.mpp 
+	${StandardM2pp}
+tCopyObject.mod: ../test.src/tCopyObject.mpp 
+	${StandardM2pp}
+tDirIOList.mod: ../test.src/tDirIOList.mpp 
+	${StandardM2pp}
+tIONames.mod: ../test.src/tIONames.mpp 
+	${StandardM2pp}
+tIOVersions.mod: ../test.src/tIOVersions.mpp 
+	${StandardM2pp}
+tListWithInfo.mod: ../test.src/tListWithInfo.mpp 
+	${StandardM2pp}
+tScreenIO.mod: ../test.src/tScreenIO.mpp 
+	${StandardM2pp}
+tStringBinaryIO.mod: ../test.src/tStringBinaryIO.mpp 
+	${StandardM2pp}

@@ -1,0 +1,326 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tBytes;
+IMPORT
+    Bytes,	ProgErr,	SysTypes,	Intrinsics,
+    SYSTEM,	ProgErrOutput;
+
+CONST
+    size = 1000;
+VAR
+    block1 : ARRAY [ 0 .. size - 1 ] OF SysTypes.SAU;
+    block2 : ARRAY [ 0 .. size - 1 ] OF SysTypes.SAU;
+    i      : CARDINAL;
+PROCEDURE RunningFill( VAR block : ARRAY OF SysTypes.SAU;
+		    base  : CARDINAL;
+		    inc   : CARDINAL );
+    VAR
+	i   : CARDINAL;
+    BEGIN (* RunningFill *)
+
+	FOR i := 0 TO HIGH( block ) DO
+	    block[ i ] := VAL( SysTypes.SAU, base );
+	    base := ( base + inc ) MOD ( ORD( SysTypes.MAXSAU ) + 1 );
+	END;
+
+    END RunningFill;
+
+PROCEDURE TestFill( block : ARRAY OF SysTypes.SAU;
+		    value : CARDINAL );
+    VAR
+	i : CARDINAL;
+	sau : SysTypes.SAU;
+    BEGIN (* TestFill *)
+
+	sau := SysTypes.MAXSAU;
+	DEC( sau, value );
+	FOR i := 0 TO HIGH( block ) DO
+	    block[ i ] := sau;
+	END;
+
+	sau := VAL( SysTypes.SAU, value );
+	Bytes.Fill( SYSTEM.ADR( block[ 1 ] ), HIGH( block ) - 1, sau );
+	
+	FOR i := 1 TO HIGH( block ) - 1 DO
+	    IF block[ i ] # sau THEN
+		ProgErr.Terminate( "Fill mis-match" );
+	    END;
+	END;
+
+	sau := SysTypes.MAXSAU;
+	DEC( sau, value );
+	IF ( block[ 0 ] # sau ) OR ( block[ HIGH( block ) ] # sau ) THEN
+	    ProgErr.Terminate( "Fill overstepped boundaries" );
+	END;
+
+
+    END TestFill;
+
+    
+		    
+PROCEDURE CheckCopy( block  : ARRAY OF SysTypes.SAU;
+		     offset : CARDINAL;
+		     length : CARDINAL;
+		     base   : CARDINAL;
+		     inc    : CARDINAL );
+    VAR
+	i   : CARDINAL;
+    BEGIN (* CheckCopy *)
+
+	IF length = 0 THEN
+	    RETURN;
+	END;
+	FOR i := offset TO offset + length - 1 DO
+	    IF block[ i ] # VAL( SysTypes.SAU, base ) THEN
+		ProgErr.Terminate( "Pattern mis-match" );
+	    END;
+	    (* RJN - This line won't work if card and SAU are the same
+		     I this case, we shouldn't need the MOD *)
+	    base := ( base + inc ) MOD ( ORD( SysTypes.MAXSAU ) + 1 );
+	END;
+
+    END CheckCopy;
+
+PROCEDURE BadCount;
+    BEGIN  (* BadCount *)
+	ProgErr.Terminate( "Incorrect copy count." );
+    END BadCount;
+
+PROCEDURE Compare( left     : ARRAY OF SysTypes.SAU;
+		   right    : ARRAY OF SysTypes.SAU;
+		   expected : Intrinsics.CompareResults );
+    BEGIN  (* Compare *)
+
+	IF Bytes.Compare( SYSTEM.ADR( left ), SYSTEM.ADR( right ),
+			  HIGH( block1 ) ) # expected THEN
+	    ProgErr.Terminate( "Incorrect Compare return." );
+	END;
+
+    END Compare;
+
+CONST
+    noPosition = SysTypes.MAXCARDINAL;
+
+PROCEDURE Position( block    : ARRAY OF SysTypes.SAU;
+		    start    : CARDINAL;
+		    stop     : CARDINAL;
+		    toFind   : SysTypes.SAU;
+		    expected : CARDINAL );
+    VAR
+	found : CARDINAL;
+    BEGIN  (* Position *)
+
+	IF NOT Bytes.Position( SYSTEM.ADR( block ), start, stop, toFind, 
+			       found ) THEN
+	    IF expected = noPosition THEN
+		RETURN;
+	    END;
+	ELSE
+	    IF expected = found THEN
+		RETURN;
+	    END;
+	END;
+
+	ProgErr.Terminate( "Position returned invalid value." );
+
+    END Position;
+
+
+BEGIN (* tBytes *)
+
+    (*
+     * Copy
+     *)
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 0, 2 );
+
+    Bytes.Copy( SYSTEM.ADR( block1[ 0 ] ),  SYSTEM.ADR( block1[ 10 ] ),
+		100 );
+    CheckCopy( block1, 10, 100, 0, 2 );
+
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 0, 2 );
+    Bytes.Copy( SYSTEM.ADR( block1[ 10 ] ),  SYSTEM.ADR( block1[ 0 ] ),
+		100 );
+    CheckCopy( block1, 0, 100, 10 * 2, 2 );
+
+    ProgErrOutput.WriteString( "PASSED: Copy" );
+    ProgErrOutput.WriteLn;
+
+    (*
+     * CopyAsString, source smaller than dest, no-nulls.
+     *)
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 1, 2 );
+
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 0 ] ),  100,
+			   SYSTEM.ADR( block1[ 10 ] ),  400 ) # 100 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 10, 100, 1, 2 );
+
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 1, 2 );
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 10 ] ),  100,
+			   SYSTEM.ADR( block1[ 0 ] ),   400 ) # 100 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 0, 100, 1 + 10 * 2, 2 );
+
+    (*
+     * CopyAsString, source smaller than dest, with nulls.
+     *)
+
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 20 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 0 ] ),  100,
+			   SYSTEM.ADR( block1[ 10 ] ), 400 ) # 20 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 10, 20, 1, 2 );
+    CheckCopy( block1, 10 + 20, 1, 0, 0 );	(* CheckCopy for NULL *)
+	
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 30 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 10 ] ),  100,
+			   SYSTEM.ADR( block1[ 0 ] ),   400 ) # 20 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 0, 20, 1 + 10 * 2, 2 );
+    CheckCopy( block1, 0 + 20, 1, 0, 0 );	(* CheckCopy for NULL *)
+
+    (*
+     * CopyAsString, dest smaller than source, no-nulls.
+     *)
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 1, 2 );
+
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 0 ] ),  400,
+			   SYSTEM.ADR( block1[ 10 ] ),  100 ) # 100 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 10, 100, 1, 2 );
+
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 1, 2 );
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 10 ] ),  400,
+			   SYSTEM.ADR( block1[ 0 ] ),   100 ) # 100 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 0, 100, 1 + 10 * 2, 2 );
+
+    (*
+     * CopyAsString, dest smaller than source, with nulls.
+     *)
+
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 20 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 0 ] ),  400,
+			   SYSTEM.ADR( block1[ 10 ] ), 19 ) # 19 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 10, 19, 1, 2 );
+    CheckCopy( block1, 29, 1, 1 + 29 * 2, 2 ); (* CheckCopy for not NULL *)
+	
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 30 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 10 ] ),  400,
+			   SYSTEM.ADR( block1[ 0 ] ),   19 ) # 19 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 0, 19, 1 + 10 * 2, 2 );
+    CheckCopy( block1, 19, 1, 1 + 19 * 2, 2 );	(* CheckCopy for not NULL *)
+
+    (*
+     * CopyAsString, dest equal source, with nulls.
+     *)
+
+    (* CheckCopy for source/dest overlap (high to low) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 20 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 0 ] ),  400,
+			   SYSTEM.ADR( block1[ 10 ] ), 20 ) # 20 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 10, 20, 1, 2 );
+    CheckCopy( block1, 30, 1, 1 + 30 * 2, 2 );	(* CheckCopy for NULL *)
+	
+    (* CheckCopy for source/dest overlap (low to high) copy *)
+    RunningFill( block1, 1, 2 );
+    block1[ 30 ] := SysTypes.MINSAU;
+    IF Bytes.CopyAsString( SYSTEM.ADR( block1[ 10 ] ),  400,
+			   SYSTEM.ADR( block1[ 0 ] ),   20 ) # 20 THEN
+	BadCount;
+    END;
+    CheckCopy( block1, 0, 20, 1 + 10 * 2, 2 );
+    CheckCopy( block1, 20, 1, 1 + 20 * 2, 2 );	(* CheckCopy for NULL *)
+
+    ProgErrOutput.WriteString( "PASSED: CopyAsString" );
+    ProgErrOutput.WriteLn;
+
+    (*
+     * Filling
+     *)
+    TestFill( block1, 3 );
+    TestFill( block2, 35 );
+    ProgErrOutput.WriteString( "PASSED: Fill" );
+    ProgErrOutput.WriteLn;
+
+    (*
+     * Compare
+     *)
+    RunningFill( block1, 0, 1 );
+    RunningFill( block2, 0, 2 );
+    Compare( block1, block2, Intrinsics.less );
+
+    RunningFill( block2, 0, 1 );
+    Compare( block1, block2, Intrinsics.equal );
+
+    block1[ 20 ] := VAL( SysTypes.SAU, 200B );	(* Some big number *)
+    Compare( block1, block2, Intrinsics.greater );
+
+    ProgErrOutput.WriteString( "PASSED: Compare" );
+    ProgErrOutput.WriteLn;
+
+    (*
+     * Position
+     *)
+    RunningFill( block1, 0, 1 );
+    Position( block1, 0, 20, 7C, 7 );	(* forward *)
+    Position( block1, 20, 0, 7C, 7 );	(* reverse *)
+
+    block1[ 20 ] := VAL( SysTypes.SAU, 7B );
+    Position( block1, 0, 20, 7C, 7 );	(* forward *)
+    Position( block1, 20, 0, 7C, 20 );	(* reverse *)
+    Position( block1, 21, 0, 7C, 20 );	(* reverse *)
+    Position( block1, 19, 0, 7C, 7 );	(* reverse *)
+
+    ProgErrOutput.WriteString( "PASSED: Position" );
+    ProgErrOutput.WriteLn;
+
+END tBytes.
+

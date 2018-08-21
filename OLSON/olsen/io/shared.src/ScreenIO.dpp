@@ -1,0 +1,251 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ScreenIO;
+(*
+ * ScreenIO adds "terminal" capabilities to the byte streams
+ * defined in BinaryIO. ScreenIO provides a set of standard
+ * operations on the screen.
+ * 
+ * The procedures always operate on a screen and from a keyboard
+ * (a tty): this cannot be changed. This makes things a lot simpler
+ * and insures correct bounding between the input and output.
+ *
+ * ScreenIO does the necessary magic so that cursor positioning and
+ * general output always go to a screen, and so that data is always
+ * read from a keyboard even if it sometimes has no control over
+ * echoing, editing, etc.
+ *
+ * If graphics are supported, you can get the graphics object
+ * and then use the graphics modules directly. Graphics are
+ * not supported at this time.
+ *
+ * PC IMPLEMENTATION RESTRICTION:
+ *     The PC implementation is very simple. Reading and writing
+ *     is done through streams. This means that you have no control
+ *     over echo or edit modes. To add these capabilities, things
+ *     would have to be re-done entirely (down to BinaryIO). This
+ *     is all possible but messy, and it would need a lot of work.
+ *     Maybe someday...
+ *)
+IMPORT
+    Notices,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED
+    GetTextInput,      GetTextOutput,     Capabilities,    CapabilitySet,
+    GetCapabilities,   Operations,        Do,              Attributes,
+    AttributeSet,      minAttribute,	  maxAttribute,
+    SetAttributes,     GetAttributes,     NumRows,
+    NumCols,           GotoRowCol,        EchoModes,       SetEchoMode,
+    GetEchoMode,       EditModes,         SetEditMode,     GetEditMode,
+    GetErrorNotice,    EnterVisualMode,   ExitVisualMode;
+
+PROCEDURE GetTextInput(
+    ) : TextIO.Object;  (* Input object from the keyboard *)
+    (*
+     * ScreenIO opens this TextIO object in readOnly mode and
+     * forces it to be the stream from the keyboard. It goes
+     * to great lengths to make this the case (redirecting input
+     * is not enough to trick ScreenIO--in UNIX at least).
+     *)
+
+PROCEDURE GetTextOutput(
+    ) : TextIO.Object;  (* Output object to the screen *)
+    (*
+     * ScreenIO opens this TextIO object in appendOnly mode and
+     * forces it to be the stream to the screen. It goes to great
+     * lengths to make this the case (redirecting output is not
+     * enough to trick ScreenIO--in UNIX at least).
+     *)
+
+TYPE
+    Capabilities = (
+          clear,           (* Clear entire screen (black) *)
+          clearToEOS,      (* Clear to End Of Screen *)
+          clearToEOL,      (* Clear to End Of Line *)
+          deleteChar,      (* Delete char under cursor, pull left*)
+          deleteLine,      (* Delete line under cursor, scroll up *)
+          insertBlankChar, (* Insert char under cursor, push right *)
+          insertBlankLine, (* Insert line under cursor, scroll down *)
+          attributeCtl,    (* Changing of character attributes *)
+          cursorCtl,       (* Cursor positioning *)
+          echoCtl,         (* Control over echo mode *)
+          editCtl          (* Control over edit mode when reading *)
+    );
+    CapabilitySet = SET OF Capabilities;
+
+PROCEDURE GetCapabilities(
+    ) : CapabilitySet;  (* Set of all capabilities of terminal *)
+    (*
+     * All capabilities provided in this module may not be portable
+     * to all kinds of terminals. Therefore, The program needs to
+     * determine the capabilities at program invocation time so
+     * that it may be robust against simple implementations.
+     *)
+
+TYPE
+    Operations = [ clear .. insertBlankLine ];
+
+PROCEDURE Do(
+    whatToDo : Operations  (* Operation to be done on screen *)
+    );
+    (*
+     * Do the specified operation. If the operation (capability) is
+     * not supported for the type of terminal associated to the default
+     * file (not in the CapabilitySet), the caller will be terminated.
+     *)
+
+TYPE
+    Attributes = (
+          bold,       (* Extra-bright characters *)
+          dim,        (* Half-bright characters *)
+          blink,      (* Blinking characters *)
+          underline,  (* Underscored characters *)
+          inverse     (* Background/foreground reversed *)
+    );
+    AttributeSet = SET OF Attributes;
+CONST
+    minAttribute = bold;
+    maxAttribute = inverse;
+
+PROCEDURE SetAttributes(
+    attributes : AttributeSet  (* Set of all attributes that are on *)
+    );
+    (*
+     * Set the state of the character attributes.
+     * Caller will be terminated if attributeCtl capability
+     * is not supported.
+     * If given attribute is not available, a "best match" will
+     * be used (underline instead of bold for example).
+     *)
+
+PROCEDURE GetAttributes(
+    ) : AttributeSet;  (* Set of all attributes that are on *)
+    (*
+     * Get the state of the character attributes.
+     * This procedure can always be called (even if attributeCtl is
+     * not supported).
+     *)
+
+PROCEDURE NumRows(
+    ) : SysTypes.Card;  (* Number of rows *)
+    (*
+     * Number of lines along y-axis of screen.
+     * Will return 0 if cursorCtl is not supported.
+     *)
+
+PROCEDURE NumCols(
+    ) : SysTypes.Card;  (* Number of rows *)
+    (*
+     * Number of cols along x-axis of screen.
+     * Will return 0 if cursorCtl is not supported.
+     *)
+
+PROCEDURE GotoRowCol(
+    row : SysTypes.Card;  (*  0 <= Row < NumRows  *)
+    col : SysTypes.Card   (*  0 <= Col < NumCols  *)
+    );
+    (*
+     * Position the text cursor to the row and column specified.
+     * Caller will be terminated if cursorCtl capability is not
+     * supported, or if (Row >= NumRows) or (Col >= NumCols).
+     *
+     * The origin is the upper left corner (0,0).
+     *)
+
+TYPE
+    EchoModes = (
+        echo,   (* Characters will be echoed automatically *)
+        noEcho  (* Reading will be blind (no visual feedback) *)
+    );
+
+PROCEDURE SetEchoMode(
+    newMode : EchoModes
+    );
+    (*
+     * Set the echo mode.
+     * If echoMode is echo, the characters read will
+     * be written to the default output file.
+     * Caller will be terminated if echoCtl capability is not
+     * supported.
+     *)
+
+PROCEDURE GetEchoMode(
+    ) : EchoModes;  (* Current echo mode *)
+    (*
+     * Returns the current echo mode.
+     * This procedure can always be called (even if echoCtl is
+     * not supported).
+     *)
+
+TYPE
+    EditModes = (
+        edit,   (* Reading will be line oriented, with editing *)
+        noEdit  (* Reading will be character oriented, with *)
+                (* No wait until EOL (raw mode) *)
+    );
+
+PROCEDURE SetEditMode(
+    newMode : EditModes
+    );
+    (*
+     * Set the edit mode.
+     * If editMode is edit, the default output file must
+     * support the clear, delete and insert capabilities, otherwise
+     * the caller will be terminated.
+     * Caller will be terminated if editCtl capability is not
+     * supported.
+     *)
+
+PROCEDURE GetEditMode(
+    ) : EditModes;  (* Current edit mode *)
+    (*
+     * Returns the current edit mode.
+     * This procedure can always be called (even if editCtl is
+     * not supported).
+     *)
+
+PROCEDURE GetErrorNotice(
+    ) : Notices.Object;
+    (*
+     * Notice called when an error occurs while reading or
+     * writing to the screen.
+     *)
+
+PROCEDURE EnterVisualMode;
+    (*
+     * Screen does not go into visual mode at
+     * initialization. The Do and GotoRowCol
+     * procedures call this procedure if the
+     * screen is not already in visual mode.
+     *)
+
+PROCEDURE ExitVisualMode;
+    (*
+     * Is called at termination.
+     *)
+
+END ScreenIO.
+
+

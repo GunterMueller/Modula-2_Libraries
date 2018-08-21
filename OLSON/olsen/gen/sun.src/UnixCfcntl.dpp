@@ -1,0 +1,83 @@
+DEFINITION FOR C MODULE UnixCfcntl;
+(*
+ * See the file:
+ *     /usr/include/fcntl.h
+ *
+ * See the man page:
+ *     fcntl(2), access(2), and lockf(3).
+ *)
+IMPORT
+    UnixCtypes;
+
+CONST
+    O_RDONLY = 0;
+    O_WRONLY = 1;
+    O_RDWR   = 2;
+
+    FNDELAY = 00004B;	
+    FAPPEND = 00010B;	
+    FASYNC  = 00100B;	
+    FCREAT  = 01000B;	
+    FTRUNC  = 02000B;	
+    FEXCL   = 04000B;	
+
+    O_NDELAY = FNDELAY;	
+    O_APPEND = FAPPEND;	
+    O_CREAT  = FCREAT;	
+    O_TRUNC  = FTRUNC;	
+    O_EXCL   = FEXCL;	
+
+    F_DUPFD  = 0;	
+    F_GETFD  = 1;	
+    F_SETFD  = 2;	
+    F_GETFL  = 3;	
+    F_SETFL  = 4;	
+    F_GETOWN = 5;	
+    F_SETOWN = 6;	
+    F_GETLK  = 7;      	
+    F_SETLK  = 8;      	
+    F_SETLKW = 9;      	
+
+    F_OK = 0;		
+    X_OK = 1;		
+    W_OK = 2;		
+    R_OK = 4;		
+
+    F_ULOCK = 0;       
+    F_LOCK  = 1;        
+    F_TLOCK = 2;       
+    F_TEST  = 3;       
+
+    F_RDLCK = 1;       
+    F_WRLCK = 2;       
+    F_UNLCK = 3;       
+
+TYPE
+    struct_flock = RECORD
+        l_type   : UnixCtypes.short;  
+        l_whence : UnixCtypes.short;  
+        l_start  : UnixCtypes.long;   
+        l_len    : UnixCtypes.long;   
+        l_pid    : UnixCtypes.short;  
+        l_xxx    : UnixCtypes.short;  
+    END;
+    flock = POINTER TO struct_flock;
+
+PROCEDURE fcntl(
+    fd  : INTEGER;
+    cmd : INTEGER;
+    arg : INTEGER
+    )   : INTEGER;
+
+PROCEDURE access(
+    path : ARRAY OF CHAR;
+    mode : INTEGER
+    )    : INTEGER;
+
+PROCEDURE lockf(
+    fd   : INTEGER;
+    cmd  : INTEGER;
+    size : UnixCtypes.long
+    )    : INTEGER;
+
+END UnixCfcntl.

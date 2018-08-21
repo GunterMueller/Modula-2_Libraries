@@ -1,0 +1,114 @@
+BINARYINO.DEF
+BINARYINO.MOD
+   This contains the module BinaryInOut as defined in the textbook
+   "Programming and Problem Solving in Modula-2"
+   by S. Leestma and L. Nyhoff, MacMillian Publishing Company, 1989
+
+BLOCKIO.DEF
+BLOCKIO.MOD
+    This contains the module BlockIO.
+    This module allows you to perform i/o on files of any type by
+    reading/writing a block at a time.
+
+BREAK.DEF
+BREAK.MOD
+    This contains the module Break.
+    This module provides the procedure EnableBreak to help with porting
+    programs between this VMS compiler and DOS compilers.
+    The procedures here are merely stubs which do nothing.
+
+CMDLINE.MOD
+   This contains the module CmdLine.
+   This module allows you to easily read VMS DCL foreign commands.
+   See the module ForeignCommand for details in using this module.
+
+DATEOPERA.MOD
+   This contains the module DateOperations.
+   This module allows you to perform operations on dates, as well as
+   calculate the day of the week, and the phase of the moon for given
+   dates.
+
+DIRECTACC.DEF
+DIRECTACC.MOD
+   This contains the module DirectAccessFiles.
+   This module allows you to create and use random access files.
+
+EXTENDSTR.DEF
+    This contains the module ExtendStrings.
+    This module provides some additional powerful string operators.
+
+FOREIGNCO.DEF
+FOREIGNCO.MOD
+   This contains the module ForeignCommand.
+   This module allows you to easily read VMS DCL foreign commands.
+
+FORTRANDI.DEF
+FORTRANDI.FOR
+   This is a foreign definition module and the FORTRAN code which it calls.
+   It is not intended to be called directly by users.
+
+FORTRANFO.DEF
+FORTRANFO.FOR
+   This is a foreign definition module and the FORTRAN code which it calls.
+   It is not intended to be called directly by users.
+
+FORTRANJP.DEF
+FORTRANJP.FOR
+   This is a foreign definition module and the FORTRAN code which it calls.
+   It is not intended to be called directly by users.
+
+GETCHARAC.DEF
+GETCHARAC.MOD
+   This contains the module GetCharacter.
+   This module allows you to create program which perform interactive
+   input without the use of the carriage-return key.
+
+MEMORYSTA.DEF
+MEMORYSTA.MOD
+   This contains the module MemoryStatus.
+   This module provides procedures which determine the status of
+   available dynamic memory.
+
+MOREMATH.MOD
+   This contains the module MoreMath.
+   This module provides additional mathematics functions.
+
+PLOTTER.DEF
+PLOTTER.MOD
+   This contains the module Plotter.
+   This module provides procedures for doing X-Y data plots.
+
+RANDOMLY.MOD
+   This contains the module Randomly.
+   This module provides procedures for generating random numbers.
+
+REALINOUT.DEF
+REALINOUT.MOD
+   This contains the module RealInOut.
+   This module provides procedures for formatting real numbers.
+
+REGISGRAP.DEF
+REGISGRAP.MOD
+   This contains the module RegisGraphics.
+   This module provides procedures for creating a file (or interactive)
+   containing Regis graphics commands.
+
+SIMPLESCR.DEF
+SIMPLESCR.MOD
+   This contains the module SimpleScreen.
+   This module provides procedures for performing screen manipulation.
+   It is recommended that you first consider using the module VeryScreen.
+
+SIMPLEWIN.DEF
+SIMPLEWIN.MOD
+   This contains the module SimpleWindows.
+   This module provides procedures for performing screen manipulation.
+   It is recommended that you first consider using the module VeryScreen.
+
+SYSTEMCON.DEF
+   This contains the module SystemConstants.
+   This module provides constant values for variables.
+
+VERYSCREE.MOD
+   This contains the module VeryScreen.
+   This module is for very simple screen i/o.

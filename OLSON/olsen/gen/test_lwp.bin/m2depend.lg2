@@ -1,0 +1,450 @@
+gentesti.sym: 
+gentesti.lnk: ..\bin\dos.sym gentesti.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\safestor.sym  \
+              ..\bin\strings.sym 
+inttasks.lnk: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\tasks.sym 
+inttasks.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk inttasks.lnk 
+pingpong.lnk: ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+pingpong.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk pingpong.lnk 
+stringli.sym: gentesti.sym testio.sym 
+stringli.lnk: gentesti.sym stringli.sym testio.sym 
+tbytes.lnk: ..\bin\bytes.sym ..\bin\intrinsi.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\bin\systypes.sym 
+tbytes.exe: ..\bin\bytes.lnk ..\bin\dos.lnk ..\bin\i8086.lnk  \
+            ..\bin\intrinsi.lnk ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+            ..\bin\systypes.lnk tbytes.lnk 
+tcrash.lnk: ..\bin\i8086.sym ..\bin\progerr.sym ..\bin\progerro.sym \
+	    ..\bin\notices.sym ..\lwp.bin\tasks.sym
+tcrash.exe: ..\bin\dos.lnk ..\bin\i8086.lnk ..\lwp.bin\progerr.lnk  \
+            ..\bin\progerro.lnk ..\bin\systypes.lnk tcrash.lnk \
+	    ..\lwp.bin\notices.lnk ..\lwp.bin\tasks.lnk \
+	    ..\lwp.bin\taskspri.lnk 
+tdebug1.lnk: ..\bin\cardconv.sym ..\bin\intrinsi.sym ..\bin\notices.sym  \
+             ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+             ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+             ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+             ..\lwp.bin\taskmess.sym ..\lwp.bin\taskmoni.sym  \
+             ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+             ..\lwp.bin\tasks.sym 
+tdebug1.exe: ..\bin\bytes.lnk ..\bin\card32.lnk ..\bin\cardconv.lnk  \
+             ..\bin\chars.lnk ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk  \
+             ..\bin\genconst.lnk ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk  \
+             ..\bin\intrinsi.lnk ..\bin\lists.lnk ..\bin\namelist.lnk  \
+             ..\lwp.bin\notices.lnk ..\lwp.bin\objects.lnk  \
+             ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+             ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+             ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+             ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+             ..\lwp.bin\taskmess.lnk ..\lwp.bin\taskmoni.lnk  \
+             ..\lwp.bin\tasknoti.lnk ..\lwp.bin\tasktime.lnk  \
+             ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tdebug1.lnk 
+tdebug2.lnk: ..\bin\cardconv.sym ..\lwp.bin\interrup.sym ..\bin\notices.sym  \
+             ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+             ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+             ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tdebug2.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+             ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+             ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+             ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+             ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+             ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+             ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+             ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+             ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+             ..\lwp.bin\tasknoti.lnk ..\lwp.bin\tasks.lnk  \
+             ..\lwp.bin\taskspri.lnk tdebug2.lnk 
+tdebugfl.lnk: ..\bin\debugfla.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tdebugfl.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\bin\debugfla.lnk ..\lwp.bin\dosmonit.lnk  \
+              ..\bin\genconst.lnk ..\bin\i8086.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tdebugfl.lnk 
+testcard.lnk: ..\bin\cardconv.sym ..\bin\chars.sym gentesti.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testcard.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              gentesti.lnk ..\bin\i8086.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk ..\lwp.bin\system.lnk  \
+              ..\lwp.bin\taskcons.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk testio.lnk testsyst.lnk testcard.lnk 
+testcrc1.lnk: ..\bin\crc16.sym ..\bin\cardconv.sym ..\bin\progerro.sym 
+testcrc1.exe: ..\bin\crc16.lnk ..\bin\card32.lnk ..\bin\cardconv.lnk  \
+              ..\bin\chars.lnk ..\bin\dos.lnk ..\bin\i8086.lnk  \
+              ..\bin\intrinsi.lnk ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\bin\strings.lnk ..\bin\systypes.lnk testcrc1.lnk 
+testintc.lnk: gentesti.sym ..\bin\intconve.sym ..\bin\objects.sym  \
+              stringli.sym testio.sym testsyst.sym 
+testintc.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              gentesti.lnk ..\bin\i8086.lnk ..\bin\intconve.lnk  \
+              ..\bin\intrinsi.lnk ..\bin\lists.lnk ..\bin\namelist.lnk  \
+              ..\lwp.bin\notices.lnk ..\lwp.bin\objects.lnk  \
+              ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk ..\lwp.bin\system.lnk  \
+              ..\lwp.bin\taskcons.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk testio.lnk testsyst.lnk testintc.lnk 
+testio.sym: gentesti.sym 
+testio.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\progerr.sym  \
+            ..\bin\safestor.sym ..\bin\strings.sym testio.sym 
+testname.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testname.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              gentesti.lnk ..\bin\i8086.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk ..\lwp.bin\system.lnk  \
+              ..\lwp.bin\taskcons.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk testio.lnk testsyst.lnk testname.lnk 
+testreal.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\objects.sym  \
+              ..\bin\realconv.sym stringli.sym ..\bin\systypes.sym testio.sym  \
+              testsyst.sym 
+testreal.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              gentesti.lnk ..\bin\i8086.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk ..\bin\realconv.lnk  \
+              ..\lwp.bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk ..\lwp.bin\system.lnk  \
+              ..\lwp.bin\taskcons.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk testio.lnk testsyst.lnk testreal.lnk 
+teststri.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\intrinsi.sym  \
+              ..\bin\objects.sym stringli.sym ..\bin\strings.sym testio.sym  \
+              testsyst.sym 
+teststri.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              gentesti.lnk ..\bin\i8086.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk stringli.lnk ..\bin\strings.lnk  \
+              ..\bin\systypes.lnk ..\lwp.bin\system.lnk  \
+              ..\lwp.bin\taskcons.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk testio.lnk testsyst.lnk teststri.lnk 
+testsyst.sym: testio.sym 
+testsyst.lnk: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\notices.sym ..\bin\objects.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\strings.sym testio.sym testsyst.sym 
+thello.lnk: ..\bin\progerro.sym ..\lwp.bin\tasks.sym 
+thello.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+            ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+            ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\lwp.bin\objects.lnk  \
+            ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+            ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+            ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+            ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk thello.lnk 
+tint1.lnk: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+tint1.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tint1.lnk 
+tint2.lnk: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+tint2.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tint2.lnk 
+tmess1.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+            ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmess.sym  \
+            ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tmess1.exe: ..\bin\bytes.lnk ..\bin\card32.lnk ..\bin\cardconv.lnk  \
+            ..\bin\chars.lnk ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk  \
+            ..\bin\genconst.lnk ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk  \
+            ..\bin\intrinsi.lnk ..\bin\lists.lnk ..\bin\namelist.lnk  \
+            ..\lwp.bin\notices.lnk ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+            ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+            ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+            ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+            ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+            ..\lwp.bin\taskmess.lnk ..\lwp.bin\tasknoti.lnk  \
+            ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+            ..\lwp.bin\taskspri.lnk tmess1.lnk 
+tmon1.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmoni.sym  \
+           ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tmon1.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon1.lnk 
+tmon2.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon2.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon2.lnk 
+tmon3.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon3.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon3.lnk 
+tmon4.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon4.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon4.lnk 
+tmon5.lnk: ..\bin\cardconv.sym ..\bin\notices.sym ..\bin\objects.sym  \
+           ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+           ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+           ..\lwp.bin\taskinfo.sym ..\lwp.bin\taskmoni.sym  \
+           ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+           ..\lwp.bin\tasks.sym ..\lwp.bin\taskspri.sym 
+tmon5.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon5.lnk 
+tmon6.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon6.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon6.lnk 
+tmon7.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon7.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon7.lnk 
+tmon8.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon8.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon8.lnk 
+tmon9.lnk: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon9.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+           ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+           ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+           ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+           ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\lwp.bin\progerr.lnk  \
+           ..\bin\progerro.lnk ..\lwp.bin\safestor.lnk ..\bin\strings.lnk  \
+           ..\bin\systypes.lnk ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+           ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+           ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+           ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+           ..\lwp.bin\taskspri.lnk tmon9.lnk 
+tmonitor.lnk: ..\bin\intrinsi.sym ..\bin\namelist.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmoni.sym  \
+              ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+tmonitor.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+              ..\lwp.bin\taskmoni.lnk ..\lwp.bin\tasknoti.lnk  \
+              ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk tmonitor.lnk 
+tprogarg.lnk: ..\bin\cardconv.sym ..\bin\namelist.sym ..\bin\progargs.sym  \
+              ..\bin\progerro.sym 
+tprogarg.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tprogarg.lnk 
+tprogenv.lnk: ..\bin\namelist.sym ..\bin\progargs.sym ..\bin\progenvi.sym  \
+              ..\bin\progerro.sym 
+tprogenv.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\bin\lists.lnk  \
+              ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk ..\bin\progenvi.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tprogenv.lnk 
+tqstring.lnk: ..\bin\progerro.sym ..\bin\qstrings.sym ..\bin\strings.sym 
+tqstring.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\lwp.bin\objects.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk ..\bin\qstrings.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk tqstring.lnk 
+tsemapho.lnk: ..\bin\intrinsi.sym ..\bin\namelist.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\taskdebu.sym ..\lwp.bin\tasknoti.sym  \
+              ..\lwp.bin\tasksema.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+tsemapho.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+              ..\lwp.bin\tasknoti.lnk ..\lwp.bin\tasksema.lnk  \
+              ..\lwp.bin\tasktime.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk tsemapho.lnk 
+tstack.lnk: ..\lwp.bin\taskinfo.sym ..\lwp.bin\tasks.sym 
+tstack.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+            ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+            ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\lwp.bin\objects.lnk  \
+            ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+            ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+            ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+            ..\lwp.bin\taskinfo.lnk ..\lwp.bin\tasks.lnk  \
+            ..\lwp.bin\taskspri.lnk tstack.lnk 
+tsystype.lnk: ..\bin\systypes.sym 
+tsystype.exe: ..\bin\systypes.lnk tsystype.lnk 
+ttaskinf.lnk: ..\bin\objects.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\taskinfo.sym  \
+              ..\lwp.bin\tasks.sym 
+ttaskinf.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\bin\intrinsi.lnk ..\lwp.bin\objects.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\taskinfo.lnk ..\lwp.bin\tasks.lnk  \
+              ..\lwp.bin\taskspri.lnk ttaskinf.lnk 
+ttasktim.lnk: ..\bin\cardconv.sym ..\bin\notices.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\strings.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+              ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+ttasktim.exe: ..\bin\card32.lnk ..\bin\cardconv.lnk ..\bin\chars.lnk  \
+              ..\bin\dos.lnk ..\lwp.bin\dosmonit.lnk ..\bin\genconst.lnk  \
+              ..\bin\i8086.lnk ..\lwp.bin\interrup.lnk ..\bin\intrinsi.lnk  \
+              ..\bin\lists.lnk ..\bin\namelist.lnk ..\lwp.bin\notices.lnk  \
+              ..\lwp.bin\objects.lnk ..\bin\progargs.lnk  \
+              ..\lwp.bin\progerr.lnk ..\bin\progerro.lnk  \
+              ..\lwp.bin\safestor.lnk ..\bin\strings.lnk ..\bin\systypes.lnk  \
+              ..\lwp.bin\system.lnk ..\lwp.bin\taskcons.lnk  \
+              ..\lwp.bin\taskdebu.lnk ..\lwp.bin\taskinfo.lnk  \
+              ..\lwp.bin\tasknoti.lnk ..\lwp.bin\tasktime.lnk  \
+              ..\lwp.bin\tasks.lnk ..\lwp.bin\taskspri.lnk ttasktim.lnk 

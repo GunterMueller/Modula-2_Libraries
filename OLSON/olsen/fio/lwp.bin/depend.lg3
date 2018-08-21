@@ -1,0 +1,16 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+convertf.mod: ..\shared.src\convertf.mpp 
+	${StandardM2pp}
+errorfio.mod: ..\shared.src\errorfio.mpp 
+	${StandardM2pp}
+fioscree.mod: ..\shared.src\fioscree.mpp 
+	${StandardM2pp}
+simplefi.mod: ..\shared.src\simplefi.mpp 
+	${StandardM2pp}

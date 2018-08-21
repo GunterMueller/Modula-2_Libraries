@@ -1,0 +1,79 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE BinarySupportIO;
+(*
+ * Some utilities which are built upon BinaryIO.
+ *
+ * Right now this only supports copying, but in the future, expect
+ * things like file searches (possibly with regular expressions).
+ *
+ * This module should be named BinaryIOSupport, but it would have
+ * on the PC the same name as BinaryIO (file names are only eight
+ * characters long).
+ *)
+IMPORT
+    BinaryIO,
+    DirIO,
+    IOErrors;
+
+EXPORT QUALIFIED
+    Copy,
+    CopyObject;
+
+PROCEDURE Copy(
+    source     : ARRAY OF CHAR;     (* File to be copied *)
+    dest       : ARRAY OF CHAR;     (* Where to copy *)
+    createMode : DirIO.CreateModes  (* Whether to overwrite dest if exists *)
+    )          : IOErrors.Errors;   (* Success => "IOErrors.ok" *)
+    (*
+     * Copies the source file to the destination as a binary file,
+     * the names of the files are given.
+     *
+     * Errors:
+     *     If "source" doesn't exist, "IOErrors.notFound" is returned.
+     *     If the "dest" exits and "createMode" is "DirIO.mustBeNewPath"
+     *     "IOErrors.alreadyExists" is returned.
+     *
+     *     If the "dest" was modified, it will be deleted (in the event
+     *     of an error).
+     *)
+
+PROCEDURE CopyObject(
+    source : BinaryIO.Object;  (* File to be copied, readable *)
+    dest   : BinaryIO.Object   (* Where to copy, writable *)
+    )      : IOErrors.Errors;  (* Success => "IOErrors.ok" *)
+    (*
+     * Copies the source file to the destination as a binary file,
+     * the objects of the files are given.
+     *
+     * The objects must be valid, but the copy starts in the current 
+     * positions in both files. The files are left open after the
+     * call, they must thus be closed by the importer.
+     * 
+     * Errors:
+     *     The error returned is for the first file that got an error,
+     *     thus the importer must check both files to see which is in
+     *     an error state.
+     *)
+    
+END BinarySupportIO.

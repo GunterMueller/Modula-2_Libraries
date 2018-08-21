@@ -1,0 +1,116 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ProgEnviron;
+(*
+ * Sun implementation.   We just use the "getenv" for GetValue and
+ * we have to search the environment explicitly for ListNames.
+ *)
+IMPORT
+    Bytes,
+    SYSTEM,
+    NameLists,
+    SysTypes,
+    UnixCenviron,
+    UnixCtypes;
+
+PROCEDURE GetValue(
+        nameOfValue : ARRAY OF CHAR;
+    VAR value       : Value
+    )               : BOOLEAN;
+    VAR
+	ptr      : UnixCtypes.p_char;
+	DONTCARE : SysTypes.Card;
+    BEGIN (* GetValue *)
+	
+	(* 
+	 * Thanx to the magic of always nil terminating arrays passed
+	 * on the stack, we don't have to do much!
+	 *)
+	ptr := UnixCenviron.getenv( nameOfValue );
+	IF ptr = NIL THEN
+	    RETURN FALSE;
+	END;
+
+	DONTCARE := Bytes.CopyAsString( ptr, HIGH( value ) + 1,
+				SYSTEM.ADR( value ), HIGH( value ) + 1 );
+	RETURN TRUE;
+    END GetValue;
+
+
+PROCEDURE ListNames(
+    names : NameLists.Object
+    );
+    (* 
+     * The UnixCenviron.environ table is already chopped up.  All we
+     * have to do is copy strings until we find "=" as defined by
+     * the structure of the environments.
+     *)
+    VAR
+	namePtr    : UnixCtypes.p_char;
+	nameIndex  : SysTypes.Card;
+	name       : Name;
+	tablePtr   : UnixCtypes.pp_char;
+	tableIndex : SysTypes.Card;
+	ch         : CHAR;
+    BEGIN (* ListNames *)
+
+	tablePtr := UnixCenviron.environ;	(* 2-D table of strings *)
+
+	tableIndex := 0;
+	LOOP
+	    namePtr := tablePtr^[ tableIndex ];
+	    IF namePtr = NIL THEN
+		EXIT;
+	    END;
+
+	    nameIndex := 0;
+	    LOOP
+		(* 
+		 * Copy characters into name from namePtr until we
+		 * run out of space or we find the '=' or we hit 0C.
+		 *)
+		ch := namePtr^[ nameIndex ];
+		IF ( ch = '=' ) OR ( ch = 0C ) THEN
+		    name[ nameIndex ] := 0C;
+		    EXIT;
+		END;
+		name[ nameIndex ] := ch;
+
+		(* Do we have any more room? *)
+		INC( nameIndex );
+		IF nameIndex > HIGH( name ) THEN
+		    EXIT;	(* Out of copy space *)
+		END;
+
+	    END; (* LOOP through a name *)
+
+	    (* Put the found name in the list *)
+	    NameLists.Insert( names, name, NameLists.DONTCARE );
+
+	    INC( tableIndex );	(* Go to the next name *)
+
+	END; (* LOOP through names *)
+
+    END ListNames;
+
+END ProgEnviron.

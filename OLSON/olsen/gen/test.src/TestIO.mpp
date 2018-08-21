@@ -1,0 +1,252 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TestIO; 
+
+IMPORT 
+    SYSTEM, SafeStorage, Strings, ProgErr, GenTestIO, CardConvert;
+@IF SUN THEN
+    IMPORT
+	TestDate, UnixCsys_time;
+@END (* SUN *)
+
+CONST
+    TERMINATOR = 0C;
+
+TYPE
+    CharType = ARRAY[0..1] OF CHAR;
+CONST
+    maxLineLength = 256;	(* set to maximum length of all files *)
+TYPE
+    Line          = ARRAY[ 0 .. maxLineLength ] OF CHAR;
+
+(* Procs:   *)
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE Write( file: GenTestIO.File; string: ARRAY OF CHAR );
+
+    BEGIN
+	IF NOT GenTestIO.Write( file, string ) THEN
+	     ProgErr.Terminate( MsgTab[ CantWrite ] );  
+        END;
+
+    END Write;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteLn( file: GenTestIO.File );
+
+    BEGIN
+	IF NOT GenTestIO.WriteLn( file ) THEN
+	     ProgErr.Terminate( MsgTab[ CantWrite ] );  
+        END;
+
+    END WriteLn; 
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteChar( file: GenTestIO.File; Ch: CHAR );
+
+    VAR
+	Char: CharType; 
+
+    BEGIN
+	Char[0]:= Ch;
+	Char[1]:= TERMINATOR;
+	Write( file, Char );
+
+    END WriteChar;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteResult( comment, string: ARRAY OF CHAR );
+
+    BEGIN
+	Write( GenTestIO.GetErrOutput(), comment );
+	Write( GenTestIO.GetErrOutput(), "  '" );
+	Write( GenTestIO.GetErrOutput(), string );
+	WriteChar( GenTestIO.GetErrOutput(), "'" );
+	WriteLn( GenTestIO.GetErrOutput() );
+
+    END WriteResult;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteSeparator( string: ARRAY OF CHAR );
+
+    VAR
+	File: GenTestIO.File;
+
+    BEGIN
+	IF GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN
+	    File:= GenTestIO.GetOutput()
+	ELSE
+	    File:= GenTestIO.GetErrOutput()
+        END;
+	Write( File, string );
+	WriteLn( File );
+
+    END WriteSeparator;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteTail( file: GenTestIO.File; string: ARRAY OF CHAR );
+
+    VAR
+	Length, Index: CARDINAL;
+	Line: ARRAY[ 0..80 ] OF CHAR;
+
+    BEGIN 
+	Length:= Strings.Length( string );
+	IF Length = 0 THEN
+	    RETURN;
+	END;
+	FOR Index:= 0 TO Length - 1 DO
+	    Line[ Index ]:= "=";
+	END;
+	Line[ Index + 1 ]:= TERMINATOR; 
+	Write( file, Line );
+	WriteLn( file );
+	Write( file, string );
+	WriteLn( file );
+	Write( file, Line );
+	WriteLn( file );
+
+    END WriteTail;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE WriteLogHeader( string: ARRAY OF CHAR );
+
+    VAR
+	High, Index: CARDINAL;
+	HeaderLine: ARRAY[ 0..80 ] OF CHAR;
+	@IF SunOS THEN
+	    TimeVal: UnixCsys_time.timeval;
+	    TimeZone: UnixCsys_time.timezone;
+	    DatePtr: TestDate.datePtr;
+	@END (* SunOS *)
+
+    BEGIN
+	High:= Strings.Length( string ) - 1;
+	FOR Index:= 0 TO High + 24 DO
+	    HeaderLine[ Index ]:= "*";
+	END;
+	HeaderLine[ Index + 1 ]:= TERMINATOR; 
+	@IF SunOS THEN
+	    SafeStorage.ALLOCATE( TimeVal, 
+			SYSTEM.TSIZE( UnixCsys_time.struct_timeval ) );
+	    SafeStorage.ALLOCATE( TimeZone, 
+			SYSTEM.TSIZE( UnixCsys_time.struct_timezone ) );
+	    IF UnixCsys_time.gettimeofday( TimeVal, TimeZone ) = 0 THEN
+		DatePtr:= TestDate.ctime( TimeVal );
+	    ELSE
+		Write( GenTestIO.GetErrOutput(), 
+			  "Couldn't get the date" ); 
+		WriteLn( GenTestIO.GetErrOutput() );
+	    END;
+	@END (* SunOS *)
+        Write( GenTestIO.GetErrOutput(), HeaderLine );	
+	WriteLn( GenTestIO.GetErrOutput() );
+        Write( GenTestIO.GetErrOutput(), HeaderLine );	
+	WriteLn( GenTestIO.GetErrOutput() );
+	Write( GenTestIO.GetErrOutput(), string );
+	@IF SunOS THEN
+	    Write( GenTestIO.GetErrOutput(), DatePtr^ ); 
+	@ELSE
+	    Write( GenTestIO.GetErrOutput(), "not available." ); 
+	@END (* SunOS *)
+	WriteLn( GenTestIO.GetErrOutput() );
+        Write( GenTestIO.GetErrOutput(), HeaderLine );	
+	WriteLn( GenTestIO.GetErrOutput() );
+        Write( GenTestIO.GetErrOutput(), HeaderLine );	
+	WriteLn( GenTestIO.GetErrOutput() );
+
+END WriteLogHeader;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE AssignMessage( MessageNr: ErrMsg; Message: ARRAY OF CHAR );
+
+    BEGIN
+	Strings.Assign( Message, MsgTab[ MessageNr ] );
+
+    END AssignMessage;
+
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE DisplayMessage( file: GenTestIO.File; Msg: ErrMsg );
+
+    BEGIN
+        Write( file, MsgTab[ Msg ] );
+	WriteLn( file );
+	
+    END DisplayMessage;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE CrashWithMessage( Msg: ErrMsg );
+
+    BEGIN
+        DisplayMessage( GenTestIO.GetOutput(), Msg );
+	ProgErr.Terminate( " " );
+
+    END CrashWithMessage;
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE GetString( VAR string: ARRAY OF CHAR; Name: ARRAY OF CHAR; 
+		     VAR Msg: ErrMsg ): BOOLEAN; 
+		    
+    VAR
+	line : Line;
+    BEGIN 
+	Write( GenTestIO.GetErrOutput(), Name ); 
+	IF GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN
+	   WriteLn( GenTestIO.GetErrOutput() );
+	   Write( GenTestIO.GetErrOutput(), "  --> " );
+        ELSE
+	    Write( GenTestIO.GetErrOutput(), ": " ); 
+        END; 
+	(*
+	 * Have to read the "full" line and then assign to the string
+	 * passed in.
+	 *)
+	IF GenTestIO.Read( GenTestIO.GetInput(), line ) THEN
+	    IF NOT GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN 
+		Write( GenTestIO.GetErrOutput(), line );
+		WriteLn( GenTestIO.GetErrOutput() );
+	    END;		
+	ELSE
+	    Msg:= EOF;
+	    RETURN FALSE;
+	END;
+	Strings.Assign( line, string );	(* truncate the value *)
+	RETURN TRUE;
+
+    END GetString; 
+(* ----------------------------------------------------------------------- *) 
+PROCEDURE GetCard( VAR Card: CARDINAL; Name: ARRAY OF CHAR;
+		   VAR Msg: ErrMsg ): BOOLEAN;
+
+    VAR
+	CardStr: ARRAY[ 0..20 ] OF CHAR;
+
+    BEGIN
+        IF NOT GetString( CardStr, Name, Msg ) THEN
+	    RETURN FALSE
+        END;
+	IF NOT CardConvert.FromString( CardStr, 10, Card ) THEN
+	    Msg:= RIP;
+	    RETURN FALSE
+        END;
+	RETURN TRUE;
+
+    END GetCard;
+(* ----------------------------------------------------------------------- *) 
+BEGIN
+    AssignMessage( NullMessage, "" ); 
+    AssignMessage( EOF, "End of file" ); 
+    AssignMessage( CantWrite, "write failed" ); 
+    AssignMessage( RIP, "RIP "  ); 
+    
+END TestIO.

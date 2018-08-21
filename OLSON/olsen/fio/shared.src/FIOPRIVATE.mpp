@@ -1,0 +1,728 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOPRIVATE;
+(* 
+ * Implements the reading and writing routines.  The procedure
+ * FormatScan is the critical piece of code, because it supports
+ * the format scan parsing.  Read and Write just iteratively 
+ * eat away at the format with FormatScan and then lookup the
+ * procedures based on the commands found in the format.
+ *
+ * Initialization is done inside of FIOBase since it must handle
+ * circular import problems.
+ *)
+IMPORT 
+    ConfFIO,
+    FIOBase,
+    FormatIO,
+    IOErrors,
+    Intrinsics,
+    NameLists,
+    ModInit,	(* MUST BE HERE -- See ModInit *)
+    Objects,
+    Strings,
+    StringIO,
+    SysTypes,
+    TextIO;
+
+@IF Debug THEN 
+    IMPORT
+	ProgErr,	ProgErrOutput;
+@END (* Debug *) 
+
+TYPE
+    StringKind   = ( textLiteral, 	(* Text literal found *)
+		     command, 		(* Command found *)
+		     empty, 		(* Format string is empty *)
+		     error );		(* Syntax error *)
+
+PROCEDURE FormatScan(
+    VAR format : ARRAY OF CHAR;
+    VAR field  : ARRAY OF CHAR
+    )          : StringKind;
+    (*
+     * Scan the format string and locate the next text literal or the next
+     * command surrounded by command delimiters.  If the StringKind is
+     * a command, then the trailing delimiter is deleted and the leading
+     * beginCommand is removed.  For commands, escape characters are left
+     * in the format string.  For textLiterals, all escape characters are 
+     * stripped.  
+     * 
+     * Supports nested format specifiers, e.g. [Vectors,F[Real,w5]].
+     *
+     * errors detected: 
+     *    empty format string
+     *    command string lacking trailing delimiter.
+     *    escape characters without a following character.
+     *)
+    CONST
+	errorPreamble = "FormatIO: format '";
+	openEscape   = "' ends with an escape character.";
+	openCmd      = "' ends in the middle of a command.";
+    VAR
+	termCh          : CHAR;
+	formatLen       : SysTypes.Card;
+	fieldLen        : SysTypes.Card;
+	stringKind      : StringKind;
+	formatIndex     : SysTypes.Card;
+	nestingLevel    : SysTypes.Card;	(* 0 ==> end of format *)
+    BEGIN (* FormatScan *)
+
+	formatLen := Strings.Length( format );
+	IF formatLen = 0 THEN
+	    RETURN empty;
+	END;
+
+	(* 
+	 * Figure out the type of format string this is.  If it
+	 * begins with anything but FIOBase.beginCommand, then the
+	 * string must be a literal.
+	 *)
+
+	IF format[ 0 ] # FIOBase.beginCommand THEN
+	    (* 
+	     * We know it is a literal, but we don't know if the
+	     * first character is an escape.
+	     *)
+	    stringKind   := textLiteral;
+	    termCh       := FIOBase.beginCommand;
+	    formatIndex  := 0;
+	    nestingLevel := 0;	(* Irrelevant *)
+	ELSE
+	    stringKind   := command;
+	    termCh       := FIOBase.endCommand;
+	    formatIndex  := 1;
+	    nestingLevel := 1;
+	END;
+
+	fieldLen := 0;
+	LOOP
+	    (*
+	     * Scan the string until we find the termination character,
+	     * taking into account escapes.
+	     *)
+	    IF format[ formatIndex ] = termCh THEN
+		(* Found the termination character *)
+		IF stringKind = textLiteral THEN
+		    DEC( formatIndex );	(* don't delete beginCommand *)
+		    EXIT;
+		END;
+		DEC( nestingLevel );
+		IF nestingLevel = 0 THEN
+		    EXIT;
+		END;
+	    END;
+
+	    IF format[ formatIndex ] = FIOBase.beginCommand THEN
+		(* 
+		 * Add another level to the nesting.  Note that
+		 * we only get here if the string is a command.
+		 *)
+		INC( nestingLevel );
+
+	    ELSIF format[ formatIndex ] = FIOBase.escapeChar THEN
+		IF stringKind # textLiteral THEN
+		    (* Only return escapes for command strings *)
+		    field[ fieldLen ] := FIOBase.escapeChar;
+		    INC( fieldLen );
+		END;
+		INC( formatIndex );	(* skip escape char *)
+		IF formatIndex >= formatLen THEN
+		    @IF Debug THEN
+			IF ConfFIO.TerminateOnErrors() THEN
+			    ProgErrOutput.WriteString( errorPreamble );
+			    ProgErrOutput.WriteString( format );
+			    ProgErr.Terminate( openEscape );
+			END;
+		    @END (* Debug *)
+		    RETURN error;	(* Must be followed by a char! *)
+		END;
+	    END;
+
+	    (* Return the character in the field. *)
+	    field[ fieldLen ] := format[ formatIndex ];
+
+	    INC( fieldLen );
+	    INC( formatIndex );
+	    IF formatIndex >= formatLen THEN
+		(* 
+		 * Scanned past end of "format" string. If we were 
+		 * parsing a command, then it must end in endCommand.
+		 *)
+		IF stringKind = command THEN
+		    @IF Debug THEN
+			IF ConfFIO.TerminateOnErrors() THEN
+			    ProgErrOutput.WriteString( errorPreamble );
+			    ProgErrOutput.WriteString( format );
+			    ProgErr.Terminate( openCmd );
+			END;
+		    @END (* Debug *)
+		END;
+		EXIT;
+	    END;
+	END; (* LOOP *)
+
+	IF fieldLen <= HIGH( field ) THEN
+	    field[ fieldLen ] := 0C;	(* null terminate *)
+	END;
+
+	(* Get rid of the stuff *)
+	Strings.Delete( format, Strings.BOS, formatIndex );
+
+	RETURN stringKind;	(* Only get here for text literals *)
+
+    END FormatScan;
+
+
+@IF Debug THEN
+    (*
+     * The following section of code is used to print out pretty
+     * error messages when FormatIO is passed an illegal parameter.
+     * The parameters
+     *)
+    TYPE
+	ErrorCodes = ( 
+	    notSyntaxError,  	(* syntax is ok, some other error *)
+	    emptyCommand,	(* cmdName must be non-zero in length *)
+	    unknownCommand, 	(* cmdName is not in name list *)
+	    tooFewArgs,	  	(* Command requires argument *)
+	    tooManyArgs,	(* Format string didn't have enough commands *)
+	    invalidArgSize,	(* Argument size is incorrect *)
+	    badParameter,	(* Operation returned with this error *)
+	    badPromptFile	(* Only on prompted reads. *)
+	);
+    PROCEDURE ParameterError(
+        file      : TextIO.Object;
+	errorCode : ErrorCodes;
+	readWrite : ARRAY OF CHAR;
+	cmdName   : ARRAY OF CHAR;
+	format    : ARRAY OF CHAR;
+	argIndex  : SysTypes.Card
+        );
+	(*
+	 * Print a pretty error message based on the errorCode and
+	 * then terminate the caller.
+	 *)
+	VAR
+	    DONTCARE     : TextIO.States;
+	    outputFile   : TextIO.Object;
+	BEGIN (* ParameterError *)
+
+	    (* Make sure we have an "error" to print *)
+	    IF TextIO.GetState( file ) # TextIO.error THEN
+		DONTCARE := TextIO.SetError( file, IOErrors.badParameter );
+	    END;
+	    TextIO.PrintErrorMessage( file, '' );
+
+	    outputFile := TextIO.GetErrorOutput();
+	    DONTCARE := FormatIO.Write4( outputFile,
+                "Command '[String]'  Modifier '[String]'  Argument #[Card].[NL]FormatIO.[String]: ",
+	      cmdName, format, argIndex, readWrite );
+
+	    CASE errorCode OF
+		(* noSyntaxError: shouldn't happen -->  case error *)
+		emptyCommand:
+		    ProgErr.Terminate( "Command string is empty." );
+		|
+		unknownCommand:
+		    ProgErr.Terminate( "Unknown command." );
+		|
+		tooFewArgs:
+		    ProgErr.Terminate( "Command requires argument." );
+		|
+		tooManyArgs:
+		    ProgErr.Terminate( "No command for this argument." );
+		|
+		invalidArgSize:
+		    ProgErr.Terminate( 
+		       "Command expects a different argument." );
+		|
+		badParameter:
+		    ProgErr.Terminate( 
+		       "Incorrect modifier or argument for command." );
+		|
+		badPromptFile:
+		    ProgErr.Terminate( "Prompt file invalid." );
+	    END; (* CASE *)
+
+	END ParameterError;
+@END (* Debug *)
+
+
+PROCEDURE Write(
+              file      : TextIO.Object;
+    (*IN*)VAR format    : ARRAY OF CHAR;
+	      tmpFormat : ARRAY OF CHAR;
+              argsPtr   : ArgumentsPtr
+    )                   : TextIO.States;
+    (* 
+     * Parses the format string, printing literals when found and
+     * looking up commands otherwise.  This procedure is called with an
+     * "ArgumentsPtr", please see the definition of ArgumentsPtr for
+     * details on parameter passing rules.  Note that we only pick
+     * up a new argPtr when we "consume" the current argPtr.
+     * FormatScan does most of the parsing work.  
+     * Note that EXIT from the loop means failure.
+     *
+     * NOTE: tmpFormat and format must be the same string!
+     *)
+    VAR
+	cmdName   : FIOBase.CommandName;
+	fioPtr    : WriteRecordPtr;
+	argIndex  : SysTypes.Card;
+	argPtr    : SysTypes.SAUPTR;
+	argSize   : SysTypes.Card;
+	state     : TextIO.States;
+	@IF Debug THEN
+	    errorCode : ErrorCodes;
+	@END (* Debug *)
+
+    BEGIN (* Write *)
+
+	@IF Debug THEN
+	    errorCode := notSyntaxError;
+	@END (* Debug *)
+
+	WITH argsPtr^[ 1 ] DO
+	    argPtr   := ptr;
+	    argSize  := size;
+	END;
+	argIndex := 1;	(* always points to current *)
+	LOOP  
+	    (* 
+	     * Process the string until we "consume" all of the argsPtr values
+	     * which are non-NIL or until the end of the format string.  If 
+	     * the argPtr is NIL, then we shouldn't find a command.
+	     *)
+	    CASE FormatScan( format, tmpFormat ) OF
+
+		textLiteral: 
+		    (* Do the write and check the result *)
+		    IF StringIO.Write( file, tmpFormat ) = TextIO.error 
+		      THEN RETURN TextIO.error;
+		    END;
+		|
+		command: 
+		    (* 
+		     * Place temporary string terminator in middle of string,
+		     * so we can pass only the command name to NameLists.
+		     * Note that commands always have trailing delimiter
+		     * so we can replace them with a 0C.
+		     *)
+		    IF NOT FIOBase.GetString( tmpFormat, cmdName ) THEN
+			@IF Debug THEN
+			    cmdName[ 0 ] := 0C;	(* pretty output *)
+			    errorCode := emptyCommand;
+			@END (* Debug *)
+			EXIT;
+		    END;
+		    IF NOT NameLists.Find( writeList, 
+					   cmdName, fioPtr) THEN
+			@IF Debug THEN
+			    errorCode := unknownCommand;
+			@END (* Debug *)
+			EXIT;
+		    END;
+
+		    WITH fioPtr^ DO
+
+			(* Are expecting a parameter? *)
+			IF expectedSize = FIOBase.noParameter THEN
+			    (* Call the function without a parameter *)
+			    state := writeProc( importerObject,
+						file, tmpFormat, NIL, 0 );
+			ELSE
+			    (* 
+			     * Command requires a parameter, but do we 
+			     * have a parameter to pass off? 
+			     *)
+			    IF argPtr = NIL THEN
+				@IF Debug THEN
+				    errorCode := tooFewArgs;
+				@END (* Debug *)
+				EXIT; 	(* Parameter missing *)
+			    END;
+
+			    (* If we have to size check, is it ok? *)
+			    IF ( expectedSize # FIOBase.noSizeCheck ) AND 
+			       ( expectedSize # argSize ) THEN
+				@IF Debug THEN
+				    errorCode := invalidArgSize;
+				@END (* Debug *)
+				EXIT;	(* Invalid size *)
+			    END;
+
+			    (* 
+			     * Do the operation which consumes the
+			     * current "argPtr".  If failure, return 
+			     * immediately.
+			     *)
+			    state := writeProc( importerObject,
+						file, tmpFormat, argPtr, 
+						argSize );
+			    (* We don't need to range check (NIL guaranteed) *)
+			    INC( argIndex );	(* Always points to current *)
+			    WITH argsPtr^[ argIndex ] DO
+				argPtr   := ptr;
+				argSize  := size;
+			    END;
+			    @IF Debug THEN
+				IF state = TextIO.error THEN
+				    (* Point to correct argument number *)
+				    DEC( argIndex );
+				END;
+			    @END (* Debug *)
+			END;
+		    END; (* WITH *)
+
+		    IF state = TextIO.error THEN
+			@IF Debug THEN
+			    IF TextIO.GetError( file ) = IOErrors.badParameter
+			      THEN 
+				errorCode := badParameter;
+				EXIT;	(* Always ok to exit *)
+			    END;
+			@END (* Debug *)
+			RETURN TextIO.error;
+		    END;
+		| 
+		empty: 
+		    (* Anything expected? *)
+		    IF argPtr = NIL THEN
+			RETURN TextIO.ok;
+		    END;
+		    @IF Debug THEN
+			errorCode := tooManyArgs;
+			cmdName[ 0 ]   := 0C;   (* For pretty printing *)
+			tmpFormat[ 0 ] := 0C;
+		    @END (* Debug *)
+		    EXIT;	(* Error *)
+		|
+		error: 
+		    (* Don't get here if Debug is turned on and termError *)
+		    EXIT;
+	    END; (* CASE *)
+
+	END; (* LOOP *)
+
+	@IF Debug THEN
+	    IF ( errorCode # notSyntaxError ) AND ConfFIO.TerminateOnErrors() 
+	      THEN 
+	      ParameterError( file, errorCode, "Write",
+			      cmdName, tmpFormat, argIndex );
+	    END;
+	@END (* Debug *)
+
+	(* Some type of parsing error *)
+	RETURN TextIO.SetError( file, IOErrors.badParameter );
+
+    END Write;
+   
+
+(* 
+ * start reads 
+ *)
+PROCEDURE VerifyLiteral(
+    inFile  : TextIO.Object;
+    literal : ARRAY OF CHAR
+    )       : TextIO.States;
+    (* 
+     * Make sure the file contains the specified literal (char for char).
+     * MUST be called with literal which is non-zero length.  A zero
+     * length literal will be treated as verifying the null character.
+     *)
+    VAR
+	length  : SysTypes.Card;
+	i       : SysTypes.Card;
+	ch      : CHAR;
+	state   : TextIO.States;
+    BEGIN (* VerifyLiteral *)
+
+	length := Strings.Length( literal );
+	IF length = 0 THEN
+	    (* 0C is the literal *)
+	    length := 1;
+	END;
+
+	i := 0;
+	LOOP
+	    CASE TextIO.Read( inFile, ch ) OF
+		TextIO.ok:
+		    IF ch # literal[ i ] THEN
+			EXIT;	(* Failed match *)
+		    END;
+		| 
+		TextIO.error:
+		    RETURN TextIO.error;
+		|
+		TextIO.endOfFile:
+		    IF i = 0 THEN
+			RETURN TextIO.endOfFile;
+		    END;
+		    RETURN TextIO.SetError( inFile, IOErrors.readPastEOF );
+		|
+		TextIO.endOfLine:
+		    EXIT;	(* We didn't get what we expected *)
+	    END; (* CASE *)
+
+	    INC( i );
+	    IF i >= length THEN
+		RETURN TextIO.ok;
+	    END;
+	END; (* LOOP *)
+
+	(* Reset the funky character or state *)
+	IF TextIO.UndoRead( inFile ) = TextIO.error THEN
+	    RETURN TextIO.error;
+	END;
+
+	RETURN TextIO.SetError( inFile, IOErrors.badData );
+
+    END VerifyLiteral;
+
+
+PROCEDURE Read(
+      inFile      : TextIO.Object;
+      format      : ARRAY OF CHAR;  (* can't be VAR because of Prompt *)
+      tmpFormat   : ARRAY OF CHAR;  (* ditto *)
+      argsPtr     : ArgumentsPtr;
+      issuePrompt : BOOLEAN;
+      promptFile  : TextIO.Object
+      )		  : TextIO.States;
+    (*
+     * Parses the format string, verifying literals when found and
+     * looking up commands otherwise.  This procedure is called with an
+     * "ArgumentsPtr", please see the definition of ArgumentsPtr for
+     * details on parameter passing rules.  Note that we only pick
+     * up a new argPtr when we "consume" the current argPtr.
+     *
+     * FormatScan does most of the parsing work.  
+     * Note that EXIT from the loop means failure.
+     *
+     * NOTE: tmpFormat and format must be the same string!
+     *)
+    CONST
+	badLiteral = "Expecting string '[String]'.[NL]";
+    VAR
+	cmdName  : FIOBase.CommandName;
+	fioPtr   : ReadRecordPtr;
+	state    : TextIO.States;
+	argIndex : SysTypes.Card;
+	argPtr   : SysTypes.SAUPTR;
+	argSize  : SysTypes.Card;
+	readDone : BOOLEAN;	(* To maintain proper read semantics,
+				   should never return eof if a partial read *)
+	@IF Debug THEN
+	    errorCode : ErrorCodes;
+	@END (* Debug *)
+    BEGIN (* Read *)
+
+	WITH argsPtr^[ 1 ] DO
+	    argPtr   := ptr;
+	    argSize  := size;
+	END;
+	argIndex := 1;
+	readDone := FALSE;
+	LOOP  
+	    (* 
+	     * Process the string until we "consume" all of the argsPtr or until
+	     * the end of the format string.  If the argPtr is NIL, then
+	     * we shouldn't find a command.
+	     *)
+	    CASE FormatScan( format, tmpFormat ) OF
+
+		textLiteral: 
+		    (* 
+		     * Have to verify that the literal matches the
+		     * input exactly.
+		     *)
+		    CASE VerifyLiteral( inFile, tmpFormat ) OF
+			TextIO.ok:	(* everything is kosher *)
+			|
+			TextIO.error:
+			    (* 
+			     * When we get a bad literal, it is best
+			     * if we redo the whole string, because it
+			     * probably doesn't make sense otherwise.
+			     * The prompting is probably stupid, but ....
+			     *)
+			    IF issuePrompt AND ( FormatIO.Write1( promptFile, 
+				badLiteral, tmpFormat ) # TextIO.ok ) THEN 
+				 RETURN TextIO.SetError( inFile,
+						 IOErrors.badParameter );
+			    END;
+			    RETURN TextIO.error;
+			|
+			TextIO.endOfFile:
+			    (* 
+			     * EOF must be "exactly" hit.
+			     *)
+			    IF readDone THEN
+				RETURN TextIO.SetError( inFile, 
+						IOErrors.readPastEOF );
+			    END;
+			    RETURN TextIO.endOfFile;
+		    END;
+		|
+		command: 
+		    (* 
+		     * Strip off our command name and then lookup the name.
+		     *)
+		    IF NOT FIOBase.GetString( tmpFormat, cmdName ) THEN
+			@IF Debug THEN
+			    cmdName[ 0 ] := 0C;	(* pretty output *)
+			    errorCode := emptyCommand;
+			@END (* Debug *)
+			EXIT;
+		    END;
+		    IF NOT NameLists.Find( readList, 
+					   cmdName, fioPtr ) THEN
+			@IF Debug THEN
+			    errorCode := unknownCommand;
+			@END (* Debug *)
+			EXIT;
+		    END;
+
+		    WITH fioPtr^ DO
+
+			(* Are expecting a parameter? *)
+			IF expectedSize = FIOBase.noParameter THEN
+			    (* Call the function without a parameter *)
+			    state := readProc( importerObject,
+					       inFile, tmpFormat, NIL, 0, 
+					       issuePrompt, promptFile );
+			ELSE
+			    (* 
+			     * Command requires a parameter, but do we 
+			     * have a parameter to pass off? 
+			     *)
+			    IF argPtr = NIL THEN
+				@IF Debug THEN
+				    errorCode := tooFewArgs;
+				@END (* Debug *)
+				EXIT; 	(* Parameter missing *)
+			    END;
+
+			    (* If we have to size check, is it ok? *)
+			    IF ( expectedSize # FIOBase.noSizeCheck ) AND 
+			       ( expectedSize # argSize ) THEN
+				@IF Debug THEN
+				    errorCode := invalidArgSize;
+				@END (* Debug *)
+				EXIT;	(* Invalid size *)
+			    END;
+
+			    (* Do the operation *)
+			    state := readProc( importerObject,
+				   inFile, tmpFormat, argPtr, 
+				   argSize, issuePrompt, promptFile );
+
+			    (* Move to the next argument *)
+			    INC( argIndex );	(* always points to current *)
+			    WITH argsPtr^[ argIndex ] DO
+				argPtr  := ptr;
+				argSize := size;
+			    END;
+			    @IF Debug THEN
+				IF state = TextIO.error THEN
+				    (* 
+				     * Even if we are prompting, we can
+				     * adjust the argIndex here.
+				     *)
+				    DEC( argIndex );
+				END;
+			    @END (* Debug *)
+			END;
+		    END; (* WITH *)
+
+		    (* Some type of read was done *)
+		    CASE state OF
+			TextIO.ok:	(* everything is kosher *)
+			|
+			TextIO.endOfLine:
+			    (* Should never get end-of-line *)
+			    RETURN TextIO.SetError( inFile, 
+						    IOErrors.badData );
+			|
+			TextIO.error:
+			    @IF Debug THEN
+				IF TextIO.GetError( inFile ) 
+				   = IOErrors.badParameter THEN
+				    errorCode := badParameter;
+				    EXIT;	(* Have to set error below *)
+				END;
+				RETURN TextIO.error;
+			    @END (* Debug *)
+			|
+			TextIO.endOfFile:
+			    (* 
+			     * EOF must be "exactly" hit.
+			     *)
+			    IF readDone THEN
+				RETURN TextIO.SetError( inFile, 
+						IOErrors.readPastEOF );
+			    END;
+			    RETURN TextIO.endOfFile;
+		    END; (* CASE *)
+		| 
+		empty: 
+		    IF argPtr = NIL THEN
+			RETURN TextIO.ok;
+		    END;
+		    @IF Debug THEN
+			errorCode := tooManyArgs;
+			cmdName[ 0 ]   := 0C;	(* For pretty printing *)
+			tmpFormat[ 0 ] := 0C;
+		    @END (* Debug *)
+		    EXIT;	(* Error *)
+		|
+		error: 
+		    (*  
+		     * We don't put debugging in here, because we would
+		     * have crashed in the format scanner.
+		     *)
+		    EXIT;
+	    END; (* CASE *)
+
+	    readDone := TRUE;	(* Something was read *)
+
+	END; (* LOOP *)
+
+	@IF Debug THEN
+	    IF ( errorCode # notSyntaxError ) AND ConfFIO.TerminateOnErrors() 
+	      THEN 
+		IF ( errorCode = badParameter ) AND issuePrompt AND 
+		    ( TextIO.GetState( promptFile ) # TextIO.ok ) THEN
+		    errorCode := badPromptFile;
+	        END;
+	        ParameterError( inFile, errorCode, "Read", cmdName, 
+				tmpFormat, argIndex );
+	    END;
+	@END (* Debug *)
+
+	(* Some type of parsing error *)
+	RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+   END Read;
+
+END FIOPRIVATE.
+

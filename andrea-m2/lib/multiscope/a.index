@@ -1,0 +1,77 @@
+BITMAPOPE.MOD
+    This contains the module BitmapOperations.
+    This module allows you to create a bitmap ( elements of on/off ) in
+    dynamic memory, perform operations on those elements, and output a
+    whole bitmap.
+
+CMDLINE.MOD
+   This contains the module CmdLine.
+   Get items from this programs command line.
+
+DATEOPERA.DEF
+DATEOPERA.MOD
+   This contains the module DateOperations.
+   This module allows you to perform operations on dates, as well as
+   calculate the day of the week, and the phase of the moon for given
+   dates.
+
+FORMEDIT.DEF
+FORMEDIT.MOD
+   This contains the module FormEdit.
+   This module provides some procedures for doing simple form style input
+   on the screen, with user editing.
+
+GETCHARA.DEF
+GETCHARA.MOD
+   This contains the module GetCharacter.
+   This module provides a simple method of getting user input,
+   one character at a time.
+
+MOREIO.MOD
+   This contains the module MoreIO.
+   This module provides some additional input and output procedures.
+
+MOREMATH.MOD
+   This contains the module MoreMath.
+   This module provides some additional math functions.
+
+PLOTTER.DEF
+PLOTTER.MOD
+   This contains the module Plotter.
+   This module provides procedures for doing X-Y data plots.
+
+RANDOMLY.MOD
+   This contains the module Randomly.
+   This module provides procedures for generating random numbers.
+
+SCREENIO.DEF
+SCREENIO.MOD
+    This contains the module ScreenIO.
+    This module provides some procedures for doing i/o to the screen
+    at specific locations and colors. Also is a key reading procedure for
+    dealing with function keys, alt keys, etc.
+
+SERIAL.DEF
+SERIAL.MOD
+   This contains the module Serial.
+   This module allows some simple serial i/o procedures.
+
+SHORTREA.DEF
+SHORTREA.MOD
+   This contains the module ShortReal.
+   This module provides procedures  dealing with short reals since most
+   procedures in the package deal with long reals.
+   This is still in progress.
+
+SYSTEMCO.DEF
+   This contains the module SystemConstants.
+
+TIMER.DEF
+TIMER.MOD
+   This contains the module Timer.
+   This module provides easy to use timing procedures.
+
+VGAGRAPH.DEF
+VGAGRAPH.MOD
+   This contains the module VGAGraphics.
+   This module provides functions for graphics (VGA only).

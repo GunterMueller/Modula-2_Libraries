@@ -1,0 +1,26 @@
+DEFINITION MODULE SayNumbers;
+
+(* Make a cardinal number into a phrase of words of numbers *)
+(* V1.0, J. Andrea, Oct.11/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+(*
+The output string should be long enough to hold the output,
+the following table lists the lognest output from zero up to:
+10 is 3 at 5 chars, "three"
+100 is 73 at 13 chars, "seventy three"
+1,000 is 373 at 27 chars, "three hundred seventy three"
+10,000 is 3373 at 42 chars, "three thousand three hundred seventy three"
+65535 is 23373 at 49 chars, "twenty three thousand three hundred seventy three"
+100,000 is 73373 at 50 chars, "seventy three thousand three hundred seventy three""
+1,000,000 is 373373 at 64 chars, "three hundred seventy three thousand three hundred seventy three"
+10,000,000 is 3373373 at 78 chars, "three million three hundred seventy three thousand three hundred seventy three"
+*)
+
+EXPORT QUALIFIED SayCard, SayInt;
+
+  PROCEDURE SayCard( x :CARDINAL; VAR word :ARRAY OF CHAR );
+
+  PROCEDURE SayInt( x :INTEGER; VAR word :ARRAY OF CHAR );
+
+END SayNumbers.

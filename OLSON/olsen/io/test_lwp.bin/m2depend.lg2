@@ -1,0 +1,381 @@
+bintest.lnk: ..\bin\binaryio.sym ..\..\gen\bin\cardconv.sym ..\bin\dirio.sym  \
+             ..\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+             ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+bintest.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+             ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+             ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+             ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+             ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+             ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+             ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+             ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+             ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+             ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+             ..\..\gen\bin\progerro.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+             ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+             ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+             ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+             bintest.lnk 
+cardiote.lnk: ..\..\gen\bin\card32.sym ..\bin\cardio.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\bin\simpleio.sym  \
+              ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+cardiote.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\bin\intio.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\bin\realio.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\lwp.bin\simpleio.lnk ..\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+              ..\..\gen\lwp.bin\taskinfo.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+              ..\..\gen\lwp.bin\tasktime.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk ..\lwp.bin\textio.lnk  \
+              ..\lwp.bin\textiopr.lnk cardiote.lnk 
+cardioti.lnk: ..\bin\cardio.sym ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+cardioti.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk cardioti.lnk 
+changedi.lnk: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\progargs.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym 
+changedi.exe: ..\..\gen\bin\bytes.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\..\gen\bin\chars.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk ..\bin\dosioerr.lnk  \
+              ..\bin\dosionam.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\bin\progargs.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk changedi.lnk 
+dirtest.lnk: ..\bin\dirio.sym ..\bin\ioerrors.sym ..\..\gen\bin\progerr.sym  \
+             ..\bin\simpleio.sym 
+dirtest.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+             ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+             ..\bin\cardio.lnk ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+             ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+             ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+             ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+             ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+             ..\lwp.bin\iomonito.lnk ..\..\gen\bin\intconve.lnk  \
+             ..\bin\intio.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+             ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+             ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+             ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+             ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+             ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+             ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+             ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+             ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+             ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+             ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+             ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+             ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk dirtest.lnk 
+hello.lnk: ..\bin\simpleio.sym 
+hello.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+           ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk ..\bin\catbinar.lnk  \
+           ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk  \
+           ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk  \
+           ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+           ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+           ..\lwp.bin\iomonito.lnk ..\..\gen\bin\intconve.lnk  \
+           ..\bin\intio.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+           ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+           ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+           ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+           ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+           ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+           ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+           ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+           ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+           ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+           ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+           ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+           ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk hello.lnk 
+intiotes.lnk: ..\bin\simpleio.sym 
+intiotes.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\bin\intio.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\bin\realio.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\lwp.bin\simpleio.lnk ..\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+              ..\..\gen\lwp.bin\taskinfo.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+              ..\..\gen\lwp.bin\tasktime.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk ..\lwp.bin\textio.lnk  \
+              ..\lwp.bin\textiopr.lnk intiotes.lnk 
+realiote.lnk: ..\bin\simpleio.sym ..\..\gen\bin\systypes.sym 
+realiote.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\bin\intio.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\bin\realio.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\lwp.bin\simpleio.lnk ..\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+              ..\..\gen\lwp.bin\taskinfo.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+              ..\..\gen\lwp.bin\tasktime.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk ..\lwp.bin\textio.lnk  \
+              ..\lwp.bin\textiopr.lnk realiote.lnk 
+realioti.lnk: ..\bin\realio.sym ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+realioti.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\bin\realconv.lnk  \
+              ..\bin\realio.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk realioti.lnk 
+tcopy.lnk: ..\bin\dirio.sym ..\bin\ioerrors.sym ..\..\gen\bin\progargs.sym  \
+           ..\..\gen\bin\progerr.sym ..\bin\textsupp.sym 
+tcopy.exe: ..\bin\binaryio.lnk ..\bin\binarysu.lnk ..\..\gen\bin\bytes.lnk  \
+           ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+           ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+           ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk ..\lwp.bin\dosbinar.lnk  \
+           ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+           ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+           ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+           ..\lwp.bin\iomonito.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+           ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+           ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+           ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+           ..\..\gen\bin\progargs.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+           ..\..\gen\bin\progerro.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+           ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+           ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+           ..\..\gen\lwp.bin\taskinfo.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+           ..\..\gen\lwp.bin\tasktime.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+           ..\..\gen\lwp.bin\taskspri.lnk ..\lwp.bin\textio.lnk  \
+           ..\lwp.bin\textiopr.lnk ..\bin\textsupp.lnk tcopy.lnk 
+tcopyobj.lnk: ..\bin\ioerrors.sym ..\..\gen\bin\progerr.sym ..\bin\textio.sym  \
+              ..\bin\textsupp.sym 
+tcopyobj.exe: ..\bin\binaryio.lnk ..\bin\binarysu.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+              ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\lwp.bin\iomonito.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk  \
+              ..\bin\textsupp.lnk tcopyobj.lnk 
+tdirioli.lnk: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\bin\simpleio.sym 
+tdirioli.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\cardio.lnk ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+              ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\lwp.bin\iomonito.lnk ..\..\gen\bin\intconve.lnk  \
+              ..\bin\intio.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk tdirioli.lnk 
+tionames.lnk: ..\bin\ioconsts.sym ..\bin\ionames.sym ..\bin\simpleio.sym 
+tionames.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\cardio.lnk ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+              ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\lwp.bin\iomonito.lnk ..\lwp.bin\ionames.lnk  \
+              ..\..\gen\bin\intconve.lnk ..\bin\intio.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\bin\progargs.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk tionames.lnk 
+tioversi.lnk: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\bin\ioversio.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\notices.sym ..\..\gen\bin\progerr.sym  \
+              ..\bin\simpleio.sym 
+tioversi.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\cardio.lnk ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+              ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\lwp.bin\iomonito.lnk ..\lwp.bin\ionames.lnk  \
+              ..\bin\ioversio.lnk ..\..\gen\bin\intconve.lnk ..\bin\intio.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\bin\progargs.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk tioversi.lnk 
+tkeyboar.lnk: ..\..\gen\bin\cardconv.sym ..\bin\keyboard.sym  \
+              ..\..\gen\bin\progerro.sym 
+tkeyboar.exe: ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\..\gen\bin\chars.lnk ..\..\gen\bin\dos.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\lwp.bin\keyboard.lnk  \
+              ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              tkeyboar.lnk 
+tlistwit.lnk: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progerr.sym  \
+              ..\bin\simpleio.sym ..\..\gen\bin\strings.sym 
+tlistwit.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\cardio.lnk ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk  \
+              ..\bin\confbina.lnk ..\..\gen\bin\dos.lnk ..\lwp.bin\dirio.lnk  \
+              ..\lwp.bin\dosbinar.lnk ..\bin\dosioerr.lnk ..\bin\dosionam.lnk  \
+              ..\..\gen\lwp.bin\dosmonit.lnk ..\..\gen\bin\genconst.lnk  \
+              ..\..\gen\bin\i8086.lnk ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\lwp.bin\iomonito.lnk ..\..\gen\bin\intconve.lnk  \
+              ..\bin\intio.lnk ..\..\gen\lwp.bin\interrup.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+              ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+              ..\..\gen\bin\realconv.lnk ..\bin\realio.lnk  \
+              ..\..\gen\lwp.bin\safestor.lnk ..\lwp.bin\simpleio.lnk  \
+              ..\bin\stringio.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+              ..\..\gen\lwp.bin\taskmoni.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+              ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+              ..\lwp.bin\textio.lnk ..\lwp.bin\textiopr.lnk tlistwit.lnk 
+tscreeni.lnk: ..\bin\cardio.sym ..\bin\ioerrors.sym ..\bin\screenio.sym  \
+              ..\bin\stringio.sym ..\bin\textio.sym 
+tscreeni.exe: ..\bin\binaryio.lnk ..\..\gen\bin\card32.lnk  \
+              ..\..\gen\bin\cardconv.lnk ..\bin\cardio.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk ..\lwp.bin\iomonito.lnk  \
+              ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+              ..\..\gen\bin\lists.lnk ..\..\gen\bin\modinit.lnk  \
+              ..\..\gen\bin\namelist.lnk ..\..\gen\lwp.bin\notices.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\bin\screenio.lnk ..\bin\stringio.lnk  \
+              ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+              ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+              ..\..\gen\lwp.bin\taskinfo.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+              ..\..\gen\lwp.bin\tasktime.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk ..\lwp.bin\textio.lnk  \
+              ..\lwp.bin\textiopr.lnk tscreeni.lnk 
+tstringb.lnk: ..\bin\binaryio.sym ..\..\gen\bin\card32.sym  \
+              ..\..\gen\bin\cardconv.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\bin\stringbi.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+tstringb.exe: ..\bin\binaryio.lnk ..\..\gen\bin\bytes.lnk  \
+              ..\..\gen\bin\card32.lnk ..\..\gen\bin\cardconv.lnk  \
+              ..\bin\catbinar.lnk ..\..\gen\bin\chars.lnk ..\bin\confbina.lnk  \
+              ..\..\gen\bin\dos.lnk ..\lwp.bin\dosbinar.lnk  \
+              ..\bin\dosioerr.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+              ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+              ..\bin\ioconsts.lnk ..\bin\ioerrors.lnk  \
+              ..\..\gen\bin\intrinsi.lnk ..\..\gen\bin\lists.lnk  \
+              ..\..\gen\bin\modinit.lnk ..\..\gen\bin\namelist.lnk  \
+              ..\..\gen\lwp.bin\objects.lnk ..\..\gen\lwp.bin\progerr.lnk  \
+              ..\..\gen\bin\progerro.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+              ..\bin\stringbi.lnk ..\..\gen\bin\strings.lnk  \
+              ..\..\gen\bin\systypes.lnk ..\..\gen\lwp.bin\system.lnk  \
+              ..\..\gen\lwp.bin\taskcons.lnk ..\..\gen\lwp.bin\tasks.lnk  \
+              ..\..\gen\lwp.bin\taskspri.lnk tstringb.lnk 

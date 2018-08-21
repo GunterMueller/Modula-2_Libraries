@@ -1,0 +1,275 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ProgErr;
+(*
+ * Designed to run with Logitech Version 3.0.
+ *
+ * There are two ways to terminate:
+ *     - from the run-time system (RunTimeHandler)
+ *     - and via Terminate in this module being called.
+ *
+ * Normal termination is only true if the RunTimeHandler is called
+ * and the "activeProcess^.progStatus" is Normal.  The Terminate procedure
+ * does not call the termination procedures.  It terminates through
+ * the RTS allowing the RTS to call the termination procedures.
+ *
+ * Memory save mode is controlled by the DebugHandler and the current
+ * value of the memorySaveMode.  However, we don't install the handler
+ * if the run-time debugger (RTD) has been installed.  Note that we only
+ * import the DebugPMD module if this module is compiled with the Debug flag.
+ *)
+IMPORT 
+    SYSTEM,	ProgErrOutput,	   	RTSMain,    I8086;
+    
+@IF Debug THEN
+    IMPORT
+        DebugPMD; (* This should be removed if you don't want PMDs (ever) *)
+@END (* Debug *)
+
+VAR
+    memorySaveMode   : MemorySaveModes;	 (* How to do the termination *)
+    prevDebugHandler : RTSMain.RTDProc;	 (* To unset no memory save mode *)
+    
+PROCEDURE NoDump(
+    active      : SYSTEM.PROCESS;
+    overlayList : SYSTEM.ADDRESS
+    );
+    (*
+     * Called by the run-time system to handle debugging.  If memory
+     * save mode is off, then this procedure is called in place of
+     * mortimer (PMD).
+     *)
+    END NoDump;
+
+    
+PROCEDURE SetMemorySaveMode( 
+    newMemorySaveMode : MemorySaveModes 
+    );
+    (*
+     * There seems to be a problem with Logitech's DebugPMD which 
+     * doesn't allow you to put an intermediary procedure in the 
+     * call chain when doing a dump.  Therefore, we must replace the
+     * procedure each time we change the mode.  If we don't want
+     * dumps, then we install NoDump.  If we want dumps, then we
+     * restore the previous handler.  In all cases, if the RTD is
+     * present, just blow.
+     *)
+    BEGIN (* SetMemorySaveMode *)
+    
+	IF memorySaveMode = newMemorySaveMode THEN
+	    RETURN;    (* That's nice *)
+	END;
+	memorySaveMode := newMemorySaveMode;
+
+	WITH RTSMain.debuggerRecord DO
+	    IF debuggerId = 0 THEN   
+		RETURN;  (* No dumps when RTD is resident *)
+	    END;
+	    CASE memorySaveMode OF
+		saveMemoryOnAbnormalTermination:
+		    (* Reset to the old *)
+		    beforeTermProc := prevDebugHandler;
+		|
+		doNotSaveMemoryOnTermination:
+		    (* Put our dummy handler in *)
+		    prevDebugHandler := beforeTermProc;
+		    beforeTermProc   := NoDump;
+	    END;
+	END; (* WITH *)
+
+    END SetMemorySaveMode;
+
+VAR
+    terminationHandler : TerminationHandler;
+
+PROCEDURE InstallTerminationHandler(     
+	newHandler : TerminationHandler;
+    VAR oldHandler : TerminationHandler 
+    );
+    BEGIN (* InstallTerminationHandler *)
+
+	oldHandler := terminationHandler;
+	terminationHandler := newHandler;
+
+    END InstallTerminationHandler;
+    
+
+PROCEDURE DefaultTerminationHandler( 
+    terminationMode : TerminationModes 
+    );
+    (* Nothing to do *)
+    END DefaultTerminationHandler;
+    
+
+VAR
+    terminateCount : CARDINAL;	  (* Count of calls to Terminate *)
+
+PROCEDURE Terminate( 
+    message : ARRAY OF CHAR 
+    );
+    (*
+     * If the message is non-null, then print out the message followed
+     * by a new-line.   We call HALT for the time being until there is
+     * figure out a better method of terminating.  Ideally, we want
+     * to terminate with no message if "message" is empty and we want
+     * to print out the termination message after the termination procedures
+     * are called, but this is highly unlikely.
+     *
+     * NOTE: 
+     *    We must terminate to the RTS first, so we get mortimer (PMD) to 
+     *    do its stuff.  To print the message out last will be a tricky
+     *    business.
+     *)
+    BEGIN (* Terminate *)
+
+	INC( terminateCount );	(* May recurse in ProgErrOutput *)
+	IF ( message[ 0 ] # 0C ) AND ( terminateCount < 3 ) THEN
+	    ProgErrOutput.WriteString( message );
+	    ProgErrOutput.WriteLn;
+	END;
+
+	(*
+	 * What we would like is if there was a way to cancel messages
+	 * from the run-time system.  We print our own!  Anyway, this
+	 * is a crude attempt at such a behavior. 
+	 *)
+	IF memorySaveMode = saveMemoryOnAbnormalTermination THEN
+	    RTSMain.Terminate( RTSMain.Fatal );	(* will print a msg *)
+	ELSE	
+	    RTSMain.Terminate( RTSMain.Warning );  (* no dump & no msg *)
+	END;
+
+    END Terminate;
+
+
+PROCEDURE RunTimeHandler;
+    (*
+     * Called by Logitech run-time system via RTSMain.CallTermProc.
+     * We always call the termination handler which we registered
+     * for when this module was loaded.
+     *)
+    BEGIN (* RunTimeHandler *)
+
+        terminateCount := 0;
+
+	(* 
+	 * Both System and RTS calls us with flags disabled, but this
+	 * isn't pretty or clean.
+	 *)
+	SYSTEM.CODE( I8086.Pushf );
+	SYSTEM.ENABLE;
+
+	IF RTSMain.activProcess^.progStatus = RTSMain.Normal THEN
+	    terminationHandler( normalTermination );
+	ELSE
+	    terminationHandler( abnormalTermination );
+	END;
+	
+	(* Reset the debugger state to the default *)
+	SetMemorySaveMode( saveMemoryOnAbnormalTermination );
+
+	SYSTEM.CODE( I8086.Popf );	(* Restore flags to interrupts off *)
+
+	    
+    END RunTimeHandler;
+    
+    
+@IF LowLevelDebugging THEN
+    CONST
+	maxBase = 10;	(* In case this is a parameter some day *)
+    VAR
+	digits  : ARRAY [ 0 .. maxBase - 1 ] OF CHAR;
+
+    PROCEDURE CardToString(     
+	    from  : CARDINAL;
+	VAR to    : ARRAY OF CHAR 
+	);
+	(*
+	 * A very simple cardinal conversion routine.  It is designed
+	 * for diagnostic output for very low level routines.  It
+	 * converts a cardinal into base 10 into a right justified string
+	 * using "blank" padding.  If "to" isn't large enough, then
+	 * the result is filled with '*' characters.
+	 *
+	 * INPUT:
+	 *    from,  what is to be converted.
+	 * 
+	 * OUTPUT:
+	 *    to,    resulting human readable string.
+	 *)
+	CONST
+	    base = 10;
+	VAR
+	    i    : CARDINAL;
+	    pad  : CHAR;
+	    tmp  : CARDINAL;
+	BEGIN (* CardToString *)
+
+	    i   := HIGH( to );
+	    LOOP
+		to[ i ] := digits[ from MOD base ];
+		from    := from DIV base;
+		IF from = 0 THEN
+		    pad := ' ';	(* Everything ok *)
+		    EXIT;
+		END;
+		IF i = 0 THEN
+		    (* Ran out of space *)
+		    pad := '*';	(* Mark as failure *) 
+		    i   := HIGH( to ) + 1;	(* first DEC *)
+		    EXIT;
+		END;
+		DEC( i );
+	    END; (* LOOP *)
+
+	    (* Pad out the rest of the string *)
+	    WHILE i > 0 DO
+		DEC( i );
+		to[ i ] := pad;
+	    END;
+
+	END CardToString;
+@END (* LowLevelDebugging *)
+
+BEGIN (* ProgErr *)
+
+    @IF LowLevelDebugging THEN
+	digits  := '0123456789';
+    @END (* LowLevelDebugging *)
+
+    (*
+     * Initialize the local variables before calling other modules.
+     *)
+    terminateCount     := 0;	(* prevent infinite recursion *)
+    terminationHandler := DefaultTerminationHandler;
+    RTSMain.InstallTermProc( RunTimeHandler );
+    
+    (* Default memory save mode *)
+    memorySaveMode := saveMemoryOnAbnormalTermination;
+    @IF NOT Debug THEN
+	SetMemorySaveMode( doNotSaveMemoryOnTermination );
+    @END
+
+END ProgErr.
+
+

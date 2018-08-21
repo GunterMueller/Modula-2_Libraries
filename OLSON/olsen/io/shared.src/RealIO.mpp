@@ -1,0 +1,416 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE RealIO;
+(*
+ * RJN - Comment this and fix
+ *   - Have to have a split exponent and mantissa, so that we can output
+ *     exponent fields which are wide.  
+ *   - Have to have a maximum length output width for float to string?
+ *     This is a problem.  I think all the conversions should be to
+ *     scientific and then tricks are done for maximum exponents and the like.
+ *   - Fix the Write routines.  They need to do zero filling and the like.
+ *)
+
+IMPORT
+    CardIO,
+    Chars,
+    IOErrors,
+    RealConvert,
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+TYPE
+    (* 
+     * IMPLEMENTATION SPECIFIC 
+     *)
+    MaxRealString = ARRAY [ 0 .. SysTypes.maxExponentReal +
+				 SysTypes.maxDecimalDigitsReal +
+				 5 (* 'e', '.', and signs *) ] OF CHAR;
+
+TYPE
+    ScanStates = (
+	nothingRead,	(* Nothing has been read. *)
+	readSign,	(* Read sign, but not any digits *)
+	readDigits,	(* Read digits, but not a decimal point *)
+	readDecimal,	(* Read decimal point and digits *)
+	readE,		(* Read 'e' or 'E' *)
+	readESign, 	(* Read sign after 'E' *)
+	pastE		(* Past 'E' and digit, call CardIO.Read. *)
+    );
+    ScanInfoRec = RECORD
+	state          : ScanStates;	(* How we doing *)
+	value          : SysTypes.Real;(* running total *)
+	isNegative     : BOOLEAN;	(* is it negative? *)
+	isNegativeExp  : BOOLEAN;	(* is exp negative? *)
+	fractionDigits : SysTypes.Card;	(* digits after decimal*)
+	significants   : SysTypes.Card;	(* number of significant digits *)
+	fileToRead     : TextIO.Object;	(* For setting errors. *)
+    END;
+    ScanInfoPtr = POINTER TO ScanInfoRec;
+
+PROCEDURE Scanner(
+    infoAdr : SysTypes.ANYPTR;
+    toScan  : CHAR
+    )       : BOOLEAN;
+    (* 
+     * Read a sign and then make sure the next thing is a number.
+     *)
+    VAR
+	infoPtr : ScanInfoPtr;
+	digit   : SysTypes.Card;
+    BEGIN (* Scanner *)
+
+	infoPtr := infoAdr;
+
+	WITH infoPtr^ DO
+	    (* Is this a digit? most likely case at the top... *)
+	    digit := Chars.ToDigit( toScan );
+	    IF digit < 10 THEN
+		CASE state OF
+		    nothingRead,
+		    readSign:
+			state := readDigits;
+		    |
+		    readDecimal:
+			(* Count digits to the right *)
+			INC( fractionDigits );
+		    |
+		    readE,
+		    readESign:
+			state := pastE;
+			RETURN FALSE;	(* Let CardIO read it *)
+		    ELSE
+			(* fall through *)
+		END; 
+		(* 
+		 * We got a digit, now add it to the value.  We may want
+		 * to only do the multiplications if the digit is signficant
+		 * and if we don't have too many (too many with small
+		 * reals can cause blow up!).  Note that this goes for
+		 * fractionDigits as well.
+		 *)
+		IF ( ( digit # 0 ) OR ( value # 0.0 ) ) THEN
+		    (* Must be no greater than maximum number of significants *)
+		    IF significants < SysTypes.maxDecimalDigitsReal THEN
+			INC( significants );
+			value := ( value * 10.0 ) + FLOAT( digit );
+		    ELSIF state = readDecimal THEN
+			(* Don't count passed over significants *)
+			DEC( fractionDigits );
+		    END;
+		END;
+		RETURN TRUE; (* keep going *)
+	    END;
+
+	    CASE toScan OF
+		'+',
+		'-':
+		    CASE state OF
+			nothingRead:
+			    state := readSign;
+			    isNegative := toScan = '-';
+			    RETURN TRUE;
+			|
+			readE:
+			    state := readESign;
+			    isNegativeExp := toScan = '-';
+			    RETURN TRUE;
+			ELSE
+			    (* falls through to "error" *)
+		    END;
+		|
+		'E',
+		'e':
+		    CASE state OF
+			readDigits,
+			readDecimal:
+			    state := readE;
+			    RETURN TRUE;
+			ELSE
+			    (* falls through to "error" *)
+		    END;
+		|
+		'.':
+		    CASE state OF
+			nothingRead,
+			readSign,
+			readDigits:
+			    state := readDecimal;
+			    RETURN TRUE;
+			ELSE
+			    (* falls through to "error" *)
+		    END;
+
+		ELSE
+		    CASE state OF
+			readDigits,
+			readDecimal:
+			    RETURN FALSE;	(* they'll figure it out *)
+			ELSE
+			    (* falls through to "error" *)
+		    END;
+	    END; (* CASE *)
+
+	    TextIO.DONTCARE := TextIO.SetError( fileToRead, IOErrors.badData );
+
+	END; (* WITH *)
+
+	RETURN FALSE;	(* syntax error *)
+    END Scanner;
+
+
+VAR
+    (* We need to fix SysTypes to have these values *)
+    maxAbsRealDivTen : SysTypes.Real;
+    minAbsRealMulTen : SysTypes.Real;
+
+PROCEDURE Read(
+        file   : TextIO.Object;
+    VAR toRead : SysTypes.Real
+    )          : TextIO.States;
+    VAR
+	fileState   : TextIO.States;
+	scanInfoRec : ScanInfoRec;
+	card        : SysTypes.Card;
+	exponent    : SysTypes.Int;
+	i           : SysTypes.Int;
+	tmp         : SysTypes.Int;
+    BEGIN (* Read *)
+
+	WITH scanInfoRec DO
+	    state := nothingRead;
+	    value := 0.0; 
+	    isNegative := FALSE;
+	    isNegativeExp := FALSE;
+	    fractionDigits := 0;
+	    significants := 0;
+	    fileToRead := file;
+
+	    fileState := TextIO.Scan( file, Scanner, SYSTEM.ADR( scanInfoRec ),
+				      TextIO.skipLeadingWhiteSpace );
+	    IF fileState # TextIO.ok THEN
+		RETURN fileState;
+	    END;
+
+	    exponent := 0;
+	    DEC( exponent, fractionDigits );	(* Verified below *)
+
+	    CASE state OF
+		readDigits,
+		readDecimal:
+		    (* Fall through to everything ok. *)
+		|
+		pastE:
+		    fileState := CardIO.Read( file, card );
+		    IF fileState # TextIO.ok THEN
+			RETURN fileState;	(* some type of err *)
+		    END;
+		    (*
+		     * Exponent verification is kind of ugly, because we
+		     * don't want the program to blow up on user input
+		     * errors.  If we just add/subtract arbitrary cardinals,
+		     * we will get range errors (for stupid users).  However,
+		     * it is perfectly legal to say stuff like:
+		     * 	       .00000000000000000000000001E20
+		     * Therefore, we have to play these games.  We assume
+		     * that the guy can't enter enough fractionDigits toooo
+		     * cause cardinal overflow.  Note that we only flag
+		     * the error here and actually set the error on the file
+		     * later.
+		     *)
+		    IF isNegativeExp THEN
+			(* Verify that the cardinal isn't too big to DEC *)
+			IF card >= SysTypes.Card( SysTypes.MAXInt + exponent ) 
+		         THEN RETURN TextIO.SetError( file, IOErrors.badData );
+			END;
+			DEC( exponent, card ); (* May be over *)
+
+		    (* Verify that the cardinal isn't too big to INC *)
+		    ELSIF ( fractionDigits > card ) OR 
+			( card - fractionDigits < SysTypes.MAXInt ) THEN
+			INC( exponent, card );	(* may be over *)
+		    ELSE
+		        RETURN TextIO.SetError( file, IOErrors.badData );
+		    END;
+		ELSE
+		    (* syntax error *)
+		    RETURN TextIO.SetError( file, IOErrors.badData );
+	    END; (* CASE *)
+
+	    (*
+	     * We have an exponent and now have to adjust the number.
+	     * If the exponent is 0 or the number is 0 (common case), 
+	     * then number is valid and we can return.  We use
+	     * the fact that toRead is not zero below.
+	     *)
+	    toRead := value;
+	    IF ( exponent = 0 ) OR ( toRead = 0.0 ) THEN
+		IF isNegative THEN
+		    toRead := -toRead;
+		END;
+		RETURN TextIO.ok;
+	    END;
+
+	    (*
+	     * The IEEE standard defines two methods of real overflow
+	     * detection: trapping and non-trapping.   SunM2 (by default)
+	     * supports non-trapping, but not trapping.  LogitechM2 
+	     * and SunM2 (in our world, we set trapping) supports
+	     * trapping, but not non-trapping.  A trapping system
+	     * requires pre-conditions to be checked and a non-trapping
+	     * system requires post-conditions.  If you have exceptions,
+	     * then you don't need either, because the underlying system
+	     * does it for you.  Note there is a real problem with the
+	     * trapping based system, because it blows in the middle of
+	     * the range for a particular exponent so the checks have
+	     * to occur each iteration (slow, but just a compare...).
+	     *)
+	    IF exponent < 0 THEN
+		FOR i := -1 TO exponent BY -1 DO
+		    @IF NOT NonTrappingReals THEN
+			IF toRead < minAbsRealMulTen THEN
+			    RETURN TextIO.SetError( file, IOErrors.badData );
+			END;
+		    @END
+		    toRead := toRead / 10.0;
+		END;
+		@IF NonTrappingReals THEN
+		    (* Postcondition: non-trapping based system *)
+		    (* Did we have underflow? *)
+		    IF toRead = 0.0 THEN
+			RETURN TextIO.SetError( file, IOErrors.badData );
+		    END;
+		@END
+	    ELSE
+		FOR i := +1 TO exponent BY +1 DO
+		    @IF NOT NonTrappingReals THEN
+			IF toRead > maxAbsRealDivTen THEN
+			    RETURN TextIO.SetError( file, IOErrors.badData );
+			END;
+		    @END
+		    toRead := toRead * 10.0;
+		END;
+		@IF NonTrappingReals THEN
+		    (* Postcondition: non-trapping based system *)
+		    (* Did we get infinity? *)
+		    IF toRead / 2.0 = toRead THEN
+			RETURN TextIO.SetError( file, IOErrors.badData );
+		    END;
+		@END
+	    END;
+
+	    IF isNegative THEN
+		toRead := -toRead;
+	    END;
+
+	END; (* WITH *)
+
+	RETURN TextIO.ok;
+    END Read;
+
+
+PROCEDURE Read64(
+        file   : TextIO.Object;
+    VAR toRead : SysTypes.REAL64
+    )          : TextIO.States;
+    BEGIN (* Read64 *)
+	RETURN Read( file, toRead );
+    END Read64;
+
+
+PROCEDURE WriteFloating(
+    file          : TextIO.Object;
+    toWrite       : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card
+    )             : TextIO.States;
+    VAR
+	str : MaxRealString;
+    BEGIN
+	(* we must display something even if it is in error ("***") *)
+	IF NOT RealConvert.ToFloatingString( toWrite, totalWidth, 
+					     fractionWidth, str) THEN
+	    RETURN StringIO.WriteJustified( file, '',
+		Strings.justifyRight, totalWidth, '*' );
+	END;
+
+	RETURN StringIO.WriteJustifiedField( file, str, 
+	    Strings.justifyRight, totalWidth, ' ' );
+    END WriteFloating;
+
+
+PROCEDURE WriteScientific(
+    file          : TextIO.Object;
+    num           : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card;
+    exponentWidth : SysTypes.Card
+    )             : TextIO.States;
+    VAR
+	str : MaxRealString;
+    BEGIN
+	(* we must display something even if it is in error ("***") *)
+	IF NOT RealConvert.ToScientificString( num, totalWidth, fractionWidth,
+					       exponentWidth, str) THEN
+	    RETURN StringIO.WriteJustified( file, '',
+		Strings.justifyRight, totalWidth, '*' );
+	END;
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+	    Strings.justifyRight, totalWidth, ' ');
+    END WriteScientific;
+
+
+PROCEDURE WriteEngineering(
+    file          : TextIO.Object;
+    num           : SysTypes.Real;
+    totalWidth    : SysTypes.Card;
+    fractionWidth : SysTypes.Card;
+    exponentWidth : SysTypes.Card
+    )             : TextIO.States;
+    VAR
+	str : MaxRealString;
+    BEGIN
+	(* we must display something even if it is in error ("***") *)
+	IF NOT RealConvert.ToEngineeringString( num, totalWidth, fractionWidth,
+						exponentWidth, str) THEN
+	    RETURN StringIO.WriteJustified( file, '',
+		Strings.justifyRight, totalWidth, '*' );
+	END;
+
+	RETURN StringIO.WriteJustifiedField( file, str, 
+	    Strings.justifyRight, totalWidth, ' ' );
+
+    END WriteEngineering;
+
+
+BEGIN (* RealIO *)
+
+    maxAbsRealDivTen := SysTypes.MAXReal / 10.0;
+    minAbsRealMulTen := SysTypes.minPosReal * 10.0;
+
+END RealIO.
+

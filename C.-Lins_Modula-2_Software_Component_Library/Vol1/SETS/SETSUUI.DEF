@@ -1,0 +1,154 @@
+(*
+13	The Unbounded Set (continued)
+
+This chapter presents the unbounded implementation of the set abstraction described in
+Chapter 11.  As with the other unbounded modules, given previously, the size of the set
+structure will vary dynamically as items are added and removed.  This particular form has
+the properties: Sequential, Unbounded, Unmanaged, and Iterator.  These describe specific
+aspects of the implementation as follows:
+
+Sequential:	Can only be used in a non-tasking environment, or by only one task.
+Unbounded:	The size of a set varies dynamically as items are added and removed from
+		the set.
+Unmanaged:	Memory space for objects is returned to the system when no longer needed.
+Iterator:	Routines for looping over each of the set items are provided.
+
+The unbounded set interface follows in Section 13.7 while the actual implementation
+appears in Section 13.8.
+
+
+
+13.7	SetSUUI Interface
+*)
+
+
+DEFINITION MODULE SetSUUI;
+(*==========================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Set
+               Sequential Unbounded Unmanaged Iterator
+
+    INTRODUCTION
+    This module provides the interface for the unbounded Set
+    abstraction for generic Items.
+
+    REVISION HISTORY
+    v1.00  30 Jan 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2. Derived from
+	  SetSUMI module.
+
+    (C) Copyright 1989 Charles A. Lins
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM SetEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  Set;
+CONST NullSet = Set(NIL);
+
+(*
+13.7.1			Exceptions
+*)
+
+CONST ModuleID = 9;
+
+PROCEDURE SetError    ()             : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+                           toHandler : HandlerProc (*-- in    *));
+
+(*
+13.7.2			Constructors
+*)
+
+PROCEDURE Create        (    theType : TypeID (*-- in    *))
+                                     : Set    (*-- out   *);
+
+PROCEDURE Destroy       (VAR theSet  : Set    (*-- inout *));
+
+PROCEDURE Clear         (VAR theSet  : Set    (*-- inout *));
+
+PROCEDURE Assign        (    theSet  : Set    (*-- in    *);
+                         VAR toSet   : Set    (*-- inout *));
+
+PROCEDURE Include       (    theItem : Item   (*-- in    *);
+                         VAR inSet   : Set    (*-- inout *));
+
+PROCEDURE Exclude       (    theItem : Item   (*-- in    *);
+                         VAR fromSet : Set    (*-- inout *));
+
+PROCEDURE Union         (    left    : Set    (*-- in    *);
+                             right   : Set    (*-- in    *);
+                         VAR toSet   : Set    (*-- inout *));
+
+PROCEDURE Intersection  (    left    : Set    (*-- in    *);
+                             right   : Set    (*-- in    *);
+                         VAR toSet   : Set    (*-- inout *));
+
+PROCEDURE Difference    (    left    : Set    (*-- in    *);
+                             right   : Set    (*-- in    *);
+                         VAR toSet   : Set    (*-- inout *));
+
+PROCEDURE SymDifference (    left    : Set    (*-- in    *);
+                             right   : Set    (*-- in    *);
+                         VAR toSet   : Set    (*-- inout *));
+
+(*
+13.7.3			Selectors
+*)
+
+PROCEDURE IsDefined     (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty       (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual       (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE TypeOf        (    theSet  : Set      (*-- in    *))
+                                     : TypeID   (*-- out   *);
+
+PROCEDURE NumMembers    (    theSet  : Set      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE IsAMember     (    theItem : Item     (*-- in    *);
+                             theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsSubset      (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsProperSubset(    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+(*
+13.7.4			Iterators
+*)
+
+PROCEDURE LoopOver   (    theSet  : Set            (*-- in    *);
+                          process : LoopAccessProc (*-- in    *));
+
+PROCEDURE Traverse   (    theSet  : Set            (*-- in    *);
+                          process : AccessProc     (*-- in    *));
+
+END SetSUUI.
+

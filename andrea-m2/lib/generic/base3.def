@@ -1,0 +1,24 @@
+DEFINITION MODULE Base3;
+
+(*
+ Convert a base 10 number to base 3,
+ the base 3 value is represented as a string of characters "0", "1", "2".
+*)
+(* John Andrea, Nov.18/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED Max10, HowMany3, ToBase3, FromBase3;
+
+PROCEDURE Max10() :CARDINAL;
+(* what is the largest base 10 number handled by this module *)
+
+PROCEDURE HowMany3( base10 :CARDINAL ) :CARDINAL;
+(* return the number of base3 digits used to represent the given base10 value *)
+
+PROCEDURE ToBase3( base10 :CARDINAL; VAR base3 :ARRAY OF CHAR;
+                   VAR ok :BOOLEAN );
+
+PROCEDURE FromBase3( base3 :ARRAY OF CHAR; VAR base10 :CARDINAL;
+                     VAR ok :BOOLEAN );
+
+END Base3.

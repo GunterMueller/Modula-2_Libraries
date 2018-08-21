@@ -1,0 +1,22 @@
+Bug Reports & Future Releases
+
+The majority of the Library has been in daily use since mid 1987.  We
+still find bugs which means so will you.  If you find a bug, please send 
+us a description and the fix (if known) to:
+
+    E-Mail: 
+	mcvax!cernvax!unizh!olsen!yaml@uunet.uu.net
+	olsen!yaml@uunet.uu.net
+    
+    P-Mail:
+	Portable Modula-2 Library
+	Olsen & Associates
+	Seefeldstrasse 233
+	CH-8008 Zurich
+	Switzerland
+
+We plan to have future releases when we have time.  The Library is 
+constantly being augmented and improved.  Our internal application
+base is large so we will not change established interfaces without
+careful consideration.  If you are interested in the areas which
+may change, see the file TODO.

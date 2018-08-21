@@ -1,0 +1,124 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE StringIO;
+(*
+ * Supports string I/O for TextIO files.
+ *)
+IMPORT 
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED
+    Read,
+    Write,
+    WriteJustified,     	WriteJustifiedAdr,     
+    WriteJustifiedField, 	WriteJustifiedFieldAdr;
+
+PROCEDURE Read(
+        file   : TextIO.Object;  (* Not in "endOfFile" or "error" state *)
+    VAR toRead : ARRAY OF CHAR   (* String read if "ok" *)
+    )          : TextIO.States;  (* TextIO.ok => string read *)
+    (*
+     * Read a sequence of characters from "file" and convert to a
+     * Modula-2 string.
+     *
+     * The read will terminate just before end-of-file or end-of-line
+     * are encountered; the string will be returned and the file's
+     * state will be "TextIO.ok".
+     *
+     * If "str" fills before end-of-file or end-of-line are encountered,
+     * Read will return with the data read until then, and a subsequent
+     * call to Read will read the remaining chars on the line.  
+     *
+     * If the underlying file object contains an ASCII.nul, "TextIO.error"
+     * will be returned and the file's state will be "IOErrors.badData".
+     *)
+
+PROCEDURE Write(
+    file    : TextIO.Object;  (* In "ok" state *)
+    toWrite : ARRAY OF CHAR   (* String to be written *)
+    )       : TextIO.States;  (* TextIO.ok => string written *)
+    (*
+     * Write the standard Modula-2 string to the file (does not output
+     * the string terminator, ASCII.nul, if any).
+     *)
+
+PROCEDURE WriteJustified(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : ARRAY OF CHAR;           (* String to be written *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    finalLength   : SysTypes.Card;           (* Width of field *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* TextIO.ok => string written *)
+PROCEDURE WriteJustifiedAdr(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : SYSTEM.ADDRESS;          (* String to be written *)
+    toWriteLen	  : SysTypes.Card;           (* Length of the string *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    finalLength   : SysTypes.Card;           (* Width of field *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* "TextIO.ok => string written *)
+    (* 
+     * Writes "toWrite" to "file" with specified "justification",
+     * "finalLength", and "fillPattern". The semantics are identical
+     * to those defined by Strings.Justify.
+     *
+     * "fillPattern" must have non-zero length.
+     * "toWrite" may have zero length.
+     *)
+
+PROCEDURE WriteJustifiedField(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : ARRAY OF CHAR;           (* String to be written *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    width         : SysTypes.Card;           (* Width of field, can be zero *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* TextIO.ok => string written *)
+PROCEDURE WriteJustifiedFieldAdr(
+    file          : TextIO.Object;           (* Not in "error" state *)
+    toWrite       : SYSTEM.ADDRESS;          (* String to be written *)
+    toWriteLen    : SysTypes.Card;           (* Length of the string *)
+    justification : Strings.Justifications;  (* Left, right or centered *)
+    width         : SysTypes.Card;           (* Width of field, can be zero *)
+    fillPattern   : ARRAY OF CHAR            (* Pattern to pad string with *)
+    )             : TextIO.States;           (* TextIO.ok => string written *)
+    (* 
+     * Writes "toWrite" to "file" with specified "justification",
+     * "width", and "fillPattern". The semantics are identical to
+     * WriteJustified except with respect to the "width" parameter.
+     *
+     * The "width" parameter specifies a maximum length of "toWrite".
+     * If "toWrite" is longer than this string, then a field of '*'s
+     * is output instead and the file is put in an error state
+     * ("IOErrors.badParameter"). If "width" is zero, this routine
+     * just outputs the string as defined by the semantics of normal
+     * Write (above).
+     *
+     * This routine can be used to guarantee columnar output without
+     * losing any of the characters from "toWrite".
+     *)
+
+END StringIO.
+

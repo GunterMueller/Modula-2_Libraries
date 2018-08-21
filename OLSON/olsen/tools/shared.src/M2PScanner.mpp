@@ -1,0 +1,1149 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE M2PScanner;
+(*
+ * 1.)Buffer management.
+ * --------------------- 
+ * The purpose of this scanner implementation is to have a "mechanism" 
+ * which allows to turn the output on and off ( as specified in the definition
+ * module ) without affecting the "character per character" view of the
+ * source file. 
+ * The buffer management is the real key issue as far as the treatement of
+ * lines with preprocessor statements is concerned, the treatement of 
+ * statement - free lines being trivial. 
+ * The following strategy of writing and flushing is pursued:
+ *     1.)Flushing: 
+ *         every time a "context free" token ( i.e begining with 
+ *         a conrol character ) is found, the part of the buffer up to the 
+ *         beginning of the token is flushed to the output if the output
+ *         control state is "on". 
+ *     2.)Deleting: 
+ *         in order to avoid setting too much "marks", the buffer shall 
+ *         be deleted up to the end of the token. However, this is necessary 
+ *         only if the output control state is "on" and the expression
+ *         scanning control state is "off" when looking for the next token.
+ *         This two states being known only at the next call, the deleting 
+ *         occurs at that time.   To delete, we shift the writeIndex
+ * 	   to the next character after index.
+ *
+ * 2.) Treatement of comments, string literals, keywords and identifiers.
+ * ---------------------------------------------------------------------- 
+ * All those items being "exceptions" ( in opposition to the "normal" flow
+ * of modula-2 code which is "dead material" for the preprocessor ), they have 
+ * to be treated separately. 
+ *     1.)Comments:
+ *         comments may be nested and in order to keep track of their
+ *         beginnings, a commentStack containing line numbers is maintained.
+ *     2.)String literals:
+ *         the current line is scanned until the end of the string or the
+ *         end of the line.
+ *     3.)Keywords and identifiers:
+ *         the current line is scanned until a non alphanumeric character is
+ *         encountered ( this may be an end-of-line ), then the keyword table 
+ *         is consulted to decide which kind of lexical item has been found.
+ *
+ * 3.) Error handling.
+ * -------------------
+ * The error handling philosophy is to return a boolean value
+ * indicating whether there was an "fatal" error or not and calling 
+ * the error message procedure with the appropriated parameter
+ * of type "ErrorStates". The setting of this parameter is realised through an 
+ * intermediate error code: the buffer management procedures performing
+ * IO - operations ( i.e GetBuffer, PutBuffer and  NextChar ) "translate" 
+ * TextIO - states in "buffer - states" and return those to the 
+ * high - level procedures performing lexical analysis which "translate"
+ * the "buffer - state" into an error - state. 
+ * This intermediate code is used because a given "buffer - state" has not 
+ * necesserly the same significance for a lexical analysing procedure.
+ *
+ * NOTE: The algorithms are written with execution speed as issue.
+ *
+ *)
+
+IMPORT
+    (* For portability reasons, keep the list of modules to a minimum. *)
+    CardConvert,
+    Chars,
+    GenConsts,
+    IOConsts,
+    NameLists,
+    ProgErrOutput,
+    SafeStorage,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+CONST 
+    (* This are all the special characters needed for syntax recognition *)
+    nullChar = 0C; 
+    controlChar = "@";
+    blank = " ";
+    leftParenthesis = "(";
+    rightParenthesis = ")";
+    star = '*';
+    literal1 = '"';
+    literal2 = "'";
+
+    semanticCommentStart = "$";	
+	(* See the procedure Comment for more details *)
+
+TYPE 
+    BufferStates = ( 
+	ok,
+	eol,
+	eof,
+	iOError
+	);
+    
+    ReadAheadStates = (	(* This is needed to handle TextIO.ReadChars *)
+	nothingPending,
+	eofPending,
+	eolPending
+    );
+
+CONST
+    high = GenConsts.maxLineLength - 1;
+    maxLineNumber = SysTypes.MAXCard;
+
+TYPE
+    ObjectRec = RECORD 
+	(* Buffer: *)
+	buffer:         GenConsts.Line;
+	index:          SysTypes.Card;    
+	writeIndex: SysTypes.Card;
+	upper:          SysTypes.Card;    
+	lineNumber:     SysTypes.Card;         
+	bufferState:    BufferStates;
+	readAhead:      ReadAheadStates;
+        
+	(* Identifier: *)
+	ident:          GenConsts.Identifier;  
+        validIdent:     BOOLEAN;              
+
+	(* Comments: *)
+	commentMode:    CommentModes;          
+
+	(* Files: *)
+	input:          TextIO.Object;      
+	output:         TextIO.Object;
+
+	(* Modes: *)
+	outputMode:     OutputModes;
+        expressionMode: ExpressionModes;     
+    END;
+    Object = POINTER TO ObjectRec;
+
+VAR
+    keywordTab: NameLists.Object;	(* ImpObj points into next decl *)
+    keywordTabValues : ARRAY Tokens OF Tokens;
+	(* Filled in only as needed *)
+
+(* object state management: *)
+
+PROCEDURE Open( 
+    VAR scannedObject: Object;        (* returns a valid and initialised 
+				         object *)
+	inputFile,                   
+	outputFile:    TextIO.Object; (* both must be open and ok *) 
+	comments:      CommentModes   (* strip or not strip *)
+    );
+
+    BEGIN(* Open *)
+        SafeStorage.ALLOCATE( scannedObject, SYSTEM.TSIZE( ObjectRec ) );
+	WITH scannedObject^ DO
+	    index:= 0;          (* because of PrepareBuffer *)
+	    writeIndex:= 0;
+	    upper:= 0;
+	    lineNumber:= 1;
+	    bufferState:= ok;
+	    readAhead:= nothingPending;
+	    validIdent:= FALSE;
+	    commentMode:= comments;
+	    input:= inputFile;
+	    output:= outputFile;
+	    expressionMode:= expressionOff;
+            outputMode:= outputOn;
+	END;
+     
+    END Open;  
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE Close(
+        scannedObject: Object   (* may be in any state *)
+    ):                 BOOLEAN;
+
+    BEGIN(* Close *)
+	SafeStorage.DEALLOCATE( scannedObject, SYSTEM.TSIZE( ObjectRec ) );
+	RETURN TRUE;
+     
+    END Close;  
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE GetIdentifier( 
+        scannedObject: Object;               (* must be valid *)
+    VAR identifier:    GenConsts.Identifier  (* the name associated with
+						the token *)
+    ):                 BOOLEAN;              (* valid identifier *)
+
+    BEGIN(* GetIdentifier *) 
+        WITH scannedObject^ DO
+            identifier:= ident;
+	    RETURN validIdent;
+        END;
+
+    END GetIdentifier;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE GetLineNumber( 
+	scannedObject: Object    (* must be valid *) 
+    ):                 SysTypes.Card; (* the current buffer number *) 
+
+    BEGIN(* GetLineNumber *) 
+	RETURN scannedObject^.lineNumber;
+
+    END GetLineNumber;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE SetOutputMode( 
+	scannedObject: Object;    (* must be valid *)
+	outputMode:    OutputModes
+    );
+
+    BEGIN(* SetOutputMode *)
+	scannedObject^.outputMode:= outputMode;
+     
+    END SetOutputMode;  
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE GetOutputMode( 
+	scannedObject: Object       (* must be valid *)
+    ):                 OutputModes;
+
+    BEGIN(* GetOutputMode *)
+	RETURN scannedObject^.outputMode;
+     
+    END GetOutputMode;  
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE SetExpressionMode( 
+	scannedObject:  Object;        (* must be valid *)
+	expressionMode: ExpressionModes        
+    );
+
+    BEGIN(* SetExpressionMode *)
+	scannedObject^.expressionMode:= expressionMode;
+     
+    END SetExpressionMode;  
+    (* ------------------------------------------------------------------- *)
+
+(* error diagnostics: *)
+
+PROCEDURE DisplayErrorMessage( 
+	scannedObject: Object;
+	lineNr:        SysTypes.Card;
+	message:       ARRAY OF CHAR
+	);
+    (*
+     * Don't use general IO routines, because this module is trying
+     * to be as free from the library as possible.
+     *)
+    VAR
+	path: IOConsts.Path;
+	cardString: ARRAY [ 0 .. SysTypes.bitsPerCard ] OF CHAR;
+	DONTCARE: BOOLEAN;
+    BEGIN(* DisplayErrorMessage *)
+	WITH scannedObject^ DO
+	    TextIO.GetOpenPath( input, path );
+	    ProgErrOutput.WriteString( '"' );
+	    ProgErrOutput.WriteString( path );
+	    ProgErrOutput.WriteString( '", line ' );
+	    DONTCARE := CardConvert.ToString( lineNr, 10, 0, cardString );
+	    ProgErrOutput.WriteString( cardString );
+	    ProgErrOutput.WriteString( ': ' );
+	    ProgErrOutput.WriteString( message );
+	    ProgErrOutput.WriteLn;
+        END;
+
+    END DisplayErrorMessage;
+    (* ------------------------------------------------------------------- *)
+
+CONST
+    writeError = 'write failed';
+    readError = 'read failed';
+    closeInputError = 'closing input file failed';
+    closeOutputError = 'closing output file failed';
+    unexpectedEof = 'unexpected end of file';
+    badTokenError = 'bad token';
+    openLiteralMessage = 'open string literal'; 
+
+TYPE
+    ErrorMessage = ARRAY[ 0..150 ] OF CHAR;
+    OneCharString = ARRAY[ 0..0 ] OF CHAR;
+    
+PROCEDURE MakeBadTokenMessage(
+        tokenString: ARRAY OF CHAR;
+    VAR message:     ErrorMessage
+    );
+    BEGIN(* MakeBadTokenMessage *)
+	Strings.Assign( badTokenError, message );
+	Strings.Concat( message, ' "', message );
+	Strings.Concat( message, tokenString, message );
+	Strings.Concat( message, '"', message );
+
+    END MakeBadTokenMessage;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE PrintErrorMessage( 
+    scannedObject: Object;
+    message:       ARRAY OF CHAR 
+    );
+    (*
+     * Uses the above procedure with a standard format.
+     *)
+    BEGIN(* PrintErrorMessage *)
+	DisplayErrorMessage( scannedObject, scannedObject^.lineNumber,
+			     message );
+
+    END PrintErrorMessage;
+    (* ------------------------------------------------------------------- *)
+
+CONST    
+    commentMessage = 'open comment';
+
+PROCEDURE PrintCommentErrorMessage( 
+    currentLine:   SysTypes.Card;
+    scannedObject: Object
+    );
+
+    BEGIN(* PrintCommentErrorMessage *)
+	WITH scannedObject^ DO
+	    DisplayErrorMessage( scannedObject, currentLine,
+				 commentMessage );
+        END;
+
+    END PrintCommentErrorMessage;
+    (* ------------------------------------------------------------------- *)
+
+(* buffer management: *)
+
+TYPE
+    WritingModes = (
+	  upToCurrent,
+	  wholeBuffer
+        );
+
+PROCEDURE PutBuffer( 
+        scannedObject: Object;
+	writingMode:   WritingModes  (* upToCurrent: writes the buffer from
+						     0 to index - 1
+	                                wholeBuffer: writes the whole buffer
+                                      *)
+    ):                 BufferStates; (* ok:      succesful
+					iOError: failed
+                                      *)
+    VAR
+	numTowrite: SysTypes.Card;
+	nextWriteIndex: SysTypes.Card;
+    BEGIN(* PutBuffer *)
+	WITH scannedObject^ DO
+	    IF writingMode = upToCurrent
+	    THEN
+		nextWriteIndex := index;
+	    ELSE
+		nextWriteIndex := upper + 1;
+	    END;
+	    IF nextWriteIndex > writeIndex THEN
+		IF TextIO.WriteChars( output, 
+		    SYSTEM.ADR( buffer[ writeIndex ] ), 
+		    nextWriteIndex - writeIndex ) # TextIO.ok 
+		THEN
+		    TextIO.PrintErrorMessage( output, "" );
+		    PrintErrorMessage( scannedObject, writeError );
+		    bufferState:= iOError;
+		    RETURN iOError;
+		END;
+		writeIndex := nextWriteIndex;
+	    END;
+	END;
+	RETURN ok;
+
+    END PutBuffer;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE GetBuffer( 
+        scannedObject: Object
+    ):                 BufferStates;
+
+    (* 
+     * Writes an end-of-file character to the output if necessery. The caller
+     * is responsible for the object - variable "lineNumber".
+     *)
+
+    BEGIN(* GetBuffer *)
+	WITH scannedObject^ DO
+	    CASE readAhead OF
+		nothingPending:
+		    (* fall through *)
+		|
+		eolPending:
+		    readAhead:= nothingPending;
+		    bufferState:= eol;
+		    RETURN eol;
+		|
+		eofPending:
+		    readAhead:= nothingPending;
+		    bufferState:= eof;
+		    RETURN eof;
+	    END;
+	    CASE TextIO.ReadChars( input, SYSTEM.ADR( buffer ), 
+				   HIGH( buffer ) + 1, upper ) OF
+		TextIO.ok:
+		    (* We know that we got some valid data, fall through *)
+		|
+		TextIO.endOfFile:
+		    IF upper = 0 THEN
+			bufferState:= eof;
+			RETURN eof;
+		    END;
+		    readAhead := eofPending;
+		|
+		TextIO.endOfLine:
+		    IF upper = 0 THEN
+			bufferState:= eol;
+			RETURN eol;
+		    END;
+		    readAhead := eolPending;
+		|
+		TextIO.error:
+		    TextIO.PrintErrorMessage( input, "" );
+		    PrintErrorMessage( scannedObject, readError );
+		    bufferState:= iOError;
+		    RETURN iOError;
+	    END;
+	    DEC( upper );
+	    index := 0;
+	    writeIndex := 0;
+	    bufferState:= ok;
+	    RETURN ok;
+        END;
+
+    END GetBuffer;
+    (* ------------------------------------------------------------------- *) 
+
+PROCEDURE PerformEndOfLine( 
+        scannedObject: Object
+    ):                 BufferStates; (* ok:      succesful
+					iOError: failed
+                                      *)
+    (*
+     Treatement of an encountered end - of - line:
+       1.) An eol is written to the output file.
+       2.) The object - variable holding the line number is incremented.
+     This piece of code is formulated separately because it is not allways 
+     adequate to perform it automatically after each end - of - line
+     ( e.g the procedure "KeywordOrIdentifier" ). 
+    *)
+
+    BEGIN(* PerformEndOfLine *)
+	WITH scannedObject^ DO
+	    IF TextIO.WriteLn( output ) # TextIO.ok THEN
+		TextIO.PrintErrorMessage( output, "" );
+		PrintErrorMessage( scannedObject, writeError );
+		bufferState:= iOError;
+		RETURN iOError;
+            ELSE
+		IF lineNumber < maxLineNumber THEN
+		    INC( lineNumber );
+		END;
+		bufferState := ok;
+		RETURN ok;
+	    END;
+        END;
+
+    END PerformEndOfLine;
+    (* ------------------------------------------------------------------- *) 
+
+PROCEDURE PrepareBuffer( 
+	scannedObject: Object
+    ):                 BufferStates; (* ok:      succesful
+					eof:     end-of-file found
+					iOError: failed
+                                      *)
+
+    (*
+     Makes the buffer ready for looking for the next token:
+       1.) Advances writeIndex past the part of the buffer already used.
+       2.) Refreshes the buffer if necessary
+     *)
+
+    BEGIN(* PrepareBuffer *)
+	WITH scannedObject^ DO
+	    CASE bufferState OF
+		ok:
+		    (* Remember:
+		     the index is positioned at the last character
+		     of the previous token. Hence, if it was the
+		     buffer's last, we need a new buffer.
+		     *)
+		    IF index < upper THEN 
+			INC( index );
+			writeIndex := index;
+			RETURN ok;
+		    END;
+		|
+		eol:
+		    IF PerformEndOfLine( scannedObject ) # ok THEN
+			RETURN iOError;
+		    END;
+	    ELSE
+		RETURN bufferState;
+	    END; 
+	    LOOP
+		IF GetBuffer( scannedObject ) = eol THEN
+		    IF PerformEndOfLine( scannedObject ) # ok THEN
+			RETURN iOError;
+		    END;
+		ELSE
+		    RETURN bufferState;
+		END;
+	    END;
+	END;
+
+    END PrepareBuffer;
+    (* ------------------------------------------------------------------- *)
+
+(* Token recognizing : *)
+
+CONST
+    firstLevel = 1;
+
+PROCEDURE Comment( 
+    VAR eofFound:      BOOLEAN;
+        level:         SysTypes.Card; (* at first recursion level we have to exit 
+				    differently *)
+	scannedObject: Object
+    ):                 BOOLEAN; 
+
+    (* 
+     Called only when a "real" comment occurs. Returns to caller after 
+     positionning the buffer pointer at the "current" , i.e at the
+     FIRST CHARACTER AFTER the comment. It is up to the caller to check 
+     the validity of this part of the buffer.
+     Nested comments are treated recursively.
+
+     A peculiar case arises with stripping comments which have semantic
+     content.  Personally, semantic meaning should be kept out of comments,
+     but then I don't write compilers.  The only type of comments with
+     semantic meaning are those comments which begin with a '$' as the
+     very first character after the comment brace.  In this case, we must
+     not strip if stripping is on.
+
+     BUG: Stripping doesn't work properly if the "(" and "*" are split
+	  across buffers.  This is not so easy to fix given the current
+	  implementation.  The work-around is to only strip comments
+	  if the star and paren are in the same buffer.  Otherwise, we
+	  would end up with garbled output.
+     *)
+
+    VAR 
+	currentLine:    SysTypes.Card; (* error message *)
+	currentChar:    CHAR;
+	previousChar:   CHAR;
+	savedMode:	CommentModes;
+
+    BEGIN(* Comment *) 
+	WITH scannedObject^ DO 
+	    savedMode := commentMode;	(* Always save *)
+	    (*
+	     When stripping comments, we have to write the part of the buffer 
+	     "before" the comment:
+	     *)
+	    IF ( level = firstLevel ) AND
+	       ( commentMode = stripOn ) AND 
+	       ( outputMode = outputOn ) AND
+	       ( expressionMode = expressionOff ) AND
+	       ( index > 0 )
+	    THEN 
+		(*
+		 * NOTE: For the semantic comment check, we assume the buffer
+		 *       is large enough to hold the first part of the 
+		 *       comment. This is a bad assumption, but I'm too lazy
+		 *       to fix the other code right now.
+		 *)
+		IF ( index + 1 <= upper ) AND
+		  ( buffer[ index + 1 ] = semanticCommentStart ) THEN
+		    commentMode := stripOff;	(* old mode already saved *)
+		ELSE
+		    DEC( index );
+		    IF PutBuffer( scannedObject, upToCurrent ) # ok THEN 
+			RETURN FALSE; 
+		    END; 
+		    INC( index );  (* positionning at the star *)
+		END;
+	    ELSE
+		(* Works around BUG described above *)
+		commentMode := stripOff;
+	    END; 
+	    currentLine:= lineNumber;
+	    previousChar:= nullChar;
+	    INC( index );	(* Skip past star *)
+	    LOOP 
+		IF index > upper THEN
+		    (* 
+		     new buffer business: 
+		     *)
+		    IF ( outputMode = outputOn ) AND 
+		       ( expressionMode = expressionOff ) AND 
+		       ( commentMode = stripOff ) AND
+		       ( PutBuffer( scannedObject, wholeBuffer ) = iOError ) 
+		    THEN 
+			commentMode := savedMode;
+		        RETURN FALSE; 
+		    END; 
+		    LOOP 
+			CASE GetBuffer( scannedObject ) OF 
+			    ok: 
+				EXIT; 
+			    | 
+			    eol: 
+				IF PerformEndOfLine( scannedObject ) # ok THEN 
+				    commentMode := savedMode;
+				    RETURN FALSE; 
+				END; 
+				(*
+				 a token ends with its line:
+				 *)
+                                previousChar:= nullChar;
+			    | 
+			    eof: 
+				PrintCommentErrorMessage( currentLine,
+							  scannedObject );
+				eofFound:= TRUE;
+				commentMode := savedMode;
+				RETURN TRUE;
+			    |
+			    iOError:
+				commentMode := savedMode;
+				RETURN FALSE;
+			END;
+		    END;  (* LOOP *)
+                END;  (* IF index > upper *)
+		currentChar:= buffer[ index ];
+		IF ( currentChar = rightParenthesis ) AND 
+		   ( previousChar = star ) THEN
+		    IF level = firstLevel THEN
+			(*
+			 positioning of the buffer pointer or deleting:
+			 *)
+		        IF commentMode = stripOff THEN 
+			    INC( index );
+                        ELSE
+			    CASE PrepareBuffer( scannedObject ) OF
+				eof:
+				    eofFound:= TRUE;
+				|
+				iOError:
+				    commentMode := savedMode;
+				    RETURN FALSE;
+			    ELSE
+				(* fall through *)
+			    END; 
+			END;
+                    END;
+		    commentMode := savedMode;
+		    RETURN TRUE;
+
+		(* More stars than parens in comments, typically. *)
+		ELSIF ( previousChar = leftParenthesis ) AND
+		    ( currentChar = star ) THEN 
+		    IF NOT Comment( eofFound, level + 1 , scannedObject ) 
+		    THEN
+			commentMode := savedMode;
+			RETURN FALSE;
+		    END;
+		    IF eofFound THEN
+			PrintCommentErrorMessage( currentLine, scannedObject );
+			commentMode := savedMode;
+			RETURN TRUE;
+		    END;
+		    previousChar := nullChar;
+		    (* Already pointing at next char *)
+		ELSE
+		    (* Read next character *)
+		    previousChar:= currentChar;
+		    INC( index );
+		END;
+            END; (* LOOP *)
+	END;  (* WITH *)
+	
+    END Comment;
+    (* ------------------------------------------------------------------- *)
+
+TYPE 
+    TokenPtr = POINTER TO Tokens;
+
+PROCEDURE KeywordOrIdentifier(
+    VAR token:         Tokens;
+        scannedObject: Object
+    ): BOOLEAN;
+
+    (*
+     Reads all the legal token characters, truncates if necessery and 
+     searches in the keyword table.  
+     Returns to the caller leaving the buffer index positionned at the
+     LAST CHARACTER of the treated token.
+    *) 
+    
+    VAR
+       identIndex:      SysTypes.Card;
+       tokenPtr:        TokenPtr;
+       badTokenMessage: ErrorMessage;
+       currentChar:     CHAR;
+
+    BEGIN(* KeywordOrIdentifier *)
+	WITH scannedObject^ DO
+	    identIndex:= 0;
+	    currentChar:= buffer[ index ];
+	    LOOP 
+		IF identIndex < high THEN
+		    ident[ identIndex ]:= currentChar;
+		    INC( identIndex );
+		END;
+		INC( index );
+		IF index > upper THEN
+		    (* 
+		     the relevant part of the buffer has allready been 
+		     flushed 
+		    *)
+		    CASE GetBuffer( scannedObject ) OF
+			ok:
+			|
+			eol:
+			    EXIT;
+			    (* 
+			     the end-of-line actions are performed 
+			     at next call to "NextToken",
+			     otherwise the line numbering isn't 
+			     consistent 
+			    *)
+			|
+			eof:
+			    token:= endOfFile;
+			    RETURN TRUE;
+			|
+			iOError:
+			    RETURN FALSE;	
+		    END;
+		END;
+		currentChar:= buffer[ index ];
+		IF NOT Chars.IsAlphaNumeric( currentChar ) THEN
+		    DEC( index );  (* may be the beginning of a token *)
+		    EXIT;
+		END;
+	    END;  (* LOOP *)
+	    IF identIndex < GenConsts.maxIdentifierLength THEN
+		ident[ identIndex ]:= nullChar;
+	    END;
+	    IF NameLists.Find( keywordTab, ident, tokenPtr )
+	    THEN
+		token:= tokenPtr^;
+            ELSE
+		IF ident[ 0 ] # controlChar THEN
+		    validIdent:= TRUE;
+		    token:= identifier;
+                ELSE
+		    MakeBadTokenMessage( ident, badTokenMessage );	
+		    PrintErrorMessage( scannedObject, badTokenMessage );
+		    token:= badToken;
+		    RETURN TRUE;
+                END
+	    END;
+	    RETURN TRUE;
+	END;
+
+    END KeywordOrIdentifier;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE Literal( 
+    VAR eofFound:      BOOLEAN;
+	literalChar:   CHAR;
+	scannedObject: Object 
+    ):                 BOOLEAN;
+ 
+    VAR
+	openLiteral: BOOLEAN;
+	myLine: SysTypes.Card;
+
+    BEGIN
+	openLiteral:= FALSE;
+	WITH scannedObject^ DO
+	    myLine := lineNumber;
+	    LOOP 
+		INC( index );
+		IF index > upper THEN
+		    (*
+		     We need a new buffer 
+		     *)
+		    IF ( outputMode = outputOn ) AND
+		       ( PutBuffer( scannedObject, wholeBuffer ) = iOError ) 
+		    THEN
+			RETURN FALSE;	
+		    END;
+		    LOOP
+			CASE GetBuffer( scannedObject ) OF
+			    ok:
+				IF openLiteral THEN
+				    RETURN TRUE;
+				END;
+				EXIT;
+			    |
+			    eol:
+				IF PerformEndOfLine( scannedObject ) # ok THEN
+				    RETURN FALSE;
+				END;
+				IF NOT openLiteral THEN
+				    (*
+				     * a string literal cannot exceed one line:
+				     *)
+				    DisplayErrorMessage( scannedObject, 
+						 myLine, openLiteralMessage );
+				    openLiteral:= TRUE;
+				END;
+				(* Must keep on reading until buffer full *)
+			    |
+			    eof:
+				IF NOT openLiteral THEN
+				    (*
+				     * a string literal cannot just hang at eof
+				     *)
+				    DisplayErrorMessage( scannedObject, 
+					myLine, openLiteralMessage );
+				END;
+			        eofFound:= TRUE;	
+				RETURN TRUE;
+			    |
+			    iOError:
+				RETURN FALSE;	
+			END;
+		    END;  (* LOOP *)
+		END;  (* IF index > upper *) 
+		IF buffer[ index ] = literalChar THEN
+		    INC( index );
+		    EXIT; 
+		END;
+	    END;  (* LOOP *)
+	    RETURN TRUE;
+        END;
+
+    END Literal;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE NextCFT( 
+	scannedObject: Object; 
+    VAR token:         Tokens         
+    ):                 BOOLEAN;
+
+    (*
+     Searches for the next "context free" token, i.e a token beginning with a 
+     control character, the search being perfomed between the current index 
+     and the logical end of the string. 
+     Several sorts of "items" may be encountered ( essentialy string literals, 
+     comments or keywords ) but only the item "keyword" causes a return to
+     the caller through "KeywordOrIdentifier", which implies that it
+     leaves the buffer index positionned at the LAST CHARACTER of the
+     treated token.
+    *)
+
+    VAR
+	eofFound:     BOOLEAN;
+        previousChar: CHAR;	
+        currentChar:  CHAR;	
+
+    BEGIN(* NextCFT *) 
+	eofFound:= FALSE;
+	previousChar:= nullChar;
+	WITH scannedObject^ DO	
+	    LOOP(* "high speed" loop *)
+	        currentChar:= buffer[ index ];	
+		CASE currentChar OF
+                    literal1,
+		    literal2:
+			IF NOT Literal( eofFound, currentChar, scannedObject ) 
+			THEN
+			    RETURN FALSE;
+                        END;
+			IF eofFound THEN
+			    token:= endOfFile;
+			    RETURN TRUE;
+			END;
+			previousChar:= nullChar;
+		    |
+		    star:
+			IF previousChar # leftParenthesis THEN
+			    (* nothing to do, but check next character. *)
+			    previousChar:= currentChar;
+			    INC( index );
+			ELSE
+			   IF NOT Comment( eofFound, firstLevel, 
+					   scannedObject ) THEN
+				RETURN FALSE;
+			    END;
+			    IF eofFound THEN
+				token:= endOfFile;
+				RETURN TRUE;
+			    END;
+			    previousChar:= nullChar;
+			END;
+		    |
+		    controlChar:
+			IF ( outputMode = outputOn ) AND 
+			    (*
+			     Flush the buffer according to our philosophy
+			     *)
+			   ( PutBuffer( scannedObject, upToCurrent ) # ok ) 
+			THEN
+			    RETURN FALSE;
+			END;
+			RETURN KeywordOrIdentifier( token, scannedObject );
+                ELSE
+		    (* nothing to do, but check next character. *)
+		    previousChar:= currentChar;
+		    INC( index );
+		END;
+		IF index > upper THEN
+		    (*
+		     Grab a new buffer
+		     *)
+		    IF ( outputMode = outputOn ) AND 
+		       ( PutBuffer( scannedObject, wholeBuffer ) # ok )
+		    THEN
+			RETURN FALSE;
+		    END;
+		    LOOP
+			CASE GetBuffer( scannedObject ) OF
+			    ok:
+				EXIT;
+			    |
+			    eol:
+				IF PerformEndOfLine( scannedObject ) # ok THEN
+				    RETURN FALSE;
+				END;
+				previousChar:= nullChar;
+			    |
+			    eof:
+				token:= endOfFile;
+				RETURN TRUE;
+			    |
+			    iOError:
+				RETURN FALSE;
+			END;
+		    END;  (* LOOP *)
+                END;
+	    END;  (* "high speed loop" *)
+	END;  (* WITH scannedObject^ *)
+
+    END NextCFT;
+   (* ------------------------------------------------------------------- *)
+
+PROCEDURE NextExpressionToken( 
+	scannedObject: Object; 
+    VAR token:         Tokens         
+    ):                 BOOLEAN;
+
+    (*
+     This one has to recognize every token. Leaves the buffer index
+     positionned at the LAST CHARACTER of the token.
+     *)
+    VAR
+	currentChar:     CHAR;
+	previousChar:    CHAR;
+	badTokenMessage: ErrorMessage;
+	badTokenString:  OneCharString;
+	eofFound:        BOOLEAN;
+
+     BEGIN(* NextExpressionToken *)
+	 eofFound:= FALSE;
+	 WITH scannedObject^ DO	
+	     validIdent:= FALSE;
+	     previousChar:= nullChar;
+	     LOOP
+		 currentChar:= buffer[ index ];
+		 IF previousChar = leftParenthesis THEN 
+		     (*
+		      Is it a comment?
+		      *)
+		     IF currentChar = star THEN 
+			 IF NOT Comment( eofFound, firstLevel, scannedObject )
+			 THEN 
+			     RETURN FALSE; 
+			 END; 
+			 IF eofFound THEN 
+			     token:= endOfFile; 
+			     RETURN TRUE;
+			 END;
+			 IF index <= upper THEN
+			     currentChar:= buffer[ index ]
+                         ELSE
+			     currentChar:= nullChar;
+                         END;
+                     ELSE
+			 DEC( index );
+			 token:= leftParen;
+			 RETURN TRUE;
+                     END;
+		 END;
+		 CASE currentChar OF
+		     nullChar:
+		     |
+		     blank:
+		     |
+		     leftParenthesis:
+			(* Must delay because of comments *)
+		     |
+		     rightParenthesis:
+			 token:= rightParen;
+			 RETURN TRUE;
+		     |
+		     controlChar, "A".."Z", "a".."z":
+			 RETURN KeywordOrIdentifier( token, scannedObject );
+		     (* the leftParen case is allready treated *)
+		 ELSE
+		     badTokenString[ 0 ]:= currentChar; 
+		     MakeBadTokenMessage( badTokenString, 
+					  badTokenMessage );
+		     PrintErrorMessage( scannedObject, 
+					badTokenMessage );
+		     token:= badToken;
+		     RETURN TRUE;
+		 END;  (* CASE *)
+		 previousChar:= currentChar; 
+		 INC( index );
+		 IF index > upper THEN
+		     LOOP
+			 CASE GetBuffer( scannedObject ) OF
+			     ok:
+				 EXIT;
+			     |
+			     eol:
+				 IF PerformEndOfLine( scannedObject ) # ok 
+				 THEN
+				     RETURN FALSE;
+				 END;
+				 IF previousChar = leftParenthesis THEN
+				    token:= leftParen;
+				    RETURN TRUE;
+                                 END;
+				 previousChar:= nullChar;
+			     |
+			     eof:
+				 token:= endOfFile;
+				 RETURN TRUE;
+			     |
+			     iOError:
+				 RETURN FALSE;
+			 END;
+		     END;  (* LOOP *)
+		 END;
+	     END;  (* LOOP *)
+	 END;
+
+     END NextExpressionToken;
+    (* ------------------------------------------------------------------- *)
+
+PROCEDURE NextToken( 
+	scannedObject: Object; 
+    VAR token:         Tokens         
+    ):                 BOOLEAN;
+    (*
+     * Returns the next token and manages the output. 
+     *)
+
+     BEGIN(* NextToken *)
+	 (*
+	  We don't want to look at the part of the buffer allready treated:
+	  *)
+	 CASE PrepareBuffer( scannedObject ) OF
+	     eof:
+		 token:= endOfFile;
+		 RETURN TRUE;
+	     |
+	     iOError:
+		 RETURN FALSE;
+         ELSE
+             (* fall through *)
+	 END; 
+	 WITH scannedObject^ DO	
+	     IF expressionMode = expressionOff THEN
+		 RETURN NextCFT( scannedObject, token );
+	     ELSE
+		 RETURN NextExpressionToken( scannedObject, token )
+             END;  (* IF expressionMode ... *)
+	 END;  (* WITH scannedObject^ ... *)
+
+    END NextToken;
+    (* ------------------------------------------------------------------- *)
+
+(* initialisation: *)
+
+CONST
+    MaxTokenLength = 7;
+
+PROCEDURE AddToken(
+    name: ARRAY OF CHAR;
+    value: Tokens
+    );
+    BEGIN (* AddToken *)
+	keywordTabValues[ value ] := value;
+	NameLists.Insert( keywordTab, name, 
+			  SYSTEM.ADR( keywordTabValues[ value ] ) );
+    END AddToken;
+
+PROCEDURE AddControlToken(
+	name: ARRAY OF CHAR;
+	value: Tokens
+    );
+    BEGIN
+	name[ 0 ] := controlChar;
+	AddToken( name, value );
+    END AddControlToken;
+
+BEGIN(* M2PScanner *)
+
+    NameLists.Create( keywordTab, NameLists.forwardSorted, 
+		      NameLists.caseSensitive );
+
+    AddControlToken( " IF", if );
+    AddControlToken( " ELSE", else );
+    AddControlToken( " ELSIF", elsif );
+    AddControlToken( " END", end ); 
+
+    AddToken( "THEN", then );
+    AddToken( "OR", or );
+    AddToken( "AND", and );
+    AddToken( "NOT", not );
+    AddToken( "TRUE", true );
+    AddToken( "FALSE", false );
+
+END M2PScanner.
+

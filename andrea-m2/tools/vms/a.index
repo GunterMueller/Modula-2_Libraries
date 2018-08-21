@@ -1,0 +1,41 @@
+check_def_and_mod.com
+       This command procedure is used in the library directory to check that
+       all .def files have matching .mod files, and vise versa.
+
+check_prots.com
+       This is used in the library directory to check that the protections
+       are set correctly.
+
+def.edt
+       This is a startup file for the EDT editor which is useful for .def files.
+ 
+m2.com
+      This command procedure is used by students to compile, link and run
+      their assignment programs.
+
+m2_build.com
+     This procedure is used for building a program out of a set of modules.
+     It examines modification times and makes the appropriate compilations.
+
+make_fortran_objs.com
+    This is used in the library directory to compile the Fortran code that
+    back-ends some modules.
+
+mod.edt
+     This is a startup file for the EDT editor which is useful for .mod files.
+
+mod2.com
+     This is an advanced version of m2.com
+
+mod2_go.com
+     This applies m2.com to the last edited file. Provided that the environment
+     variables are kept up to date with an editing procedure.
+   
+mod_link.com
+     This is the link back-end for m2.com and mod2.com
+
+modula_call_seq.com
+    This procedure will generate a whole calling sequence for a module.
+
+update_library.com
+    This is used in the library directory to update the object file library.

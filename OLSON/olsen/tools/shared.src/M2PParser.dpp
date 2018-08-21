@@ -1,0 +1,57 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE M2PParser;
+(* 
+ * The grammar this parser treats is fairly simple, after left - factoring,
+ * its EBNF - form is: 
+ * 
+ * Statement   = IF Expression THEN { Statement }{ ElsifClause } 
+ *               [ElseClause] END
+ * ElsifClause = ELSIF Expression THEN { Statement }
+ * ElseClause  = ELSE { Statement }
+ * Expression  = OrFactor
+ * OrFactor    = AndFactor { OR AndFactor }
+ * AndFactor   = NotFactor { AND NotFactor }
+ * NotFactor   = Identifier | TRUE | FALSE | NOT NotFactor | ( Expression )
+ *
+ * There is not parser output. The only semantic decisions consist of turning 
+ * the scanner output on and off. 
+ * A symbol table is supplied. Every time a token of type "identifier" is 
+ * encountered, the presence or absence of its associated name in the symbol 
+ * table determines the resulting truth value. 
+ *)
+
+IMPORT
+    M2PScanner,    NameLists;
+
+EXPORT QUALIFIED
+    Parse;
+
+PROCEDURE Parse( 
+    scannedObject: M2PScanner.Object;  (* must be valid *) 
+    symbolTable:   NameLists.Object    (* preprocessor variables *)
+    ): BOOLEAN;                        (* errors ? *)
+
+END M2PParser.
+
+

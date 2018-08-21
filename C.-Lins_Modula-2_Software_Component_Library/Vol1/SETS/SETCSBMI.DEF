@@ -1,0 +1,233 @@
+(*
+14			The Discrete (Character) Bounded Set
+
+
+Before leaving the subject of sets let us examine a set implementation for the Modula-2
+CHAR data type.  Because we will be dealing with a scalar data type, this information can
+be used to our advantage and allow certain optimizations in the implementation that could
+not be applied otherwise with the generic form.
+
+
+
+14.1		SetCSBMI Interface
+
+
+There are three differences between the generic bounded set and the discrete form as
+presented here:
+
+* Create does not require a size parameter since this value is constant;
+* SizeOf is not necessary for the same reason; and
+* Complement can be provided since the universal set for characters is known and
+  finite.
+
+In all other respects, the definition is otherwise identical with that for the bounded set.
+*)
+
+
+DEFINITION MODULE SetCSBMI;
+(*===========================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Set
+               Discrete Sequential Bounded Managed Iterator
+
+    INTRODUCTION
+    This module supports the abstract data type set for
+    discrete values of ASCII CHARs.
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2.
+
+    (C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+FROM CharItems IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM SetEnum IMPORT
+    (*--Type*) Exceptions;
+
+    (*-----------------------*)
+
+TYPE  Set;
+TYPE  SizeRange = [1..256];
+CONST NullSet   = Set(NIL);
+
+
+(*
+14.1.1			Exceptions
+
+The ModuleID is used by the exception handling mechanism to distinguish this module
+from other modules.
+
+SetError returns the exception code from the most recent discrete set operation.  A result
+of noerr indicates successful completion of the operation.
+
+GetHandler returns the exception handler routine associated with the given exception. 
+Though the routine is a function procedure returning a procedure as its result, the
+HandlerProc may not be called from within the GetHandler call itself.  The procedure
+result must be first assigned to a procedure variable before invocation. Exception handlers
+are given an initial value of ExitOnError except for the handler for noerr which is
+initialized to the null exception handler.
+
+SetHandler associates an exception handler routine with the given exception and is the
+inverse of GetHandler. This routine may be used to override the default settings for the
+exception handlers.
+*)
+
+CONST ModuleID = 1;
+
+PROCEDURE SetError    ()             : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+                           toHandler : HandlerProc (*-- in    *));
+
+
+(*
+14.1.2			Constructors
+
+The Create operation attempts to generate a new, empty character set.  The TypeID is
+unnecessary since we are dealing directly with characters and incorporating such
+knowledge into the implementation.  A similar statement can be made regarding the
+maximum size of the set since characters form a small, discrete ranges of values.
+
+Create will return the new set upon successful completion of the routine.  If it is not
+possible for the set to be created, the constant NullSet  will be returned instead.
+
+Destroy takes the given set, clears it of any items, and then destroys the set itself. 
+Where Create makes a defined set, Destroy is its inverse, making the set undefined.
+
+Clear takes the given set and removes all its items, thus returning the set to the empty
+state.
+
+The Assign operation attempts to generate a duplicate of the source set (theSet) in the
+target set (toSet).  The target set is automatically created, if necessary, otherwise the
+target is cleared of its present contents before the assignment.  All character sets are given
+the same, maximum size.
+
+The Include operation adds items to the given set.  If the item is already a member of the
+set the exception condition is quietly ignored.
+
+The Exclude operation removes the specified item from the given set.  If the given set is 
+empty on entry to Exclude, or the given item is not a member of the set  the notinset 
+exception is ignored and the set remains unchanged.
+
+Union, Intersection, Difference, SymDifference (symmetric difference), and Complement
+operations all implement the standard set operations of the same name as defined in the
+set abstraction chapter (11).
+*)
+
+PROCEDURE Create        ()           : Set         (*-- out   *);
+
+PROCEDURE Destroy       (VAR theSet  : Set         (*-- inout *));
+
+PROCEDURE Clear         (VAR theSet  : Set         (*-- inout *));
+
+PROCEDURE Assign        (    theSet  : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+PROCEDURE Include       (    theItem : Item        (*-- in    *);
+                         VAR inSet   : Set         (*-- inout *));
+
+PROCEDURE Exclude       (    theItem : Item        (*-- in    *);
+                         VAR fromSet : Set         (*-- inout *));
+
+PROCEDURE Union         (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+PROCEDURE Intersection  (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+PROCEDURE Difference    (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+PROCEDURE SymDifference (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+PROCEDURE Complement    (    theSet  : Set         (*-- in    *);
+                         VAR toSet   : Set         (*-- inout *));
+
+
+(*
+14.1.3			Selectors
+
+IsDefined attempts to determine whether the given set is valid, e.g., has been created and
+not yet destroyed.  How this is accomplished may be as simple or complicated as the
+implementer desires and the requirements of the application.
+
+IsEmpty returns true if the given set contains no items; in other words, its cardinality is
+zero.  Undefined sets are always considered empty.
+
+IsEqual returns true if the left and right sets contain the same items.  Obviously, both
+must also have been created.  An undefined set is not equal to any other set, including
+itself.
+
+NumMembers returns the number of items present in the given set.  Undefined sets are
+considered to have no members.
+
+IsAMember returns true if the given item is present in the given set, and false otherwise.
+
+IsSubset and IsProperSubset both implement standard logical set operations as defined in
+the Set Abstraction (chapter 11).
+*)
+
+PROCEDURE IsDefined     (    theSet  : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEmpty       (    theSet  : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEqual       (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE NumMembers    (    theSet  : Set         (*-- in    *))
+                                     : CARDINAL    (*-- out   *);
+
+PROCEDURE IsAMember     (    theItem : Item        (*-- in    *);
+                             theSet  : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsSubset      (    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsProperSubset(    left    : Set         (*-- in    *);
+                             right   : Set         (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+
+(*
+14.1.4			Iterators
+
+The iterator routine LoopOver provides the facility for looping over some or all items of
+a set, with read-only access to each item.  theProcess procedure parameter to this routine
+returns a BOOLEAN function result where TRUE allows the iteration to proceed to the
+next item and FALSE causes the iteration to be terminated.
+
+The Traverse iterator provides the facility for looping over all items of a set, with
+read-only access to each item.
+
+Both iterators traverse the given set from the first item towards the last item in ascending
+order.  Obviously, if given an empty set the processing procedure will not be invoked.
+*)
+
+PROCEDURE LoopOver    (    theSet  : Set            (*-- in    *);
+                           process : LoopAccessProc (*-- in    *));
+
+PROCEDURE Traverse    (    theSet  : Set            (*-- in    *);
+                           process : AccessProc     (*-- in    *));
+
+END SetCSBMI.
+

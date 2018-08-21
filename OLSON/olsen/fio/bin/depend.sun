@@ -1,0 +1,64 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+ConfFIO.def: ../shared.src/ConfFIO.dpp 
+	${StandardM2pp}
+ConvertFIO.def: ../shared.src/ConvertFIO.dpp 
+	${StandardM2pp}
+DataFIO.def: ../shared.src/DataFIO.dpp 
+	${StandardM2pp}
+ErrorFIO.def: ../shared.src/ErrorFIO.dpp 
+	${StandardM2pp}
+FIOBase.def: ../shared.src/FIOBase.dpp 
+	${StandardM2pp}
+FIOBool.def: ../shared.src/FIOBool.dpp 
+	${StandardM2pp}
+FIOCard.def: ../shared.src/FIOCard.dpp 
+	${StandardM2pp}
+FIOInt.def: ../shared.src/FIOInt.dpp 
+	${StandardM2pp}
+FIOPRIVATE.def: ../shared.src/FIOPRIVATE.dpp 
+	${StandardM2pp}
+FIOReal.def: ../shared.src/FIOReal.dpp 
+	${StandardM2pp}
+FIOScreen.def: ../shared.src/FIOScreen.dpp 
+	${StandardM2pp}
+FIOString.def: ../shared.src/FIOString.dpp 
+	${StandardM2pp}
+FormatIO.def: ../shared.src/FormatIO.dpp 
+	${StandardM2pp}
+SimpleFIO.def: ../shared.src/SimpleFIO.dpp 
+	${StandardM2pp}
+ConfFIO.mod: ../shared.src/ConfFIO.mpp 
+	${StandardM2pp}
+ConvertFIO.mod: ../shared.src/ConvertFIO.mpp 
+	${StandardM2pp}
+DataFIO.mod: ../shared.src/DataFIO.mpp 
+	${StandardM2pp}
+ErrorFIO.mod: ../shared.src/ErrorFIO.mpp 
+	${StandardM2pp}
+FIOBase.mod: ../shared.src/FIOBase.mpp 
+	${StandardM2pp}
+FIOBool.mod: ../shared.src/FIOBool.mpp 
+	${StandardM2pp}
+FIOCard.mod: ../shared.src/FIOCard.mpp 
+	${StandardM2pp}
+FIOInt.mod: ../shared.src/FIOInt.mpp 
+	${StandardM2pp}
+FIOPRIVATE.mod: ../shared.src/FIOPRIVATE.mpp 
+	${StandardM2pp}
+FIOReal.mod: ../shared.src/FIOReal.mpp 
+	${StandardM2pp}
+FIOScreen.mod: ../shared.src/FIOScreen.mpp 
+	${StandardM2pp}
+FIOString.mod: ../shared.src/FIOString.mpp 
+	${StandardM2pp}
+FormatIO.mod: ../shared.src/FormatIO.mpp 
+	${StandardM2pp}
+SimpleFIO.mod: ../shared.src/SimpleFIO.mpp 
+	${StandardM2pp}

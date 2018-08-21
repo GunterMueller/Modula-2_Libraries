@@ -1,0 +1,5 @@
+DEFINITION MODULE Template;
+
+EXPORT QUALIFIED ;
+
+END Template.

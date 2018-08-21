@@ -1,0 +1,20 @@
+M2Defs= ASCII.def Bytes.def CRC16.def CardConvert.def Chars.def  \
+        DebugFlags.def GenConsts.def IntConvert.def Intrinsics.def Lists.def  \
+        MC68881.def ModInit.def NameLists.def Notices.def Objects.def  \
+        ProgArgs.def ProgEnviron.def ProgErr.def ProgErrOutput.def  \
+        QStrings.def RandomNumbers.def RealConvert.def SafeStorage.def  \
+        Strings.def SysTypes.def UnixCenviron.def UnixCerrno.def  \
+        UnixCexit.def UnixCfcntl.def UnixChost.def UnixCioctl.def  \
+        UnixCipc.def UnixCmalloc.def UnixCmath.def  \
+        UnixCprocess.def UnixCrasterfile.def UnixCsignal.def UnixCsys_dir.def  \
+        UnixCsys_file.def UnixCsys_param.def UnixCsys_resource.def  \
+        UnixCsys_stat.def UnixCsys_time.def UnixCsys_types.def  \
+        UnixCtermcap.def UnixCtty.def UnixCtypes.def UnixError.def  \
+        UnixMathError.def 
+M2Imps= ASCII.mod Bytes.mod CRC16.mod CardConvert.mod Chars.mod  \
+        DebugFlags.mod GenConsts.mod IntConvert.mod Intrinsics.mod Lists.mod  \
+        ModInit.mod NameLists.mod Notices.mod Objects.mod ProgArgs.mod  \
+        ProgEnviron.mod ProgErr.mod ProgErrOutput.mod QStrings.mod  \
+        RandomNumbers.mod RealConvert.mod SafeStorage.mod Strings.mod  \
+        SysTypes.mod UnixError.mod 
+M2Mods= 

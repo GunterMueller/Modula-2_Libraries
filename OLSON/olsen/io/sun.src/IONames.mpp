@@ -1,0 +1,636 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE IONames;
+(*
+ * Sun/Unix implementation.  
+ *
+ * The management of IONames in Unix is pretty easy, because the
+ * syntax is very free.  Any character is valid in entries (except
+ * the directory separator).  There are some funny cases when we
+ * consider separating Unix paths.  For example, we allow ".xxx".
+ *
+ * There is an attempt to make the code more readable via constants
+ * such as "directorySeparator".  This is a veiled attempt at portability
+ * as well, because the code often assumes that these ``strings'' are 
+ * one character long.  This restriction could be removed, but it 
+ * would only make the code slower and not much more readable or 
+ * portable (given all the special cases).
+ *)
+IMPORT 
+    Chars,
+    DirIO,
+    IntConvert,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    ProgArgs,
+    ProgErr,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    UnixCprocess,
+    UnixCsys_time;
+
+CONST
+    directorySeparator        = '/';
+    directorySeparatorLength  = 1;
+    baseSeparator             = '.';
+    baseSeparatorLength       = 1;
+
+
+PROCEDURE Validate(
+    path : ARRAY OF CHAR
+    )    : ValidateResults;
+    (*
+     * The only illegal path names are names which are too long.  This
+     * procedure just checks to make sure that number of characters between
+     * the directory separators is not longer than maxEntryLength.
+     *)
+    VAR
+	length	      : SysTypes.Card;
+	i	      : SysTypes.Card;
+	lastDirectory : SysTypes.Card;
+    BEGIN (* Validate *)
+
+	IF path[ 0 ] = 0C THEN
+	    RETURN pathIsRelative;	(* This is legal *)
+	END;
+
+	length := Strings.Length( path );
+	IF length > IOConsts.maxPathLength THEN
+	    RETURN pathIsIllegal;
+	END;
+
+	lastDirectory := 0;
+	FOR i := 0 TO length - 1 DO
+	    IF path[ i ] = directorySeparator THEN
+		(*
+		 * Actually an entry may not be longer than maxEntryLength - 1,
+		 * because Unix requires null-terminated strings.  This check
+		 * accounts for the separator occupying the "-1".
+		 *)
+		IF i - lastDirectory > IOConsts.maxEntryLength THEN
+		    RETURN pathIsIllegal;
+		END;
+	    END;
+	END;
+
+	IF path[ 0 ] = directorySeparator THEN
+	    RETURN pathIsAbsolute;	(* Is a device *)
+	END;
+    
+	RETURN pathIsRelative;
+    END Validate;
+
+
+PROCEDURE Separate(
+        path      : ARRAY OF CHAR;
+    VAR directory : IOConsts.Path;
+    VAR base      : IOConsts.Base;
+    VAR suffix    : IOConsts.Suffix
+    );
+    (*
+     * This procedure assumes that the syntax of a name is correct
+     * as all the others.  If the syntax is correct, then we can
+     * simply check in reverse for the suffix, base, and finally
+     * directory parts.  Note however, if there is a trailing
+     * directory separator, then the base and suffix are empty.
+     *)
+    VAR
+	pathLength  : SysTypes.Card;
+	suffixStart : SysTypes.Card;
+	baseStart   : SysTypes.Card;   
+	i           : SysTypes.Card;
+    BEGIN (* Separate *)
+
+	(* Always return valid strings *)
+	directory[ 0 ] := 0C;
+	base[ 0 ] := 0C;
+	suffix[ 0 ] := 0C;
+
+	pathLength := Strings.Length( path );
+
+	IF pathLength = 0 THEN
+	    RETURN;	(* Nothin there *)
+	END;
+
+	(* 
+	 * Look for a suffix.
+	 * Search backwards until we find a baseSeparator.  If we don't
+	 * find a baseSeparator or we find a directorySeparator 
+	 * first, then we don't have a suffix.  Note
+	 * that the suffix is truncated if it is too long (caveat emptor).
+	 *)
+	suffixStart := pathLength;	(* invalid value *)
+	i := pathLength;
+	REPEAT 
+	    DEC( i );
+	    CASE path[ i ] OF
+		directorySeparator:
+		    (* No suffix *)
+		    i := 0;	(* cause exit *)
+		|
+		baseSeparator:
+		    (* Empty suffixes don't delete the "." *)
+		    IF i # pathLength - 1 THEN
+			(* Get rid of separator *)
+			Strings.Substring( path, i + 1, Strings.EOS, suffix );
+			suffixStart := i;	(* point to separator *)
+		    END;
+		    i := 0;	(* cause exit *)
+		ELSE
+		    (* Keep on searching backwards *)
+	    END;
+	UNTIL i = 0;
+
+	(*
+	 * Look for the base.  
+	 * Note that a base can begin the string, so we can't use
+	 * exactly the same algorithm as the suffix (above).
+	 * The basic idea is the same, though.
+	 *)
+	baseStart := suffixStart;	(* invalid value *)
+	i         := suffixStart;	(* may be pathLength *)
+	WHILE i > 0 DO
+	    DEC( i );
+	    IF path[ i ] = directorySeparator THEN
+		i := 0;	(* cause exit *)
+	    ELSE
+		(* We know we have part of a "base" *)
+		baseStart := i;
+	    END;
+	END; (* WHILE *)
+
+	(* Is there a base? *)
+	IF baseStart # suffixStart THEN
+	    (* Don't care if we truncate *)
+	    Strings.Substring( path, baseStart, suffixStart - 1, base );
+	END;
+
+	(* Any part that is left is the directory *)
+	IF baseStart # 0 THEN
+	    DEC( baseStart );	(* point at separator *)
+	    (* 
+	     * In copying, we must delete the trailing directory
+	     * separator only if it is insignficant.  This means
+	     * that it isn't the begining directorySeparator.
+	     *)
+	    IF ( path[ baseStart ] = directorySeparator ) AND ( baseStart > 0 )
+	      THEN DEC( baseStart );
+	    END;
+	    Strings.Substring( path, Strings.BOS, baseStart, directory );
+	END;
+    END Separate;
+
+
+PROCEDURE Make(
+        directory : ARRAY OF CHAR;
+	base      : ARRAY OF CHAR;
+	suffix    : ARRAY OF CHAR;
+    VAR path      : IOConsts.Path
+    );
+    (*
+     * We have to do a bit of checking to make sure that the various
+     * pieces don't have separators lying around.
+     * Separators are only inserted if the adjacent component exists
+     * for Base and Suffix.  If the directory exists, then a separator
+     * is always appendend.
+     *)
+    VAR
+	dirLength    : SysTypes.Card;
+	baseLength   : SysTypes.Card;
+	suffixLength : SysTypes.Card;
+    BEGIN (* Make *)
+	
+	dirLength    := Strings.Length( directory );
+	baseLength   := Strings.Length( base );
+	suffixLength := Strings.Length( suffix );
+
+	(* 
+	 * Only append the directorySeparator if there is not a 
+	 * directory separator already. 
+	 *)
+	IF ( dirLength > 0 ) AND 
+	   ( directory[ dirLength - 1 ] # directorySeparator ) THEN
+	    Strings.Concat( directory, directorySeparator, path );
+	ELSE
+	    (* Copy the directory (even if it is empty) *)
+	    Strings.Assign( directory, path );
+	END;
+
+	IF baseLength > 0 THEN
+	    (*
+	     * Watch out for a starting directorySeparator 
+	     * and a trailing baseSeparator.
+	     *)
+	    IF ( suffixLength # 0 ) AND 
+	       ( base[ baseLength - 1 ] # baseSeparator ) THEN
+		Strings.Insert( base, Strings.EOS, baseSeparator );
+		INC( baseLength );
+	    END;
+
+	    (* Delete beginning directorySeparator if necessary *)
+	    IF ( dirLength > 0 ) AND ( base[ 0 ] = directorySeparator ) THEN
+		Strings.Delete( base, Strings.BOS, Strings.BOS );
+		DEC( baseLength );
+	    END;
+
+	    (* Now put the "base" on the end *)
+	    Strings.Insert( path, Strings.EOS, base );
+	END;
+
+	IF suffixLength > 0 THEN
+	    (*
+	     * If there is a base, then we should delete a leading ".".
+	     * If there isn't a base and there is a suffix, then we
+	     * should put the baseSeparator in.
+	     *)
+	    IF ( suffix[ 0 ] = baseSeparator ) AND ( baseLength # 0 ) THEN
+		Strings.Delete( suffix, Strings.BOS, Strings.BOS );
+	    ELSIF ( suffix[ 0 ] # baseSeparator ) AND ( baseLength = 0 ) THEN
+		Strings.Insert( base, Strings.BOS, baseSeparator );
+	    END;
+	    Strings.Insert( path, Strings.EOS, suffix );
+	END;
+    END Make;
+
+
+PROCEDURE MakeAbsolute(
+        relativePath : ARRAY OF CHAR;
+    VAR absolutePath : IOConsts.Path
+    );
+    (*
+     * This procedure is divided into two parts: figuring out how "absolute"
+     * the path is and then the second is in "paring down" the name to 
+     * a unique value.
+     *
+     * To make an absolute path, we fill in the non-specified parts of 
+     * relativePath.  If relativePath is already absolute, then we
+     * only need to ReducePath. Otherwise, we have to either look up the 
+     * absolutePath by the drive letter specified or get the default drive 
+     * and then look up the path.  We insert the drive and path directly 
+     * from DOS and then append the openPath relative part (i.e. everything 
+     * but the drive letter).  Because DOS is so obscure, we have implemented
+     * all the drive/directory calls in-line (as opposed to using DirIO).
+     *
+     * Once the absolutePath part is initialized with the drive and
+     * directory, we call ReducePath on the relativePath.  If this
+     * path is overall "negative", then we subtract levels from "absolutePath".
+     *)
+    VAR
+	pathIsAbsolute : BOOLEAN;	(* If leading dirSep in relativePath *)
+	relativePathLength : SysTypes.Card;
+	relativeLevels : SysTypes.Int;
+	DONTCARE1      : IOErrors.Errors;
+	i	       : SysTypes.Card;
+    BEGIN (* MakeAbsolute *)
+
+	pathIsAbsolute := relativePath[ 0 ] = directorySeparator;
+
+	IF NOT pathIsAbsolute THEN
+	    DONTCARE1 := DirIO.GetDefault( absolutePath );
+	ELSE
+	    absolutePath := '';
+	END;
+
+	relativePathLength := Strings.Length( relativePath );
+
+	IF relativePathLength = 0 THEN
+	    RETURN;	(* Just return the current directory *)
+	END;
+
+	relativeLevels := ReducePath( relativePath,
+				      relativePathLength, relativePath );
+	IF pathIsAbsolute THEN
+	    (* Need to insert leading separator *)
+	    Strings.Concat( directorySeparator, relativePath, absolutePath );
+	    RETURN;	(* All done *)
+	END;
+
+	i := Strings.Length( absolutePath );
+	(* Do we have to delete levels from absolutePath? *)
+	WHILE relativeLevels < 0 DO
+	    (*
+	     * We delete the number of negative relativeLevels.
+	     * If there are more negative levels than directories
+	     * in the absolutePath, then just stop when the root
+	     * directory is found.
+	     *)
+	    LOOP
+		DEC( i );
+		IF i < directorySeparatorLength THEN
+		    relativeLevels := 0;	(* Absolute end *)
+		    EXIT;
+		END;
+		IF absolutePath[ i ] = directorySeparator THEN
+		    INC( relativeLevels );	(* One more level *)
+		    EXIT;
+		END;
+	    END; (* LOOP *)
+	END; (* WHILE *)
+
+	IF i > HIGH( absolutePath ) THEN
+	    RETURN;	(* Nothing more can be added *)
+	END;
+
+	(* Terminate the absolute path deleting the last separator. *)
+	IF relativePath[ 0 ] = 0C THEN
+	    IF i >= directorySeparatorLength THEN
+		absolutePath[ i ] := 0C;   (* Truncate last sep (if there) *)
+	    ELSE
+		absolutePath[ directorySeparatorLength ] := 0C;
+	    END;
+	    RETURN;
+	END;
+
+	(* Do we need to append a directory separator? *)
+	IF absolutePath[ i ] # directorySeparator THEN
+	   Strings.Insert( absolutePath, Strings.EOS, directorySeparator );
+	ELSIF i < HIGH( absolutePath ) THEN
+	    (* Leave final separator in *)
+	    absolutePath[ i + 1 ] := 0C;
+	END;
+
+	(* Finally put the two paths together *)
+	Strings.Insert( absolutePath, Strings.EOS, relativePath );
+    END MakeAbsolute;
+
+
+PROCEDURE ReducePath(
+        inputPath       : ARRAY OF CHAR;
+	inputLength     : SysTypes.Card;
+    VAR outputPath      : ARRAY OF CHAR
+    )                   : SysTypes.Int;
+    (*
+     * Copies the inputPath to the outputPath and removes all
+     * ".." and "." directories.  The inputPath may begin with
+     * a directorySeparator in which case it will be returned 
+     * without a leading directorySeparator.  The RETURN is 
+     * the number of levels in the outputPath.  This number can 
+     * be negative (and outputPath will be "empty").
+     *
+     * The inputPath must not contain a drive specification.
+     *
+     * The level management is rather difficult, because the
+     * "previousDirectory" commands in a path only apply to 
+     * directories to the left of the "previousDirectory" command.
+     * The relLevel is the amount of levels that are left in the
+     * reduced path while the absLevel is the number of levels that
+     * must be subtracted from the absolutePath.  Note that relLevels
+     * cannot be negative.  If it is zero, then we must substract
+     * from the absLevel.
+     *)
+    VAR
+	inputIndex  : SysTypes.Card;
+	outputIndex : SysTypes.Card;	
+	relLevel    : SysTypes.Int;	(* currentPath level *)
+	absLevel    : SysTypes.Int;	(* levels from absolutePath *)
+	entryType  : ( 			(* State of parsing *)
+	    unspecifiedEntry,		(* nothing parsed yet *)
+	    currentDirectory, 		(* "." *)
+	    previousDirectory,		(* ".." *)
+	    notSpecialEntry		(* something, but not "." or ".." *)
+	);
+    
+    BEGIN (* ReducePath *)
+
+	relLevel := 0;
+	absLevel := 0;
+
+	entryType := unspecifiedEntry;
+	outputIndex := 0;
+	outputPath[ 0 ] := 0C;	(* must always be null-terminated *)
+	FOR inputIndex := 0 TO inputLength - 1 DO
+	    CASE inputPath[ inputIndex ] OF
+		'.':
+		    outputPath[ outputIndex ] := inputPath[ inputIndex ];
+		    INC( outputIndex );
+		    CASE entryType OF
+			unspecifiedEntry:
+			    entryType := currentDirectory;
+			|
+			currentDirectory:
+			    entryType := previousDirectory;
+			|
+			previousDirectory:
+			    (* Really this is a syntax error, but... *)
+			    entryType := notSpecialEntry;
+			|
+			notSpecialEntry:
+			    ; (* Nothing to do *)
+		    END;
+		|
+		directorySeparator:
+		    CASE entryType OF
+			unspecifiedEntry:
+			    (* 
+			     * Don't copy this directory separator, if 
+			     * there are two in a row or it is the first one.
+			     *)
+			|
+			currentDirectory,
+			previousDirectory:
+			    (*
+			     * Have to backup one or two directory
+			     * separators.
+			     *)
+			    IF entryType = previousDirectory THEN
+				IF relLevel <= 0 THEN
+				    (* Take a directory from the absolutePath *)
+				    DEC( absLevel );
+				ELSE
+				    (* Taking a directory from this path *)
+				    DEC( relLevel );
+				END;
+			    END;
+			    LOOP
+				DEC( outputIndex );
+				IF outputPath[ outputIndex ] = 
+				   directorySeparator THEN
+
+				    IF entryType = currentDirectory THEN	
+					(* Leave trailing separator *)
+					INC( outputIndex );
+					EXIT;
+				    END;
+				    entryType := currentDirectory;
+				END;
+				IF outputIndex = 0 THEN
+				    EXIT;	(* no more to look at *)
+				END;
+			    END; (* LOOP *)
+			|
+			notSpecialEntry:
+			    INC( relLevel );	(* Increase this path *)
+			    outputPath[ outputIndex ] := 
+				inputPath[ inputIndex ];
+			    INC( outputIndex );
+		    END; (* CASE *)
+		    entryType := unspecifiedEntry;
+
+		ELSE
+		    (* 
+		     * Some other character, then just copy and change
+		     * entryType (may be redundant, but who cares).
+		     *)
+		    outputPath[ outputIndex ] := inputPath[ inputIndex ];
+		    INC( outputIndex );
+		    entryType := notSpecialEntry;
+	    END; (* CASE *)
+	END; (* FOR *)
+
+	(* 
+	 * We must clean up the final piece of the path.  The behaviour
+	 * is similar to that of finding a directorySeparator.
+	 *)
+	CASE entryType OF
+	    unspecifiedEntry:
+	        IF outputIndex > 0 THEN
+		    (* Delete insignificant separator *)
+	            DEC( outputIndex, directorySeparatorLength );
+		END;
+	    |
+	    currentDirectory,
+	    previousDirectory:
+		(*
+		 * Have to backup one or two directory
+		 * separators.
+		 *)
+		IF entryType = previousDirectory THEN
+		    IF relLevel <= 0 THEN
+			(* Take a directory from the absolutePath *)
+			DEC( absLevel );
+		    ELSE
+			(* Taking a directory from this path *)
+			DEC( relLevel );
+		    END;
+		END;
+		LOOP
+		    DEC( outputIndex );
+		    IF outputPath[ outputIndex ] = directorySeparator THEN
+			IF entryType = currentDirectory THEN
+			    EXIT;
+			END;
+			entryType := currentDirectory;
+		    END;
+		    IF outputIndex = 0 THEN
+			EXIT;	(* no more to look at *)
+		    END;
+		END; (* LOOP *)
+	    |
+	    notSpecialEntry:
+		INC( relLevel );	(* Go down one level *)
+	END; (* CASE *)
+
+	(* String is not a string until it is null-terminated *)
+	outputPath[ outputIndex ] := 0C;
+
+	RETURN absLevel;
+    END ReducePath;
+
+
+PROCEDURE CreateTemp(
+        startPath  : ARRAY OF CHAR;
+        options    : ARRAY OF CHAR;
+    VAR uniquePath : IOConsts.Path
+    );
+    CONST
+        default   = "/tmp";
+        getTimeOK = 0;
+    VAR
+        directory   : IOConsts.Path;    (* Part of path *)
+        base        : IOConsts.Base;    (* Part of path *)
+        suffix      : IOConsts.Suffix;  (* Part of path *)
+        progName    : ProgArgs.String;  (* Have to pass this *)
+        processID   : SysTypes.Int;     (* From UNIX *)
+        time        : UnixCsys_time.struct_timeval;
+        oldSuffix   : IOConsts.Suffix;  (* Contains the PID or is given *)
+        end         : IOConsts.Suffix;  (* End part of suffix *)
+        dummy1      : IOConsts.Path;    (* To seperate program name *)
+        dummy2      : IOConsts.Suffix;  (* To seperate program name *)
+        DONTCARE    : BOOLEAN;
+    BEGIN (* CreateTemp *)
+        (* get the different parts *)
+        Separate( startPath, directory, base, suffix );
+
+        (* fill directory *)
+        IF (directory[ 0 ]) = 0C THEN
+            (* no directory given, set to default *)
+            Strings.Assign( default, directory );
+        END;
+
+        (* fill base *)
+        IF (base[ 0 ] = 0C) THEN
+            (* no base given, get program name *)
+            IF ProgArgs.GetProgramName( progName ) THEN
+                Separate( progName, dummy1, base, dummy2 );
+            ELSE
+                (* otherwise use this dummy identifier *)
+                Strings.Assign( "unknown", base );
+            END;
+        END;
+
+        (* fill "first" suffix *)
+        IF (suffix[ 0 ] = 0C) THEN
+            processID := UnixCprocess.getpid( );
+            DONTCARE := IntConvert.ToString( processID, 0, suffix );
+        END;
+
+        (* we might need this *)
+        Strings.Assign( suffix, oldSuffix );
+
+        LOOP
+            Make( directory, base, suffix, uniquePath );
+            CASE DirIO.CreateEntry( uniquePath, options,
+                                    DirIO.mustBeNewPath ) OF
+                IOErrors.illegalName:
+                    (* this algorithm doesn't work *)
+                    EXIT;
+                |
+                IOErrors.alreadyExists:
+                    (* we need to change it to make it unique *)
+                    IF (UnixCsys_time.gettimeofday( SYSTEM.ADR( time ),
+                        NIL ) # getTimeOK ) OR ( time.tv_usec < 0 )
+                    THEN
+                        (* this means that we can't get the time, or
+                           that the micro-seconds given were negative *)
+                        EXIT;
+                    END;
+                    DONTCARE := IntConvert.ToString( time.tv_usec, 0, end );
+                    Strings.Concat( oldSuffix, "-", suffix );
+                    Strings.Concat( suffix, end, suffix );
+                |
+                IOErrors.ok:
+                    (* we have a unique name *)
+                    RETURN;
+            ELSE
+                EXIT;
+            END;
+        END;
+
+        (* an error occured *)
+        uniquePath[ 0 ] := 0C;
+        RETURN;
+    END CreateTemp;
+
+END IONames.

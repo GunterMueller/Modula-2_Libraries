@@ -1,0 +1,137 @@
+; This is a test file for the tDataIO program.
+
+
+; Data for testing the automated trader module, the number of test runs
+; is chosen first.  The order of the input for each case is the same.
+[String] outputFile	= TestAutomatedTrader.res;
+[Card] nbOfCases	= 9;
+; 
+; case 1:
+[String] title	= a trade is made;
+[Card] nbOfRecommendations	= 6;
+[Int] smallestGearing	= -2;
+[Bool] readUtil	= FALSE;
+[Real] a	= -0.375;
+[Real] b	= 0.750;
+[Real] c	= 4.000;
+[Int] current_gearing	= -1;
+; 
+; case 2:
+[String] title[2]	= no trade is made;
+[Card] nbOfRecommendations[2]	= 6;
+[Int] smallestGearing[2]	= -2;
+[Bool] readUtil[2]	= FALSE;
+[Real] a[2]	= -0.375;
+[Real] b[2]	= 0.750;
+[Real] c[2]	= 4.000;
+[Card] current_gearing[2]	= 1;
+; 
+; case 3:
+[String] title[3]	= wrong gearing;
+[Card] nbOfRecommendations[3]	= 6;
+[Int] smallestGearing[3]	= -2;
+[Bool] readUtil[3]	= FALSE;
+[Real] a[3]	= -0.375;
+[Real] b[3]	= 0.750;
+[Real] c[3]	= 4.000;
+[Int] current_gearing[3]	= -3;
+; 
+; case 4:
+[String] title[4]	= maximum at lowest extremity (trade);
+[Card] nbOfRecommendations[4]	= 10;
+[Int] smallestGearing[4]	= -4;
+[Bool] readUtil[4]	= FALSE;
+[Real] a[4]	= -0.111;
+[Real] b[4]	= -0.8888;
+[Real] c[4]	= 5.7778;
+[Card] current_gearing[4]	= 0;
+; 
+; case 5:
+[String] title[5]	= maximum at lowest extremity (no trade);
+[Card] nbOfRecommendations[5]	= 10;
+[Int] smallestGearing[5]	= -4;
+[Bool] readUtil[5]	= FALSE;
+[Real] a[5]	= -0.111;
+[Real] b[5]	= -0.8888;
+[Real] c[5]	= 5.7778;
+[Int] current_gearing[5]	= -4;
+; 
+; case 6:
+[String] title[6]	= constant utility;
+[Card] nbOfRecommendations[6]	= 6;
+[Int] smallestGearing[6]	= -2;
+[Bool] readUtil[6]	= FALSE;
+[Real] a[6]	= 0.0000;
+[Real] b[6]	= 0.0000;
+[Real] c[6]	= 4.0000;
+[Card] current_gearing[6]	= 1;
+; 
+; case 7:
+[String] title[7]	= maximum at highest extremity (trade);
+[Card] nbOfRecommendations[7]	= 6;
+[Int] smallestGearing[7]	= -2;
+[Bool] readUtil[7]	= FALSE;
+[Real] a[7]	= 1.0000;
+[Real] b[7]	= 2.0000;
+[Real] c[7]	= 1.0000;
+[Card] current_gearing[7]	= 1;
+; 
+; case 8:
+[String] title[8]	= three maxima (trade);
+[Card] nbOfRecommendations[8]	= 10;
+[Int] smallestGearing[8]	= -4;
+[Real] utility	= 2.5;
+[Real] utility[2]	= 2.5;
+[Real] utility[3]	= 2.5;
+[Real] utility[4]	= 1.5;
+[Real] utility[5]	= 1.0;
+[Real] utility[6]	= 0.87;
+[Real] utility[7]	= 0.74;
+[Real] utility[8]	= 0.54;
+[Real] utility[9]	= 1.2;
+[Real] utility[10]	= 0.46;
+[Card] current_gearing[8]	= 1;
+; 
+; case 9:
+[String] title[9]	= oscillating utility (trade);
+[Card] nbOfRecommendations[9]	= 10;
+[Int] smallestGearing[9]	= -4;
+[Real] utility[11]	= 2.5;
+[Real] utility[12]	= 1.5;
+[Real] utility[13]	= 2.5;
+[Real] utility[14]	= 1.5;
+[Real] utility[15]	= 2.5;
+[Real] utility[16]	= 1.5;
+[Real] utility[17]	= 2.5;
+[Real] utility[18]	= 1.5;
+[Real] utility[19]	= 2.5;
+[Real] utility[20]	= 1.5;
+[Card] current_gearing[9]	= 1;
+; 
+;   Test of the WatchTheMarket procedure.
+; 
+[Card] nbOfCases[2]	= 4;
+; 
+; case 1: the stop loss is executed from a long position
+[Real] current_bid_price	= 1.5700;
+[Real] current_ask_price	= 1.5720;
+[Card] current_gearing[10]	= 2;
+[Real] stopLoss	= 1.5890;
+; 
+; case 2:  the stop loss is not executed from a long position
+[Real] current_bid_price[2]	= 1.5800;
+[Real] current_ask_price[2]	= 1.5820;
+[Card] current_gearing[11]	= 2;
+[Real] stopLoss[2]	= 1.5710;
+; 
+; case 3: the stop loss is executed from a short position
+[Real] current_bid_price[3]	= 1.5800;
+[Real] current_ask_price[3]	= 1.5820;
+[Int] current_gearing[12]	= -2;
+[Real] stopLoss[3]	= 1.5710;
+; 
+; case 4:  the stop loss is not executed from a short position
+[Real] current_bid_price[4]	= 1.5700;
+[Real] current_ask_price[4]	= 1.5720;
+[Int] current_gearing[13]	= -2;
+[Real] stopLoss[4]	= 1.5890;

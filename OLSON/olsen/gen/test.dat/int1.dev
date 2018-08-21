@@ -1,0 +1,7 @@
+$ INTEGER underflow
+$
+#test1
+-2147483649
+l
+-2147483649
+15

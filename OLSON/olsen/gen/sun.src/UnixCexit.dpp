@@ -1,0 +1,28 @@
+DEFINITION FOR C MODULE UnixCexit;
+(* 
+ * See the man pages: 
+ *     exit(3), on_exit(3), and exit(2).
+ *)
+IMPORT
+    UnixCsys_types;
+
+PROCEDURE exit(
+    status : INTEGER
+    );
+
+TYPE
+    ExitHandler = PROCEDURE(
+        INTEGER,		
+	UnixCsys_types.caddr_t  
+    );
+
+PROCEDURE on_exit(
+    procp : ExitHandler;
+    argp  : UnixCsys_types.caddr_t
+    ) 	  : INTEGER;
+
+PROCEDURE _exit(
+    status : INTEGER
+    );
+
+END UnixCexit.

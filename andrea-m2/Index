@@ -1,0 +1,20 @@
+The files in this directory were contributed by John Andrea,
+andrea@essex.stfx.ca.  He describes them as
+
+     Some Modula-2 libraries and example programs developed over several
+     years using the Hamburg compiler for VAX/VMS and the Multiscope
+     (was Logitech) compiler for MS-DOS.
+
+     Some modules are compiler (or OS ) specific, but many 
+     are generic Modula-2 library modules and programs.
+
+     Also included are a few executables.
+
+Please write to John for any questions or suggestions.
+
+The content is as follows:
+
+Index		- this file
+read.me         - a description
+andrea-m2/	- the complete raw directory of the sources
+andrea-m2.tar.Z	- the complete sources in a UN*X compressed tar file

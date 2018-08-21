@@ -1,0 +1,33 @@
+keyinput.sym: 
+keyinput.lnk: keyinput.sym ..\..\io\bin\keyboard.sym 
+lowlevel.sym: 
+lowlevel.lnk: lowlevel.sym 
+maze.sym: ..\..\gen\lwp.bin\taskmoni.sym 
+maze.lnk: maze.sym ..\..\gen\bin\randomnu.sym screen.sym  \
+          ..\..\gen\bin\systypes.sym ..\..\gen\lwp.bin\taskmoni.sym 
+screen.sym: 
+screen.lnk: lowlevel.sym ..\..\gen\bin\progerr.sym screen.sym 
+solver.lnk: ..\..\gen\bin\card32.sym ..\..\gen\bin\cardconv.sym  \
+            ..\..\gen\bin\genconst.sym keyinput.sym maze.sym  \
+            ..\..\gen\bin\notices.sym ..\..\gen\bin\progerro.sym screen.sym  \
+            ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+            ..\..\gen\lwp.bin\taskcons.sym ..\..\gen\lwp.bin\taskdebu.sym  \
+            ..\..\gen\lwp.bin\taskmess.sym ..\..\gen\lwp.bin\taskmoni.sym  \
+            ..\..\gen\lwp.bin\tasknoti.sym ..\..\gen\lwp.bin\tasktime.sym  \
+            ..\..\gen\lwp.bin\tasks.sym 
+solver.exe: ..\..\gen\bin\bytes.lnk ..\..\gen\bin\card32.lnk  \
+            ..\..\gen\bin\cardconv.lnk ..\..\gen\bin\chars.lnk  \
+            ..\..\gen\bin\dos.lnk ..\..\gen\lwp.bin\dosmonit.lnk  \
+            ..\..\gen\bin\genconst.lnk ..\..\gen\bin\i8086.lnk  \
+            ..\..\gen\lwp.bin\interrup.lnk ..\..\gen\bin\intrinsi.lnk  \
+            keyinput.lnk ..\..\io\lwp.bin\keyboard.lnk lowlevel.lnk maze.lnk  \
+            ..\..\gen\lwp.bin\notices.lnk ..\..\gen\lwp.bin\objects.lnk  \
+            ..\..\gen\lwp.bin\progerr.lnk ..\..\gen\bin\progerro.lnk  \
+            ..\..\gen\lwp.bin\randomnu.lnk ..\..\gen\lwp.bin\safestor.lnk  \
+            screen.lnk ..\..\gen\bin\strings.lnk ..\..\gen\bin\systypes.lnk  \
+            ..\..\gen\lwp.bin\system.lnk ..\..\gen\lwp.bin\taskcons.lnk  \
+            ..\..\gen\lwp.bin\taskdebu.lnk ..\..\gen\lwp.bin\taskinfo.lnk  \
+            ..\..\gen\lwp.bin\taskmess.lnk ..\..\gen\lwp.bin\taskmoni.lnk  \
+            ..\..\gen\lwp.bin\tasknoti.lnk ..\..\gen\lwp.bin\tasktime.lnk  \
+            ..\..\gen\lwp.bin\tasks.lnk ..\..\gen\lwp.bin\taskspri.lnk  \
+            solver.lnk 

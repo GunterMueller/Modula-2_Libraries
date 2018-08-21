@@ -1,0 +1,58 @@
+DEFINITION MODULE CardUtils;
+(*==========================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Primitive Utility - Cardinal Utilities
+
+    Introduction
+    This module provides a collection of utilities for the
+    Modula-2 numeric types CARDINAL and LONGCARD.
+
+    Interface Design Issues
+    * Most of these routines are selectors since the operations they represent
+      are commonly used within expressions.
+    * In the MacMETH and JPI compilers CARDINAL and LONGCARD are assignment compatible.
+    * The elements of the arrays are assumed to be unordered.
+
+    Exceptions
+    * Underflow
+    * Overflow
+
+    Revision History
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    References
+    [1] N. Wirth, Programming in Modula-2, 3rd corrected
+	edition, Springer-Verlag, New York, NY 1985
+    [2] G. Booch, Software Components in Ada, pp. 395-397,
+	Benjamin/Cummings, Menlo Park, CA 1987
+
+    Proprietary Notices
+    "CardUtils.DEF", Copyright (C) 1989 Charles A. Lins.
+==========================================================*)
+
+
+PROCEDURE Min	(    left  : LONGCARD  (*--in	*);
+		     right : LONGCARD  (*--in	*))
+			   : LONGCARD  (*--out	*);
+
+PROCEDURE Max	(    left  : LONGCARD  (*--in	*);
+		     right : LONGCARD  (*--in	*))
+			   : LONGCARD  (*--out	*);
+
+
+PROCEDURE MinOf (    theNumbers : ARRAY OF CARDINAL (*--in   *))
+				: CARDINAL	    (*--out  *);
+
+PROCEDURE MaxOf (    theNumbers : ARRAY OF CARDINAL (*--in   *))
+				: CARDINAL	    (*--out  *);
+
+
+PROCEDURE MinOfLong (	 theNumbers : ARRAY OF LONGCARD (*--in	 *))
+				    : LONGCARD		(*--out  *);
+
+PROCEDURE MaxOfLong (	 theNumbers : ARRAY OF LONGCARD (*--in	 *))
+				    : LONGCARD		(*--out  *);
+
+END CardUtils.

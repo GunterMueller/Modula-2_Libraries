@@ -1,0 +1,154 @@
+DEFINITION MODULE StringOperations;
+
+(* Some procedures for string manipulation *)
+
+(* J. Andrea, Sep.5/91 - add Compare - algorithm from Digital Western Labs. *)
+(* J. Andrea, Aug.19/91 - add NextBlank and NextNonBlank *)
+(* revitalized - J. Andrea, Aug.12/91 *)
+(* J. Andrea, Apr 1986 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED Equal,  Compare, Assign,    Index,  
+                 Append, Concat,  SubString, Insert, Replace, Delete,
+                 Upper,  Lower,  
+                 NextBlank, NextNonBlank,
+                 Empty,  Trim, Length;
+
+
+
+PROCEDURE Equal( a, b :ARRAY OF CHAR ) :BOOLEAN;
+(*
+ Return TRUE if the two strings 'a' and 'b' are equal.
+ This is a very simple string comparison, the strings must be of
+ the same length, and must contain exactly the same characters.
+*)
+
+
+PROCEDURE Compare( a, operation, b :ARRAY OF CHAR ) :BOOLEAN;
+(*
+ Compare the two string 'a' and 'b' and return a match of TRUE of FALSE
+ according to the comparison described in 'operation'.
+ Operation may be one of '=', '#', '<>', '>', '<', '>=', '<=',
+ an invalid operation always returns FALSE.
+ Read the parameters as if it was an expression, "1", ">", "2" is false
+*)
+
+
+PROCEDURE Assign( a :ARRAY OF CHAR; VAR b :ARRAY OF CHAR );
+(*
+ Copy all of 'a' into 'b'.
+ This procedure is provided in order to perform assignments of
+ strings of different lengths.
+*)
+
+
+PROCEDURE Index( source, substring :ARRAY OF CHAR ) :CARDINAL;
+(*
+ Find the first occurance of 'substring' in 'source'.
+ If the substring isn't found then a zero is returned.
+ If the substring is found then the relative position in 'source'
+   is returned. Relative positions start at 1, meaning first character.
+*)
+
+
+PROCEDURE Append( a :ARRAY OF CHAR; VAR b :ARRAY OF CHAR );
+(*
+ Append string 'a' to the end of string 'b'.
+*)
+
+
+PROCEDURE Concat( a, b :ARRAY OF CHAR; VAR c :ARRAY OF CHAR );
+(*
+ Concatenate strings 'a' and 'b' into output string 'c'.
+*)
+
+
+PROCEDURE SubString( a :ARRAY OF CHAR; start, len :CARDINAL;
+                     VAR b :ARRAY OF CHAR );
+(*
+ Copy from string 'a' starting from the 'start'TH character
+ and copying 'len' characters into the string 'b'.
+
+ Specifying 'start' as zero will be taken to mean the 1st character.
+ A 'start' which is beyond the length of 'a' will result in an empty
+   output string.
+ If 'len' specifies too many characters in 'a', then as many as possible
+   will be copied.
+ If 'b' is not large enough to hold all of the substring, then as much
+   as possible will be copied.
+*)
+
+
+PROCEDURE Insert( a :ARRAY OF CHAR;
+                  start :CARDINAL; VAR b :ARRAY OF CHAR );
+(*
+ Insert string 'a' into string 'b' in-front of relative position 'start' in 'b'.
+ The position is relative, 1=first character, etc.
+*)
+
+
+PROCEDURE Replace( a :ARRAY OF CHAR; start :CARDINAL; VAR b :ARRAY OF CHAR );
+(*
+ Replace the characters in 'b' starting at position 'start' with the
+ characters of 'a'. All of 'a' is used, or till the end of 'b' is encountered.
+ The position is relative, 1=first character, etc.
+*)
+
+
+PROCEDURE Delete( VAR a :ARRAY OF CHAR; start, len :CARDINAL );
+(*
+ Delete 'len' characters from 'a' starting at position 'start'.
+ The position is relative, 1=first character, etc.
+*)
+
+
+PROCEDURE Upper( VAR string :ARRAY OF CHAR );
+(*
+ Convert a string to all upper case.
+*)
+
+
+PROCEDURE Lower( VAR string :ARRAY OF CHAR );
+(*
+ Convert a string to all lower case.
+*)
+
+
+PROCEDURE NextBlank( string :ARRAY OF CHAR;
+                     start  :CARDINAL ) :CARDINAL;
+(*
+ Starting at the 'start'TH character, return
+ the position of the next space or tab character.
+ If none found then a zero is returned.
+*)
+
+
+PROCEDURE NextNonBlank( string :ARRAY OF CHAR;
+                     start  :CARDINAL ) :CARDINAL;
+(*
+ Starting at the 'start'TH character, return
+ the position of the next character which is not a
+ space or tab character.
+ If none found then a zero is returned.
+*)
+
+
+PROCEDURE Trim( VAR string :ARRAY OF CHAR );
+(*
+ Remove trailing blanks and tabs from a string.
+*)
+
+
+PROCEDURE Empty( VAR string :ARRAY OF CHAR );
+(*
+ Set the string to completely empty.
+*)
+
+PROCEDURE Length( string :ARRAY OF CHAR ) :CARDINAL;
+(*
+ Return the length of a string.
+*)
+
+
+END StringOperations.

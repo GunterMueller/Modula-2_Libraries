@@ -1,0 +1,1547 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{An Introduction to 
+         Input/Output}
+\label{IntroIOChapter}
+\xquote{W. Somerset Maugham}{Ashenden}{
+    ``No, I know no one whom I could conscientiously recommend," she
+    answered.  "The Swiss accent is hateful beyond words.  It could do Mr.
+    Somerville only harm to converse with a Swiss.''
+}
+
+About half of the Olsen \& Associates Portable Modula-2 Library
+is dedicated to the input and output of
+Modula-2 objects to the real world.   There are five different systems
+provided.
+\begin{description}
+\item[\module{TextIO}]
+    supports reading and writing from text files. A text file\index{Text File}
+    is a sequence of lines.  Lines are separated by the {\em out of band} 
+    value called \newterm{new-line}.  A line is a sequence of characters
+    (objects of type \code{CHAR}).  The \module{TextIO} family deals
+    with translation between Modula-2 objects and text files.  
+    The \module{TextIO} family is similar to the I/O modules described in
+    Wirth's Modula-2 book.  The difference is that the
+    problem of text files is treated more regularly and robustly
+    in the \module{TextIO} family.
+
+\item[\module{FormatIO}]
+    combines the concepts of FORTRAN\index{FORTRAN}
+    with the modern age of object
+    oriented programming to provide a flexible and powerful formatted
+    input/output system using \module{TextIO}.  \module{FormatIO}
+    accepts user defined types, supports prompted input, and uses
+    a more compact notation than do the modules in the basic \module{TextIO}
+    family.
+
+\item[\module{BinaryIO}]
+    supports files of Modula-2 objects whose value is taken ``as is''
+    from the memory of a Modula-2 program.  Binary files are faster and
+    usually more compact than text files.  
+    The objects in binary files may be read/write and are randomly accessible 
+    whereas
+    text files allow only sequential reading or writing but not both.
+    Chapter~\ref{BinaryIOChapter} is the guide to \module{BinaryIO}.
+    
+\item[\module{DirIO}]
+    supports directory operations.  A directory is a group of I/O objects.
+    \module{DirIO} supports operations on the directory entries and
+    directories themselves.  \module{IONames} and \module{IOVersions}
+    handle the manipulation of the names that identify I/O objects.
+    
+\item[\module{ProgErrOutput}]
+    is a bootstrap module that provides output of \code{ARRAY OF CHAR}
+    and new-lines only (i.e. \proc{WriteString} and \proc{WriteLn}).
+    Generally, this module is used in library modules only for diagnostic
+    output which would otherwise not require input/output.
+
+\end{description}
+
+This chapter weaves together the two types of text I/O systems available
+to demonstrate what the library has to offer.  
+The subjects of input, output, and file opens are presented.
+A set of handy tables for the default format
+commands and their modifiers is provided.
+
+In this chapter, the module \module{SimpleIO} is used to
+represent the ordinary \module{TextIO} family and 
+\module{SimpleFIO} to represent the \module{FormatIO}
+family.  In both cases, the term \codeterm{Simple} means ``don't
+worry about errors'' and ``just use the default \module{TextIO} input and
+output files''.  In chapter \ref{TextIOChapter}, a more
+general view of text files is presented.
+
+
+\section{Output -- \codeterm{Write} procedures}
+
+There are three distinct forms of output to text files in the library.
+The following call is a basic output statement via the \module{FormatIO}
+family:
+\begin{verbatim}
+    SimpleFIO.Write( "Gruezi Mitenand[NL]" );
+\end{verbatim}
+The next two calls demonstrate the typical usage of the \module{TextIO}
+family:
+\begin{verbatim}
+    SimpleIO.WriteString( "Gruezi Mitenand" );
+    SimpleIO.WriteLn;
+\end{verbatim}
+This last type of output is the simplest form in the library:
+\begin{verbatim}
+    ProgErrOutput.WriteString( "Gruezi Mitenand" );
+    ProgErrOutput.WriteLn;
+\end{verbatim}    
+All three of these examples result in
+\begin{verbatim}
+    Gruezi Mitenand
+\end{verbatim}
+being written.
+
+Why three levels? 
+
+\begin{itemize}
+\item
+    Most applications use the \module{FormatIO} family for 
+    its power and flexibility at the cost of speed and robustness.
+    It is the primary subject of this chapter.
+\item
+    The module \module{SimpleIO} and friends require less
+    overhead and provide a little more robustness due to their simplicity.
+    In fact, most \module{FormatIO} operations use
+    these simpler modules.
+    
+\item
+    \module{Prog\-Err\-Output} is used by many library modules to avoid
+    using the entire \module{TextIO} mechanism when only
+    this trivial form of output is required.  Use \module{Prog\-Err\-Output}
+    when writing a library module which must output simple diagnostics
+    and/or error messages.
+
+\end{itemize}
+
+\finepoint{  
+        \module{TextIO} {\em installs} itself as an error output 
+        handler with \module{Prog\-Err\-Output}.  If the 
+        \module{TextIO} is imported by a program, all error output
+        is directed to the default error output file returned by 
+        \proc{TextIO.\-Get\-Error\-Output}.  Therefore, {\em all} error
+        output is redirected when
+        \proc{TextIO.\-Set\-Error\-Output} is called.
+    }
+ 
+
+The myriad of IO modules cannot be presented here.  This chapter
+serves only as an introduction to the modules.  The list of
+modules in appendix~\ref{IOModuleSummary} should help the programmer to 
+locate the required modules whose definitions can then be consulted.
+
+As stated above, many \module{FormatIO} operations are semantically equivalent
+to the ordinary \module{TextIO} family.    
+The following two code fragments are provided to illustrate this point:
+\begin{verbatim}
+    SimpleFIO.Write1( "The number is [Card].[NL]", 35 );
+    
+    SimpleIO.WriteString( "The number is " );
+    SimpleIO.WriteCard( 35, 0 );
+    SimpleIO.WriteChar( "." );
+    SimpleIO.WriteLn;
+\end{verbatim}    
+Each of these code fragments produces the same result:
+\begin{verbatim}
+    The number is 35.
+\end{verbatim}
+
+
+One obvious difference between \module{SimpleIO} and \module{SimpleFIO}
+is the number of procedure calls required to do the same task.
+\module{SimpleFIO} code is therefore more readable, as shown below.\footnote{
+    \index{Logitech Bugs}\index{Sun Bugs}
+    With Logitech, you can't pass real numbers to 
+    \code{ARRAY OF Sys\-Types.\-ANY} parameters.  
+    With Sun, you can't pass expressions (e.g. \code{1.0 + 2.0}).
+    Both compiler errors produce the message
+    ``\code{implementation restriction: illegal type conversion}''.
+    If you put the value into a variable, everything works fine.
+}
+    
+    
+\begin{verbatim}    
+    SimpleFIO.Write(  "Index     Value[NL]" );
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 1, 12.34 );
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 10, 3.14 );
+    SimpleFIO.Write2( "[Card,w5] [Float,w9,p2][NL]", 101, 1001.14 );
+\end{verbatim}    
+produces
+\begin{verbatim}
+    Index     Value
+        1     12.34
+       10      3.14
+      101   1001.14
+\end{verbatim}
+Translating just the first {\em two} calls in the above example into
+\module{SimpleIO} calls results in the following:
+\begin{verbatim}    
+    SimpleIO.WriteString( "Index     Value" );
+    SimpleIO.WriteLn;
+    SimpleIO.WriteCard( 1, 5 );
+    SimpleIO.WriteChar( " " );
+    SimpleIO.WriteFloating( 12.34, 9, 2 );
+    SimpleIO.WriteLn;
+\end{verbatim}
+
+The trade-off between \module{SimpleFIO} and \module{SimpleIO} is
+not, however, limited to the number of procedure calls required.  The costs 
+and benefits
+will be discussed more thoroughly after the next section.
+
+\subsection{Formats}
+
+The focal point of a \module{SimpleFIO} call is the \newterm{format}.
+A format is a Modula-2 string (constant or variable) which contains
+\newterm{literal values} and \module{FormatIO} \newterm{format commands}.  
+Format commands are the string values
+enclosed in square brackets (``\code{[}'' and  ``\code{]}'').  The 
+parameters to the
+right of the format string are called \newterm{format arguments}.
+A format argument can be any Modula-2 value (not a type).  The following
+example has two format commands, one format argument, and 
+two literal values:
+\begin{verbatim}
+    SimpleFIO.Write1( "My height is [Card] centimeters.[NL]", 185 );
+\end{verbatim}    
+The two literal values are ``\code{My height is }'' 
+and ``\code{ centimeters.}''.
+The first command, \code{[Card]}, requires an argument of type 
+\code{CARDINAL}.
+In this case, the argument is ``\code{185}''.  The command will cause the
+value ``\code{185}'' to be written.
+The \code{[NL]} command
+does not take an argument.  Its purpose is to cause a new-line, 
+which is equivalent to \proc{SimpleIO.\-WriteLn}, to be output.
+Arguments are associated with format commands from left to right as the format
+string is parsed.  An error will occur if there are too few arguments or
+too few commands. 
+
+The following are all illegal SimpleFIO calls:
+\begin{verbatim}
+    SimpleFIO.Write( "My age is [Card] years.[NL]" );
+    SimpleFIO.Write1( "E = 2.72;[NL]", 3.14159 );
+    SimpleFIO.Write2( "The number is [Card].[NL]", 13 );
+\end{verbatim}    
+In the first call, the command \code{[Card]} requires an argument, but none
+is given.  In the next line, the format string contains only one command
+\code{[NL]} which does not take an argument.  However, an argument was 
+supplied.
+In the last example, the number of arguments matches the number of commands,
+but the number of parameters expected by the procedure call is incorrect
+because the procedure \code{Write2} accepts exactly three parameters: a format 
+string and two format arguments.  
+
+
+\subsection{\module{SimpleFIO} vs. \module{SimpleIO}}
+
+\module{SimpleIO} procedure names identify the {\em type} of their arguments;
+\module{SimpleFIO} procedure names identify the {\em number} of their
+arguments.  \module{SimpleIO} and its relatives statically associate the
+types of objects to be written, whereas the \module{SimpleFIO} family allows 
+dynamic association of the type of the argument.  This dynamic association
+gives \module{SimpleFIO} its power.
+
+Consider the example of providing uniform error messages for a compiler.
+The following is a sampling of the kinds of messages that
+might be required.
+\begin{verbatim}
+    "file.mod", line 70: open comment at EOF.  Comment starts line 12.
+    "file.mod", line 11: imported module "FooBar" not found.
+    "file.mod", line 13: version conflict between modules "Fred" and "Mary".
+\end{verbatim}    
+
+An obvious solution to the problem is to centralize the ``header'' information
+in a procedure.
+The procedure could also accept a one-line message to be output.
+With \module{SimpleIO}, the error message procedure might look like:
+
+\begin{verbatim}
+
+    PROCEDURE ErrorMsg(
+        msg : ARRAY OF CHAR
+        );
+        BEGIN (* ErrorMsg *)
+        
+            SimpleIO.WriteChar( '"' );
+            SimpleIO.WriteString( fileName );
+            SimpleIO.WriteString( '", line ' );
+            SimpleIO.WriteCard( lineNumber, 0 );
+            SimpleIO.WriteString( ': ' );
+            SimpleIO.WriteString( msg );
+            SimpleIO.WriteLn;
+        
+        END ErrorMsg;
+\end{verbatim}    
+The procedure \proc{ErrorMsg} ensures uniform error messages by forcing the
+header to come out before the error message and ensuring that all
+output is directed to the same file.
+However, to use this
+procedure the caller must generate a single string error message
+before calling \code{ErrorMsg}.  
+To produce the simple open comment message, 
+the programmer must write:
+\begin{verbatim}
+    DONTCARE := CardConvert.ToString( lineNumberOfOpen, 10, 0, msg );
+    Strings.Insert( msg, Strings.BOS, 
+                    "open comment at EOF.  Comment start line " );
+    Strings.Insert( msg, Strings.EOS, "." );
+    ErrorMsg( msg );
+\end{verbatim}    
+    
+There are several problems here.  First, the variable ``\code{msg}'' must
+be large enough to contain all the information in the message.
+Second, the error handling code is obscured by requiring 4
+procedure calls to output a single message.  Lastly,
+programmers tend to get bored with this quickly and write simply:
+\begin{verbatim}
+    ErrorMsg( "open comment at EOF." );
+\end{verbatim}    
+    
+In other words, if it is difficult to generate a nice error message,
+the programmer may balk and generate an overly simplistic message such
+as this one.\footnote{
+    The author is sure that his audience is above such laziness,
+    but includes this example for those people who are unaware of
+    such programming practices.}
+
+The following is an example error message procedure using \module{SimpleFIO}.
+
+\begin{verbatim}
+    CONST
+        prefix = '"[String]", line [Card]: ';   (* name and line *)
+    PROCEDURE Error1(
+        format : ARRAY OF CHAR;
+        arg1   : ARRAY OF SysTypes.ANY
+        );
+        BEGIN (* Error1 *)
+            
+            SimpleFIO.Write2( prefix, fileName, lineNumber );
+            SimpleFIO.Write1( format, arg1 );
+            SimpleFIO.Write( "[NL]" );
+            
+        END Error1;
+\end{verbatim}
+        
+To produce the open comment message, the programmer
+writes:
+\begin{verbatim}
+
+    Error1( "open comment at EOF.  Comment starts line [Card].", 
+            lineNumberOfOpen );
+\end{verbatim}    
+            
+There are no temporary variables, the code is compact, and
+the programmer finds this much more agreeable.
+To cause the other two error messages to be written, the 
+following calls are used:
+\begin{verbatim}
+
+    Error1( 'imported module "[String]" not found.', moduleName );
+    Error2( 'version conflict between modules "[String]" and "[String]".',
+            module1, module2 );
+\end{verbatim}    
+\code{Error2} is identical to \code{Error1} except that it takes
+two format arguments and writes them using \code{Write2} instead of
+\code{Write1}.
+
+\newpage
+
+\finepoint{
+        The \module{FormatIO} family may seem like a panacea, but
+        its overhead should not be taken lightly.  When used in 
+        a compiler, this overhead is not an issue.
+        However, for the Modula-2 Preprocessor supplied with
+        this library we chose not to use \module{FormatIO} because 
+        the code size was increased by a considerable amount.
+        When writing simple library modules, either \module{ProgErrOutput}
+        or ordinary \module{TextIO} may suffice.
+        There is no rule; see the library code
+        for examples.
+}
+
+\subsection{The Anatomy of a Format}
+
+Up until this point, the format commands within the square brackets
+have been quite simple.  This may not always be the case.  Before
+delving into the complicated formats, we should decompose a format
+into its component parts.   As stated earlier, a format string is
+composed of literals\index{format literals}\index{literals, \code{FormatIO}} and
+commands\index{format commands}\index{commands, \code{FormatIO}}. 
+A literal is a sequence of
+characters.  A command is a sequence of characters which begins
+with a ``\code{[}''\index{\code{[}}
+and ends with a ``\code{]}''\index{\code{]}}.  A command is 
+further decomposed into a 
+name\index{format name}\index{name, \code{FormatIO}}
+and its modifiers\index{modifiers, \code{FormatIO}}\index{format modifiers}.
+The name (e.g. ``\code{Card}'' and ``\code{String}'') identifies
+the type of its argument, if any, and the general structure of the
+data to be output.  The modifiers (e.g. ``\code{w9}'' and ``\code{p2}'')
+change the output format in some way.  The
+``\code{,}'' (comma) separates a name from its modifiers and modifiers
+from one another.
+
+The following example demonstrates a complicated format:
+\begin{verbatim}
+    SimpleFIO.Write1( "$[Float,w10,jl,fX,p2][NL]", 12.34 );
+\end{verbatim}
+
+
+This statement causes a dollar sign (``\$''), a \code{REAL} number, 
+and a new line
+to be output in a sequence as follows:
+\begin{verbatim}
+    $12.34XXXXX
+\end{verbatim}
+
+The ``\$'' is the only literal character in the format.  The ``\code{[NL]}''
+is a simple format command, just the name.  Decomposing the complicated format,
+``{\tt [Float,w10,jl,fX,p2}
+we have five modifiers, as follows.
+\begin{description}
+\item[{\tt Float}]   is the format name which identifies that the argument
+            must be a real.
+            
+\item[{\tt w10}]    specifies the total {\em width} of the output of this 
+            format command to be {\em exactly} 10 characters.
+            
+\item[{\tt jl}]     causes the output to be {\em justified } to the {\em left}
+            side of this ten character field.
+            
+\item[{\tt fX}]     specifies the {\em fill character} `\code{X}' is to be
+            used if the real number in its string form requires less than
+	    10 characters.
+            
+\item[{\tt p2}]     indicates that the {\em precision} of the output must be
+            {\em exactly} 2 fraction digits.
+\end{description}           
+If the real number 1234567.00 were passed to this format, the output
+would be:
+\begin{verbatim}
+    $1234567.00
+\end{verbatim}
+The justification and fill character parameters
+mean nothing because the value of the real number fits exactly in the
+space specified, in this case 10.
+
+
+There may be times when a special format character (square brackets
+or comma) is required in a literal or in a command.  The escape
+character back quote (\code{`}) is provided.  Within a command, the
+square brackets (``\code{[}'' and ``\code{]}'') and comma (\code{,})
+must be escaped.  Within a literal, only the left square bracket (``\code{[}'')
+must be escaped.  For example,
+\begin{verbatim}
+    SimpleFIO.Write1( "a`[[Card]] = 3.2[NL]", 1 );
+\end{verbatim}
+yields    
+\begin{verbatim}
+    a[1] = 3.2
+\end{verbatim}
+An example of an escaped sharacter within a format is:
+\begin{verbatim}
+    SimpleFIO.Write1( "[String,jc,f`,,w9][NL]", "abc" );
+\end{verbatim}
+which yields
+\begin{verbatim}
+    ,,,abc,,,
+\end{verbatim}
+    
+
+Some important points about formats follow.
+\begin{itemize}
+\item
+    Spaces (blanks, \verb*+ +) are significant.  The format
+    command must be devoid of spaces except where they are meaningful.
+    For example, the format ``\code{[ Card]}'' is the name 
+    ``\code{\verb*+ +Card}''
+    and not the name ``\code{Card}''.   Do not put blanks after
+    the comma which separates modifiers.
+
+\item    
+    The case of the characters is significant.
+    The name ``\code{Card}'' and ``\code{card}'' are not
+    the same.
+    
+\item
+    A format command name corresponds to a particular Modula-2 type or
+    types. \module{FormatIO} cannot, however, verify that the type of argument
+    matches the format name.  \module{FormatIO} and its support modules
+    verify the {\em size} of the arguments as a simple check, but this is
+    clearly insufficient.  Sometimes you
+    may get output which you did not expect.  In this case, make sure the
+    format argument matches its corresponding format command.
+\item
+    If you are unsure whether a special character should be prefixed
+    by the escape character (``\code{`}''), use the escape character.
+    Putting an escape prefix will always cause the literal value to 
+    be used.  Note that to obtain a literal escape character, it too
+    must be escaped, i.e. two escapes in a row yield a single escape.
+    
+\item
+    Format commands can be nested.  
+        
+\end{itemize}
+
+\subsection{\module{SimpleFIO} vs. \module{SimpleIO} (Revisited)}
+
+As demonstrated in the previous section, format commands can
+be quite powerful.  The ordinary \module{TextIO} family provides
+fewer options.  The utility of some of the format command modifiers
+is not typically required.   \module{TextIO} and friends 
+are quite adequate for mundane output.  If, however, you need alternative
+justification, filling, or more complicated types, 
+\proc{FormatIO} may be just the thing you need.
+
+\subsection{More Examples}
+
+This section is devoted to an assortment of examples.  The purpose
+is to give a taste of the types of format names and modifiers available.
+For an overview of all modifiers and default format names,
+see section~\ref{FormatTables}.
+
+Most format names accept the modifiers w (width), j (justification), 
+and f (fill character).  The example below demonstrates the use
+of j with a c (center) value in a field width of 9 characters.
+\begin{verbatim}
+    SimpleFIO.Write1( "![String,jc,f=,w9]!", "abc" );
+\end{verbatim}
+yields
+\begin{verbatim}
+    !===abc===!
+\end{verbatim}
+
+Boolean values may be output as well.  The format name ``\code{Bool}''
+accepts the modifiers ``\code{y}'' (yes) and ``\code{n}'' (no) which change the
+default string values for \code{TRUE} and \code{FALSE}, respectively.
+Here are some sample uses:
+\begin{verbatim}
+    SimpleFIO.Write1( "The answer is [Bool,yyes,nno].[NL]", TRUE );
+\end{verbatim}
+yields
+\begin{verbatim}
+    The answer is yes.
+\end{verbatim}
+and
+\begin{verbatim}
+    SimpleFIO.Write1( "Sex: [Bool,ymale,nfemale]", FALSE );
+\end{verbatim}
+yields\footnote{
+    This is probably an abuse of Modula-2 enumerated types, but
+    it serves as a good example}
+\begin{verbatim}
+    Sex: female
+\end{verbatim}
+    
+The type \code{REAL} has the most complicated formats.  There are
+four different format names which support these \code{REAL}.  The
+format names are: \code{Sci} (scientific notation), \code{Eng} (engineering
+notation), \code{Float} (floating point), and \code{Real} (synonym for
+scientific).  The modifiers ``\code{p}'' (precision width) and ``\code{e}'' 
+(exponent width)
+are peculiar to these format names.  Examples follow.
+\begin{verbatim}
+    CONST
+        format = "[Float,w5,p1,f0]  [Sci,p4,e3][NL]";
+    SimpleFIO.Write2( format, 1.1, 1.1E3 );
+    SimpleFIO.Write2( format, 13.1, 123.45E10 ); 
+    SimpleFIO.Write2( format, 143.1, 0.000999999 );
+\end{verbatim}
+yields
+\begin{verbatim}
+
+    001.1  1.1000E003
+    013.1  1.2345E012
+    143.1  1.0000E-03
+
+\end{verbatim}
+The first command, \code{[Float,w5,p1,f0]} indicates a floating 
+point format in a space
+of 5 characters zero-filled with 1 fraction digit.  For numeric
+values, the default justification is always to the right, thus it need not
+be specified explicitly.  The second command, \code{Sci,p4,e3]} causes a 
+scientific
+number to be output with 4 fraction digits and 3 digits (including sign)
+to the right of the ``\code{E}''.  By the nature of scientific notation,
+it is unnecessary to specify the total width if these other
+two parameters are specified; the total width is always 2 (for the one's
+digit and decimal point ``\code{.}'') plus the ``\code{p}'' modifier's 
+value plus
+the space for the `\code{E}' plus the value of the `\code{e}' modifier.
+However, the format name does not require this usage.  One may specify
+the total width w to get justified output.  For example,
+the following is an equivalent declaration of the previous format:
+\begin{verbatim}
+
+    CONST
+        format = "[Float,w5,p1,f0][Sci,w12,p4,e3][NL]";
+
+\end{verbatim}
+In this format, there will always be two extra
+spaces to the {\em left} of the second value, because the sum
+of 2 + 4 + 1 + 3 does not equal the specified total width, 12.
+The previous format used 2 literal spaces between the two commands
+to get the same effect without the extra ``\code{w12}'' modifier.
+FormatIO provides many alternatives.
+
+
+\section{Input -- \codeterm{Read} procedures}
+
+Reading, obviously, is the inverse of writing.  As such, the modules
+\module{SimpleFIO} and \module{SimpleIO} can also be used for 
+reading.    
+A read operation is invoked to obtain
+a particular string value from the text file and translate it
+into a Modula-2 value.  \module{SimpleIO} tends to be less
+restrictive than \module{SimpleFIO}, thus the parallel drawn
+in the previous section is less applicable to read procedures. 
+
+
+\subsection{\code{EOL}, \code{EOF}, and Bad Data}
+
+A text file consists of lines of characters.  The lines
+may be terminated by a new-line or by end-of-file.  \module{TextIO}
+treats new-lines and end-of-file as meaningful information even
+they are not expected.  The following example shows a typical
+piece of code used to read a number.
+\begin{verbatim}
+
+    IF SimpleIO.ReadCard( num ) THEN
+        ...process the number...
+    ELSIF SimpleIO.EOL() THEN
+        ...process the new-line...
+    ELSIF SimpleIO.EOF() THEN
+        ...no more input...
+    ELSE
+        ...user input error...
+    END;
+\end{verbatim}
+The first line is an {\em attempted} read of a cardinal number.  If
+the input is:
+\begin{verbatim}
+
+    1234
+
+\end{verbatim}
+then \code{num} will contain the cardinal value ``\code{1234}'' and 
+\proc{SimpleIO.\-Read\-Card} will return \code{TRUE}.  If, however, the
+input looks like:
+\begin{verbatim}
+    <empty-line>
+    1234
+\end{verbatim}
+\proc{SimpleIO.\-Read\-Card} will return \code{FALSE} and 
+the \proc{SimpleIO.\-EOL} call will return \code{TRUE}.  If
+the file is empty, both \proc{ReadCard} and \proc{EOL} will
+return \code{FALSE} and \proc{SimpleIO.\-EOF} will return \code{TRUE}.
+In the event of data input errors, e.g.
+\begin{verbatim}
+    jkl
+\end{verbatim}
+all three procedures will return \code{FALSE} in the above code
+fragment and the first character of bad data (in this case the `\code{j}')
+will be waiting to be read.  It is the responsibility of the program
+to discard the bad data or take other appropriate action, such as terminating
+the program.
+
+
+\subsection{Free Format Reads with \module{SimpleIO}}
+\label{FreeFormatSimpleIO}
+
+In this section, a basic application of the rules which were introduced in
+the previous section is presented. 
+
+The problem is to read a file of 
+real numbers
+and compute the arithmetic mean of the values.  
+We assume the file is 
+disk based, so there is no possibility to prompt or ask the user to try again.
+Upon encountering bad data, the program terminates.  At end of file,
+the sum of the values is printed out.
+\begin{verbatim}
+
+    sum := 0.0;
+    count := 0.0;
+    LOOP
+        IF SimpleIO.ReadReal( entry ) THEN
+            sum := entry + sum;
+            count := 1.0 + count;
+        ELSIF SimpleIO.EOL() THEN
+            (* Do nothing, because we are allowing free format *)
+        ELSIF SimpleIO.EOF() THEN
+            EXIT;
+        ELSE
+            ProgErr.Terminate( "Bad data in file" );
+        END;
+    END; (* LOOP *)
+    
+    SimpleIO.WriteString( "The average is " );
+    SimpleIO.WriteFloating( sum / count, 0, 5 );
+    SimpleIO.WriteLn;
+
+\end{verbatim}
+Note that we write the result in floating point format with 5 fraction
+digits and as many other digits as necessary to represent the average.
+
+The loop demonstrated above is in {\em free format} style.  The data
+file may be structured in any number of lines (even blank lines) and
+the only requirement is that the real numbers be separated by 
+spaces.\footnote{
+    Actually, the syntax is slightly more flexible, but this is a
+    matter of detail.  A description of the exact \code{REAL} syntax can
+    be found in the definition module for \module{RealIO}.
+    }
+A sample valid input file is:
+\begin{verbatim}
+
+     123.4     234
+     1E5   -1E6  .2
+     
+     
+     1.E1 +1E-1
+
+\end{verbatim}
+Note that the accepted syntax is more flexible than that of a Modula-2
+real number.  Specifically, \code{234} and \code{.2} would not be
+accepted by a Modula-2 compiler.
+     
+The procedure \proc{SimpleIO.\-Read\-Real} skips leading blanks until
+it encounters a valid real number, end-of-line, end-of-file, or a syntax
+error.  In
+the latter three cases, the \proc{Read\-Real} fails.  The case of
+end-of-line is special, because a subsequent read is perfectly legal.
+The end-of-line indication merely exists to {\em allow for} structured
+files as is the case in the next section.  If it is ignored (as
+above), the next read will encounter the data on the next line.
+If the line is blank, the read will fail again.  In other words,
+\proc{SimpleIO.\-EOL} is there to allow the programmer to 
+know a new-line was encountered.
+
+\subsection{Structured Input with \module{SimpleIO}}
+
+There are times when it is useful to treat a text file as a structured
+entity. 
+The advantage of structured data is that it is easier to tell if the
+input is incorrect.  In this section, the problem is to parse a file
+of x-y values for plotting.  The procedure \code{Plot} takes two
+integer values and causes them to appear on a graphical display, the
+details of which need not concern us here.  Again, we choose to
+terminate on errors.  Each line of the file must contain a pair
+of integers: x followed by y.
+Blank lines and partially filled lines are both errors.
+\begin{verbatim}
+
+    LOOP
+        IF NOT SimpleIO.ReadInt( x ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Blank line or bad data in file" );
+        END;
+        
+        IF NOT SimpleIO.ReadInt( y ) THEN
+            ProgErr.Terminate( "x and y must be on the same line" );
+        END;
+        
+        Plot( x, y );
+        
+        SimpleIO.ReadLn;
+        IF SimpleIO.EOF() THEN
+            EXIT;   (* Line terminated without a new-line *)
+        END;
+    END; (* LOOP *)
+\end{verbatim}
+    
+The structure has been modified from the example in section 
+\ref{FreeFormatSimpleIO} to disallow blank lines and lines
+with only one real number.  
+If the first \proc{SimpleIO.\-ReadInt} call fails, then there
+are three possibilities (as with \proc{ReadReal}).  The only
+{\em legal} case is end-of-file.  If \proc{EOL} is \code{TRUE},
+the file contains a blank line.  Blank lines are errors according
+to the specification.
+
+If the second \proc{Read\-Int} is executed, the ``\code{x}'' value
+has already been read (i.e. the first \proc{Read\-Int} succeeded).
+Under no circumstances will we accept a failure of the second
+\proc{Read\-Int}, because partial data reads are illegal.  
+
+The final procedure \proc{SimpleIO.\-ReadLn} consumes the rest
+of the line.  If it encounters end-of-file, \proc{EOF} will be
+true.  \proc{EOL} is never true upon return of a \proc{ReadLn}.
+
+A valid input file might be:
+\begin{verbatim}
+     1 -1
+    +2 -2
+     3 -3
+     4  65
+\end{verbatim}    
+\proc{Read\-Int} skips leading blanks just like
+\proc{Read\-Real} and \proc{Read\-Card}, so the position of the
+integers is not signficant even for
+structured reads.  The structure is imposed only on the
+number of values on a line, not on their syntax.  
+
+The code fragment above does not rigorously
+impose the structure on the input as specified.  
+The following input file would also be accepted:
+
+\begin{verbatim}
+
+    1 1  anything can go here
+    2 2  as well as here
+\end{verbatim}
+    
+This deviant behavior is caused by the definition of \proc{SimpleIO.\-ReadLn}.
+The procedure \proc{ReadLn} operates in two modes:
+\begin{enumerate}
+\item
+    If \proc{SimpleIO.\-EOL} is true, \proc{ReadLn} simply
+    changes the state of the file so that \proc{EOL} will
+    return false.
+\item
+    If \proc{EOL} is false when \proc{ReadLn} is called, 
+    \proc{ReadLn} will {\em throw away} characters until
+    \proc{EOL} or \proc{EOF} becomes true.
+\end{enumerate}
+
+These semantics can be a blessing or a curse.   Sometimes it
+is useful to {\em flush to end-of-line} and at other times,
+in this case for example, we would like to know that the
+next value in the file {\em is} end-of-line or end-of-file
+and nothing else.  It is possible to ``correct'' the deviant
+behavior in the previous example by replacing the \proc{Read\-Ln}
+with a \proc{SimpleIO.\-Read\-Char} as follows:
+\begin{verbatim}
+
+    SimpleIO.ReadChar( DONTCARE );
+    IF NOT SimpleIO.EOL() THEN
+        IF SimpleIO.EOF() THEN
+            EXIT;   (* Line terminated without a new-line *)
+        END;
+        ProgErr.Terminate( "Extra data before end of line" );
+    END;
+\end{verbatim}
+
+In this code fragment, we are \proc{asserting} the condition
+that there is no more data at the end of the line by {\em attempting}
+to read a character.  If end-of-line is waiting on the input,
+the value \proc{EOL} will be true upon return of \proc{Read\-Char}.
+In other words, we {\em expect} the read to ``fail''.  The
+value \code{DONT\-CARE} is ignored.
+This solution to the problem of detecting fixed position end-of-lines is less
+than elegant, but it works.  
+\module{SimpleFIO} solves the problem in a slightly more elegant manner.
+
+\finepoint{
+    The procedure \proc{SimpleIO.\-Read\-Char} and 
+    \proc{SimpleIO.\-Read\-String} do not have return values,
+    because there is no possibility that they will encounter
+    syntax errors.  The procedures \proc{EOL} and \proc{EOF}
+    must be checked {\em every time} \proc{Read\-Char} or
+    \proc{Read\-String} is called.  This behavior is akin to
+    the module \module{In\-Out}.  
+    A more regular and robust approach to reading is found
+    in Chapter~ref{AdvancedI/O} where the semantics of 
+    \module{TextIO} reads are more thoroughly discussed.
+    The rudiments of all methods are the same: 
+    reads fail because end-of-file, end-of-line, or error is
+    encountered.
+}
+
+\subsection{Reading with \module{SimpleFIO}}    
+\label{ReadingWithSimpleFIO}
+
+As its name implies, \module{FormatIO} reads are always formatted.
+End-of-line conditions are treated as if they were data. 
+If the format command expects an integer and there
+is a new-line pending, the read fails.
+The first difference between \module{SimpleIO} and
+\module{SimpleFIO} is that the procedure 
+\code{SimpleFIO.\-EOL} {\em does not exist}.  
+
+To illustrate this property, the example
+of the previous section is coded using \module{SimpleFIO}.
+\begin{verbatim}
+    LOOP
+        IF NOT SimpleFIO.Read2( "[Int][Int][NL]", x, y ) THEN
+            IF SimpleIO.EOF() THEN
+                EXIT;   (* No more data *)
+            END;
+            ProgErr.Terminate( "Bad data in file" );
+        END;
+        
+        Plot( x, y );
+
+    END; (* LOOP *)
+\end{verbatim}
+    
+\proc{SimpleIO.\-Read2} is just like \proc{SimpleIO.\-Write2} in
+that it accepts a format string and two format arguments.  The
+format string in this example has three commands.  The first
+two translate into calls to \proc{Read\-Int}.  The last command
+reads a new-line if it is pending on input, otherwise it fails.
+This code fragment will accept the same structure file as the
+second example in the previous section.  
+
+\newpage
+\finepoint{
+    There is a subtle difference between the two code fragments.
+    In the previous section, special care was taken to manage
+    lines which ended in end-of-file and not end-of-line.  In
+    the above example, all lines must end with end-of-line.
+    We could repair the above code fragment to manage this
+    rather special case, but, with most systems, end-of-line
+    is typically treated as a line terminator and not
+    a separator.
+}
+
+    
+Again, the primary advantage of \module{SimpleFIO} over \module{SimpleIO}
+appears to be the number of procedure calls.  There are, as one might
+expect, other advantages.
+
+Let us expand the specification for the above code fragment to
+include a range limit on the numbers in the file.  Suppose the
+range of ``\code{x}'' must be no greater than 100 and no less than --100.
+The restriction on ``\code{y}'' is that it be positive.  The {\em read}
+format modifiers ``\code{l}'' (lower bound) and ``\code{u}'' (upper bound)
+can be applied as follows:
+\begin{verbatim}
+
+    ... SimpleFIO.Read2( "[Int,l-100,u+100][Int,l0][NL]", x, y ) ...
+
+\end{verbatim}
+The first command, \code{[Int,l-100,u+100]}, now states ``read an integer such 
+that -100 $<=$ \code{x} $<=$ +100''.  The second, \code{[Int,l0]} states 
+``read an integer
+such that 0 $<=$ \code{y} $<=$ \code{Sys\-Types.\-MAXInt}''.  If input
+values are out of range, the \proc{Read2} will fail.  
+
+The format command modifiers ``\code{l}'' and ``\code{u}'' 
+apply to the numeric formats \code{Int}, \code{Real}, and \code{Card}.
+The {\em write} modifiers ``\code{w}'', ``\code{j}'', and
+``\code{f}'' {\em do not apply} to read commands.  In general, the
+read modifiers and write modifiers are mutually exclusive sets.\footnote{
+    We have found this to be an annoying feature.  At the same time,
+    it takes less code to implement and we have gotten along just
+    fine without, for instance, fixed width reads.  Perhaps some
+    day, this will change.}
+There are exceptions which are noted in section~\ref{FormatTables}.
+
+\module{SimpleFIO} reads translate into almost identical 
+\module{SimpleIO} operations excluding the bounds check features.
+The primary features of \module{SimpleFIO} are the compactness of
+coding style and enforced file structure.  These can be pitfalls as well.
+See section \ref{IOErrorsChapter} for more details on the problems involved.
+
+\subsection{Reading Literals}
+
+
+As with writing, read format strings can contain literal values.
+The same rules apply, including escape characters. 
+
+The following is an interesting example of a literal in a call
+to \proc{SimpleFIO.\-Read}:
+\begin{verbatim}
+
+    IF NOT SimpleFIO.Read( "This is some text.[NL]" ) THEN
+        ProgErr.Terminate( "Expected: This is some text." );
+    END;
+
+\end{verbatim}
+The \proc{Read} does not return data.  Its purpose is to
+{\em verify} the existence of a literal value in the file.  In
+this case, the value is ``\code{This is some text.}'' followed by
+a new-line.  This semantic applies to literal values in {\em all}
+\proc{Read} calls.  Typically, verification of literal values
+is useful to ensure consistent data files.  For example, we could
+turn the example in the previous section into the following:
+\begin{verbatim}
+
+    SimpleFIO.Read2( "x = [Int,l-100,u+100]; y = [Int,l0];[NL]", x, y )
+
+\end{verbatim}
+In this case, a valid input file must be of the form:
+\begin{verbatim}
+
+    x = 1; y = 2;
+    x =   -3; y =    100;
+
+\end{verbatim}
+The literal values ``\code{x = }'', ``\code{; y = }'', and ``\code{;}''
+must be in the file exactly as they appear in the format string.
+{\em Spaces are significant.}  Particularly, there must be a space
+between the ``\code{=}'' and the first non\-white\-space value of the
+integer.  There can be more than one space, but the extra spaces
+are consumed by the ``\code{[Int]}'' format and not the literal.
+Such a rigid structure is not required for most applications;
+therefore, a good rule of thumb is to eliminate any extra characters
+between the {\em closing} square bracket (\code{]}) of one format
+command and the end of the format string or the opening square 
+bracket (\code{[}) of the next command.
+
+
+\subsection{\module{SimpleFIO} Prompted Reads}
+\index{Prompted Reads} \index{Reads With Prompts}
+\label{PromptedReads}
+
+When \module{FormatIO} was designed, its purpose was to remove some
+of the more mundane tasks of writing simple programs.  Most programmers
+find the task of writing the following piece of code to be a bit boring:
+\begin{verbatim}
+
+    LOOP
+        SimpleIO.WriteString( "Continue? " );
+        SimpleIO.ReadChar( ch );
+        SimpleIO.ReadLn;        (* flush rest of line *)
+        IF SimpleIO.EOF() THEN
+            RETURN FALSE;
+        END;
+        CASE ch OF
+            'y', 'Y':
+                RETURN TRUE;
+            |
+            'n', 'N':
+                RETURN FALSE;
+            ELSE
+                SimpleIO.WriteString( "Wrong key, try again" );
+                SimpleIO.WriteLn;
+                (* fall through *)
+        END;
+    END;
+\end{verbatim}
+
+The \module{FormatIO} family provides \proc{PromptedRead}s to alleviate this
+chore.
+The above can be recoded using \module{SimpleFIO}
+as follows:
+\begin{verbatim}
+
+    SimpleFIO.PromptedRead1( "[Bool,mContinue? ,yy,nn][NL]", 
+                             continue );
+    RETURN NOT SimpleFIO.EOF() OR continue;
+
+\end{verbatim}
+The \proc{PromptedRead1} above outputs ``\code{Continue?} '' to
+the default output before reading the default input.  The input
+must match the format string specific just as with \proc{Read1}. If 
+the input is invalid, a new prompt is output (giving more specific
+information) and the read is retried.  For example,
+\begin{verbatim}
+    
+    Continue? x
+    Input invalid, try again.
+    Enter [ y or n ]: zzz
+    Input invalid, try again.
+    Enter [ y or n ]: yes
+    Input invalid, try again.
+    Enter [ y or n ]: Y
+
+\end{verbatim}
+The prompt ``\code{Enter [ y or n ]: }'' is the default prompt
+for the \code{[Bool]} format.  The first prompt displayed,
+in this case ``\code{Continue?}'', is supplied above with the
+``\code{m}'' (message) format modifier.  If the format command does
+not contain an ``\code{m}'' modifier, the default prompt will be
+the first prompt displayed.
+
+In the above session, the third response, ``\code{yes}'' was
+not accepted.  The \codeterm{Bool} format read the ``\code{yes}'',
+but was expecting only ``\code{y}'' or ``\code{Y}''.\footnote{
+    \code{[Bool]} ignores the case of the input for both
+    \proc{PromptedRead}s and \proc{Read}.}
+
+\proc{PromptedRead} requires that the entire format string be satisfied
+before it will return.  In the event of failures, it may restart
+the whole read.  This is demonstrated in the next example.
+\begin{verbatim}
+    SimpleFIO.PromptedRead2( "[Int,u100,l-100][NL][Card,mHello: ][NL]", 
+                             x, y );
+
+\end{verbatim}
+A session might look like:
+\begin{verbatim}
+    Enter an integer [ -100 .. 100 ]: 35
+    Hello: 65j
+    Unexpected characters 'j' before end of line.
+    Input invalid, try again.
+    Enter an integer [ -100 .. 100 ]: 35
+    Hello: 65
+
+\end{verbatim}
+Both the \code{[Int]} and \code{[Card]} reads were successful on
+the first try.  The second \code{[NL]} format failed, because the 
+the \code{[Card]} read the ``\code{65}'' and the ``\code{j}'' was ready
+for input when the \code{[NL]} command was executed.  Hence, the
+message ``\code{Unexpected characters 'j' before end of line.}'' was
+produced.
+
+\index{nested formats}\index{formats nested}
+An obscure feature of the `\code{m}' modifier is that its value
+is a format.  In the following example, this fact is demonstrated
+along with the use of nested formats.
+\begin{verbatim}
+    SimpleFIO.PromptedRead1( 
+       "[String,mMy name is Bond`, James Bond.[NL]And yours: ][NL]", name );
+\end{verbatim}
+The resulting prompt would look like:
+\begin{verbatim}
+    My name is Bond, James Bond.
+    And yours: 
+\end{verbatim}
+The prompt ``\code{My name is Bond`, James Bond.[NL]And yours: }'' is
+extracted and passed to the equivalent of \proc{SimpleFIO.\-Write}.
+The nested \code{[NL]} must not be surrounded by escape characters,
+because \module{FormatIO} interprets this value as a literal value.
+
+Some important points about \proc{FormatIO.\-Promted\-Read}s follow.
+\begin{enumerate}
+\item
+    When writing applications with \proc{PromptedRead},
+    avoid packing too many commands into one format string.
+    Multiple format commands are legal, but they are provided for
+    ``quick hacks'' and, used otherwise, may frustrate unwary users.
+\item
+    On many systems, interactive input values are usually terminated by
+    a new-line (carriage return) key.  Therefore, a prompted format
+    command will almost always fail unless it is followed by a
+    \code{[NL]} command.  The previous example has two \code{[NL]}
+    commands for this reason.
+\item
+    Avoid the use of literals in the format string.  
+\item
+    The ``\code{m}'' modifier's value is a {\em format}.  When using
+    this feature, be careful to specify format commands that do not
+    accept format arguments, e.g. \code{[NL]}.
+\end{enumerate}
+
+The \proc{Prompted\-Read} design is experimental.  More than likely,
+some of the structure will change as time goes by.  Most programmers
+find this feature most useful for simple programs which do not require
+robust user input.
+
+
+\section{The Default Files}
+\index{Default Input} \index{Default Output} \index{Standard Input}
+\index{Standard Output}
+
+Throughout this chapter, the terms {\em default input} and 
+{\em default output} have been used to described the I/O entities
+used by \module{SimpleIO} and \module{SimpleFIO}.  These objects
+are {\em implicit} in the name \codeterm{Simple}.  One can gain
+access to these objects {\em explicitly} by calling the procedures
+\proc{TextIO.\-Get\-Input} and \proc{TextIO.\-Get\-Output}, which
+return the default input and output \codeterm{TextIO.\-Object}s, 
+respectively.
+
+
+During the intialization of a program, these globally shared
+objects are set to the operating system's concept of
+default input and output.  Typically, these objects are connected
+to the terminal on which or the window in which the program is being run.
+
+\finepoints{
+    \index{interactive}
+    A terminal or window are {\em interactive} \code{TextIO.\-Object}s.
+    The
+    operating system may allow command line redirection of the default
+    files, the files may not be a window or terminal but a non-interactive
+    object such as disk file.  The procedure
+    \proc{TextIO.\-Is\-Inter\-active} can be used to determine
+    whether or not the default input or output objects are interactive.
+    A program can therefore decide whether or not to prompt.
+    Note that the \proc{Prompted\-Read} procedures do not differentiate
+    between interactive and non-interactive objects; 
+    they always prompt.
+
+    On some systems, the initial default input and output may
+    be undefined.  In this case, it is the responsibility of
+    the application program to call \proc{Set\-Input} and
+    \proc{Set\-Output} before any default I/O is attempted.
+    The documentation for these implementations will undoubtably
+    advertise this deficiency loudly.
+}
+
+\task{
+    Access to the global objects returned
+    by \proc{Get\-Input} and \proc{Get\-Output} must be
+    serialized to ensure consistency.  The module \module{IOMonitors}
+    exports \module{Task\-Monitors} which {\em must} be used
+    whenever these objects are used.  The modules
+    \module{SimpleIO}, \module{SimpleFIO}, and \module{ErrorFIO}
+    all obey this rule, therefore it is unnecessary to grab the
+    appropriate monitors before calling these modules.  However
+    other modules in the \module{TextIO}\footnote{
+        The procedures \proc{Set\-Input}, \proc{Set\-Output}, and
+        \proc{Set\-Error\-Output} as well as the corresponding \code{Get}
+        procedures obey the concurrency control rule.}
+    and \module{FormatIO} families do not provide concurrency control,
+    therefore it is necessary to surround accesses to these variables
+    with \proc{Task\-Monitors.\-Enter}\index{\code{Enter}}
+    and \proc{Exit}\index{\code{Task\-Monitors.\-Exit}} calls.
+}
+
+\subsection{Changing Default Input}
+
+Certain programs may desire to use \module{SimpleIO} and \module{SimpleFIO}
+for all of their I/O including I/O to several different files.
+There are many disadvantages to this approach;
+the primary one is the lack of robustness 
+(see chapter~\ref{IOErrorsChapter}).
+Nevertheless, the library provides procedures to switch the default
+input and output files.  The method is not as simple as Wirth's
+\proc{Open\-Input} and
+\proc{Open\-Output}, but, as stated, this is not the normal mode of operation.
+
+The procedures \proc{TextIO.\-Set\-Input} and
+\proc{TextIO.\-Set\-Output} allow the program to change the 
+\code{TextIO.\-Object}s which are returned by \proc{Get\-Input} and
+\proc{Get\-Output}, respectively.  The procedure \proc{TextIO.\-Open}
+creates the \code{TextIO.\-Object}s which can then be passed to
+the \code{Set} procedures.  The following is the equivalent of 
+\proc{Open\-Input}:
+\begin{verbatim}
+    VAR
+        text : TextIO.Object;
+    BEGIN 
+        IF ( TextIO.Open( text, "somefile", TextIO.readOnly, 
+                          TextIO.defaultOptions ) # IOErrors.ok ) OR
+           ( TextIO.SetInput( text ) = TextIO.error ) THEN
+            ProgErr.Terminate( "Couldn't open somefile" );
+        END;
+\end{verbatim}
+
+The \proc{TextIO.\-Open} call takes four parameters:
+the object, the file name, a mode, and an optional parameter.
+The file name identifies an object in the underlying I/O system's
+name space and is thus implementation specific.  The mode is
+either \codeterm{TextIO.\-read\-Only} or \codeterm{TextIO.\-append\-Only}.
+The final parameter, the options string, ieman
+discussed more
+thoroughly in chapter~\ref{TextIOChapter}.  The string
+\codeterm{default\-Options} is available in all implementations
+and is always the empty string.  We use \codeterm{default\-Options}
+instead of \code{""} for documentation purposes.
+
+This example introduces \module{IOErrors}, which is discussed in
+chapter~\ref{IOErrorsChapter}.  For the current purposes, the return value
+``\codeterm{ok}'' means success.
+
+After this code fragment is executed, read operations will
+get their data from ``\code{somefile}''.  The values
+of \proc{EOL} and \proc{EOF} will be \code{FALSE} immediately
+after the call to \proc{Set\-Input}.
+
+
+\subsection{Changing Default Output}
+
+Wirth's procedure \proc{Open\-Output} is simulated by:
+
+\begin{verbatim}
+    VAR
+        text : TextIO.Object;
+    BEGIN 
+        IF ( TextIO.Open( text, "somefile", TextIO.appendOnly, 
+                          TextIO.defaultOptions ) # IOErrors.ok ) OR
+           ( TextIO.SetOutput( text ) = TextIO.error ) THEN
+            ProgErr.Terminate( "Couldn't open somefile" );
+        END;
+\end{verbatim}
+
+The mode \codeterm{append\-Only} indicates that \code{text} is
+writable and new data will be written at the end of \code{somefile}.
+The procedure \proc{Set\-Output} makes \code{text} the default
+output file.  
+
+\proc{Open\-Output} ignores one obvious problem:
+the existence of \code{somefile} before it is opened.
+There are three cases.
+\begin{enumerate}
+\item\label{ExistsAndAppend}
+    The file exists before the call and new data is to be appended.
+\item\label{ExistsAndDestroy}
+    The file exists and new data is to overwrite existing data.
+\item\label{DoesNotExist}
+    The file does not exist.
+\end{enumerate}
+
+Case~\ref{ExistsAndAppend} is handled by the code fragment given.
+The last two cases need to be handled differently.
+
+The semantics of \proc{TextIO.\-Open} are such that in
+case~\ref{DoesNotExist}, the call fails (with the value
+\codeterm{IOErrors.\-not\-Found}).  
+\codeterm{TextIO.\-append\-Only} is defined such that if the
+file exists, it will not be overwritten.  The procedure
+\proc{DirIO.\-Create\-Entry} is designed to handle these other
+cases as follows:
+
+\begin{verbatim}
+    ...
+    IF ( DirIO.CreateEntry( "somefile", DirIO.createTextFile,
+                      DirIO.overwritePath ) # IOErrors.ok ) OR
+       ( TextIO.Open( text, "somefile", TextIO.appendOnly, 
+                      TextIO.defaultOptions ) # IOErrors.ok ) OR
+    ...
+\end{verbatim}
+
+With this modification, \code{somefile} will always be empty
+after the call to \proc{Create\-Entry}.  The parameter 
+\codeterm{overwrite\-Path} indicates that if the directory
+entry \code{somefile} exists, the old file should be destroyed
+before creating the new file.
+
+\section{Format Tables for Default Formats}
+\label{FormatTables}
+
+One of the more difficult parts of  \module{FormatIO} is remembering
+all of the names and modifiers.  To this end, five tables are provided in this
+section.
+\begin {table}[h]
+\centering
+\caption{Write Modifiers for Default Format Names (except \code{NL})}
+\medskip
+\begin{tabular}{|l|p{2in}|l|}
+\hline
+\multicolumn{1}{|c|}{Modifier}
+&\multicolumn{1}{|c|}{Explanation}
+&\multicolumn{1}{|c|}{Formats}
+    \\ \hline
+    {\tt b}{\em n}      
+        & {\em n } is base of number which must be between 2 and 36.
+        & {\tt Card}
+    \\ \hline
+    {\tt e}{\em n}      
+        & {\em n} is number of digits in exponent.
+          {\em n} = 0 means ``best fit''.
+        &  {\tt Eng}, {\tt Real}, {\tt Sci}
+    \\ \hline
+    {\tt f}{\em c}      
+        & When justifying, fill with character {\em c}
+        & All
+    \\ \hline
+    {\tt jl}        
+        & Left Justification
+        & All
+    \\
+    {\tt jr}       
+        & Right Justification    
+        & All
+    \\
+    {\tt jc}    
+        & Centering              
+        & All   
+    \\ \hline
+    {\tt n}{\em ident}  
+        & {\em ident} will be printed if argument is {\tt FALSE}.
+        & {\tt Bool}
+    \\ \hline
+    {\tt p}{\em n}      
+        & {\em n} is the number of fraction digits.
+        & {\tt Eng}, {\tt Float}, {\tt Real}, {\tt Sci}
+    \\ \hline
+    {\tt w}{\em n}
+        & {\em n} is number of chars to be output.
+          {\em n} = 0 means ``best fit''.
+        & All
+    \\ \hline
+    {\tt y}{\em ident}  
+        & {\em ident} will be printed if argument is {\tt TRUE}.
+        & {\tt Bool}
+    \\ \hline
+\end{tabular}
+\end{table}
+
+\begin {table}[h]
+\centering
+\caption{Read Modifiers for Default Format Names (except {\tt NL})}
+\medskip
+\begin{tabular}{|l|p{2in}|l|}
+\hline
+\multicolumn{1}{|c|}{Modifier}
+&\multicolumn{1}{|c|}{Explanation}
+&\multicolumn{1}{|c|}{Formats}
+    \\ \hline
+    {\tt b}{\em n}      
+        & {\em n } is base of number which must be between 2 and 36.
+        & {\tt Card}
+    \\ \hline
+    {\tt l}{\em n}      
+        & {\em n} is lower bound of acceptable values.
+        & {\tt Card}, {\tt Int}, {\tt Real}
+    \\ \hline
+    {\tt m}{\em format} 
+        & {\em format} is displayed before requesting
+          input.
+          Only available for {\tt PromptedRead}s.
+        & All
+    \\ \hline
+    {\tt n}{\em ident}  
+        & If input token is {\em ident}, argument will
+          be set to {\tt FALSE}.  (Case insensitive)
+        & {\tt Bool}
+    \\ \hline
+    {\tt u}{\em n}      
+        & {\em n} is upper bound of acceptable values.
+        & {\tt Card}, {\tt Int}, {\tt Real}
+    \\ \hline
+    {\tt y}{\em ident}  
+        & If input token is {\em ident}, argument will
+          be set to {\tt TRUE}.  (Case insensitive)
+        & {\tt Bool}
+    \\ \hline
+\end{tabular}
+\end{table}
+
+
+\begin {table}[h]
+\centering
+\caption{Write Format Names and Default Modifier Values}
+\medskip
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{1}{|c|}{Command}
+&\multicolumn{1}{|c|}{Module}
+    \\ \hline
+    {\tt [Bool,f ,jl,nFalse,w0,yTrue]}
+        & \module{FIOBool}
+    \\ \hline
+    {\tt [Card,b10,f ,jr,w0]}
+        & \module{FIOCard}
+    \\ \hline
+    {\tt [Char,f ,jl,w0]}
+        & \module{FIOString}
+    \\ \hline
+    {\tt [Eng,e0,f ,jr,p7,w0]}
+        & \module{FIOReal}
+    \\ \hline
+    {\tt [Float,f ,jr,p0,w0]}
+        & \module{FIOReal}
+    \\ \hline
+    {\tt [Int,b10,f ,jr,w0]}
+        & \module{FIOInt}
+    \\ \hline
+    {\tt [NL,1]}
+        & \module{FormatIO}
+    \\ \hline
+    {\tt [Real,e0,f ,jr,p7,w0]}
+        & \module{FIOReal}
+    \\ \hline
+    {\tt [Sci,e0,f ,jr,p7,w0]}
+        & \module{FIOReal}
+    \\ \hline
+    {\tt [String,f ,jl,w0]}
+        & \module{FIOString}
+    \\ \hline
+\end{tabular}
+\end{table}
+
+\begin {table}[h]
+\centering
+\caption{Read Format Names and Default Modifier Values}
+\medskip
+\begin{tabular}{|l|p{2in}|l|}
+\hline
+\multicolumn{1}{|c|}{Command}
+&\multicolumn{1}{|c|}{Comments}
+&\multicolumn{1}{|c|}{Module}
+    \\ \hline
+    {\tt [Bool,nFalse,yTrue] }
+        & Leading white space ignored.
+          Reads are case insensitive.
+        & \module{FIOBool}
+    \\ \hline
+    {\tt [Card,b10,l{\em MIN},u{\em MAX}]}
+        & Leading white space ignored.
+          {\em MIN} and {\em MAX} are based on storage size.
+        & \module{FIOCard}
+    \\ \hline
+    {\tt [Char]}
+        & 
+        & \module{FIOString}
+    \\ \hline
+    {\tt [Int,l{\em MIN},u{\em MAX}]}
+        & Leading white space ignored.
+          {\em MIN} and {\em MAX} are based on storage size.
+        &\module{FIOInt}
+    \\ \hline
+    {\tt [NL,1]}
+        & Takes one modifier: the number of new lines to read.
+        & \module{FormatIO}
+    \\ \hline
+    {\tt [Real,l{\em MIN},u{\em MAX}]}
+        & Leading white space ignored.
+          {\em MIN} and {\em MAX} are based on storage size.
+        & \module{FIOReal}
+    \\ \hline
+    {\tt [String]}
+        & Terminates if no more room or new-line encountered.
+        & \module{FIOString}
+    \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+\begin {table}[h]
+\centering
+\caption{Default Prompts (``{\tt m}'' Modifier Values)}
+\medskip
+\begin{tabular}{|l|l|}
+\hline
+\multicolumn{1}{|c|}{Name}
+&\multicolumn{1}{|c|}{Default Prompt}
+    \\ \hline
+    {\tt Bool}
+        & {\tt Enter [ {\em True} or {\em False} ]: }
+    \\ \hline
+    {\tt Card}
+        & {\tt Enter a cardinal number [ {\em lower} .. {\em upper} ]: }
+    \\ \hline
+    {\tt Char}
+        & {\tt Enter a character: }
+    \\ \hline
+    {\tt Int}
+        & {\tt Enter an integer [ {\em lower} .. {\em upper} ]: }
+    \\ \hline
+    {\tt Real}
+        & {\tt Enter a real number [ {\em lower} .. {\em upper} ]: }
+    \\ \hline
+    {\tt String}
+        & {\tt Enter a string: }
+    \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+

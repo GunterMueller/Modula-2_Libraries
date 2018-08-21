@@ -1,0 +1,239 @@
+(*
+12	The Bounded Set (continued)
+
+
+The particular implementation described here has the properties: Sequential, Bounded,
+Managed, and Non-Iterator, describing specific aspects of the implementation as follows:
+
+Sequential:	Can only be used in a non-tasking environment, or by only one task.
+Bounded:	The maximum size of a set is given when the set is created.
+Managed:	Memory space for items and objects is returned to the system when no
+		longer needed.
+Non-Iterator:	Routines for looping over each of a set's items are not provided.
+
+The bounded non-iterator set interface follows below in Section 12.4 while the actual
+implementation appears in Section 12.5.
+
+
+12.4	SetSBMN Interface
+*)
+
+
+DEFINITION MODULE SetSBMN;
+(*==========================================================
+    Version  : 1.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2 Compiler
+    Component: Monolithic Structures - Set
+               Sequential Bounded Managed Non-Iterator
+
+    INTRODUCTION
+    This module provides the interface to the bounded
+    implementation Set abstraction for generic Items.
+
+    REVISION HISTORY
+    v1.00  30 Apr 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2.
+
+    (C) Copyright 1989 Charles A. Lins
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM SetEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  Set;
+TYPE  SizeRange = [ 1 .. 8000 ];
+CONST NullSet   = Set(NIL);
+
+
+
+(*
+12.4.1			Exceptions
+
+The ModuleID is used by the exception handling mechanism to distinguish this module
+from other modules.
+
+SetError returns the exception code from the most recent set operation.  A result of noerr 
+indicates successful completion of the operation.
+
+GetHandler returns the exception handler routine associated with the given exception. 
+Though the routine is a function procedure returning a procedure as its result, the
+HandlerProc may not be called from within the GetHandler call itself.  The procedure
+result must be first assigned to a procedure variable before invocation.  Exception handlers
+are given an initial value of ExitOnError except for the handler for noerr which is
+initialized to the null exception handler.
+
+SetHandler associates an exception handler routine with the given exception and is the
+inverse of GetHandler.  This routine may be used to override the default settings for the
+exception handlers.
+*)
+
+CONST ModuleID = 4;
+
+PROCEDURE SetError    ()              : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    theError   : Exceptions  (*-- in    *))
+                                      : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    theError   : Exceptions  (*-- in    *);
+                           theHandler : HandlerProc (*-- in    *));
+
+
+(*
+12.4.2			Constructors
+
+The Create operation attempts to generate a new, empty set of the given maximum size
+(theSize) and Item operations associated with the given data type identifier (theType).
+
+For the bounded form of set, it is necessary to define the maximum number of items
+desired.  This is done with theSize parameter.
+
+The TypeID is the method by which Items of any data type are supported.  Using the
+TypeID, the component can assign one item to another and release any dynamically
+allocated resources associated with an Item without knowledge of the Item's internal
+composition.  In this way, one may create a set whose items consist of other
+(dynamically allocated) structures, as well as sets consisting of the basic data types.
+
+Create will return the new set upon successful completion of the routine.  If it not
+possible for the set to be created, the constant NullSet  will be returned instead.
+
+Destroy takes the given set, clears it of any items, and then destroys the set itself. 
+Where Create makes a defined set, Destroy is its inverse, making the set undefined.
+
+Clear takes the given set and removes all of its items.  theType attribute of the set 
+(assigned when the set was created) is used to retrieve the item deallocation routine for the
+items of the set.  Clearing the set returns it to the empty state.
+
+The Assign operation attempts to generate a duplicate of the source set (theSet) in the
+target set (toSet).  The target set is automatically created using the size and data type
+attributes of the source set, if necessary.  If this step is unnecessary, (the target set has
+already been previously created), the target is cleared of its present contents, its data type
+is set to that of the source set but the size is left unchanged.
+
+There is no guarantee that the client module would desire the target set to be defined with
+the same size as the source.  The minimum requirement for the target set size is that it
+must be capable of storing all of the items present in the source set.  It may be desirable
+that the target set size be greater than the source set size.  Such a situation could occur
+during error recovery of a bounded set overflow caused by the set's cardinality
+encountering the set size, and the client module may effectively attempt to increase the
+the set size using the assignment mechanism.
+
+In order to allow Items of any data type, a method must be provided to assign the contents
+of one item to another item.  This is accomplished, as above for Create, through the
+TypeID of the source set.
+
+The Include operation adds items to the given set.  If the cardinality of the set is already
+at its maximum size the overflow exception will be raised and the set remains unchanged.
+
+The Exclude operation removes the specified item from the given set.  If the given set is 
+empty on entry to Exclude, or the given item is not a member of the set  the notinset 
+exception may be raised and the set remains unchanged.
+
+Union, Intersection, Difference, and SymDifference  (symmetric difference) operations all
+implement the standard set operations of the same name.
+*)
+
+PROCEDURE Create        (    theSize  : SizeRange (*-- in    *);
+                             theType  : TypeID    (*-- in    *))
+                                      : Set       (*-- out   *);
+
+PROCEDURE Destroy       (VAR theSet   : Set       (*-- inout *));
+
+PROCEDURE Clear         (VAR theSet   : Set       (*-- inout *));
+
+PROCEDURE Assign        (    theSet   : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Include       (    theItem  : Item      (*-- in    *);
+                         VAR inSet    : Set       (*-- inout *));
+
+PROCEDURE Exclude       (    theItem  : Item      (*-- in    *);
+                         VAR fromSet  : Set       (*-- inout *));
+
+PROCEDURE Union         (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Intersection  (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE Difference    (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+PROCEDURE SymDifference (    left     : Set       (*-- in    *);
+                             right    : Set       (*-- in    *);
+                         VAR toSet    : Set       (*-- inout *));
+
+
+(*
+12.4.3			Selectors
+
+IsDefined attempts to determine whether the given set is valid, e.g., has been created and
+not yet destroyed.  How this is accomplished may be as simple or complicated as the
+implementer desires and the requirements of the application.
+
+IsEmpty returns true if the given set contains no items; in other words, its cardinality is
+zero.  Undefined sets are always considered to be empty.
+
+IsEqual returns true if the left and right sets contain the same items.  Obviously, both
+must also have the same data type and have been created.  An undefined set is not equal to
+any other set, including itself.
+
+The routines SizeOf and TypeOf return the values given the set when it was created, and
+both are provided so the user of the module need not maintain separate variables recording
+this information.
+
+NumMembers returns the number of items present on the given set.  Undefined sets are
+considered to have a cardinality of zero.
+
+IsAMember returns true if the given item is present in the given set, and false otherwise.
+
+IsSubset and IsProperSubset both implement standard logical set operations as defined in
+the Set Abstraction (chapter 11).
+*)
+
+PROCEDURE IsDefined     (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty       (    theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual       (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE SizeOf        (    theSet  : Set      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf        (    theSet  : Set      (*-- in    *))
+                                     : TypeID   (*-- out   *);
+
+PROCEDURE NumMembers    (    theSet  : Set      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE IsAMember     (    theItem : Item     (*-- in    *);
+                             theSet  : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsSubset      (    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsProperSubset(    left    : Set      (*-- in    *);
+                             right   : Set      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+END SetSBMN.
+

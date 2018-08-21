@@ -1,0 +1,6 @@
+Search
+   This is a program which search through a file to find and display any
+   line in the file which contains all the specified search strings.
+   Like this:
+
+      search file.txt  string1 string2 string3

@@ -1,0 +1,17 @@
+convertf.lnk: ..\..\io\bin\binaryio.sym ..\bin\convertf.sym ..\bin\formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\bin\stringbi.sym  \
+              ..\..\io\bin\stringio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\gen\lwp.bin\taskmoni.sym ..\..\io\bin\textio.sym 
+errorfio.lnk: ..\bin\errorfio.sym ..\bin\formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\lwp.bin\iomonito.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\gen\lwp.bin\taskmoni.sym ..\..\io\bin\textio.sym  \
+              ..\..\io\bin\textiopr.sym 
+fioscree.lnk: ..\bin\fiobase.sym ..\bin\fioscree.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\bin\screenio.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+simplefi.lnk: ..\bin\formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\io\lwp.bin\iomonito.sym ..\..\gen\bin\progerr.sym  \
+              ..\bin\simplefi.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\gen\lwp.bin\taskmoni.sym ..\..\io\bin\textio.sym  \
+              ..\..\io\bin\textiopr.sym 

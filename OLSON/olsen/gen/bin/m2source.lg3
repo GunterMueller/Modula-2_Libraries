@@ -1,0 +1,11 @@
+M2Defs= bytes.def card32.def cardconv.def chars.def crc16.def debugfla.def  \
+        dos.def genconst.def i8086.def intconve.def intrinsi.def lists.def  \
+        modinit.def namelist.def notices.def objects.def progargs.def  \
+        progenvi.def progerr.def progerro.def qstrings.def randomnu.def  \
+        realconv.def safestor.def strings.def systypes.def 
+M2Imps= bytes.mod card32.mod cardconv.mod chars.mod crc16.mod debugfla.mod  \
+        dos.mod genconst.mod i8086.mod intconve.mod intrinsi.mod lists.mod  \
+        modinit.mod namelist.mod notices.mod objects.mod progargs.mod  \
+        progenvi.mod progerr.mod progerro.mod qstrings.mod randomnu.mod  \
+        realconv.mod safestor.mod strings.mod systypes.mod 
+M2Mods= 

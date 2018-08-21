@@ -1,0 +1,55 @@
+DEFINITION MODULE VGAGraphics;
+
+(* simple VGA Graphics routines *)
+(* V1.0, J. Andrea, Apr.12/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(* first try to make PC graphics work like whats on the VAX for REGIS *)
+
+EXPORT QUALIFIED
+   BeginVGA, EndVGA,
+   EraseScreen, GetDimensions,
+   Move,
+   Dot, Line, DotColor, LineColor,
+   Circle, CircleColor,
+   Text, TextColor;
+
+
+PROCEDURE BeginVGA;
+(* start graphics *)
+
+PROCEDURE EndVGA;
+(* reset graphics *)
+
+
+PROCEDURE EraseScreen;
+(* erase the whole display *)
+
+PROCEDURE GetDimensions( VAR x, y :CARDINAL );
+(* return the maximum possible dimensions of the display *)
+
+PROCEDURE Move( x, y :CARDINAL );
+(* move to the new location, make it the current point *)
+
+PROCEDURE Dot;
+(* draw a dot at the current location *)
+
+PROCEDURE DotColor( color :CARDINAL );
+(* draw a dot of the given color *)
+
+PROCEDURE Line( x, y :CARDINAL );
+(* draw a line from the current point to the new point,
+   and the new point will become the current point *)
+
+PROCEDURE LineColor( x, y :CARDINAL; color :CARDINAL );
+(* draw a line of the given color *)
+
+PROCEDURE Circle( x, y, radius :CARDINAL; fill :BOOLEAN );
+PROCEDURE CircleColor( x, y, radius :CARDINAL; color :CARDINAL; fill :BOOLEAN );
+(* draw a circle at center x,y *)
+
+PROCEDURE Text( string :ARRAY OF CHAR );
+PROCEDURE TextColor( string :ARRAY OF CHAR; color :CARDINAL );
+(* put some text at the current location *)
+
+END VGAGraphics.

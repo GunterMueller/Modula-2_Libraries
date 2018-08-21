@@ -1,0 +1,32 @@
+keyinput.sym: 
+keyinput.obj: keyinput.sym ..\..\io\bin\keyboard.sym 
+lowlevel.sym: 
+lowlevel.obj: lowlevel.sym 
+maze.sym: ..\..\gen\lwp.bin\taskmoni.sym 
+maze.obj: maze.sym ..\..\gen\bin\randomnu.sym screen.sym  \
+          ..\..\gen\bin\systypes.sym ..\..\gen\lwp.bin\taskmoni.sym 
+screen.sym: 
+screen.obj: lowlevel.sym ..\..\gen\bin\progerr.sym screen.sym 
+solver.obj: ..\..\gen\bin\card32.sym ..\..\gen\bin\cardconv.sym  \
+            ..\..\gen\bin\genconst.sym keyinput.sym maze.sym  \
+            ..\..\gen\bin\notices.sym ..\..\gen\bin\progerro.sym screen.sym  \
+            ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+            ..\..\gen\lwp.bin\taskcons.sym ..\..\gen\lwp.bin\taskdebu.sym  \
+            ..\..\gen\lwp.bin\taskmess.sym ..\..\gen\lwp.bin\taskmoni.sym  \
+            ..\..\gen\lwp.bin\tasknoti.sym ..\..\gen\lwp.bin\tasktime.sym  \
+            ..\..\gen\lwp.bin\tasks.sym 
+solver.exe: ..\..\gen\bin\bytes.obj ..\..\gen\bin\card32.obj  \
+            ..\..\gen\bin\cardconv.obj ..\..\gen\bin\chars.obj  \
+            ..\..\gen\bin\dos.obj ..\..\gen\lwp.bin\dosmonit.obj  \
+            ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+            ..\..\gen\lwp.bin\interrup.obj ..\..\gen\bin\intrinsi.obj  \
+            keyinput.obj ..\..\io\lwp.bin\keyboard.obj lowlevel.obj maze.obj  \
+            ..\..\gen\lwp.bin\notices.obj ..\..\gen\lwp.bin\objects.obj  \
+            ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+            ..\..\gen\lwp.bin\randomnu.obj ..\..\gen\lwp.bin\safestor.obj  \
+            screen.obj ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+            ..\..\gen\lwp.bin\taskcons.obj ..\..\gen\lwp.bin\taskdebu.obj  \
+            ..\..\gen\lwp.bin\taskinfo.obj ..\..\gen\lwp.bin\taskmess.obj  \
+            ..\..\gen\lwp.bin\taskmoni.obj ..\..\gen\lwp.bin\tasknoti.obj  \
+            ..\..\gen\lwp.bin\tasktime.obj ..\..\gen\lwp.bin\tasks.obj  \
+            ..\..\gen\lwp.bin\taskspri.obj solver.obj 

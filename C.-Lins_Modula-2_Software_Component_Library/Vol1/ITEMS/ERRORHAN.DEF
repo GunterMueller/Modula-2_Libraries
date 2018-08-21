@@ -1,0 +1,68 @@
+DEFINITION MODULE ErrorHandling;
+(*====================================================================
+    Version  : 1.0  Sun, Mar 5, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Standard Error Handling Support Utility
+
+    INTRODUCTION
+    This module provides a general support mechanism for the exceptions
+    declared by the various ADT component modules.
+
+    Having a general error code for all modules allows use of general
+    exception handlers, instead of being restricted to a specific
+    group of data structure modules.  Consistent error reporting is
+    also better supported since the mechanism provided here supports
+    mapping of error values to the strings displayed for the module
+    and operation raising the exception, as well as a description of
+    the exception condition.
+
+    The facilities provided by the module cover these functional areas:
+      (1) translation between local exception enumerations to the
+	  global gneral error code, and the reverse translation;
+      (2) the standard error reporting mechanism;
+      (3) predefined error handlers; and
+      (4) standard exception handler invocation mechanism.
+
+
+    REVISION HISTORY
+    v1.0  Sun, Mar 5, 1989  C. Lins
+      Initial JPI implementation.
+
+    CONSTRUCTORS
+    * Raise in ModuleID, in Operation, in Exception, in HandlerProc
+	Requires: NOTHING
+	Modifies: NOTHING
+	Effects:  Standard exception handler activation routine
+		  1. If the HandlerProc is not “NullHandler”, the
+		     handler is invoked, followed by exiting Raise.
+		     (Assuming the HandlerProc returns).
+		  2. Otherwise, if the default handler is “NullHandler”,
+		     Raise is exited.
+	Signals:  NOTHING
+
+    PROPRIETARY NOTICES
+    "ErrorHandling.DEF" Copyright (C) 1989 Charles A. Lins.
+====================================================================*)
+
+FROM SYSTEM IMPORT (*--Type*) BYTE;
+
+    (*-----------------------*)
+
+TYPE  ModuleNo	  = CARDINAL;
+TYPE  Operation   = BYTE;
+TYPE  Exception   = BYTE;
+
+TYPE  HandlerProc = PROCEDURE (ModuleNo, Operation, Exception);
+CONST NullHandler = NULLPROC;
+
+PROCEDURE ExitOnError	 (    moduleID	 : ModuleNo    (*-- in	  *);
+			      operation  : Operation   (*-- in	  *);
+			      exception  : Exception   (*-- in	  *));
+
+PROCEDURE Raise 	 (    moduleID	 : ModuleNo    (*-- in	  *);
+			      operation  : Operation   (*-- in	  *);
+			      exception  : Exception   (*-- in	  *);
+			      theHandler : HandlerProc (*-- in	  *));
+
+END ErrorHandling.
+

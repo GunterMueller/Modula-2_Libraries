@@ -1,0 +1,38 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+# m2depend
+m2parser.def: ..\shared.src\m2parser.dpp 
+	${StandardM2pp}
+m2scanne.def: ..\shared.src\m2scanne.dpp 
+	${StandardM2pp}
+makeio.def: ..\shared.src\makeio.dpp 
+	${StandardM2pp}
+makepara.def: ..\shared.src\makepara.dpp 
+	${StandardM2pp}
+m2depend.mod: ..\shared.src\m2depend.mpp 
+	${StandardM2pp}
+m2parser.mod: ..\shared.src\m2parser.mpp 
+	${StandardM2pp}
+m2scanne.mod: ..\shared.src\m2scanne.mpp 
+	${StandardM2pp}
+makeio.mod: ..\shared.src\makeio.mpp 
+	${StandardM2pp}
+makepara.mod: ..\shared.src\makepara.mpp 
+	${StandardM2pp}
+# m2pp
+m2pparse.def: ..\shared.src\m2pparse.dpp 
+	${StandardM2pp}
+m2pscann.def: ..\shared.src\m2pscann.dpp 
+	${StandardM2pp}
+m2pparse.mod: ..\shared.src\m2pparse.mpp 
+	${StandardM2pp}
+m2pscann.mod: ..\shared.src\m2pscann.mpp 
+	${StandardM2pp}
+m2pp.mod: ..\shared.src\m2pp.mpp 
+	${StandardM2pp}

@@ -1,0 +1,539 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TaskInfo;
+(*
+ * This module uses the TasksPRIVATE.Enter/Exit the mutual exlusion of
+ * its global data structures (except for the "info" field of a task).
+ * Otherwise the implementation is quite straightforward.
+ *)
+IMPORT
+    CardConvert,
+    ProgErr,		
+    ProgErrOutput,
+    SYSTEM,
+    SysTypes,
+    TaskConsts,	
+    Tasks,		
+    TasksPRIVATE;
+
+TYPE
+    Object = SysTypes.Card;	(* Can't use subrange here *)
+
+
+@IF Assert THEN
+
+    PROCEDURE InvalidObject;
+	BEGIN (* InvalidObject *)
+
+	    ProgErr.Terminate( "TaskInfo: invalid object." );
+
+	END InvalidObject;
+
+    PROCEDURE InvalidDatum;
+	BEGIN (* InvalidDatum *)
+
+	    ProgErr.Terminate( "TaskInfo: attempt to set NIL value for datum." );
+
+	END InvalidDatum;
+
+@END (* Assert *)
+
+VAR
+    birthProcs : ARRAY TasksPRIVATE.InfoGroups OF BirthProc;
+    deathProcs : ARRAY TasksPRIVATE.InfoGroups OF DeathProc;
+    printProcs : ARRAY TasksPRIVATE.InfoGroups OF PrintProc;
+
+PROCEDURE DefaultBirthProc( 
+    DONTCARE1 : Tasks.Object 
+    ) 	      : SysTypes.ANYPTR;
+    END DefaultBirthProc;
+
+PROCEDURE DefaultDeathProc( 
+    DONTCARE1 : Tasks.Object;
+    DONTCARE2 : SysTypes.ANYPTR 
+    );
+    END DefaultDeathProc;
+
+PROCEDURE DefaultPrintProc( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    END DefaultPrintProc;
+
+
+PROCEDURE CreateSet(
+    groupAdr : SysTypes.ANYPTR;
+    task     : TasksPRIVATE.Object
+    );
+    (*
+     * Called for each task in the list with a pointer to an info
+     * group id and the task to be checked out.
+     *)
+    VAR
+	groupPtr : POINTER TO TasksPRIVATE.InfoGroups;
+	i        : Object;
+    BEGIN (* CreateSet *)
+    
+	groupPtr := groupAdr;
+	i := groupPtr^;
+	    
+	WITH task^ DO 
+	    (* If not already initialized *)
+	    IF info[ i ] = NIL THEN
+		info[ i ] := birthProcs[ i ]( Tasks.Object( task ) );
+		@IF Assert THEN
+		    IF info[ i ] = NIL THEN
+			InvalidDatum;
+		    END;
+		@END (* Assert *)
+	    END;
+	END; (* WITH *)
+	
+    END CreateSet;
+    
+    
+PROCEDURE Create( 
+    VAR groupID   : Object;
+	birthProc : BirthProc;
+	deathProc : DeathProc;
+	printProc : PrintProc 
+    );
+    (*
+     * Lock out the "procs" data structures.  Install the procedures
+     * first so that we are assured not to miss any tasks.  Next we
+     * call the birthProc for the current list of tasks.
+     *
+     * Note the asymetric critical section enter/exit.
+     *)
+    VAR
+	i  : TasksPRIVATE.InfoGroups;
+    BEGIN (* Create *)
+	
+	(*
+	 * Search for an empty slot.  If there aren't any, blow up.
+	 *)
+	TasksPRIVATE.Enter; (* BEGIN Critical Section *)
+
+	FOR i := 0 TO TaskConsts.maxInfoGroups - 1 DO
+	    IF SYSTEM.ADDRESS( birthProcs[ i ] )
+	      = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+
+		birthProcs[ i ] := birthProc;
+		deathProcs[ i ] := deathProc;
+		printProcs[ i ] := printProc;
+
+	        TasksPRIVATE.Traverse( CreateSet, SYSTEM.ADR( i ) );
+
+		groupID := i ;
+
+		TasksPRIVATE.Exit;	(* END Critical section *)
+		RETURN;
+	    END;
+	END; (* FOR *)
+
+	ProgErr.Terminate( "TaskInfo: too may Create requests." ); 
+
+    END Create;
+
+
+PROCEDURE DestroySet(
+    groupAdr : SysTypes.ANYPTR;
+    task     : TasksPRIVATE.Object
+    );
+    (*
+     * Called for each task in the list with a pointer to an info
+     * group id and the task to be checked out.
+     *)
+    VAR
+	groupPtr : POINTER TO TasksPRIVATE.InfoGroups;
+	i        : Object;
+    BEGIN (* DestroySet *)
+    
+	groupPtr := groupAdr;
+	i := groupPtr^;
+	
+	WITH task^ DO 
+	    (* If initialized *)
+	    IF info[ i ] # NIL THEN
+		deathProcs[ i ]( Tasks.Object( task ), info[ i ]  );
+		info[ i ] := NIL;
+	    END;
+	END; (* WITH *)
+	
+    END DestroySet;
+    
+
+PROCEDURE Destroy( 
+    VAR groupID : Object 
+    );
+    (*
+     * First deallocate any "live" tasks whose info is non-NIL.
+     * Then, reset the procs.
+     *)
+    VAR
+	i         : TasksPRIVATE.InfoGroups;
+	deathProc : DeathProc;
+    BEGIN (* Destroy *)
+
+	TasksPRIVATE.Enter;
+
+	    i := groupID ;  (* May change if we call other routines *)
+	    SetInvalid( groupID );
+
+	    deathProc := deathProcs[ i ];	 (* Save to call later *)
+
+	    (* Is this an allocated group? *)
+	    IF SYSTEM.ADDRESS( deathProcs[ i ] )
+	      # SYSTEM.ADDRESS( DefaultDeathProc ) THEN
+
+	        TasksPRIVATE.Traverse( DestroySet, SYSTEM.ADR( i ) );
+
+		birthProcs[ i ] := DefaultBirthProc;
+		deathProcs[ i ] := DefaultDeathProc;
+		printProcs[ i ] := DefaultPrintProc;
+
+	    END; (* IF *)
+
+	TasksPRIVATE.Exit;
+
+    END Destroy;
+
+
+PROCEDURE SetInvalid( 
+    VAR groupID : Object 
+    );
+    BEGIN (* SetInvalid *)
+	
+	(* Do nothing for the moment ... - JRW *)
+    END SetInvalid;
+
+
+PROCEDURE SetCurrent( 
+    groupID : Object;
+    datum   : SysTypes.ANYPTR 
+    );
+    BEGIN (* SetCurrent *)
+
+	@IF Assert THEN
+	    IF SYSTEM.ADDRESS( birthProcs[ groupID ] ) 
+		  = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+		InvalidObject; 
+	    END;
+	    IF datum = NIL THEN
+		InvalidDatum;
+	    END;
+	@END (* Assert *)
+
+	TasksPRIVATE.running^.info[ groupID ] := datum;
+
+    END SetCurrent;
+
+
+PROCEDURE Set( 
+    groupID : Object;
+    task    : Tasks.Object;
+    datum   : SysTypes.ANYPTR 
+    );
+    VAR
+	private : TasksPRIVATE.Object;
+    BEGIN (* Set *)
+
+	(* 
+	 * This can be done inside an interrupt handler, but it
+	 * is up to the interrupt handler code to make sure
+	 * it manages the mutual exclusion properly.
+	 *)
+	private := TasksPRIVATE.Object( task );
+	@IF Assert THEN
+	    TasksPRIVATE.Assert( private );
+	    IF SYSTEM.ADDRESS( birthProcs[ groupID ] ) 
+		  = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+		InvalidObject; 
+	    END;
+	    IF datum = NIL THEN
+		InvalidDatum;
+	    END;
+	@END (* Assert *)
+
+	private^.info[ groupID ] := datum;
+
+    END Set;
+
+
+PROCEDURE GetCurrent( 
+    groupID : Object 
+    ) 	    : SysTypes.ANYPTR;
+    BEGIN (* GetCurrent *)
+
+	@IF Assert THEN
+	    IF SYSTEM.ADDRESS( birthProcs[ groupID ] ) 
+		  = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+		InvalidObject; 
+	    END;
+	@END (* Assert *)
+
+	RETURN TasksPRIVATE.running^.info[ groupID ];
+
+    END GetCurrent;
+
+
+PROCEDURE Get( 
+    groupID : Object;
+    task    : Tasks.Object
+    )       : SysTypes.ANYPTR;
+    VAR
+	private : TasksPRIVATE.Object;
+    BEGIN (* Get *)
+
+	(* 
+	 * This can be don inside an interrupt handler, but it
+	 * is up to the interrupt handler code to make sure
+	 * it manages the mutual exclusion properly.
+	 *)
+	private := TasksPRIVATE.Object( task );
+	@IF Assert THEN
+	    TasksPRIVATE.Assert( private );
+	    IF SYSTEM.ADDRESS( birthProcs[ groupID ] ) 
+		  = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+		InvalidObject; 
+	    END;
+	@END (* Assert *)
+
+	RETURN private^.info[ groupID ];
+
+    END Get;
+
+
+TYPE
+    StateString   = ARRAY [ 0 .. 9 ] OF CHAR;
+VAR
+    stateToString : ARRAY TasksPRIVATE.States OF StateString;
+
+PROCEDURE Print( 
+    toBePrinted : Tasks.Object 
+    );
+    (*
+     * Must disallow preemption and get the TasksPRIVATE mutex,
+     * before calling other routines.  Note that this procedure
+     * can be called after the task is initialized, but before 
+     * callOnBirth has been called.  This means that we must check
+     * the "info" field to see if it has been initialized.  
+     *
+     * We must make sure we call ProgErrOutput before calling
+     * the printProcs, because we need to enter Dos at least once
+     * before going into other code which expects ProgErrOutput
+     * not to Suspend.
+     *
+     * First line is the internal information:
+     *     Name[priority,preemptionLevel] state Stack: high/max.
+     * Then we call the other procs for the information.
+     *)
+    VAR
+	cardStr     : ARRAY [ 0 .. SysTypes.bitsPerCard ] OF CHAR;
+	private     : TasksPRIVATE.Object;
+	DONTCARE    : BOOLEAN;
+	i           : TasksPRIVATE.InfoGroups;
+	printProc   : PrintProc;		(* LOGIBUG *)
+	initialized : BOOLEAN;
+    BEGIN (* Print *)
+
+	Tasks.DisallowPreemption;
+	    TasksPRIVATE.Enter;
+
+		private := TasksPRIVATE.Object( toBePrinted );
+		@IF Assert THEN
+		    TasksPRIVATE.Assert( private );
+		@END (* Assert *)
+	    
+		WITH private^ DO
+		    ProgErrOutput.WriteString( name );
+
+		    ProgErrOutput.WriteString( "   State: " );
+		    ProgErrOutput.WriteString( stateToString[ state ] );
+
+		    ProgErrOutput.WriteString( "  Priority: " );
+		    DONTCARE := CardConvert.ToString( priority, 10, 
+						      0, cardStr );
+		    ProgErrOutput.WriteString( cardStr );
+
+		    ProgErrOutput.WriteString( "/" );
+		    (* 
+		     * Print out the preemption state for the task.  Note
+		     * that we must take the saved value only if the task is
+		     * not the currently executing one.
+		     *)
+		    IF TasksPRIVATE.running = private THEN
+			DONTCARE := CardConvert.ToString( 
+					TasksPRIVATE.preemptionLevel, 10, 0, 
+					cardStr );
+		    ELSE
+			(* intStackTop can change if we don't disallow *)
+			DONTCARE := CardConvert.ToString( 
+			  @IF LogitechM2 THEN
+			    stackBase.ptr^.intStackTop.ptr^.savedPreemptionLevel, 
+		          @END
+			  @IF SunM2 THEN
+			    savedLevel,
+			  @END
+				    10, 0, cardStr );
+		    END;
+		    ProgErrOutput.WriteString( cardStr );
+
+
+		    ProgErrOutput.WriteString( "  Stack: " );
+		    DONTCARE := CardConvert.ToString( 
+				  @IF LogitechM2 THEN
+				      stackSize - stackBase.ptr^.lowestSP, 
+				  @END
+				  @IF SunM2 THEN
+				      stackSize - ( lowestSP - stackBase ),
+				  @END (* SunM2 *)
+				  10, 0, cardStr );
+		    ProgErrOutput.WriteString( cardStr );
+		    ProgErrOutput.WriteString( "/" );
+		    DONTCARE := CardConvert.ToString( stackSize, 10, 0, 
+						      cardStr );
+		    ProgErrOutput.WriteString( cardStr );
+		    ProgErrOutput.WriteLn;
+		END;
+
+		(*
+		 * Print out the group information.  We assume that
+		 * the task is initialized, but if there is an info group
+		 * and its value is NIL, then the task is in the middle
+		 * of initialization.  It is running, but needs to call
+		 * the Birth procedure.
+		 *)
+		initialized := TRUE;
+		FOR i := 0 TO TaskConsts.maxInfoGroups - 1 DO
+		    IF initialized THEN
+			IF SYSTEM.ADDRESS( printProcs[ i ] ) # 
+			   SYSTEM.ADDRESS( DefaultPrintProc ) THEN
+			    initialized := private^.info[ i ] # NIL;
+			    ProgErrOutput.WriteString( "        " );
+			    IF initialized THEN
+				printProc := printProcs[ i ];
+				printProc( private^.info[ i ] );
+				ProgErrOutput.WriteLn;
+			    END;
+			END;
+		    END;
+		END; (* FOR *)
+
+		IF NOT initialized THEN
+		    ProgErrOutput.WriteString( "TaskInfo not initialized." );
+		    ProgErrOutput.WriteLn;
+		END;
+
+	    TasksPRIVATE.Exit;
+	Tasks.AllowPreemption;
+		
+    END Print;
+
+
+PROCEDURE CallOnBirth;
+    (*
+     * Calls the birthProcs for the "running" task.
+     *)
+    VAR
+	birthProc : BirthProc; 	(* LOGIBUG *)
+	i         : TasksPRIVATE.InfoGroups;
+    BEGIN (* CallOnBirth *)
+
+	TasksPRIVATE.Enter;
+
+	    WITH TasksPRIVATE.running^ DO 
+		FOR i := 0 TO TaskConsts.maxInfoGroups - 1 DO
+		    IF SYSTEM.ADDRESS( birthProcs[ i ] )
+		      = SYSTEM.ADDRESS( DefaultBirthProc ) THEN
+			info[ i ] := NIL;
+		    ELSE
+			birthProc := birthProcs[ i ];
+			info[ i ] := birthProc(
+				     Tasks.Object( TasksPRIVATE.running ) );
+			@IF Assert THEN
+			    IF info[ i ] = NIL THEN
+				InvalidDatum;
+			    END;
+			@END (* Assert *)
+		    END;
+		END; (* FOR *)
+	    END; (* WITH *)
+
+	TasksPRIVATE.Exit;
+
+    END CallOnBirth;
+
+
+PROCEDURE CallOnDeath;
+    (*
+     * Calls the deathProcs for the "running" task.
+     *)
+    VAR
+	deathProc : DeathProc; 	(* LOGIBUG *)
+	i         : TasksPRIVATE.InfoGroups;
+    BEGIN (* CallOnDeath *)
+
+	TasksPRIVATE.Enter;
+
+	    WITH TasksPRIVATE.running^ DO 
+		FOR i := 0 TO TaskConsts.maxInfoGroups - 1 DO
+		    IF SYSTEM.ADDRESS( deathProcs[ i ] )
+		      # SYSTEM.ADDRESS( DefaultDeathProc ) THEN
+			deathProc := deathProcs[ i ];
+			deathProc( Tasks.Object( TasksPRIVATE.running ), 
+					 info[ i ] );
+			info[ i ] := NIL;   (* Mark as unitialized *)
+		    END;
+		END; (* FOR *)
+	    END; (* WITH *)
+
+	TasksPRIVATE.Exit;
+
+    END CallOnDeath;
+
+
+VAR
+    i  : TasksPRIVATE.InfoGroups;
+    tp : TasksPRIVATE.Object;
+
+
+BEGIN (* TaskInfo *)
+
+    stateToString[ TasksPRIVATE.readyOrRunning ] := "ready";
+    stateToString[ TasksPRIVATE.suspended      ] := "suspended";
+
+    FOR i := 0 TO TaskConsts.maxInfoGroups - 1 DO
+	birthProcs[ i ] := DefaultBirthProc;
+	deathProcs[ i ] := DefaultDeathProc;
+	printProcs[ i ] := DefaultPrintProc;
+    END; (* FOR *)
+
+    (*
+     * Let Tasks know we are here.
+     *)
+    Tasks.DisallowPreemption;
+	TasksPRIVATE.callOnBirth := CallOnBirth;
+	TasksPRIVATE.callOnDeath := CallOnDeath;
+    Tasks.AllowPreemption;
+
+END TaskInfo.

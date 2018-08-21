@@ -1,0 +1,8 @@
+M2Defs= Interrupts.def TaskConsts.def TaskDebug.def TaskInfo.def  \
+        TaskMessages.def TaskMonitors.def TaskNotices.def TaskSemaphores.def  \
+        TaskTime.def Tasks.def TasksAsm.def TasksPRIVATE.def UnixMonitor.def 
+M2Imps= Interrupts.mod Notices.mod Objects.mod RandomNumbers.mod  \
+        SafeStorage.mod TaskConsts.mod TaskDebug.mod TaskInfo.mod  \
+        TaskMessages.mod TaskMonitors.mod TaskNotices.mod TaskSemaphores.mod  \
+        TaskTime.mod Tasks.mod TasksPRIVATE.mod UnixMonitor.mod 
+M2Mods= 

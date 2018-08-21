@@ -1,0 +1,15 @@
+DEFINITION FOR C MODULE UnixCioctl;
+(*
+ * This lets you access ioctl(2) from Modula-2 programs.
+ * See also file UnixCtty.def for definitions of parameters
+ * and so on for the ioctls.
+ *)
+IMPORT SYSTEM;
+
+PROCEDURE ioctl(
+    d       : INTEGER;		
+    request : INTEGER;		
+    argp    : SYSTEM.ADDRESS	
+    )       : INTEGER;		
+
+END UnixCioctl.

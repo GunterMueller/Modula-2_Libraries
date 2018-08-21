@@ -1,0 +1,463 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE DirIO;
+(*
+ * Operations on external file objects which are independent
+ * of the type of the directory entry.  
+ *
+ * DirIO operates on "entries" which are described by "paths", where
+ * a "path" may contain device, directory, file name and extension
+ * information.
+ *
+ * An "entry" is something that is defined by the implementation: it at
+ * least means "file", but it can also mean "directory" or some other
+ * object in the IO system naming space of the implementation.
+ *)
+IMPORT
+    Intrinsics,
+    IOErrors,
+    IOConsts,
+    SysTypes;
+
+@IF MsDosOS THEN
+    IMPORT
+        DOS;
+@END
+
+@IF SunOS THEN
+    IMPORT
+        UnixCsys_stat;
+@END
+
+EXPORT QUALIFIED
+    CreateModes,        createTextFile,     	createDirectory,        
+    createBinaryFile,   CreateEntry,        	maxOptionsLength,
+    Options,            MakeOptions,        
+@IF SunOS THEN
+    AccessModes,        AccessSet,          	EntryTypes,
+    defaultAccess,
+@END 
+    RenameEntry,	DeleteEntry,		EntryExists,        
+    EntryInfo, 		GetEntryInfo,       	SetEntryInfo,       	
+    CompareSizes,	older,			newer,
+    CompareChangeDates,
+    GetDefault, 	SetDefault,         	ListHandler,        	
+    DONTCARE,		List,               	DefaultListHandler,
+    ListWithInfo,	ListWithInfoHandler;
+
+TYPE
+    CreateModes = ( 
+        overwritePath,  (* If the entry exists, delete it first *)
+        mustBeNewPath   (* The path to be created must be a new entry *)
+    );
+
+CONST
+    @IF MsDosOS THEN
+        createTextFile   = (* IMPLEMENTATION SPECIFIC *) 'rhsvda';
+        createBinaryFile = (* IMPLEMENTATION SPECIFIC *) 'rhsvda';
+        createDirectory  = (* IMPLEMENTATION SPECIFIC *) 'rhsvDa';
+    @END
+
+    @IF SunOS THEN
+        createTextFile   = (* IMPLEMENTATION SPECIFIC *) 'r';
+        createBinaryFile = (* IMPLEMENTATION SPECIFIC *) 'r';
+        createDirectory  = (* IMPLEMENTATION SPECIFIC *) 'd';
+    @END
+    (* 
+     * These can be used as options when creating directories, binary
+     * files, and text files, respectively. Note that the values are
+     * implementation specific, but that the names are the same.
+     *)
+
+PROCEDURE CreateEntry(
+    path    : ARRAY OF CHAR;    (* The entry to be created *)
+    options : ARRAY OF CHAR;    (* IMPLEMENTATION SPECIFIC values, not empty *)
+    mode    : CreateModes       (* IOErrors.ok => entry created *)
+    )       : IOErrors.Errors;
+    (*
+     * Attempt to create a entry described by the given path name.
+     *
+     * "options":
+     *     The options string passed to CreateEntry can be used to
+     *     specify parameters. They usually include text/binary,
+     *     visible/hidden, read-write/read-only, and other attributes.
+     *
+     *     An empty string is illegal, but the values "createTextFile",
+     *     "createBinaryFile", and "createDirectory" can be used in all
+     *     implementations.
+     *
+     * "mode":
+     *     Attempts to create duplicate entries will fail if "mode"
+     *     is "mustBeNewPath". If the "mode" is "overwritePath", the
+     *     old entry will be deleted (if possible) and a new entry
+     *     with the specified options will be created.
+     *)
+
+@IF MsDosOS THEN
+    CONST
+        maxOptionsLength = (* IMPLEMENTATION SPECIFIC *) SysTypes.bitsPerBITSET;
+    TYPE
+        Options = ARRAY[ 0 .. maxOptionsLength - 1 ] OF CHAR;
+
+    PROCEDURE MakeOptions(
+            attributes : BITSET;  (* Type of access requested (see DOS) *)
+        VAR result     : Options  (* Properly formed options string *)
+        );
+        (* 
+         * Sets up the options string for Create.
+         *
+         * Note that all the access types may not be legal options.
+         * See the module DOS and the DOS Manuals for legal ones.
+         *)
+@END
+
+@IF SunOS THEN
+    TYPE
+       (* 
+        * The following declarations are nice interfaces to the
+        * rather obscure Unix stat mode creation structure.
+        *
+        * The comments are the declarations from
+        *      /usr/include/sys/stat.h.
+        *)
+
+        EntryTypes = ( 
+            directory,         (* S_IFDIR  *)
+            characterSpecial,  (* S_IFCHR  *)
+            blockSpecial,      (* S_IFBLK  *)
+            regular,           (* S_IFREG  *)
+            symbolicLink,      (* S_IFLNK  *)
+            socket,            (* S_IFSOCK *)
+            fifo               (* S_IFIFO  *)
+        );
+
+        AccessModes = ( 
+            otherExecute,  (* S_IEXEC  >> 6 *)
+            otherWrite,    (* S_IWRITE >> 6 *)
+            otherRead,     (* S_IREAD  >> 6 *)
+            groupExecute,  (* S_IEXEC  >> 3 *)
+            groupWrite,    (* S_IWRITE >> 3 *)
+            groupRead,     (* S_IREAD  >> 3 *)
+            ownerExecute,  (* S_IEXEC  *)
+            ownerWrite,    (* S_IWRITE *)
+            ownerRead,     (* S_IREAD  *)
+            saveText,      (* S_ISVTX  *)
+            setGroupId,    (* S_ISGID  *)
+            setUserId,     (* S_ISUID  *)
+            useDefault,    (* Local: ignore values defined above *)
+            dontUmask      (* Local: see comment *)
+        );      
+        (*
+         * If the "dontUmask" bit is used, then the process's umask(2)
+         * is (effectively) ignored for creation, that is, the chmod(2)
+         * occurs after the entry is created. When this bit is used,
+         * the caller is not behaving like a "normal" Unix program.
+         *)
+
+        AccessSet = SET OF AccessModes;
+
+    CONST
+        defaultAccess = AccessSet{ useDefault };
+        (*
+         * If the "useDefaults" bit is set, then the default
+         * values are used for the access on creation. 
+         *)
+
+    CONST
+        maxOptionsLength = (* IMPLEMENTATION SPECIFIC *) 17;
+    TYPE
+        Options = ARRAY[ 0 .. maxOptionsLength - 1 ] OF CHAR;
+
+    PROCEDURE MakeOptions(
+            entryType : EntryTypes;  (* What type of entry to create *)
+            accessSet : AccessSet;   (* Access privileges requested *)
+        VAR result    : Options      (* Properly formed options string *)
+        );
+        (* 
+         * Sets up the parameters for Create.
+         *
+         * Note that all the EntryTypes may not be legal options.
+         * See Unix manuals for details.
+         *)
+@END
+
+
+PROCEDURE RenameEntry(
+    oldPath : ARRAY OF CHAR;    (* Entry to be renamed *)
+    newPath : ARRAY OF CHAR;    (* New name for entry *)
+    mode    : CreateModes       (* What to do if the new name exists *)
+    )       : IOErrors.Errors;  (* IOErrors.ok => entry renamed *)
+    (*
+     * Change the name of the entry identified by "oldPath"
+     * to the name "newPath".
+     *
+     * "mode":
+     *     Attempts to rename to duplicate entries will fail if "mode"
+     *     is "mustBeNewPath". If the "mode" is "overwritePath", the
+     *     old entry will be deleted (if possible) and the "oldPath"
+     *     will be renamed to "newPath".
+     *
+     * Note that most failures indicate that the parameter was in error.
+     * For example, "notFound" means that "oldPath" doesn't exist.
+     *)
+
+
+PROCEDURE DeleteEntry(
+    path : ARRAY OF CHAR     (* Entry to be deleted *)
+    )    : IOErrors.Errors;  (* IOErrors.ok => entry deleted *)
+    (*
+     * Eliminate the association of "path" with the entry
+     * that it identifies.
+     *
+     * Deletion of a file may result in releasing of disk storage
+     * for re-use. Attempts to delete a directory may fail if the
+     * directory is not empty, or if it is the current directory.
+     *
+     * UNIX IMPLEMENTATION SPECIFIC NOTE:
+     *     This routine behaves like "unlink(2)"; if the path is a
+     *     symbolic link, only the link is removed, not the object
+     *     pointed to by the link.
+     *)
+
+PROCEDURE EntryExists(
+    path : ARRAY OF CHAR     (* Entry to be checked *)
+    )    : IOErrors.Errors;  (* IOErrors.ok => entry exists *)
+    (*
+     * UNIX IMPLEMENTATION SPECIFIC NOTE:
+     *     This routine uses "stat(2)" which means that, if the object
+     *     to which a symbolic link points doesn't exist, this
+     *     routine will return not found.
+     *)
+
+TYPE
+    @IF SunOS THEN
+        EntryInfo = RECORD
+            stat      : UnixCsys_stat.struct_stat;
+            accessSet : AccessSet;
+            type      : EntryTypes;
+        END;
+        (* 
+         * The Sun version of EntryInfo is essentially the "stat"
+         * structure with two additional fields: "accessMode" and
+         * "type". These two fields are a useful expansion of "st_mode".
+         * Read the manual page for "stat(2)" for details.
+         *)
+    @END
+
+    @IF MsDosOS THEN
+        EntryInfo = RECORD
+            attributes : BITSET;               (* See DOS definition *)
+            date       : DOS.Date;             (* File's date *)
+            time       : DOS.Time;             (* File's time *)
+            size       : SysTypes.CARDINAL32;  (* In bytes *)
+        END;
+        (* 
+         * This information is the usable form of the Find First
+         * Matching DTA.
+         *)
+    @END
+
+ 
+PROCEDURE GetEntryInfo(
+        path : ARRAY OF CHAR;    (* Path of entry for which info is sought *)
+    VAR info : EntryInfo         (* System specific info about entry *)
+    )        : IOErrors.Errors;  (* IOErrors.ok => entry found, info obtained *)
+    (* 
+     * Return the attributes of the specified entry.
+     *
+     * UNIX IMPLEMENTATION SPECIFIC NOTE:
+     *     This routine uses "stat(2)" which means that, if the object
+     *     to which a symbolic link points doesn't exist, this routine
+     *     will return "IOErrors.notFound".
+     *)
+     
+PROCEDURE SetEntryInfo(
+    path : ARRAY OF CHAR;    (* Path of entry who's info we want to set *)
+    info : EntryInfo         (* System specific info (to be compared) *)
+    )    : IOErrors.Errors;  (* IOErrors.ok => entry found, info set *)
+    (*
+     * Change the attributes which are different from the GetInfo
+     * values and leave the ones that are the same alone.  
+     *
+     * If an attribute is different and can't be changed, the whole
+     * operation will fail and nothing will be done. Note that if an error
+     * occurs during one of the setting procedures, changes already
+     * made will remain (if the whole operation isn't atomic).
+     *
+     * UNIX IMPLEMENTATION SPECIFIC NOTE:
+     *     The following fields can be changed:
+     *
+     *     st_mode  - chmod(2)  (entry type can't be changed)
+     *     st_uid   - chown(2)
+     *     st_gid   - chown(2)
+     *     st_size  - truncate(2)
+     *     st_mtime - utimes(2)
+     *     st_atime - utimes(2)
+     *     st_ctime - only if any one of the fields changes!
+     *          
+     *     If the entryInfo.stat.st_mode field is different from the
+     *     current value for the file, then the mode is changed with
+     *     chmod(2). If this field is the same as the current value for
+     *     the file, the "accessMode" field is compared against the
+     *     st_mode value for the file. If the accessMode is different
+     *     from the file, then a chmod(2) is performed with the new
+     *     accessMode. Note the "type" field cannot be changed.
+     *
+     *     Only the superuser can set the sticky bit, change the
+     *     st_uid or change the st_gid fields.
+     *
+     *     This routine operates on the objects of the symbolic links,
+     *     not the link entry itself.
+     *
+     * DOS IMPLEMENTATION SPECIFIC NOTE:
+     *     Only the following attributes may be changed:
+     *
+     *     DOS.normalFileAttribute,
+     *     DOS.readOnlyAttribute, 
+     *     DOS.hiddenFileAttribute,
+     *     DOS.systemFileAttribute,
+     *     DOS.archiveAttribute.
+     *
+     *     The date of the file may be changed. The size of the file
+     *     may not be changed with this command, use BinaryIO.
+     *)
+
+PROCEDURE CompareSizes(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left smaller than right *)
+    (*
+     * Compares the file sizes in the entry info fields.
+     *)
+ 
+CONST
+    older = Intrinsics.less;	(* For clearer meaning in code *)
+    newer = Intrinsics.greater; (* ditto *)
+
+PROCEDURE CompareChangeDates(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left older than right;... *)
+    (*
+     * Compares the last modification dates.  If this is not available in
+     * EntryInfo, the creation date is used.  If this is not available,
+     * this procedure will not exist in the implementation.
+     *)
+ 
+(*
+ * the following two procedures operate on the default
+ * (current) directory. 
+ *)
+PROCEDURE GetDefault(
+    VAR path : IOConsts.Path     (* Full name of default directory *)
+    )        : IOErrors.Errors;  (* IOErrors.ok => located *)
+    (*
+     * Return the default (current) directory.
+     *)
+
+PROCEDURE SetDefault(
+    path : ARRAY OF CHAR     (* Full name of default directory *)
+    )    : IOErrors.Errors;  (* IOErrors.ok => default set *)
+    (*
+     * Set the default (current) directory to "path". All future
+     * "relative" path operations will be based from the specified path.
+     *
+     * The path may be relative in which case it is a function of the
+     * current default path (see IONames).
+     *
+     * DOS IMPLEMENTATION SPECIFIC NOTE:
+     *     The command interpreter "cd" command does not change the
+     *     drive when one specifies "cd c:\fred". However, this routine
+     *     does change the drive. The concept here is that there is only
+     *     one default path. It is not possible to provide this DOS
+     *     functionality in a portable way, so we ignore the problem.
+     *     In other words, "cd c:" changes to the "c" drive, whereas
+     *     in the command interpreter it means print current dir.
+     *)
+
+TYPE
+    ListHandler = PROCEDURE ( 
+        SysTypes.ANYPTR, (* ImporterObject, passed to List *)
+        ARRAY OF CHAR    (* Current entry (without dir part) *)
+    ) : BOOLEAN;         (* TRUE => List op should continue *)
+    (*
+     * This procedure is passed to List and will be called for
+     * each entry in the specified directory. The routine can
+     * perform directory operations include another List.
+     *)
+CONST
+    DONTCARE = NIL;
+    (*
+     * For when you don't care about the importerObject.
+     *)
+
+PROCEDURE List(
+    directory          : ARRAY OF CHAR;    (* Path to list, null => default *)
+    calledForEachEntry : ListHandler;      (* Called for each entry *)
+    importerObject     : SysTypes.ANYPTR   (* State info passed to handler *)
+    )                  : IOErrors.Errors;  (* IOErrors.ok => found *)
+    (*
+     * Lists all the entries in the specified directory.
+     * The order of the find is implementation dependent.
+     *)
+
+PROCEDURE DefaultListHandler(
+    nameList : SysTypes.ANYPTR; (* Name list to use *)
+    toInsert : ARRAY OF CHAR    (* File entry to process *)
+    )        : BOOLEAN;         (* TRUE => List should continue *)
+    (*
+     * This procedure is passed a "nameList" as the importerObject.
+     * "toInsert" is put in the specified "nameList". It inserts all
+     * entries into the name list. The following is the method for
+     * calling "List" with this procedure as the default:
+     *
+     *     result := List( someDirectory, DefaultListHandler( ), 
+     *         SysTypes.ANYPT( ourNameList ) );
+     *
+     * Note that this is not the "address of", but that we are just
+     * coercing the opaque NameLists.Object into an "address".
+     *)
+
+TYPE
+    ListWithInfoHandler = PROCEDURE (
+	SysTypes.ANYPTR,   (* importerObject *)
+	ARRAY OF CHAR,	   (* entry (does not contain directory part) *)
+	EntryInfo	   (* value of GetEntryInfo for "entry" *)
+    ) : BOOLEAN;	   (* FALSE => stop listing after this upcall *)
+	(*
+	 * This procedure is passed to List and will be called for
+	 * each entry in the specified directory.  The routine can
+	 * perform directory operations include another List.
+	 *)
+			
+PROCEDURE ListWithInfo( 
+    directory	       : ARRAY OF CHAR;	   (* Directory to be sought *)
+    calledForEachEntry : ListWithInfoHandler;
+    importerObject     : SysTypes.ANYPTR   (* passed to ListWithInfo *)
+    )		       : IOErrors.Errors;
+    (*
+     * Same as List, but returns the entry info along with the entry name.
+     *)
+
+END DirIO.
+

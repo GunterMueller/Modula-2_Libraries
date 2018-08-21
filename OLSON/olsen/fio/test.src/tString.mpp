@@ -1,0 +1,72 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tString;
+IMPORT SimpleIO, TextIO, FormatIO, IOErrors;
+PROCEDURE FixIt( file : TextIO.Object );
+    BEGIN (* FixIt *)
+
+	TextIO.PrintErrorMessage( file, '' );
+	IF TextIO.SetError( file, IOErrors.ok ) # TextIO.ok THEN
+	    TextIO.PrintErrorMessage( file, '' );
+	    HALT;
+	END;
+
+    END FixIt;
+VAR
+    input : TextIO.Object;
+    output : TextIO.Object;
+    formatString : ARRAY [ 0 .. 100 ] OF CHAR;
+    string  : ARRAY [ 0 .. 20 ] OF CHAR;
+
+BEGIN (* tString *)
+    input := TextIO.GetInput();
+    output := TextIO.GetOutput();
+    LOOP
+	SimpleIO.WriteString( "Calling Prompt with String [20] parameter." );
+	SimpleIO.WriteLn;
+	SimpleIO.WriteString( "format: " );
+	SimpleIO.ReadString( formatString );
+	IF SimpleIO.EOF() THEN
+	    EXIT;
+	END;
+	SimpleIO.ReadLn;
+	IF FormatIO.PromptedRead1( input, formatString, string, output ) # 
+	   TextIO.ok THEN
+	    FixIt( input );
+	END;
+	SimpleIO.ReadLn;	(* Flush rest of line *)
+
+	SimpleIO.WriteString( "Calling Write with String just entered." );
+	SimpleIO.WriteLn;
+	SimpleIO.WriteString( "format: " );
+	SimpleIO.ReadString( formatString );
+	IF SimpleIO.EOF() THEN
+	    EXIT;
+	END;
+	SimpleIO.ReadLn;
+	IF FormatIO.Write1( output, formatString, string ) # TextIO.ok THEN
+	    FixIt( output );
+	END;
+	SimpleIO.WriteLn;
+    END; (* LOOP *)
+END tString.

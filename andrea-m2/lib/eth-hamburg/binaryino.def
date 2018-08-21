@@ -1,0 +1,17 @@
+DEFINITION MODULE BinaryInOut;
+
+(* Provide some simple binary, record oriented i/o *)
+(* J. Andrea, Sept.4/92 *)
+
+FROM SYSTEM IMPORT BYTE;
+FROM FileSystem IMPORT File;
+
+EXPORT QUALIFIED ReadBlock, WriteBlock;
+
+      PROCEDURE ReadBlock( in :File; VAR rec :ARRAY OF BYTE );
+      (* read a record from the file *)
+
+      PROCEDURE WriteBlock( out :File; rec :ARRAY OF BYTE );
+      (* write a record to the file *)
+
+END BinaryInOut.

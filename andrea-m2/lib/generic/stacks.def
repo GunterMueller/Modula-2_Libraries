@@ -1,0 +1,40 @@
+DEFINITION MODULE Stacks;
+
+(*
+ This module provides procedures for stack'ing objects up to 512 bytes in size.
+ A stack may be made of non-homogeneous objects, but care muse be taken to pop
+ data into the same format as there object which was push'ed.
+ If an item longer than 512 bytes is pushed, then only the first 512 bytes is
+ stored on the stack. And conversely, only as much data is pop'ed as can be
+ stored in the object which will contain the pop'ed item.
+*)
+(* J. Andrea, Oct.3/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT BYTE;
+
+EXPORT QUALIFIED InitStack, Stack, Pop, Push, DelStack, StackInfo;
+
+TYPE
+   Stack; (* hidden *)
+
+PROCEDURE InitStack( VAR a_stack :Stack );
+(* Create a stack, this must be called before the first Push *)
+
+PROCEDURE Push( a_stack :Stack; data :ARRAY OF BYTE );
+(* Push an item onto the stack, any item up to 512 bytes in size *)
+
+PROCEDURE Pop( a_stack :Stack; VAR data :ARRAY OF BYTE;
+               VAR nothing_to_pop :BOOLEAN );
+(* Pop the next item from the stack,
+   return 'empty' as TRUE is there is nothing to get popped *)
+
+PROCEDURE DelStack( VAR a_stack :Stack );
+(* Delete the stack completely *)
+
+PROCEDURE StackInfo( a_stack :Stack; VAR n_items, size :CARDINAL );
+(* Get some information about the stack
+   'n_items' is the number of items currently on the stack,
+   'size'    is the size of the item at the top of the stack *)
+
+END Stacks.

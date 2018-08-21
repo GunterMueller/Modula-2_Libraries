@@ -1,0 +1,306 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Bytes;
+(*
+ * Simple version which is slow, but steady (and probably portable).
+ *
+ * PORTABILITY NOTES:
+ *     Note that SysTypes.SAU is treated as scalar as per its definition.
+ *     If this isn't the case, then this module will not compile.
+ * 
+ * TODO:
+ *    - At least optimize directions of searches.
+ *    - Implement assembler.
+ *)
+IMPORT
+    Intrinsics,
+    SYSTEM,
+    SysTypes;
+
+TYPE
+    BigArrayPtr = POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexSAU ]
+		OF SysTypes.SAU;
+	(*
+	 * Most of the compilers don't allow a data structure of size MAX CARD,
+	 * so we have to subtract a couple of bytes.
+	 *)
+
+@IF LogitechM2 THEN
+    PROCEDURE CompareAndNormalizeAddr(
+        VAR left  : SYSTEM.ADDRESS;
+	VAR right : SYSTEM.ADDRESS
+        )         : Intrinsics.CompareResults;
+	(*
+	 * Logitech is just screwed up.  If you compare addresses,
+	 * you get address overflow! 
+	 *)
+	CONST
+	    bytesPerParagraph = 16;
+	BEGIN (* CompareAndNormalizeAddr *)
+
+	    (* Normalize *)
+	    INC( left.SEGMENT, left.OFFSET DIV bytesPerParagraph );
+	    left.OFFSET  := left.OFFSET MOD bytesPerParagraph;
+	    INC( right.SEGMENT, right.OFFSET DIV bytesPerParagraph );
+	    right.OFFSET  := right.OFFSET MOD bytesPerParagraph;
+
+	    IF left.SEGMENT > right.SEGMENT THEN
+		RETURN Intrinsics.greater;
+	    END;
+	    IF left.SEGMENT < right.SEGMENT THEN
+		RETURN Intrinsics.less;
+	    END;
+
+	    (* The segments are the same at this point *)
+	    IF left.OFFSET > right.OFFSET THEN
+		RETURN Intrinsics.greater;
+	    END;
+	    IF left.OFFSET < right.OFFSET THEN
+		RETURN Intrinsics.less;
+	    END;
+
+	    RETURN Intrinsics.equal;
+	END CompareAndNormalizeAddr;
+@END (* LogitechM2 *)
+
+
+PROCEDURE Copy(
+    source : SysTypes.SAUPTR;
+    dest   : SysTypes.SAUPTR;
+    length : SysTypes.Card
+    );
+    (*
+     * Copies "length" bytes from "source" to "dest" taking into
+     * account overlapping areas properly.
+     *
+     * INPUT:
+     *    source, where the bytes come from.
+     *    dest,   where to put the bytes.
+     *    length, number of bytes to copy.
+     *
+     * MODIFIES:
+     *    memory area from dest to dest + length.
+     *)
+    VAR
+	sourcePtr : BigArrayPtr;
+	destPtr   : BigArrayPtr;
+	i         : SysTypes.Card;
+    BEGIN (* Copy *)
+
+	IF length = 0 THEN
+	    RETURN;	(* Not much to do *)
+	END;
+
+	sourcePtr := source;
+	destPtr   := dest;
+
+	(* Make sure the copy direction is correct *)
+	@IF LogitechM2 THEN
+	    IF CompareAndNormalizeAddr( sourcePtr, destPtr ) = Intrinsics.less 
+	      THEN
+	@ELSE
+	    IF source < dest THEN
+	@END (* LogitechM2 *)
+	    (* Go from high to low memory *)
+	    FOR i := length - 1 TO 0 BY -1 DO
+		destPtr^[ i ] := sourcePtr^[ i ];
+	    END;
+	ELSE
+	    (* Go from low to high *)
+	    FOR i := 0 TO length - 1 BY +1 DO
+		destPtr^[ i ] := sourcePtr^[ i ];
+	    END;
+	END;
+
+    END Copy;
+
+
+PROCEDURE CopyAsString(
+    sourceString : SYSTEM.ADDRESS;
+    sourceLength : SysTypes.Card;
+    destString   : SYSTEM.ADDRESS;
+    destLength   : SysTypes.Card
+    )            : SysTypes.Card;
+    (*
+     * Several cases to consider: string may be null-terminated, there
+     * may not be enough room, dest or source may be 0 length.
+     *)
+    TYPE
+	BigArrayPtr = POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR ]
+		    OF CHAR;
+    VAR
+	sourcePtr : BigArrayPtr;
+	destPtr   : BigArrayPtr;
+	i         : SysTypes.Card;
+	toCopy    : SysTypes.Card;
+    BEGIN (* CopyAsString *)
+
+	IF destLength = 0 THEN
+	    RETURN 0;	(* Not much to do *)
+	END;
+
+	destPtr := destString;
+	IF sourceLength = 0 THEN
+	    destPtr^[ 0 ] := 0C;	(* Have to null-terminate *)
+	    RETURN 0;	(* Nothing copied *)
+	END;
+
+	sourcePtr := sourceString;
+
+	toCopy := destLength;
+	IF toCopy > sourceLength THEN
+	    toCopy := sourceLength;
+	END;
+
+	(* Make sure the copy direction is correct *)
+	@IF LogitechM2 THEN
+	    IF CompareAndNormalizeAddr( sourcePtr, destPtr ) = Intrinsics.less 
+	      THEN
+	@ELSE
+	    IF sourceString < destString THEN
+	@END (* LogitechM2 *)
+	    (* 
+	     * Go from high to low memory which means we have
+	     * to search for the null (from left to right) first.
+	     *)
+	    i := 0;
+	    LOOP
+		IF sourcePtr^[ i ] = 0C THEN
+		    IF toCopy > i THEN
+			toCopy := i;
+		    END;
+		    EXIT;
+		END;
+		INC( i );
+		IF i >= sourceLength THEN
+		    EXIT;
+		END;
+	    END;
+
+	    FOR i := destLength - 1 TO 0 BY -1 DO
+		destPtr^[ i ] := sourcePtr^[ i ];
+	    END;
+	ELSE
+	    (* Go from low to high *)
+	    FOR i := 0 TO destLength - 1 BY +1 DO
+		destPtr^[ i ] := sourcePtr^[ i ];
+		IF destPtr^[ i ] = 0C THEN
+		    RETURN i;	(* null-terminated string *)
+		END;
+	    END;
+	END;
+
+	(* Do we need to null-terminate? *)
+	IF toCopy < destLength THEN
+	    (* Note that we can't do this early because of overlap *)
+	    destPtr^[ toCopy ] := 0C;
+	END;
+
+	RETURN toCopy;
+    END CopyAsString;
+
+
+PROCEDURE Compare(
+    left   : SysTypes.SAUPTR;
+    right  : SysTypes.SAUPTR;
+    length : SysTypes.Card
+    )      : Intrinsics.CompareResults;
+    VAR
+	leftPtr  : BigArrayPtr;
+	rightPtr : BigArrayPtr;
+	i        : SysTypes.Card;
+    BEGIN (* Compare *)
+
+	leftPtr  := left;
+	rightPtr := right;
+	IF length = 0 THEN
+	    RETURN Intrinsics.equal;
+	END;
+
+	FOR i := 0 TO length - 1 DO
+	    IF leftPtr^[ i ] # rightPtr^[ i ] THEN
+		IF leftPtr^[ i ] > rightPtr^[ i ] THEN
+		    RETURN Intrinsics.greater;
+		ELSE
+		    RETURN Intrinsics.less;
+		END;
+	    END;
+	END; (* FOR *)
+
+	RETURN Intrinsics.equal;
+    END Compare;
+
+
+PROCEDURE Position(
+        source     : SysTypes.SAUPTR;
+	startIndex : SysTypes.Card;
+	stopIndex  : SysTypes.Card;
+	toFind     : SysTypes.SAU;
+    VAR foundIndex : SysTypes.Card
+    )              : BOOLEAN;
+    VAR
+	sourcePtr : BigArrayPtr;
+	i         : SysTypes.Card;
+    BEGIN (* Position *)
+	
+	sourcePtr := source;
+	(* Search in the correct direction *)
+	IF startIndex < stopIndex THEN
+	    (* Go forwards (low to high) *)
+	    FOR i := startIndex TO stopIndex BY +1 DO
+		IF sourcePtr^[ i ] = toFind THEN
+		    foundIndex := i;
+		    RETURN TRUE;
+		END;
+	    END;
+	ELSE
+	    (* Go backwards (high to low) *)
+	    FOR i := startIndex TO stopIndex BY -1 DO
+		IF sourcePtr^[ i ] = toFind THEN
+		    foundIndex := i;
+		    RETURN TRUE;
+		END;
+	    END;
+	END;
+
+	RETURN FALSE;
+    END Position;
+
+PROCEDURE Fill(
+    dest   : SysTypes.SAUPTR;
+    length : SysTypes.Card;
+    value  : SysTypes.SAU
+    );
+    VAR
+	destPtr : BigArrayPtr;
+	i       : SysTypes.Card;
+    BEGIN (* Fill *)
+
+	destPtr := dest;
+	FOR i := 0 TO length - 1 BY +1 DO
+	    destPtr^[ i ] := value;
+	END;
+
+    END Fill;
+
+END Bytes.

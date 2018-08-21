@@ -1,0 +1,296 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE GenTestIO;
+(*
+ * Low -  level IO module. Uses Unix file system and the corresponding
+ * C - function calls.
+ *)
+
+IMPORT
+    UnixCsys_file, UnixCfcntl, SYSTEM, ProgErr, ProgErrOutput;
+
+@IF NOT NoProgArgs THEN
+    IMPORT
+	ProgArgs;
+@END (* NoProgArgs *)
+
+
+CONST
+    DefMode = 666B;  (* +rw +rw +rw *)
+    LF = 12C;
+    TERMINATOR = 0C;
+
+TYPE 
+    File    = INTEGER;
+
+(* Procs: *)
+(* --------------------------------------------------------------------- *)
+PROCEDURE Open( VAR file: File; flags: Modes; name: ARRAY OF CHAR )
+	      : BOOLEAN;
+    VAR
+	Flags: INTEGER;
+
+    BEGIN 
+	CASE flags OF
+	    readOnly: Flags:= UnixCfcntl.O_RDONLY 
+	    |
+	    writeOnly: Flags:= UnixCfcntl.O_WRONLY
+	    |
+	    readWrite: Flags:= UnixCfcntl.O_RDWR	
+        END;
+        file:= UnixCsys_file.open( name, Flags, DefMode );
+        IF file = -1 THEN
+	    RETURN FALSE;
+        END;
+	RETURN TRUE;
+
+    END Open;
+(* --------------------------------------------------------------------- *)
+PROCEDURE Create( VAR file : File; name: ARRAY OF CHAR ): BOOLEAN;
+
+    BEGIN 
+	file := UnixCsys_file.creat( name, DefMode );
+        IF file = -1 THEN
+	    RETURN FALSE;
+        END;
+	RETURN TRUE;
+
+    END Create;
+(* --------------------------------------------------------------------- *)
+PROCEDURE Close( VAR file: File ): BOOLEAN;
+
+    BEGIN 
+	file := UnixCsys_file.close( file );
+        IF file = -1 THEN
+	    RETURN FALSE;
+        END;
+	RETURN TRUE;
+
+    END Close;
+(* --------------------------------------------------------------------- *)
+PROCEDURE Read( file: File; VAR string: ARRAY OF CHAR ): BOOLEAN;
+
+    VAR
+	Index: CARDINAL;
+
+    BEGIN 
+	Index:= 0;
+	LOOP
+	    CASE UnixCsys_file.read( file, SYSTEM.ADR( string[Index] ), 1 )
+	    OF
+	        -1: 
+		    ProgErr.Terminate( "Error reading file!" );
+                |
+		0: 
+		    RETURN FALSE
+                |
+		1:
+		    IF string[ Index ] = LF
+		    THEN
+			string[ Index ]:= TERMINATOR;
+                    END;
+		    IF ( Index = HIGH( string ) ) OR 
+		    ( string[Index] = TERMINATOR ) 
+		    THEN
+		        EXIT;	
+                    END
+             END;    (* case *)
+	     INC( Index );
+        END;    (* loop *)
+	RETURN TRUE;
+
+    END Read;
+(* --------------------------------------------------------------------- *)
+PROCEDURE Write( file: File; string: ARRAY OF CHAR ): BOOLEAN;
+
+    PROCEDURE Length( string: ARRAY OF CHAR ): CARDINAL;
+
+	VAR
+	    Index: CARDINAL;
+
+	BEGIN
+	    FOR Index := 0 TO HIGH( string ) DO
+		IF string[Index] = TERMINATOR THEN 
+		    RETURN Index;
+		END;
+	    END;
+	    RETURN HIGH( string ) + 1;
+
+	END Length;
+    VAR
+	length : CARDINAL;
+    BEGIN
+	  length := Length( string );
+	  IF length = 0 THEN
+	    RETURN TRUE
+	  END;
+	  IF UnixCsys_file.write( file, SYSTEM.ADR( string ), 
+	    length ) <= 0 
+
+          (* "... a write ( but not a writev ) on an object that cannot
+	     accept any data will return a count of 0, rather than
+	     returning -1 ... " ( The Unix Bible ) *)
+
+          THEN
+	      RETURN FALSE;
+          END;
+	  RETURN TRUE;
+
+    END Write;
+(* --------------------------------------------------------------------- *)
+PROCEDURE WriteLn( file: File ): BOOLEAN;
+
+    VAR
+       Ch: CHAR;
+
+    BEGIN 
+	Ch:= LF;
+        IF UnixCsys_file.write( file, SYSTEM.ADR( Ch ), 1 ) <= 0 
+        THEN
+	    RETURN FALSE;
+        END;
+	RETURN TRUE;
+        
+    END WriteLn;
+(* --------------------------------------------------------------------- *)
+(* GetInput connects the variable file to the standard input channel     *) 
+(* --------------------------------------------------------------------- *)
+VAR
+    input       : File;
+    output      : File;
+    errorOutput : File;
+
+PROCEDURE GetInput(): File;   
+
+BEGIN
+    RETURN input;
+
+END GetInput;
+(* --------------------------------------------------------------------- *)
+(* GetOutput connects the variable file to the standard output channel   *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE GetOutput(): File;   
+
+BEGIN
+    RETURN output;
+
+END GetOutput;
+(* --------------------------------------------------------------------- *)
+(* GetErrOutput connects the variable file to the standard error         *) 
+(* channel                                                               *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE GetErrOutput(): File;   
+
+BEGIN
+    RETURN errorOutput;
+
+END GetErrOutput;
+(* --------------------------------------------------------------------- *)
+(* IsInteractive checks if the variable file is "interactive" 
+   ( e.g terminal input ) or "batch" ( e.g text file )                   *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE IsInteractive( file: File ): BOOLEAN;   
+
+BEGIN
+    RETURN UnixCsys_file.isatty( file ) = 1;
+
+END IsInteractive;
+(* --------------------------------------------------------------------- *)
+PROCEDURE ErrorWriteString( VAR string : ARRAY OF CHAR );
+
+    VAR
+	DONTCARE : BOOLEAN;
+
+    BEGIN (* ErrorWriteString *)
+
+	DONTCARE := Write( errorOutput, string );
+
+    END ErrorWriteString;
+(* --------------------------------------------------------------------- *)
+PROCEDURE ErrorWriteLn;
+	
+    VAR
+	DONTCARE : BOOLEAN;
+
+    BEGIN (* ErrorWriteLn *)
+
+	DONTCARE := WriteLn( errorOutput );
+
+    END ErrorWriteLn;
+(* --------------------------------------------------------------------- *)
+@IF NOT NoProgArgs THEN
+PROCEDURE InitFiles( fileType  : ProgArgs.String;
+		     fileAdr   : SYSTEM.ADDRESS;
+		     fileName  : ProgArgs.String )
+			       : BOOLEAN;
+    TYPE
+	FilePtr = POINTER TO File;
+    VAR
+	filePtr : FilePtr;
+    BEGIN
+	filePtr := fileAdr;
+
+	IF filePtr = SYSTEM.ADR( input ) THEN
+	    IF Open( filePtr^, readOnly, fileName ) THEN
+		RETURN TRUE;
+	    END;
+	ELSE (* output or errorOutput *)
+	    IF Create( filePtr^, fileName ) THEN
+		RETURN TRUE;
+	    END;
+	END;
+
+	ProgErrOutput.WriteString( fileName );
+	ProgErrOutput.WriteString( ": unable to open " );
+	ProgErrOutput.WriteString( fileType );
+	ProgErrOutput.WriteString( " file." );
+	ProgErrOutput.WriteLn;
+
+	RETURN FALSE;
+
+    END InitFiles;
+(* --------------------------------------------------------------------- *)
+@END (* NOT NoProgArgs *)
+VAR
+    DONTCARE1 : ProgErrOutput.WriteStringProc;
+    DONTCARE2 : PROC;
+
+BEGIN  (* GenTestIO *)
+
+    input       := UnixCsys_file.stdInputHandle; 
+    output      := UnixCsys_file.stdOutputHandle; 
+    errorOutput := UnixCsys_file.stdErrorHandle;
+
+    @IF NOT NoProgArgs THEN
+	ProgArgs.RegisterStringHandler( 'in', InitFiles, 
+					 SYSTEM.ADR( input ) );
+	ProgArgs.RegisterStringHandler( 'out', InitFiles, 
+					 SYSTEM.ADR( output ) );
+	ProgArgs.RegisterStringHandler( 'log', InitFiles, 
+					 SYSTEM.ADR( errorOutput ) );
+    @END (* NOT NoProgArgs *) 
+
+    ProgErrOutput.Install( ErrorWriteString, ErrorWriteLn,
+			   DONTCARE1, DONTCARE2 );
+
+END GenTestIO.

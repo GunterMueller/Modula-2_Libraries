@@ -1,0 +1,121 @@
+GenTestIO.sym: 
+GenTestIO.o: GenTestIO.sym ../bin/ProgArgs.sym ../bin/ProgErr.sym  \
+             ../bin/ProgErrOutput.sym ../bin/UnixCfcntl.sym  \
+             ../bin/UnixCsys_file.sym 
+StringLib.sym: GenTestIO.sym TestIO.sym 
+StringLib.o: GenTestIO.sym StringLib.sym TestIO.sym 
+TestCRC16.o: ../bin/CRC16.sym ../bin/CardConvert.sym ../bin/ProgErrOutput.sym 
+TestCRC16: ../bin/ASCII.o ../bin/Bytes.o ../bin/CRC16.o ../bin/CardConvert.o  \
+           ../bin/Chars.o ../bin/GenConsts.o ../bin/IntConvert.o  \
+           ../bin/Intrinsics.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+           ../bin/Strings.o ../bin/SysTypes.o ../bin/UnixError.o TestCRC16.o 
+TestCardConv.o: ../bin/CardConvert.sym ../bin/Chars.sym GenTestIO.sym  \
+                ../bin/Objects.sym StringLib.sym TestIO.sym TestSystem.sym 
+TestCardConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+              ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+              ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+              ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+              ../bin/SysTypes.o TestIO.o TestSystem.o ../bin/UnixError.o  \
+              TestCardConv.o 
+TestDate.sym: ../bin/UnixCsys_time.sym 
+TestIO.sym: GenTestIO.sym 
+TestIO.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/ProgErr.sym  \
+          ../bin/SafeStorage.sym ../bin/Strings.sym TestIO.sym 
+TestIntConv.o: GenTestIO.sym ../bin/IntConvert.sym ../bin/Objects.sym  \
+               StringLib.sym TestIO.sym TestSystem.sym 
+TestIntConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+             ../bin/SysTypes.o TestIO.o TestSystem.o ../bin/UnixError.o  \
+             TestIntConv.o 
+TestNameLists.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/NameLists.sym  \
+                 ../bin/Objects.sym StringLib.sym TestIO.sym TestSystem.sym 
+TestNameLists: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+               ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+               ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+               ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+               ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+               ../bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+               ../bin/SysTypes.o TestIO.o TestSystem.o ../bin/UnixError.o  \
+               TestNameLists.o 
+TestRealConv.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/Objects.sym  \
+                ../bin/RealConvert.sym StringLib.sym ../bin/SysTypes.sym  \
+                TestIO.sym TestSystem.sym 
+TestRealConv: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+              ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+              ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+              ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../bin/RealConvert.o ../bin/SafeStorage.o StringLib.o  \
+              ../bin/Strings.o ../bin/SysTypes.o TestIO.o TestSystem.o  \
+              ../bin/UnixError.o TestRealConv.o 
+TestStrings.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/Intrinsics.sym  \
+               ../bin/Objects.sym StringLib.sym ../bin/Strings.sym TestIO.sym  \
+               TestSystem.sym 
+TestStrings: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/GenConsts.o GenTestIO.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../bin/SafeStorage.o StringLib.o ../bin/Strings.o  \
+             ../bin/SysTypes.o TestIO.o TestSystem.o ../bin/UnixError.o  \
+             TestStrings.o 
+TestSystem.sym: TestIO.sym 
+TestSystem.o: ../bin/CardConvert.sym GenTestIO.sym ../bin/NameLists.sym  \
+              ../bin/Notices.sym ../bin/Objects.sym ../bin/ProgArgs.sym  \
+              ../bin/ProgErr.sym ../bin/Strings.sym TestIO.sym TestSystem.sym 
+tBytes.o: ../bin/Bytes.sym ../bin/Intrinsics.sym ../bin/ProgErr.sym  \
+          ../bin/ProgErrOutput.sym ../bin/SysTypes.sym 
+tBytes: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../bin/ProgErr.o ../bin/ProgErrOutput.o ../bin/Strings.o  \
+        ../bin/SysTypes.o ../bin/UnixError.o tBytes.o 
+tCrash.o: ../bin/Notices.sym ../bin/ProgErr.sym ../bin/ProgErrOutput.sym 
+tCrash: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+        ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+        ../bin/Notices.o ../bin/Objects.o ../bin/ProgErr.o  \
+        ../bin/ProgErrOutput.o ../bin/SafeStorage.o ../bin/Strings.o  \
+        ../bin/SysTypes.o ../bin/UnixError.o tCrash.o 
+tDebugFlags.o: ../bin/DebugFlags.sym ../bin/ProgErr.sym  \
+               ../bin/ProgErrOutput.sym 
+tDebugFlags: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+             ../bin/Chars.o ../bin/DebugFlags.o ../bin/GenConsts.o  \
+             ../bin/IntConvert.o ../bin/Intrinsics.o ../bin/Lists.o  \
+             ../bin/NameLists.o ../bin/Notices.o ../bin/Objects.o  \
+             ../bin/ProgArgs.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+             ../bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+             ../bin/UnixError.o tDebugFlags.o 
+tHello.o: ../bin/ProgErrOutput.sym 
+tHello: ../bin/ASCII.o ../bin/ProgErrOutput.o ../bin/SysTypes.o tHello.o 
+tProgArgs.o: ../bin/CardConvert.sym ../bin/NameLists.sym ../bin/ProgArgs.sym  \
+             ../bin/ProgErrOutput.sym 
+tProgArgs: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+           ../bin/Lists.o ../bin/NameLists.o ../bin/Notices.o  \
+           ../bin/Objects.o ../bin/ProgArgs.o ../bin/ProgErr.o  \
+           ../bin/ProgErrOutput.o ../bin/SafeStorage.o ../bin/Strings.o  \
+           ../bin/SysTypes.o ../bin/UnixError.o tProgArgs.o 
+tProgEnviron.o: ../bin/NameLists.sym ../bin/ProgArgs.sym  \
+                ../bin/ProgEnviron.sym ../bin/ProgErrOutput.sym 
+tProgEnviron: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o  \
+              ../bin/Chars.o ../bin/GenConsts.o ../bin/IntConvert.o  \
+              ../bin/Intrinsics.o ../bin/Lists.o ../bin/NameLists.o  \
+              ../bin/Notices.o ../bin/Objects.o ../bin/ProgArgs.o  \
+              ../bin/ProgEnviron.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+              ../bin/SafeStorage.o ../bin/Strings.o ../bin/SysTypes.o  \
+              ../bin/UnixError.o tProgEnviron.o 
+tQStrings.o: ../bin/ProgErrOutput.sym ../bin/QStrings.sym ../bin/Strings.sym 
+tQStrings: ../bin/ASCII.o ../bin/Bytes.o ../bin/CardConvert.o ../bin/Chars.o  \
+           ../bin/GenConsts.o ../bin/IntConvert.o ../bin/Intrinsics.o  \
+           ../bin/Objects.o ../bin/ProgErr.o ../bin/ProgErrOutput.o  \
+           ../bin/QStrings.o ../bin/SafeStorage.o ../bin/Strings.o  \
+           ../bin/SysTypes.o ../bin/UnixError.o tQStrings.o 
+tSysTypes.o: ../bin/SysTypes.sym 
+tSysTypes: ../bin/SysTypes.o tSysTypes.o 
+${M2Programs}: 
+	${StandardM2link}

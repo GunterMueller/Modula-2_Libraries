@@ -1,0 +1,161 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE SafeStorage;
+(*
+ * Unix implementation:
+ *     We don't use the supplied Storage, because it is 3K and malloc
+ *     seems to be imported anyway.  Go to the source, I always say.
+ *
+ * Tasks: 
+ *     It is assumed that the "handler" will control multiple entries.
+ *     We have to fix this up for Unix, if we get them.
+ *)
+IMPORT 
+    ProgErr,	
+    SysTypes,
+    UnixCerrno,
+    UnixCmalloc;
+
+@IF Tasks THEN
+    IMPORT
+	UnixMonitor;
+@END (* Tasks *)
+
+
+PROCEDURE ALLOCATE( 
+    VAR anyPointer : SysTypes.SAUPTR;
+	size       : SysTypes.Card 
+    );
+    (*
+     * Try to allocate the memory.  If it doesn't work, call the
+     * currently installed handler.  If that doesn't work, then
+     * we just terminate the caller.
+     *)
+    BEGIN (* ALLOCATE *)
+
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    anyPointer := UnixCmalloc.malloc( size );
+	    IF anyPointer = NIL THEN
+		@IF Tasks THEN
+		    UnixMonitor.Exit;
+		@END (* Tasks *)
+
+		handler;
+
+		@IF Tasks THEN
+		    UnixMonitor.Enter;
+		@END (* Tasks *)
+		anyPointer := UnixCmalloc.malloc( size );
+		IF anyPointer = NIL THEN
+		    ProgErr.Terminate( 'SafeStorage: out of memory.' );
+		END;
+	    END;
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+
+    END ALLOCATE;
+
+
+PROCEDURE AllocateOK( 
+    VAR anyPointer : SysTypes.SAUPTR;
+	size       : SysTypes.Card 
+    )	           : BOOLEAN;
+    (*
+     * Try to allocate the memory.  Return the result on failure.
+     *)
+    VAR
+	result : BOOLEAN;
+    BEGIN (* AllocateOK *)
+
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    anyPointer := UnixCmalloc.malloc( size );
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN anyPointer # NIL;
+
+    END AllocateOK;
+
+
+PROCEDURE DEALLOCATE( 
+    VAR anyPointer : SysTypes.SAUPTR;
+	size       : SysTypes.Card 
+    );
+    BEGIN (* DEALLOCATE *)
+
+	(* 
+	 * Malloc knows the size of the pointer being deallocated.
+	 * It seems that "free" only *sets* errno when there is an
+	 * error, so if errno isn't valid before hand it doesn't bother
+	 * clearing errno.
+	 *)
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    UnixCerrno.errno := UnixCerrno.Eok;
+	    UnixCmalloc.free( anyPointer );
+	    IF UnixCerrno.errno # UnixCerrno.Eok THEN
+		ProgErr.Terminate( 
+		   "SafeStorage: deallocation attempted on illegal pointer." );
+	    END;
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+	anyPointer := NIL;
+
+    END DEALLOCATE;
+
+VAR
+    handler   : PROC;  (* To be called when Storage.Allocate returns NIL *)
+
+PROCEDURE InstallOutOfMemoryHandler(     
+	newHandler : PROC;
+    VAR oldHandler : PROC 
+    );
+    (*
+     * Return the current handler and install the new one.
+     *)
+    BEGIN (* InstallOutOfMemoryHandler *)
+
+	oldHandler := handler;
+	handler    := newHandler;
+
+    END InstallOutOfMemoryHandler;
+
+
+PROCEDURE DefaultHandler;
+    (* Nothing to do... *)
+    END DefaultHandler;
+
+
+BEGIN  (* SafeStorage *)
+
+    handler := DefaultHandler;
+
+END SafeStorage.

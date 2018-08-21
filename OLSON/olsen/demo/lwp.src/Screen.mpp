@@ -1,0 +1,121 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Screen;
+IMPORT
+    SYSTEM,         ScreenIO,	TextIO,  StringIO,
+    Strings;
+
+VAR
+    output : TextIO.Object;
+    inBold : BOOLEAN;
+    curr   : Coordinate;
+
+PROCEDURE Clear;
+    BEGIN (* Clear *)
+	inBold := FALSE;
+	ScreenIO.SetAttributes( ScreenIO.AttributeSet { } );
+	ScreenIO.Do( ScreenIO.clear );
+	curr.x := 0;
+	curr.y := 0;
+
+    END Clear;
+
+PROCEDURE Move(
+    point : Coordinate;
+    len   : CARDINAL
+    );
+BEGIN (* Move *)
+    IF ( point.x # curr.x ) OR ( point.y # curr.y ) THEN
+	ScreenIO.GotoRowCol( point.y, point.x );
+	curr := point;
+    END;
+    INC( curr.x, len );
+END Move;
+
+PROCEDURE PutCharAt ( point : Coordinate;
+                      char  : CHAR );
+    BEGIN (* PutCharAt *)
+
+	IF inBold THEN
+	    ScreenIO.SetAttributes( ScreenIO.AttributeSet { } );
+	    inBold := FALSE;
+	END;
+	Move( point, 1 );
+	TextIO.DONTCARE := TextIO.Write( output, char );
+        
+    END PutCharAt;
+
+
+
+PROCEDURE PutBoldCharAt ( point : Coordinate;
+                          char  : CHAR );
+    BEGIN (* PutBoldCharAt *)
+
+	IF NOT inBold THEN
+	    ScreenIO.SetAttributes( ScreenIO.AttributeSet { ScreenIO.bold } );
+	    inBold := TRUE;
+	END;
+	Move( point, 1 );
+	ScreenIO.GotoRowCol( point.y, point.x );
+	TextIO.DONTCARE := TextIO.Write( output, char );
+        
+    END PutBoldCharAt;
+
+
+
+PROCEDURE PutStringAt( point : Coordinate;
+                       str   : ARRAY OF CHAR );
+    VAR i : CARDINAL;
+    BEGIN (* PutStringAt *)
+
+	IF inBold THEN
+	    ScreenIO.SetAttributes( ScreenIO.AttributeSet { } );
+	    inBold := FALSE;
+	END;
+	Move( point, Strings.Length( str ) );
+	TextIO.DONTCARE := StringIO.Write( output, str );
+        
+    END PutStringAt;
+
+
+PROCEDURE PutBoldStringAt( point : Coordinate;
+                           str   : ARRAY OF CHAR );
+    BEGIN (* PutBoldStringAt *)
+
+	IF NOT inBold THEN
+	    ScreenIO.SetAttributes( ScreenIO.AttributeSet { ScreenIO.bold } );
+	    inBold := TRUE;
+	END;
+	Move( point, Strings.Length( str ) );
+	TextIO.DONTCARE := StringIO.Write( output, str );
+        
+    END PutBoldStringAt;
+    
+BEGIN (* Screen *)
+    
+    ScreenIO.EnterVisualMode;
+    output := ScreenIO.GetTextOutput();
+    curr.x := 0;
+    curr.y := 0;
+
+END Screen.    

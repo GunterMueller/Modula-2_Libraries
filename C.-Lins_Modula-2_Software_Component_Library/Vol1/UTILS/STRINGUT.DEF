@@ -1,0 +1,178 @@
+DEFINITION MODULE StringUtils;
+(*==========================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tool - String Utilities
+
+    Revision History
+    v1.0  Sat, Mar 4, 1989  C. Lins
+   	  Initial JPI Modula-2 implementation.
+
+    Introduction
+    This module provides elementary String operations.
+
+    Basic Assumptions and Caveats
+    * Input string parameters are assumed to be defined, meaning that they have
+   	  been assigned a value.
+
+    Exceptions
+    * Undefined
+   	  Input parameter value is undefined. All inputs are assumed to be defined.
+
+    * WidthError
+      Specified width is less than input string length.
+
+    * StringOverflow
+      Destination string size insufficient for result.
+
+    * LexicalError
+   	  Routine to be invoked on occurance of a lexical error.
+   	  The default routine writes a line identifying the error and
+   	  after the user acknowledges the condition, terminates the program.
+
+    References
+   	[1] N. Wirth, Programming in Modula-2, 3rd corrected edition,
+       	Springer-Verlag, New York NY, 1985, pg. 162
+    [2] G. Booch, Software Components in Ada Structures, Tools, and Subsystems,
+   	   	Benjamin/Cummings, Menlo Park, CA 1987, pp. 386-391
+
+    Proprietary Notices
+    "StringUtils.DEF", Copyright (C) 1989 Charles A. Lins
+==========================================================*)
+
+
+CONST EOS = 0C;
+
+(*--------------------*)
+(*--  Constructors  --*)
+
+PROCEDURE MakeUppercase  (VAR theString    : ARRAY OF CHAR (*--inout*));
+
+PROCEDURE MakeLowercase  (VAR theString    : ARRAY OF CHAR (*--inout*));
+
+PROCEDURE Replace        (    theChar      : CHAR          (*--in   *);
+       	       	       	      withChar     : CHAR          (*--in   *);
+                          VAR theString    : ARRAY OF CHAR (*--inout*);
+                              caseSensitive: BOOLEAN       (*--in   *));
+
+PROCEDURE Centered       (VAR theString    : ARRAY OF CHAR (*--inout*);
+       	       	       	      inWidth      : CARDINAL      (*--in   *);
+                              withTheFiller: CHAR          (*--in   *));
+
+PROCEDURE LeftJustified  (VAR theString    : ARRAY OF CHAR (*--inout*);
+       	       	       	      inWidth      : CARDINAL      (*--in   *);
+                              withTheFiller: CHAR          (*--in   *));
+
+PROCEDURE RightJustified (VAR theString    : ARRAY OF CHAR (*--inout*);
+       	       	       	      inWidth      : CARDINAL      (*--in   *);
+                              withTheFiller: CHAR          (*--in   *));
+
+PROCEDURE Stripped       (VAR fromTheString: ARRAY OF CHAR (*--inout*);
+       	       	       	      theChar      : CHAR          (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *));
+
+PROCEDURE StripLeading   (VAR fromTheString: ARRAY OF CHAR (*--inout*);
+       	       	       	      theChar      : CHAR          (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *));
+
+PROCEDURE StripTrailing  (VAR fromTheString: ARRAY OF CHAR (*--inout*);
+       	       	       	      theChar      : CHAR          (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *));
+
+PROCEDURE Append         (    theString    : ARRAY OF CHAR (*--in   *);
+                          VAR toTheString  : ARRAY OF CHAR (*--inout*));
+
+PROCEDURE Fill           (    theChar      : CHAR          (*--in   *);
+       	       	       	  VAR inTheString  : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE FillSpaces     (VAR inTheString  : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE FillPartial    (    withTheChar  : CHAR          (*--in   *);
+       	       	       	      atTheIndex   : CARDINAL      (*--in   *);
+                              forTheLength : CARDINAL      (*--in   *);
+       	       	       	  VAR inTheString  : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE InsertChar     (    withTheChar  : CHAR          (*--in   *);
+       	       	       	      atTheIndex   : CARDINAL      (*--in   *);
+                              forTheLength : CARDINAL      (*--in   *);
+       	       	       	  VAR inTheString  : ARRAY OF CHAR (*--out  *));
+
+
+(*--------------------*)
+(*--   Selectors    --*)
+
+PROCEDURE Uppercase      (    theString    : ARRAY OF CHAR (*--in   *);
+       	       	       	  VAR newString    : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE Lowercase      (    theString    : ARRAY OF CHAR (*--in   *);
+       	       	       	  VAR newString    : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE Replaced       (    theChar      : CHAR          (*--in   *);
+       	       	       	      withChar     : CHAR          (*--in   *);
+                              inTheString  : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *);
+       	       	       	  VAR newString    : ARRAY OF CHAR (*--out  *));
+
+PROCEDURE IsEmpty        (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsAscii        (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsControl      (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsGraphic      (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsLowercase    (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsUppercase    (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsDigit        (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsAlphabetic   (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsAlphanumeric (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsSpecial      (    theString    : ARRAY OF CHAR (*--in   *))
+       	       	       	                   : BOOLEAN       (*--out  *);
+
+PROCEDURE NumberOf       (    theChar      : CHAR          (*--in   *);
+       	       	       	      inTheString  : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *))
+                               	   	   	   : CARDINAL      (*--out  *);
+
+PROCEDURE LocationOf     (    theChar      : CHAR          (*--in   *);
+       	       	       	      inTheString  : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *);
+                              forward      : BOOLEAN       (*--in   *))
+                               	   	   	   : CARDINAL      (*--out  *);
+
+PROCEDURE Scan           (    theString    : ARRAY OF CHAR (*--in   *);
+                              forAnyChar   : ARRAY OF CHAR (*--in   *);
+                              matchEqual   : BOOLEAN       (*--in   *);
+                          VAR atIndex      : CARDINAL      (*--inout*))
+                                           : BOOLEAN       (*--out  *);
+
+PROCEDURE IsEqual        (    left         : ARRAY OF CHAR (*--in   *);
+   	   	   	   	   	   	   	  right        : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *))
+                               	   	   	   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsLessThan     (    left         : ARRAY OF CHAR (*--in   *);
+   	   	   	   	   	   	   	  right        : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *))
+                               	   	   	   : BOOLEAN       (*--out  *);
+
+PROCEDURE IsGreaterThan  (    left         : ARRAY OF CHAR (*--in   *);
+   	   	   	   	   	   	   	  right        : ARRAY OF CHAR (*--in   *);
+                              caseSensitive: BOOLEAN       (*--in   *))
+                               	   	   	   : BOOLEAN       (*--out  *);
+
+END StringUtils.

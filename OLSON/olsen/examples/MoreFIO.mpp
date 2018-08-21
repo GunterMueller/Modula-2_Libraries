@@ -1,0 +1,293 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+MODULE MoreFIO;
+(*
+ * Sorry about for formatting, but this was taking directly from
+ * the chapter: Doing More with FormatIO.
+ *)
+IMPORT
+    Chars,
+    FIOBase,
+    IOErrors,
+    ProgErr,
+    ProgErrOutput,
+    SimpleFIO,
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+(* 
+ * The following was borrowed from the Files chapter.  It probably
+ * should have been put into a module, but that is not the business
+ * at hand...
+ *)
+TYPE
+    MaxTokenRange = [ 0 .. SysTypes.maxArrayIndexCHAR ];
+    TokenPtr	  = POINTER TO ARRAY MaxTokenRange OF CHAR;
+    ScanInfo = RECORD
+	index   : MaxTokenRange;
+	high    : MaxTokenRange;
+	tokPtr  : TokenPtr;
+	badData : BOOLEAN;
+    END;
+    ScanInfoPtr = POINTER TO ScanInfo;
+
+PROCEDURE TokenScanner(
+    infoAdr : SysTypes.ANYPTR;
+    char    : CHAR
+    )	    : BOOLEAN;
+    VAR
+	info : ScanInfoPtr;
+    BEGIN (* TokenScanner *)
+
+	info := infoAdr;
+	WITH info^ DO
+	    IF NOT Chars.IsAlpha( char ) THEN
+		badData := badData OR ( index = 0 );
+		RETURN FALSE;	(* Always put character back *)
+
+	    ELSIF index > high THEN	(* token is too long *)
+		badData := TRUE;
+		(* Consume the rest of the token *)
+
+	    ELSE
+		(* Assign the character and increment pointer *)
+		tokPtr^[ index ] := char;
+		INC( index );
+	    END;
+	END; (* WITH *)
+	RETURN TRUE;	(* keep going *)
+	
+    END TokenScanner;
+
+    
+PROCEDURE ReadToken(
+	file : TextIO.Object;	 (* Must be readable *)
+    VAR tok  : ARRAY OF CHAR	 (* Sequence of alphas *)
+    )	     : TextIO.States;	 (* ok => tok is valid *)
+    VAR
+	infoRec : ScanInfo;
+	state   : TextIO.States;
+    BEGIN (* ReadToken *)
+    
+	WITH infoRec DO
+	    (* Set up for the scan *)
+	    index   := 0;
+	    high    := HIGH( tok );
+	    tokPtr  := SYSTEM.ADR( tok );
+	    badData := FALSE;
+
+	    state := TextIO.Scan( file, TokenScanner, 
+				  SYSTEM.ADR( infoRec ),
+				  TextIO.skipLeadingWhiteSpace );
+	    IF state # TextIO.ok THEN
+		RETURN state;	(* Failure was result of error *)
+		
+	    ELSIF badData THEN
+		RETURN TextIO.SetError( file, IOErrors.badData );
+	    
+	    (* Null terminate? *)
+	    ELSIF index <= HIGH( tok ) THEN
+		tok[ index ] := 0C;
+	    END;
+	END; (* WITH *)
+	RETURN TextIO.ok;
+
+    END ReadToken;
+
+
+
+TYPE
+    String = ARRAY [ 0 .. 15 ] OF CHAR;
+
+PROCEDURE Write(
+    DONTCARE : SysTypes.ANYPTR;	  (* importerObject *)
+    outFile  : TextIO.Object;	  (* file to write to *)
+    format   : ARRAY OF CHAR;	  (* modifiers *)
+    dataAdr  : SysTypes.SAUPTR;	  (* points to a token *)
+    length   : SysTypes.Card	  (* should be TSIZE( Token ) *)
+    )        : TextIO.States;	  (* "ok" => value written ok *)
+    VAR
+	tok       : POINTER TO String;
+	modifiers : FIOBase.ModifierValues;
+	modStr    : ARRAY [ 0 .. 0 ] OF CHAR; 	(* for 'l' or 'u' *)
+    	toLower   : BOOLEAN;
+    	toUpper   : BOOLEAN;
+    	error	  : BOOLEAN;
+    BEGIN (* Write *)
+
+        tok := dataAdr;		(* Coerce to our format *)
+
+	(* establish defaults *)
+    	toLower := FALSE;
+    	toUpper := FALSE;
+	WITH modifiers DO
+	    width         := 0;
+	    fillChar      := ' ';
+	    justification := Strings.justifyLeft;
+	END;
+
+	(* scan for default modifiers *)
+	IF NOT FIOBase.ScanModifiers( format, FIOBase.writeModifierSet,
+	    outFile, modifiers, format ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+    	(*
+	 * Parse modifiers specific to this format.
+	 *)
+    	error := FALSE;
+	WHILE format[ 0 ] # 0C DO
+    	    (* Must be 'c' and followed by a single letter *)
+    	    error := ( FIOBase.GetSpecifier( format ) # 'c' ) OR
+	    	     NOT FIOBase.GetString( format, modStr );
+    	    IF NOT error THEN
+    	    	(* Allow 'u' or 'l', but not both.
+		   Note: caller may have multiple 'cl' or 'cu' params *)
+	    	IF modStr[ 0 ] = 'u' THEN
+		    error := toLower;	(* Can't have toLower *)
+		    toUpper := TRUE;
+		    Chars.StringToUpper( tok^ );
+		ELSIF modStr[ 0 ] = 'l' THEN
+		    error := toUpper;	(* Can't have toUpper *)
+		    toLower := TRUE;
+		    Chars.StringToLower( tok^ );
+		ELSE
+		    error := TRUE;  	(* Not one of 'l' or 'u' *)
+		END;
+	    END;		     
+    	    IF error THEN
+	    	(* Something wrong with the format, tell the caller *)
+    	    	RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+    	    END;
+    	END;
+       
+	WITH modifiers DO
+	    (* If "width" is non-zero, take care to
+	       indicate an error if the string is longer than width *)
+	    RETURN StringIO.WriteJustifiedField(
+		outFile, tok^, justification, width, fillChar );
+	END; (* WITH *)
+
+    END Write;
+PROCEDURE Read(
+    DONTCARE   : SysTypes.ANYPTR;   (* importerObject *)
+    inFile     : TextIO.Object;	    (* file to read from *)
+    format     : ARRAY OF CHAR;	    (* modifiers *)
+    dataAdr    : SysTypes.SAUPTR;   (* points to a token *)
+    length     : SysTypes.Card;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    CONST
+    	prompt    = "Enter a token (alphabet characters only): ";
+    VAR
+    	tok       : POINTER TO String;
+	modifiers : FIOBase.ModifierValues;
+    	error     : BOOLEAN;
+	state     : TextIO.States;
+    BEGIN (* Read *)
+
+    	tok := dataAdr;
+
+    	(* We don't have any modifiers except the prompt *)
+	IF prompting THEN
+    	    (* scan for default modifiers *)
+    	    modifiers.messageOutput := FALSE;	
+	    IF NOT FIOBase.ScanModifiers( format, FIOBase.readModifierSet,
+    	    	    	    	    	  promptFile, modifiers, format ) THEN
+    	        RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+    	    END;
+	END;
+
+    	(* No special modifiers? *)
+	IF format[ 0 ] # 0C THEN
+    	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+
+	(* 
+	 * we have the parameters: repeat the read until a valid value
+	 * is read.  Note that a message may have been put out.  If one
+	 * hasn't, then we must put a prompt the first time around.
+	 *)
+	LOOP  
+    	    IF prompting AND NOT modifiers.messageOutput THEN
+	    	error := ( StringIO.Write( promptFile, prompt ) # TextIO.ok )
+		     OR  ( TextIO.Flush( promptFile ) # TextIO.ok );
+
+    		IF error THEN
+    	    	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	    	END;
+	    END;
+
+    	    (* Procedure which does the TextIO work *)
+	    state := ReadToken( inFile, tok^ );
+
+	    IF state = TextIO.ok THEN
+	    	RETURN state;
+	    END;
+
+    	    IF NOT prompting THEN
+	    	IF state = TextIO.endOfLine THEN
+		    (* End of line is not a valid token. *)
+	    	    RETURN TextIO.SetError( inFile, IOErrors.badData );
+	    	END;
+	    	RETURN state;
+	    END;
+
+    	    (* Standard set of checks and then issue a "try again" *)
+	    state := FIOBase.PromptForReread( promptFile, inFile );
+    	    IF state # TextIO.ok THEN
+	    	RETURN state;	(* Error during prompting *)
+	    END;
+
+    	    (* Force a re-prompt at the top. *)
+	    modifiers.messageOutput := FALSE;
+    	END; (* LOOP *)
+
+    END Read;	
+
+VAR
+    tok : String;
+BEGIN (* MoreFIO *)
+
+    FIOBase.RegisterWrite( 'Token', Write, FIOBase.DONTCARE,
+			   SYSTEM.TSIZE( String ) );
+    FIOBase.RegisterRead( 'Token', Read, FIOBase.DONTCARE,
+			  SYSTEM.TSIZE( String ) );
+
+    tok := "MyFirstToken";
+    SimpleFIO.Write1( "Here it is! [Token][NL]", tok );
+    SimpleFIO.Write1( "One more time! [Token,cl][NL]", tok );
+
+    LOOP
+	SimpleFIO.PromptedRead1( "[Token,mMr. Prompt][NL]", tok );
+	IF SimpleFIO.EOF() THEN
+	    SimpleFIO.Write( "End of file[NL]" );
+	    EXIT;
+	END;
+	SimpleFIO.Write1( "Mr. Token is [Token][NL]", tok );
+    END;
+
+END MoreFIO.

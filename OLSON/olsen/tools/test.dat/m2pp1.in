@@ -1,0 +1,85 @@
+(*
+ * This is a BASIC conformance test for the preprocessor.
+ * 
+ * If there are no @ signs, then the source has already been
+ * preprocessed!
+ *)
+
+@IF TRUE THEN PASS @ELSE FAIL @END
+@IF FALSE THEN FAIL @ELSE PASS @END
+
+@IF TRUE THEN 
+    PASS 
+@ELSIF TRUE THEN 
+    FAIL 
+@ELSE 
+    FAIL 
+@END
+
+@IF FALSE THEN 
+    FAIL 
+@ELSIF TRUE THEN 
+    PASS 
+@ELSE
+    FAIL
+@END
+
+@IF FALSE THEN 
+    FAIL 
+@ELSIF FALSE THEN 
+    FAIL 
+@ELSE 
+    PASS 
+@END
+
+@IF FALSE THEN 
+    FAIL 
+@ELSIF FALSE THEN 
+    FAIL 
+@ELSIF TRUE THEN 
+    PASS 
+@ELSIF FALSE THEN 
+    FAIL 
+@ELSIF TRUE THEN 
+    FAIL 
+@ELSE
+    FAIL
+@END
+
+@IF TRUE THEN 
+    PASS 
+    @IF TRUE THEN
+	PASS
+    @ELSE
+	FAIL
+    @END
+    PASS
+@ELSIF TRUE THEN 
+    FAIL 
+    @IF TRUE THEN
+	FAIL
+    @ELSIF TRUE THEN
+	FAIL
+    @ELSE
+	FAIL
+    @END
+    FAIL
+@ELSIF FALSE THEN 
+    FAIL 
+    @IF TRUE THEN
+	FAIL
+    @ELSE
+	FAIL
+    @END
+    FAIL
+@ELSE 
+    FAIL 
+    @IF FALSE THEN
+	FAIL
+    @ELSIF FALSE THEN
+	FAIL
+    @ELSE
+	FAIL
+    @END
+    FAIL
+@END

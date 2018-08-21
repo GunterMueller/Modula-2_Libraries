@@ -1,0 +1,26 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+lowlevel.def: ..\pc_lwp.src\lowlevel.dpp 
+	${StandardM2pp}
+keyinput.def: ..\lwp.src\keyinput.dpp 
+	${StandardM2pp}
+maze.def: ..\lwp.src\maze.dpp 
+	${StandardM2pp}
+screen.def: ..\lwp.src\screen.dpp 
+	${StandardM2pp}
+keyinput.mod: ..\pc_lwp.src\keyinput.mpp 
+	${StandardM2pp}
+lowlevel.mod: ..\pc_lwp.src\lowlevel.mpp 
+	${StandardM2pp}
+screen.mod: ..\pc_lwp.src\screen.mpp 
+	${StandardM2pp}
+maze.mod: ..\lwp.src\maze.mpp 
+	${StandardM2pp}
+solver.mod: ..\lwp.src\solver.mpp 
+	${StandardM2pp}

@@ -1,0 +1,104 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Keyboard;
+(*
+ * Reads characters from the keyboard of the console terminal.
+ * The entry points are system specific (module for IBM PC BIOS).
+ *
+ * There are two types of keys: normal and function. Normal keys
+ * are 8 bit ASCII. Function keys are non-ASCII characters which
+ * the user can enter, (up-arrow, down-arrow, etc). To make the
+ * function key input more usable, they have been converted from
+ * a random set of numbers to a Modula-2 enumerated type.
+ *
+ * Line editing is not supported by this module. All keys entered
+ * are passed directly to the user.
+ *
+ * WARNING:
+ *     Console input via TextIO or BinaryIO may not work
+ *     properly if this module is used.
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    Types,
+    Functions,
+    Value,
+    Read;
+
+TYPE
+    Types = (
+        normalKey,
+        functionKey
+    );
+
+    Functions = (
+        ctrlBreak, insert, delete, ctrlPrintScreen, 
+        upArrow, downArrow, leftArrow, rightArrow,
+        ctrlLeftArrow, ctrlRightArrow, pageUp, pageDown,
+        home, end, ctrlPageUp, ctrlPageDown, ctrlHome, ctrlEnd,
+        f1, f2, f3, f4, f5, f6, f7, f8, f9, f10,
+        shiftF1, shiftF2, shiftF3, shiftF4, shiftF5, 
+        shiftF6, shiftF7, shiftF8, shiftF9, shiftF10,
+        ctrlF1, ctrlF2, ctrlF3, ctrlF4, ctrlF5,
+        ctrlF6, ctrlF7, ctrlF8, ctrlF9, ctrlF10,
+        altF1, altF2, altF3, altF4, altF5,
+        altF6, altF7, altF8, altF9, altF10,
+        altQ, altW, altE, altR, altT, altY, altU, altI, altO, altP,
+        altA, altS, altD, altF, altG, altH, altJ, altK, altL,
+        altZ, altX, altC, altV, altB, altN, altM,
+        alt1, alt2, alt3, alt4, alt5, alt6, alt7, alt8, alt9, alt0,
+        altMinus, altEquals
+    );
+
+    Value = RECORD
+        CASE type : Types OF
+            normalKey: 
+		ascii8   : SysTypes.CHAR8; 
+	    |
+            functionKey: 
+		function : Functions;
+        END;
+    END;
+
+PROCEDURE Read(
+    VAR key : Value     (* key that was entered by user *)
+    )       : BOOLEAN;  (* FALSE => no input *)
+    (*
+     * Reads a key from the BIOS if one is available. If no key
+     * is, the routine just returns (see Tasks note).
+     *
+     * The key is interpreted into a two part code for simple usage.
+     * Note that this goes directly to the BIOS so console-redirection
+     * (ctty) will not affect the input of this module.
+     *
+     * Tasks NOTE:
+     *     This routine blocks if it is compiled with LWP. It will,
+     *     however, return FALSE if the task which calls this routine
+     *     is awaken prematurely. In other words, it will not suspend 
+     *     forever.
+     *)
+
+END Keyboard.
+

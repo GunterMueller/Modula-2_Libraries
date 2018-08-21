@@ -1,0 +1,495 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE GenTestIO;
+(*
+ * Low -  level IO module.   Uses DOSCALLS directly.
+ *)
+IMPORT
+    SYSTEM,	ASCII,		Strings,	DOS,
+    ProgErr,	ProgErrOutput;
+
+@IF NOT NoProgArgs THEN
+    IMPORT
+	ProgArgs;
+@END (* NOT NoProgArgs *)
+
+@IF LWP THEN
+    IMPORT
+	DosMonitor;
+@END (* LWP *)
+
+FROM SafeStorage IMPORT
+    ALLOCATE,	DEALLOCATE;
+
+CONST
+    bufferSize     = 512;
+
+TYPE 
+    File    = POINTER TO FileRec;
+    FileRec = RECORD
+	dosID      : CARDINAL;
+	previous   : CHAR;	(* last character read from the buffer *)
+	endOfFile  : BOOLEAN;
+	buffer     : RECORD
+	    length    : CARDINAL;
+	    index     : CARDINAL;
+	    data      : ARRAY [ 0 .. bufferSize - 1 ] OF CHAR;
+	END;
+    END;
+
+PROCEDURE Open( VAR file: File; flags: Modes; name: ARRAY OF CHAR )
+	      : BOOLEAN;
+    (*
+     * Get a new file record, copy the name into its buffer to 
+     * guarantee null termination (ASCIZ as required by DOS), and
+     * then call DOS.  Check the result of the DOSCALL.
+     *)
+    VAR
+	Flags    : BITSET;
+	error    : CARDINAL;
+    BEGIN (* Open *)
+
+	file := NIL;
+	(* File name too long *)
+	IF Strings.Length( name ) >= bufferSize THEN
+	    RETURN FALSE;
+	END;
+
+	NEW( file );
+
+	CASE flags OF
+	    readOnly: Flags:= DOS.notInheritedByChild + DOS.denyWriteSharing;
+	    |
+	    writeOnly: Flags:= DOS.notInheritedByChild + DOS.denyReadSharing 
+				+ DOS.writeAccess;
+	    |
+	    readWrite: Flags:= DOS.notInheritedByChild + DOS.denyNoneSharing
+				+ DOS.readWriteAccess;
+        END;
+
+	WITH file^ DO
+	    (* Have to pass a null terminated string above check guarantees *)
+	    Strings.Assign( name, buffer.data );
+	    @IF LWP THEN
+		DosMonitor.Enter;
+	    @END (* LWP *)
+	    SYSTEM.DOSCALL( DOS.open, SYSTEM.ADR( buffer.data ), 
+			    flags, dosID, error );
+	    @IF LWP THEN
+		DosMonitor.Exit;
+	    @END (* LWP *)
+	    IF error # 0 THEN
+		DISPOSE( file );
+		RETURN FALSE;
+	    END;
+
+	    previous      := 0C;
+	    endOfFile     := FALSE;
+	    buffer.length := 0; (* finish initializing *)
+	    buffer.index  := 0;
+	END;
+    
+	RETURN TRUE;
+
+    END Open;
+                 
+PROCEDURE Create( VAR file : File;
+		      name : ARRAY OF CHAR )
+			   : BOOLEAN;
+    (*
+     * Allocate a file record, copy name into its buffer, and
+     * call to DOS to create the file.  If the create was
+     * unsuccessful, then return failure.
+     *)
+    CONST
+	fileMode = { };		(* DOS Normal file *)
+    VAR
+	error    : CARDINAL;
+    BEGIN (* Create *)
+
+	file := NIL;
+
+	(* File name too long *)
+	IF Strings.Length( name ) >= bufferSize THEN
+	    RETURN FALSE;
+	END;
+
+	NEW( file );
+
+	WITH file^ DO
+	    (* Have to pass a null terminated string; above check guarantees *)
+	    Strings.Assign( name, buffer.data );
+	    @IF LWP THEN
+		DosMonitor.Enter;
+	    @END (* LWP *)
+	    SYSTEM.DOSCALL( DOS.creat, SYSTEM.ADR( buffer.data ),
+			    CARDINAL( fileMode ), dosID, error );
+	    @IF LWP THEN
+		DosMonitor.Exit;
+	    @END (* LWP *)
+	    IF error # 0 THEN
+		DISPOSE( file );
+		RETURN FALSE;
+	    END;
+
+	    previous      := 0C;
+	    endOfFile     := FALSE;
+	    buffer.length := 0; (* finish initializing *)
+	    buffer.index  := 0;
+	END;
+    
+	RETURN TRUE;
+
+    END Create;
+
+
+PROCEDURE Close( VAR file : File ) 
+			  : BOOLEAN;
+    (*
+     * Tell DOS to close the file and deallocate the file structure.
+     * Note that even in the event of error, the file is closed.
+     *)
+    VAR
+	error : CARDINAL;
+    BEGIN (* Close *)
+	
+	IF file = NIL THEN
+	    RETURN TRUE;  (* Can close an already closed file *)
+	END;
+	@IF LWP THEN
+	    DosMonitor.Enter;
+	@END (* LWP *)
+	SYSTEM.DOSCALL( DOS.close, file^.dosID, error );
+	@IF LWP THEN
+	    DosMonitor.Exit;
+	@END (* LWP *)
+	DISPOSE( file );
+
+	RETURN error = 0;
+
+    END Close;
+
+
+(* File IO *)
+PROCEDURE Read(     file   : File;
+	        VAR string : ARRAY OF CHAR )
+			   : BOOLEAN;
+    (*
+     * Read a line of text.
+     *)
+    VAR
+	error  : CARDINAL;
+	strLen : CARDINAL;
+	ch     : CHAR; 
+    BEGIN (* Read *)
+
+	WITH file^ DO
+	    IF endOfFile THEN
+		string[ 0 ] := 0C;
+		RETURN FALSE;
+	    END;
+	    strLen := 0;
+	    LOOP 
+		IF buffer.index >= buffer.length THEN
+		    @IF LWP THEN
+			DosMonitor.Enter;
+		    @END (* LWP *)
+		    SYSTEM.DOSCALL( DOS.read, dosID, bufferSize, 
+				    SYSTEM.ADR( buffer.data ), buffer.length,
+				    error );
+		    @IF LWP THEN
+			DosMonitor.Exit;
+		    @END (* LWP *)
+		    IF error # 0 THEN 
+			ProgErr.Terminate( "Error reading file!" );
+		    END;
+		    IF buffer.length = 0 THEN
+			endOfFile := TRUE;
+			IF strLen = 0 THEN
+			    string[ 0 ] := 0C;
+			    RETURN FALSE;
+			END;
+			ch := 0C;	(* for previous value after EXIT *)
+			EXIT;
+		    END;
+		    buffer.index := 0;
+		END;
+
+		ch := buffer.data[ buffer.index ];
+		INC( buffer.index );
+
+		IF ch = ASCII.sub THEN	(* end of file *)
+		    endOfFile := TRUE;
+		    IF strLen = 0 THEN
+			string[ 0 ] := 0C;
+			RETURN FALSE;
+		    END;
+		    EXIT;	(* else is ok to read last string in file *)
+
+		ELSIF ch = ASCII.cr THEN (* initial ch in EOL sequence *)
+		    EXIT;
+
+		ELSIF ch = ASCII.lf THEN  (* secondary ch in EOL sequence *)
+		    IF previous # ASCII.cr THEN	(* stupid DOS files *)
+			EXIT;
+		    END;
+
+		ELSE (* Should be a valid character *)
+		    string[ strLen ] := ch;
+		    INC( strLen );
+		    IF strLen > HIGH( string ) THEN
+			EXIT;
+		    END;
+		END;
+		previous := ch;  (* what was read? *)
+
+	    END; (* LOOP *)
+
+	    previous := ch;  	(* save for next time *)
+
+	END; (* WITH *)
+
+	IF strLen <= HIGH( string ) THEN
+	    string[ strLen ] := 0C; 
+	END;
+
+	RETURN TRUE;
+
+    END Read;
+
+
+PROCEDURE Write( file   : File;
+		 string : ARRAY OF CHAR )
+			: BOOLEAN;
+    (*
+     * Write the string to the file.
+     *)
+    VAR
+	error      : CARDINAL;
+	strLen     : CARDINAL;
+	numWritten : CARDINAL;
+    BEGIN (* Write *)
+
+	WITH file^ DO
+	    (* Set up the record with terminator for output *)
+	    strLen := Strings.Length( string );
+	    error  := 0;
+	    numWritten := 0;
+	    (*
+    	     * This may seem like a weird optimization, but
+	     * if you write 0 bytes to a DOS file, then DOS
+	     * truncates it.  This is stupid!  I just wanted
+	     * to make my point.  I know that files in StringIO
+	     * are not random access, but this is still stupid.
+	     *)
+	    IF strLen # 0 THEN
+		    @IF LWP THEN
+			DosMonitor.Enter;
+		    @END (* LWP *)
+		    SYSTEM.DOSCALL( DOS.write, dosID, strLen,
+				    SYSTEM.ADR( string ), numWritten,
+				    error );
+		    @IF LWP THEN
+			DosMonitor.Exit;
+		    @END (* LWP *)
+	    END;
+	END; (* WITH *)
+
+	RETURN ( error = 0 ) AND ( strLen = numWritten );
+
+    END Write;
+
+VAR
+    lineSeparator : ARRAY [ 0 .. 1 ] OF CHAR;
+
+PROCEDURE WriteLn( file : File )
+			: BOOLEAN;
+    BEGIN (* WriteLn *)
+	RETURN Write( file, lineSeparator );
+    END WriteLn;
+
+(* --------------------------------------------------------------------- *)
+(* GetInput connects the variable file to the standard input channel     *) 
+(* --------------------------------------------------------------------- *)
+VAR
+    input       : File;
+    output      : File;
+    errorOutput : File;
+
+PROCEDURE GetInput(): File;   
+
+BEGIN
+    RETURN input;
+
+END GetInput;
+(* --------------------------------------------------------------------- *)
+(* GetOutput connects the variable file to the standard output channel   *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE GetOutput(): File;   
+
+BEGIN
+    RETURN output;
+
+END GetOutput;
+(* --------------------------------------------------------------------- *)
+(* GetErrOutput connects the variable file to the standard error         *) 
+(* channel                                                               *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE GetErrOutput(): File;   
+
+BEGIN
+    RETURN errorOutput;
+
+END GetErrOutput;
+(* --------------------------------------------------------------------- *)
+(* IsInteractive checks if the variable file is "interactive" 
+   ( e.g terminal input ) or "batch" ( e.g text file )                   *) 
+(* --------------------------------------------------------------------- *)
+PROCEDURE IsInteractive( file: File ): BOOLEAN;   
+    VAR
+	deviceInfoSet  : BITSET;
+	dosError       : CARDINAL;
+	deviceInfoCard : CARDINAL;
+    BEGIN
+	WITH file^ DO
+	  
+	    @IF LWP THEN
+		DosMonitor.Enter;
+	    @END (* LWP *)
+		SYSTEM.DOSCALL( DOS.ioctl, DOS.getDeviceInfoIOCTL,
+				dosID, deviceInfoSet, dosError );
+	    @IF LWP THEN
+		DosMonitor.Exit;
+	    @END (* LWP *)
+	    IF dosError # DOS.success THEN
+		RETURN FALSE;
+	    END;
+	END; (* WITH *)
+	(*
+	deviceInfoSet := BITSET( deviceInfoCard );
+	*)
+	RETURN ( DOS.isDeviceBit IN deviceInfoSet ) AND
+	       NOT ( DOS.isNullDeviceBit IN deviceInfoSet ) AND
+	       NOT ( DOS.isClockDeviceBit IN deviceInfoSet );
+    END IsInteractive;
+(* --------------------------------------------------------------------- *)
+PROCEDURE ErrorWriteString( VAR string : ARRAY OF CHAR );
+
+    VAR
+	DONTCARE : BOOLEAN;
+
+    BEGIN (* ErrorWriteString *)
+
+	DONTCARE := Write( errorOutput, string );
+
+    END ErrorWriteString;
+(* --------------------------------------------------------------------- *)
+PROCEDURE ErrorWriteLn;
+	
+    VAR
+	DONTCARE : BOOLEAN;
+
+    BEGIN (* ErrorWriteLn *)
+
+	DONTCARE := WriteLn( errorOutput );
+
+    END ErrorWriteLn;
+(* --------------------------------------------------------------------- *)
+@IF NOT NoProgArgs THEN
+PROCEDURE InitFiles( fileType  : ProgArgs.String;
+		     fileAdr   : SYSTEM.ADDRESS;
+		     fileName  : ProgArgs.String )
+			       : BOOLEAN;
+    TYPE
+	FilePtr = POINTER TO File;
+    VAR
+	filePtr : FilePtr;
+	tmpFile : File;
+    BEGIN
+	filePtr := fileAdr;
+
+	IF filePtr = SYSTEM.ADR( input ) THEN
+	    IF Open( tmpFile, readOnly, fileName ) THEN
+		DISPOSE( filePtr^ );	(* Get rid of old one *)
+		filePtr^ := tmpFile;
+		RETURN TRUE;
+	    END;
+	ELSE (* output or errorOutput *)
+	    IF Create( tmpFile, fileName ) THEN
+		DISPOSE( filePtr^ );	(* Get rid of old one *)
+		filePtr^ := tmpFile;
+		RETURN TRUE;
+	    END;
+	END;
+
+	ProgErrOutput.WriteString( fileName );
+	ProgErrOutput.WriteString( ": unable to open " );
+	ProgErrOutput.WriteString( fileType );
+	ProgErrOutput.WriteString( " file." );
+	ProgErrOutput.WriteLn;
+
+	RETURN FALSE;
+
+    END InitFiles;
+@END (* NOT NoProgArgs *)
+(* --------------------------------------------------------------------- *)
+PROCEDURE DefaultOpen( handle : CARDINAL )
+			      : File;
+    VAR
+	file : File;
+    BEGIN (* DefaultOpen *)
+	NEW( file );
+	WITH file^ DO
+	    dosID	  := handle;
+	    previous      := 0C;
+	    endOfFile     := FALSE;
+	    buffer.length := 0; (* finish initializing *)
+	    buffer.index  := 0;
+	END; (* WITH *)
+
+	RETURN file;
+    END DefaultOpen;
+VAR
+    DONTCARE1 : ProgErrOutput.WriteStringProc;
+    DONTCARE2 : PROC;
+
+BEGIN  (* GenTestIO *)
+    lineSeparator[ 0 ] := ASCII.cr;
+    lineSeparator[ 1 ] := ASCII.lf;
+
+    input       := DefaultOpen( DOS.stdInputHandle );
+    output      := DefaultOpen( DOS.stdOutputHandle );
+    errorOutput := DefaultOpen( DOS.stdErrorHandle );
+
+    @IF NOT NoProgArgs THEN
+	ProgArgs.RegisterStringHandler( 'in', InitFiles, 
+				        SYSTEM.ADR( input ) );
+	ProgArgs.RegisterStringHandler( 'out', InitFiles, 
+					SYSTEM.ADR( output ) );
+	ProgArgs.RegisterStringHandler( 'log', InitFiles, 
+					SYSTEM.ADR( errorOutput ) );
+    @END (* NOT NoProgArgs *)
+    ProgErrOutput.Install( ErrorWriteString, ErrorWriteLn,
+			   DONTCARE1, DONTCARE2 );
+
+END GenTestIO.

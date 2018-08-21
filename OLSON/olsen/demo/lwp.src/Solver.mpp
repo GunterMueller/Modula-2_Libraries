@@ -1,0 +1,502 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE Solver;
+(*
+ * Solves a maze using lots of tasks.  There are five types of tasks in the
+ * system: main, solver, timer, pause, and keyboard.  The keyboard is the
+ * highest priority so the user can stop the program at any time.  The
+ * pause task is the next priority so that it can "pause" the program at
+ * any time.  The timer is of the next priority so that it can update the
+ * task counts continuously.  Lastly, the solver and main tasks are of
+ * the same (lowest) priority, because the main is really just the first
+ * solver.
+ *)
+IMPORT
+    Maze,           Tasks,          	TaskTime,
+    TaskConsts,     Screen,         	CardConvert, 
+    Strings,        TaskMonitors,	TaskMessages,
+    TaskDebug,	    ProgErrOutput,
+    Notices,	    TaskNotices,	SYSTEM,
+    SysTypes,	    GenConsts,		KeyInput;
+
+@IF LogitechM2 AND IbmPcArch THEN
+    IMPORT
+	Card32;
+@END
+
+CONST
+    @IF SunArch AND SunOS THEN
+	statsUpdate = 350;          (* milliseconds *)
+    @ELSIF IbmPcArch AND MsDosOS THEN
+	statsUpdate = 200;          (* milliseconds *)
+    @END
+    restartDelay = 5000;         (* milliseconds *)
+VAR
+    mazeSolved : BOOLEAN;	(* End of solution *)
+    pleaseDie  : BOOLEAN;	(* End of the program *)
+
+TYPE    
+    Results    = ( foundSolution, failed );
+    ChildData = RECORD
+        pos        : Maze.Position;
+        dir        : Maze.Directions;
+    END;
+
+VAR
+    reverseDir : ARRAY Maze.Directions OF Maze.Directions;
+    maxActive,
+    maxTasks     : CARDINAL;
+    numActive,
+    numTasks   : CARDINAL;
+    mutex      : TaskMonitors.Object;
+
+CONST
+    timerName         = 'Timer';
+    solverName        = 'Solver';
+    keyboardName      = 'Keyboard';
+    pauseName         = 'Pause';
+    solverPriority    = TaskConsts.defaultPriority + 1;
+    timerPriority     = TaskConsts.defaultPriority + 2;
+    keyboardPriority  = TaskConsts.defaultPriority + 4;
+    pausePriority     = TaskConsts.defaultPriority + 3;
+    @IF SunArch THEN
+	mult = 3;
+    @ELSIF IbmPcArch THEN
+	mult = 2;
+    @END
+    timerStackSize    = TaskConsts.minStackSize * mult;
+    solverStackSize   = TaskConsts.minStackSize * mult;
+    keyboardStackSize = TaskConsts.minStackSize * mult;
+    pauseStackSize    = TaskConsts.minStackSize * mult;
+
+
+PROCEDURE SolverTask( DONTCARE : SYSTEM.ADDRESS );
+    VAR
+        child,                          (* child taskid (temporary)   *)
+        parent      : Tasks.Object;     (* creator of this solver     *)
+        startPos,                       (* initial position passed in *)
+        newPos,                         (* passed to children         *)
+        oldPos      : Maze.Position;    (* current pivot              *)
+        oldDir,				(* initial position *)
+        newDir      : Maze.Directions;  (* passed to children         *)
+        i,
+        numTaken    : CARDINAL;         (* how many taken from pivot  *)
+        childData   : ARRAY [ 0 .. 2 ] OF ChildData;
+        childResult,
+        result      : Results;          (* "return" value             *)
+	myData      : ChildData;	(* Initial receive *)
+
+    BEGIN (* SolverTask *)
+
+        TaskMonitors.Enter( mutex );
+            INC( numTasks );
+	    IF numTasks > maxTasks THEN
+		maxTasks := numTasks;
+	    END;
+            INC( numActive );
+	    IF numActive > maxActive THEN
+		maxActive := numActive;
+	    END;
+        TaskMonitors.Exit( mutex );
+
+        (* Get initial position and direction *)
+        TaskMessages.Receive( parent, myData );
+        TaskMessages.Reply( parent, TaskMessages.DONTCARE );      (* anything *)
+	WITH myData DO
+	    startPos := pos;
+	    oldDir   := dir;
+	END;
+
+        oldPos := startPos;     (* set current pivot *)
+        result := failed;
+        LOOP
+            numTaken := 0;
+            FOR newDir := Maze.up TO Maze.right DO
+
+                IF oldDir # reverseDir[ newDir ] THEN
+                    newPos := oldPos;
+                    IF Maze.TakePosition( newPos, newDir ) THEN
+                        WITH newPos DO
+                            IF (row = Maze.endRow) AND (col = Maze.endCol) 
+                              THEN
+                                result     := foundSolution;
+                                mazeSolved := TRUE;
+                                TaskMonitors.Enter( mutex );
+                                    DEC( numActive );
+                                TaskMonitors.Exit( mutex );
+                                EXIT;
+                            END;
+                        END; (* WITH *)
+
+                        WITH childData[ numTaken ] DO
+                            pos := newPos;
+                            dir := newDir;
+                        END; (* WITH *)
+                        INC( numTaken );
+                    END; (* IF TakePosition *)
+                END; (* IF oldDir  *)
+ 
+                IF mazeSolved OR pleaseDie THEN
+                    TaskMonitors.Enter( mutex );
+                        DEC( numActive );
+                    TaskMonitors.Exit( mutex );
+                    EXIT;              (* found by another path *)        
+                END;
+            END; (* FOR *)
+
+
+            IF numTaken = 0 THEN        (* dead end *)
+                TaskMonitors.Enter( mutex );
+                    DEC( numActive );
+                TaskMonitors.Exit( mutex );
+                EXIT;
+            END;
+
+            IF numTaken = 1 THEN        (* only one way out *)
+                WITH childData[ 0 ] DO
+                    oldPos := pos;
+                    oldDir := dir;
+                END; (* WITH *)
+
+            ELSE (* have to create sub tasks *)
+                FOR i := 0 TO numTaken - 1 DO
+                    WITH childData[ i ] DO
+			Tasks.Create( child, solverName, SolverTask, 
+			    Tasks.DONTCARE, solverPriority, solverStackSize );
+                        TaskMessages.Send( child, childData[ i ], 
+				       TaskMessages.DONTCARE );
+                    END; (* WITH *)
+                END; (* FOR *)
+
+                TaskMonitors.Enter( mutex );
+                    DEC( numActive );
+                TaskMonitors.Exit( mutex );
+                
+                REPEAT
+                    TaskMessages.Receive( child, childResult ); 
+                    IF childResult = foundSolution THEN
+                         result := foundSolution;
+                    END;
+                    TaskMessages.Reply( child, TaskMessages.DONTCARE );
+                    DEC( numTaken );
+                UNTIL numTaken = 0;
+
+                EXIT;   (* done with this task *)
+
+            END; (* IF *)
+
+        END; (* LOOP *)
+
+	IF NOT pleaseDie THEN
+	    (* Clear path handled by this solver *)
+	    WHILE numTaken > 0 DO       (* left overs with no tasks *)
+		DEC( numTaken );
+		Maze.KillPosition( childData[ numTaken ].pos );
+	    END;
+        
+	    IF result = failed THEN 
+		WHILE (startPos.row # oldPos.row) 
+		  OR (startPos.col # oldPos.col) DO
+		    Maze.KillPosition( oldPos );
+		END;
+		Maze.KillPosition( startPos );
+	    END;
+	END;
+
+        TaskMessages.Send( parent, result, TaskMessages.DONTCARE );
+
+        TaskMonitors.Enter( mutex );
+            DEC( numTasks );
+        TaskMonitors.Exit( mutex );
+
+    END SolverTask;
+
+
+PROCEDURE TimerTask( DONTCARE2 : SYSTEM.ADDRESS );
+    VAR
+        maCountCoord,
+        mtCountCoord  : Screen.Coordinate;
+        aCountCoord,
+        tCountCoord   : Screen.Coordinate;
+        buffer        : ARRAY [ 0 .. 2 ] OF CHAR;
+        parent        : Tasks.Object;
+	DONTCARE      : BOOLEAN;
+	prevNumTasks  : CARDINAL;
+	prevNumActive : CARDINAL;
+	prevMaxTasks  : CARDINAL;
+	prevMaxActive : CARDINAL;
+        
+    BEGIN (* TimerTask *)
+
+	TaskMonitors.Enter( Maze.mutex );
+	prevNumTasks := 0;
+        prevMaxTasks := 0;
+        tCountCoord.x := 0;
+        tCountCoord.y := 24;
+        Screen.PutBoldStringAt( tCountCoord, "Number of Solvers: " );
+        INC( tCountCoord.x, Strings.Length( "Number of Solvers: " ) );
+        mtCountCoord := tCountCoord;
+        INC( mtCountCoord.x, HIGH( buffer ) + 2 );
+        Screen.PutBoldStringAt( mtCountCoord, "(   )" );
+        INC( mtCountCoord.x );
+        
+	prevNumActive := 0;
+        prevMaxActive := 0;
+        aCountCoord.x := 40;
+        aCountCoord.y := 24;
+        Screen.PutBoldStringAt( aCountCoord, "Number of Active Solvers: " );
+        INC( aCountCoord.x, Strings.Length( "Number of Active Solvers: " ) );
+        maCountCoord := aCountCoord;
+        INC( maCountCoord.x, HIGH( buffer ) + 2 );
+        Screen.PutBoldStringAt( maCountCoord, "(   )" );
+        INC( maCountCoord.x );
+	TaskMonitors.Exit( Maze.mutex );
+        
+        REPEAT
+            TaskTime.Sleep( statsUpdate );
+            TaskMonitors.Enter( mutex );
+	    TaskMonitors.Enter( Maze.mutex );
+                (* Write number of tasks info *)
+		IF numTasks # prevNumTasks THEN
+		    prevNumTasks := numTasks;
+		    DONTCARE := CardConvert.ToString( numTasks, 10, 3, 
+						      buffer );
+		    Screen.PutBoldStringAt( tCountCoord, buffer );
+		    IF maxTasks # prevMaxTasks THEN
+			prevMaxTasks := maxTasks;
+			DONTCARE := CardConvert.ToString( maxTasks, 10, 3,  
+							  buffer );
+			Screen.PutBoldStringAt( mtCountCoord, buffer );
+		    END;
+                END;
+                    
+                (* Write number of active tasks info *)
+		IF numActive # prevNumActive THEN
+		    prevNumActive := numActive;
+		    DONTCARE := CardConvert.ToString( numActive, 10, 3,  
+						      buffer );
+		    Screen.PutBoldStringAt( aCountCoord, buffer );
+		    IF maxActive # prevMaxActive THEN
+			prevMaxActive := maxActive;
+			maxActive := numActive;
+			DONTCARE := CardConvert.ToString( maxActive, 10, 3,  
+							  buffer );
+			Screen.PutBoldStringAt( maCountCoord, buffer );
+		    END;
+                END;
+	    TaskMonitors.Exit( Maze.mutex );
+            TaskMonitors.Exit( mutex );
+        UNTIL ( numTasks = 0 ) OR pleaseDie;
+
+
+        TaskMessages.Receive( parent, TaskMessages.DONTCARE );
+        TaskMessages.Reply( parent, TaskMessages.DONTCARE );
+
+    END TimerTask;
+
+PROCEDURE DisplayTotals;
+    VAR
+        coord : Screen.Coordinate;
+	str   : GenConsts.Line;
+	DONTCARE : BOOLEAN;
+    BEGIN (* DisplayTotals *)
+
+	@IF LogitechM2 AND IbmPcArch THEN
+	    Card32.LINC16( numIterations, 1 );
+	@ELSE
+	    INC( numIterations );
+	@END
+
+	IF allTimeMaxActive < maxActive THEN
+	    allTimeMaxActive := maxActive;
+	END;
+	IF allTimeMaxTasks < maxTasks THEN
+	    allTimeMaxTasks := maxTasks;
+	END;
+
+	TaskMonitors.Enter( Maze.mutex );
+	    coord.x := 20;
+	    coord.y := 11;
+	    DONTCARE := CardConvert.ToString32( numIterations, 10, 0, str );
+	    Strings.Insert( str, Strings.BOS, "Iteration #" );
+	    Screen.PutBoldStringAt( coord, str );
+
+	    INC( coord.y );
+	    DONTCARE := CardConvert.ToString( allTimeMaxActive, 10, 0, str );
+	    Strings.Insert( str, Strings.BOS, "All-time maximum active = " );
+	    Screen.PutBoldStringAt( coord, str );
+
+	    INC( coord.y );
+	    DONTCARE := CardConvert.ToString( allTimeMaxTasks, 10, 0, str );
+	    Strings.Insert( str, Strings.BOS, "All-time maximum solvers = " );
+	    Screen.PutBoldStringAt( coord, str );
+	TaskMonitors.Exit( Maze.mutex );
+
+    END DisplayTotals;
+
+VAR
+    pleasePause : BOOLEAN;
+
+PROCEDURE PauseTask( DONTCARE : SYSTEM.ADDRESS );
+    (*
+     * Causes all of the tasks in the system to stop except for
+     * the keyboard task.
+     *)
+    BEGIN (* PauseTask *)
+	
+	WHILE NOT pleaseDie DO
+	    Tasks.Suspend;
+	    IF pleasePause THEN
+		TaskMonitors.Enter( Maze.mutex );
+		WHILE pleasePause DO
+		    Tasks.Suspend;
+		END;
+		TaskMonitors.Exit( Maze.mutex );
+	    END;
+	END;
+
+    END PauseTask;
+
+
+PROCEDURE KeyboardTask( DONTCARE : SYSTEM.ADDRESS );
+    (*
+     * Waits for a key and if it is 'q' or 'Q', it asks all the
+     * other tasks to die.  If it isn't, it toggles the pleasePause.
+     *)
+    VAR
+	key   : CHAR;
+	pause : Tasks.Object;
+    BEGIN (* KeyboardTask *)
+    
+	pleaseDie   := FALSE;
+	pleasePause := FALSE;
+	Tasks.Create( pause, pauseName, PauseTask, Tasks.DONTCARE, 
+		      pausePriority, pauseStackSize );
+	WHILE NOT pleaseDie DO
+	    IF KeyInput.Get( key ) THEN
+		pleaseDie := CAP( key ) = 'Q';
+		IF pleaseDie THEN
+		    pleasePause := FALSE;
+		ELSE
+		    pleasePause := NOT pleasePause;
+		END;
+		Tasks.Ready( pause );
+	    END;
+	END; (* WHILE *)
+
+    END KeyboardTask;
+
+VAR
+    allTimeMaxActive : CARDINAL;
+    allTimeMaxTasks  : CARDINAL;
+    numIterations    : SysTypes.CARDINAL32;
+    keyboard   : Tasks.Object;
+    timer      : Tasks.Object;
+    child      : Tasks.Object;
+    childData  :  ChildData;
+    ch         : CHAR;
+    DONTCARE   : Results;
+
+BEGIN (* Solver *)
+    
+    allTimeMaxActive := 0;
+    allTimeMaxTasks  := 0;
+    @IF LogitechM2 AND IbmPcArch THEN
+	Card32.Zero( numIterations );
+    @ELSE
+	numIterations := 0;
+    @END
+
+    Tasks.Create( keyboard, keyboardName, KeyboardTask, Tasks.DONTCARE,
+		  keyboardPriority, keyboardStackSize );
+
+    LOOP
+	mazeSolved := FALSE;
+
+	reverseDir[ Maze.up ]    := Maze.down;
+	reverseDir[ Maze.down ]  := Maze.up;
+	reverseDir[ Maze.left ]  := Maze.right;
+	reverseDir[ Maze.right ] := Maze.left;
+
+	numTasks  := 1;             (* count this task so timer won't exit
+				       until we want it to *)
+	maxTasks := 1;
+	numActive := 0;
+	maxActive := 0;
+
+	TaskMonitors.Create( mutex, "TaskCount" );
+
+	Maze.Create;
+
+	Tasks.Create( timer, timerName, TimerTask, Tasks.DONTCARE,
+		      timerPriority, timerStackSize );
+
+	WITH childData DO
+	    dir := Maze.right;
+	    WITH pos DO
+		row := Maze.startRow;
+		col := Maze.startCol;
+	    END;
+	END;
+
+
+	Tasks.Create( child, solverName, SolverTask, Tasks.DONTCARE,
+		      solverPriority, solverStackSize );
+
+	(* start the solution  *)
+	TaskMessages.Send( child, childData, TaskMessages.DONTCARE );
+
+	(* Wait for the solution to finish *)
+	TaskMessages.Receive( child, DONTCARE ); 
+
+	TaskMessages.Reply( child, TaskMessages.DONTCARE );
+
+	TaskMonitors.Enter( mutex );
+
+	    DEC( numTasks );                (* don't count this task,
+					       should cause timer to exit *)
+	TaskMonitors.Exit( mutex ); 
+
+	TaskMessages.Send( timer, TaskMessages.DONTCARE, 
+			   TaskMessages.DONTCARE );
+
+
+	TaskMonitors.Destroy( mutex );
+
+
+	IF pleaseDie THEN
+	    Maze.Destroy;        
+	    EXIT;
+	END;
+
+	DisplayTotals;
+
+	TaskTime.Sleep( restartDelay );
+
+	Maze.Destroy;        
+
+    END; (* LOOP *)
+
+    Notices.Call( TaskNotices.GetExitRequest(), Notices.DONTCARE );
+
+END Solver.

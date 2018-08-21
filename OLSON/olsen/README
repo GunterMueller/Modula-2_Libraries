@@ -1,0 +1,138 @@
+	     Olsen & Associates Portable Modula-2 Library
+	
+		     Version 1.0 -- October 1988
+
+**************************************************************************
+* Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.       *
+*                                                                        *
+*                          All Rights Reserved                           *
+*                                                                        *
+* Permission to use, copy, modify, and distribute this software and its  *
+* documentation for any purpose and without fee is hereby granted,       *
+* provided that the above copyright notice appear in all copies, and     *
+* that both that copyright notice and this permission notice appear in   *
+* supporting documentation, and that all modifications of this software  *
+* or its documentation not made by O&A or its agents are accompanied     *
+* by a prominent notice stating who made the modifications and the date  *
+* of the modifications.                                                  *
+*                                                                        *
+* O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS      *
+* DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND *
+* FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR *
+* CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF   *
+* USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR  *
+* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR *
+* PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.                     *
+**************************************************************************
+
+The Olsen & Associates Portable Modula-2 Library (henceforth library) was
+developed as a part of the Olsen Information System.  The library is
+being made available so that other people may benefit from its use.  
+We hope that you enjoy it and will forward it to other people who
+might find it useful.  Olsen & Associates expects that the library will
+be used in products for profit.  However, our aim is to show that companies
+can distribute by-product software free of charge without any
+cost to their profits.  In fact, we believe that giving away software
+enhances a company's products and reputation and therefore is a natural part
+of a sound software marketing strategy.
+
+Olsen & Associates is not in the business of selling software.  If you
+like this software, we would like to find out how much you like it.
+The best gauge in a free market system is to either buy our real
+service (economic research) or to send us a token of your appreciation.
+The reason for this is twofold.  The more people who send us money
+the larger the user community and hence the large the impetus to make
+bug fixes.  Monetary contributions will make the people that pay us happy.
+If the people that pay us are happy, then we will be able to produce more
+freely distributed software.  You may send contributions to:
+
+	Free Software Fund
+	Olsen & Associates
+	Research Institute For Applied Economics
+	Seefeldstrasse 233
+	CH-8008 Zurich
+	
+In any event, we hope you will find this software useful.
+
+
+Synopsis
+
+The library's foremost feature is its portability.  Applications which
+use the library should be portable (usually w/o modification) and the
+library definition and current implementation should easily port to other
+systems.  The library was originally centered around I/O, but has been
+expanded to include those facilities which we found were required for 
+Modula-2 application programming in general.   The following is a short
+list of features.  Put the word "portable" in front of all items.
+
+    o Binary (Direct) I/O	o Text I/O
+    o Program Arguments		o Program Environment Variables
+    o Program Error Handling	o Centralized Redirectable Error Output
+    o Memory Management		o Light-weight Processes (Tasks)
+    o Low Level Memory Ops	o CRC Computation
+    o Pseudo-Random Numbers	o String Manipulation and Conversions
+    o Debugging Support		o Terminal (Screen) Oriented I/O
+    o Generic List Facilities	o Modula-2 Source Preprocessor
+    o Config File Parsing	o I/O Name Management
+    o Directory I/O Facilities	o Flexible Formatted I/O
+    o Useful Types & Constants
+    
+Window systems, network communications, graphics, and time/date modules
+were not included, because they are less portable than the facilities
+listed above.  Perhaps we will release a separate package at some future
+date which will support these facilities.
+
+
+History & Acknowledgements
+
+This work would not have been possible without the monetary and philosophical
+support of Richard Olsen (at the time the library was written he was
+sole proprietor of Olsen & Associates).  He understands the great need
+to develop a large body of freely distributable software.  We also thank 
+the Free Software Foundation for legitimizing the concept of freely
+distributable software.
+
+The I/O part of the library was first designed in September 1985 by
+Rob Nagler.  At this time, most other library definitions were neither
+portable nor efficient.  The design was based upon the Ad Hoc Working Group's
+Library (Modus Issue #1), the standard Ada library, the Xerox Mesa-Pilot
+system, and the standard C library.
+
+Olsen & Associates started implementing the first Logitech 2.0 prototype
+of this basic library in August 1986.  This was done by Jon Bondy and 
+Rob Nagler.  The prototype was ported to the Sun by Thomas Beck and
+Vince Hatem in December 1986.  The prototype was ported back to the PC
+in January 1987 by Jon Bondy.  By May 1987, the library had been ported
+back and forth between the PC and Sun enough times that it became stable.
+Most of this later work was done by Rob Nagler.
+
+The light-weight process implementation (Tasks et al) was designed and
+implemented in April-June 1987.  Tasks was ported to Sun Modula-2 and to
+Logitech 3.0 in August-September 1988.  The original design and Sun port
+were done by Rob Nagler.  Robert Ward helped port the software to
+Logitech 3.0.
+
+Krzysztof Worytkiewicz implemented the current version of the Modula-2
+Preprocessor and RealConvert.  Bill Kelly has helped debug many hard
+problems.  Bill provided the grounds for and much guidance in the external
+design of FormatIO family as well as numerous other modules.  Ion Yadigaroglu
+was responsible for designing and implementation ScreenIO and FIOScreen.
+Franco Monti and Krzysztof Worytkiewicz were responsible for writing 
+many of the test programs.
+
+Any software package would not be complete without quality documentation.
+The internal documentation was done by designers and implementers.
+Rob Nagler and Toni Wuersch were responsible for the external documentation.
+Ion Yadigaroglu was responsible for reformatting the software so that it
+would be consistent with our new and improved coding style.  Joanne McKeigue 
+battled the LaTeX monster and programmer documentation in order to get the
+manual ready for distribution.
+
+
+Installation
+
+Read the file ``install.tex'' in the ``doc'' directory.  You should
+may have been supplied a printed copy of this file along with your
+order of the library.
+
+

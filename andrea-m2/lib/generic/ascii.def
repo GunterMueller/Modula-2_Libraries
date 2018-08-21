@@ -1,0 +1,46 @@
+DEFINITION MODULE ASCII;
+
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+   nul, soh, stx, etx, eot, enq, ack, bel, bs,  ht,  lf,  vt,
+   ff,  cr,  so,  si,  dle, dc1, dc2, dc3, dc4, nak, syn, etb,
+   can, em,  sub, esc, fs,  gs,  rs,  us,  del;
+
+CONST
+   nul = 00C;   (* null  ,           control @ *)
+   soh = 01C;   (*                   control A *)
+   stx = 02C;   (*                   control B *)
+   etx = 03C;   (*                   control C *)
+   eot = 04C;   (*                   control D *)
+   enq = 05C;   (*                   control E *)
+   ack = 06C;   (*                   control F *)
+   bel = 07C;   (* bell ,            control G *)
+   bs  = 10C;   (* backspace ,       control H *)
+   ht  = 11C;   (* tab  ,            control I *)
+   lf  = 12C;   (* line feed ,       control J *)
+   vt  = 13C;   (*                   control K *)
+   ff  = 14C;   (* form feed ,       control L *)
+   cr  = 15C;   (* carriage return , control M *)
+   so  = 16C;   (*           ,       control N *)
+   si  = 17C;   (*                   control O *)
+   dle = 20C;   (*                   control P *)
+   dc1 = 21C;   (*                   control Q *)
+   dc2 = 22C;   (*                   control R *)
+   dc3 = 23C;   (*                   control S *)
+   dc4 = 24C;   (*                   control T *)
+   nak = 25C;   (*                   control U *)
+   syn = 26C;   (*                   control V *)
+   etb = 27C;   (*                   control W *)
+   can = 30C;   (*                   control X *)
+   em  = 31C;   (*                   control Y *)
+   sub = 32C;   (*                   control Z *)
+   esc = 33C;   (* escape ,          control [ *)
+   fs  = 34C;   (*                   control \ *)
+   gs  = 35C;   (*                   control ] *)
+   rs  = 36C;   (*                   control ^ *)
+   us  = 37C;   (*                   control _ *)
+   del = 177C;  (* del                         *)
+
+END ASCII.

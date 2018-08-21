@@ -1,0 +1,295 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tStringBinaryIO;
+   
+IMPORT 
+    BinaryIO,		IOErrors,	SYSTEM,		Strings,
+    Intrinsics,		ProgErr,	ProgErrOutput,	CardConvert,	
+    SysTypes,		StringBinaryIO;
+
+@IF LogitechM2 THEN
+    IMPORT
+	Card32;
+@END (* LogitechM2 *)
+
+PROCEDURE Error( msg     : ARRAY OF CHAR;
+		 ioError : IOErrors.Errors );
+    VAR
+	string : IOErrors.String;
+    BEGIN
+	IOErrors.ToString( ioError, string );
+	Message( string );
+	ProgErr.Terminate( msg );
+    END Error;
+
+PROCEDURE Message(msg : ARRAY OF CHAR);
+    BEGIN
+	ProgErrOutput.WriteString(msg);
+	ProgErrOutput.WriteLn;
+    END Message;
+
+CONST
+    blkSize1 = 2487;	
+    blkSize2 = 3456;
+    blkData1 = 47;
+    blkData2 = 1333;
+
+TYPE
+    Blk1 = ARRAY [0..blkSize1-1] OF CARDINAL;
+    Blk2 = ARRAY [0..blkSize2-1] OF CARDINAL;
+
+(*
+ * To avoid huge stacks, we declare this stuff globally.
+ *)
+VAR
+    blk1  : Blk1;
+    blk2  : Blk2;
+    read  : CARDINAL;
+    file : BinaryIO.Object;
+    i     : CARDINAL;
+    str   : BinaryIO.IndexString;
+    index : BinaryIO.Index;
+    idx    : BinaryIO.Index;
+    ioError : IOErrors.Errors;
+    options : StringBinaryIO.FullOptions;
+    size   : CARDINAL;
+
+PROCEDURE Test( blockSize : StringBinaryIO.BlockSizes );
+    BEGIN (* Test *)
+
+	(* initialize data in blocks to be written *)
+	FOR i := 0 TO HIGH( blk1 ) DO
+	    blk1[i] := i + blkData1;
+	END;
+	FOR i := 0 TO HIGH( blk2 ) DO
+	    blk2[i] := i + blkData2;
+	END;
+
+	IF blockSize = StringBinaryIO.defaultBlockSize THEN
+	    (* don't make class specific options *)
+	    options := '';
+	ELSE
+	    StringBinaryIO.MakeOptions( blockSize, options );
+	END;
+	BinaryIO.MakeOptions( StringBinaryIO.className, options, options );
+	ioError := BinaryIO.Open(file, '', BinaryIO.readWrite, options);
+	IF ioError # IOErrors.ok THEN
+	    Error('Unable to open file.', ioError);
+	END;
+	Message('File opened');
+
+	IF (BinaryIO.WriteBlock(file, blk1) <> BinaryIO.ok) THEN
+	    Error('Unable to write first block', BinaryIO.GetError( file ));
+	END;
+	Message('First block written');
+
+	IF (BinaryIO.WriteBlock(file, blk2) <> BinaryIO.ok) THEN
+	    Error('Unable to write second block', BinaryIO.GetError( file ));
+	END;
+	Message('Second block written');
+
+	(* zero memory areas before reads *)
+	FOR i := 0 TO HIGH( blk1 ) DO
+	    blk1[i] := 0;
+	END;
+	FOR i := 0 TO HIGH( blk2 ) DO
+	    blk2[i] := 0;
+	END;
+
+	(* Rewind the file *)
+	IF (BinaryIO.GetStart(file, index) = BinaryIO.error) THEN
+	    Error('Unable to get start position', BinaryIO.GetError( file ));
+	END;
+	IF BinaryIO.SetIndex( file, index ) = BinaryIO.error THEN
+	    Error('Unable to rewind file.', ioError);
+	END;
+	Message('File rewound');
+
+	IF (BinaryIO.ReadBlock(file, blk1) <> BinaryIO.ok) THEN
+	    Error('Unable to read first block (Block)', 
+		  BinaryIO.GetError( file ));
+	END;
+	FOR i := 0 TO HIGH( blk1 ) DO
+	    IF (blk1[i] <> (i + blkData1)) THEN
+		Error('Data error in block 1', BinaryIO.GetError( file ));
+	    END;
+	END;
+	Message('First block read');
+
+	IF (BinaryIO.ReadBlock(file, blk2) <> BinaryIO.ok) THEN
+	    Error('Unable to read second block (Block)', 
+		  BinaryIO.GetError( file ));
+	END;
+	FOR i := 0 TO HIGH( blk2 ) DO
+	    IF (blk2[i] <> (i + blkData2)) THEN
+		Error('Data error in block 2', BinaryIO.GetError( file ));
+	    END;
+	END;
+	Message('Second block read');
+
+	(* make sure we get EOF next time *)
+	IF (BinaryIO.ReadBlock(file, blk2) <> BinaryIO.endOfFile) THEN
+	    Error('EOF not reached after second block', 
+		  BinaryIO.GetError( file ));
+	END;
+	Message('Proper EOF');
+
+	(* check GetIndex and IndexToString *)
+	(* note that current file state is endOfFile, so can't expect 
+	   "ok" back *)
+	IF (BinaryIO.GetIndex(file, index) = BinaryIO.error) THEN
+	    Error('Unable to get current position', BinaryIO.GetError( file ));
+	END;
+	BinaryIO.IndexToString(index, str);
+	IF NOT CardConvert.FromString( str, 10, size ) THEN
+	    Error( 'Unable to convert index string to cardinal.', 
+		    IOErrors.ok  );
+	END;
+	IF size # SYSTEM.TSIZE( Blk1 ) + SYSTEM.TSIZE( Blk2 ) THEN
+	    Error( 'File size is incorrect', IOErrors.ok );
+	END;
+
+	(* the following simulates a "rewind" *)
+	(* note that current file state is endOfFile, 
+	   so can't expect "ok" back *)
+	IF (BinaryIO.GetStart(file, idx) = BinaryIO.error) THEN
+	    Error('Unable to get start of file', BinaryIO.GetError( file ));
+	END;
+
+	(* note that current file state is endOfFile, 
+ 	   so can't expect "ok" back *)
+	IF (BinaryIO.SetIndex(file, idx) = BinaryIO.error) THEN
+	    Error('Unable to re-position file to start', 
+		  BinaryIO.GetError( file ));
+	END;
+	Message('File rewound');
+
+	(* make sure we can still "see" end index and it is correct *)
+	IF (BinaryIO.GetEnd(file, idx) <> BinaryIO.ok) THEN
+	    Error('Unable to get end position', BinaryIO.GetError( file ));
+	END;
+	IF BinaryIO.CompareIndex( idx, index ) # Intrinsics.equal THEN
+	    Error('GetIndex not equal to GetEnd', BinaryIO.GetError( file ));
+	END;
+
+	(* zero memory areas before reads *)
+	FOR i := 0 TO HIGH( blk1 ) DO
+	    blk1[i] := 0;
+	END;
+	FOR i := 0 TO HIGH( blk2 ) DO
+	    blk2[i] := 0;
+	END;
+
+	(* now, try to read the file again, with ReadBytes this time *)
+	IF (BinaryIO.ReadBytes(file, SYSTEM.ADR(blk1), 
+		SYSTEM.TSIZE(Blk1), read) <> BinaryIO.ok) OR 
+	    (read <> SYSTEM.TSIZE(Blk1)) THEN
+	    Error('Unable to read first block (Bytes)', 
+		BinaryIO.GetError( file ));
+	END;
+	FOR i := 0 TO HIGH( blk1 ) DO
+	    IF (blk1[i] <> (i + blkData1)) THEN
+		Error('Data error in block 1', BinaryIO.GetError( file ));
+	    END;
+	END;
+	Message('First block re-read');
+
+	(* now, try to read the file again, with ReadBytes this time *)
+	IF (BinaryIO.ReadBytes(file, SYSTEM.ADR(blk2), 
+				SYSTEM.TSIZE(Blk2), read) <> BinaryIO.ok) OR 
+	    (read <> SYSTEM.TSIZE(Blk2)) THEN
+	    Error('Unable to read second block (Bytes)', 
+		  BinaryIO.GetError( file ));
+	END;
+	FOR i := 0 TO HIGH( blk2 ) DO
+	    IF (blk2[i] <> (i + blkData2)) THEN
+		Error('Data error in block 2', BinaryIO.GetError( file ));
+	    END;
+	END;
+	Message('Second block re-read');
+
+	(* make sure we get EOF next time *)
+	IF (BinaryIO.ReadBytes(file, SYSTEM.ADR(blk2), 
+			    SYSTEM.TSIZE(Blk2), read) <> BinaryIO.endOfFile) OR
+	   (read <> 0) THEN
+	    Error('EOF not reached after second block (Bytes)', 
+		  BinaryIO.GetError( file ));
+	END;
+	Message('Proper EOF');
+
+	(* position just after the first block *)
+	(* note that current file state is endOfFile, 
+	   so can't expect "ok" back *)
+	IF (BinaryIO.GetStart(file, index) = BinaryIO.error) THEN
+	    Error('Unable to get start of file (second time)', 
+		  BinaryIO.GetError( file ));
+	END;
+	(* note that current file state is endOfFile, 
+	   so can't expect "ok" back *)
+	BinaryIO.CalculateIndex(index, 1, SYSTEM.TSIZE( Blk1 ), index);
+	IF (BinaryIO.SetIndex(file, index) <> BinaryIO.ok) THEN
+	    Error('Unable to position file to end of first block', 
+		  BinaryIO.GetError( file ));
+	END;
+	Message('File re-positioned after first block');
+
+	(* test truncation *)
+	IF (BinaryIO.Truncate(file) <> BinaryIO.ok) THEN
+	    Error('Unable to truncate', BinaryIO.GetError( file ));
+	END;
+	Message('File truncated');
+
+	(* check GetIndex and IndexToString *)
+	(* note that current file state is endOfFile, 
+	   so can't expect "ok" back *)
+	IF (BinaryIO.GetEnd(file, index) = BinaryIO.error) THEN
+	    Error('Unable to get end position', BinaryIO.GetError( file ));
+	END;
+	BinaryIO.IndexToString(index, str);
+	IF NOT CardConvert.FromString( str, 10, size ) THEN
+	    Error( 'Unable to convert index string to cardinal.', 
+		   IOErrors.ok  );
+	END;
+	IF size # SYSTEM.TSIZE( Blk1 ) THEN
+	    Error( 'File size is incorrect', IOErrors.ok );
+	END;
+
+    END Test;
+
+
+BEGIN (* tStringBinaryIO *)
+
+    Message('>>>>>>>>>>>>Testing default block size'); 
+    Test( StringBinaryIO.defaultBlockSize );
+ 
+    Message('>>>>>>>>>>>>Testing maximum block size'); 
+    Test( StringBinaryIO.maxBlockSize );
+
+    Message('>>>>>>>>>>>>Testing minimum block size'); 
+    Test( StringBinaryIO.minBlockSize );
+
+    Message('>>>>>>>>>>>>Testing block size which is a prime'); 
+    Test( 317 );
+
+    Message('Test completed without error');
+END tStringBinaryIO.

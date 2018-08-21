@@ -1,0 +1,102 @@
+DEFINITION FOR C MODULE UnixCsys_file;
+(*
+ * See the include file: 
+ *     /usr/include/sys/file.h
+ *
+ * See the following man pages:
+ *     creat(2), open(2), close(2), read(2), write(2), 
+ *     lseek(2), fsync(2), select(2), isatty(3), and dup(2).
+ *)
+IMPORT
+    SYSTEM,
+    UnixCsys_time,
+    UnixCtypes;
+
+CONST
+    FOPEN   = -1;
+    FREAD   = 00001B;	
+    FWRITE  = 00002B;	
+    FMARK   = 00020B;	
+    FDEFER  = 00040B;	
+    FSHLOCK = 00200B;	
+    FEXLOCK = 00400B;	
+
+CONST
+    FMASK     = 00113B;
+    FCNTLCANT = FREAD + FWRITE + FMARK + FDEFER + FSHLOCK + FEXLOCK;
+
+CONST
+    LOCK_SH = 1;	
+    LOCK_EX = 2;	
+    LOCK_NB = 4;	
+    LOCK_UN = 8;	
+
+CONST
+    L_SET  = 0;		
+    L_INCR = 1;		
+    L_XTND = 2;		
+
+CONST
+    stdInputHandle  = 0;
+    stdOutputHandle = 1;
+    stdErrorHandle  = 2;
+
+PROCEDURE creat(
+    name : ARRAY OF CHAR;
+    mode : INTEGER
+    )    : INTEGER;
+
+PROCEDURE open(
+    path  : ARRAY OF CHAR;
+    flags : INTEGER;
+    mode  : INTEGER
+    )     : INTEGER;
+
+PROCEDURE close(
+    d : INTEGER
+    ) : INTEGER;
+
+PROCEDURE read(
+    d      : INTEGER;
+    buffer : SYSTEM.ADDRESS;
+    nbytes : CARDINAL
+    )      : INTEGER;
+
+PROCEDURE write(
+    d      : INTEGER;
+    buffer : SYSTEM.ADDRESS;
+    nbytes : CARDINAL
+    )      : INTEGER;
+
+PROCEDURE lseek(
+    d      : INTEGER;
+    offset : UnixCtypes.long;
+    whence : INTEGER
+    )      : UnixCtypes.long;
+
+PROCEDURE fsync(
+    fd : INTEGER
+    )  : INTEGER;
+
+PROCEDURE select(
+        width     : INTEGER;
+    VAR readfds   : BITSET;
+    VAR writefds  : BITSET;
+    VAR exceptfds : BITSET;
+	timeout   : UnixCsys_time.timeval
+    )             : INTEGER;
+
+PROCEDURE isatty(
+    filedes : INTEGER
+    )       : INTEGER;
+		       
+PROCEDURE dup(
+    oldd : INTEGER
+    )    : INTEGER;
+
+PROCEDURE dup2(
+    oldd : INTEGER;
+    newd : INTEGER
+    )    : INTEGER;
+
+END UnixCsys_file.

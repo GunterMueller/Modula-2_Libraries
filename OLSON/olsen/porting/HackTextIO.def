@@ -1,0 +1,85 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE HackTextIO;
+(*
+ * THIS MODULE CONTAINS AS MUCH IMPLEMENTATION AS NECESSARY TO SUPPORT
+ * THE PROGRAM hackm2pp.  THE ONLY PROCEDURES WHICH REALLY COUNT ARE
+ * ReadChars, WriteChars, and WriteLn.  THE SEMANTICS OF THESE PROCEDURES
+ * MUST BE LIKE TextIO TO AS GREAT AN EXTENT AS REQUIRED.
+ *)
+IMPORT 
+    IOConsts,
+    SYSTEM,
+    SysTypes;
+EXPORT QUALIFIED
+    Object,		States,		DONTCARE,
+    ReadChars,		WriteChars, 	WriteLn,
+    PrintErrorMessage,	GetOpenPath,
+    GetInput,		GetOutput;
+
+TYPE
+    Object;
+
+    States = ( 
+        ok,         (* previous IO operation was successful *)
+        endOfFile,  (* end-of-file was read in last IO operation *)
+        endOfLine,  (* end-of-line was read in last IO operation *)
+        error       (* the last IO operation failed *)
+    );
+VAR
+    DONTCARE : States;
+
+PROCEDURE ReadChars(
+        file      : Object;          (* in "ok" state and readable *)
+        buf       : SYSTEM.ADDRESS;  (* location where read data is put *)
+        bufSize   : SysTypes.Card;   (* maximum number of chars to read *)
+    VAR charsRead : SysTypes.Card    (* actual number of chars read *)
+    )             : States;          (* see States *)
+
+PROCEDURE WriteChars(
+        file    : Object;          (* not in "error" state and writable *)
+        buf     : SYSTEM.ADDRESS;  (* contains data to be written *)
+        bufSize : SysTypes.Card    (* number of bytes to be written *)
+    )           : States;          (* success => "ok" *)
+
+PROCEDURE WriteLn(
+    file : Object   (*  in "ok" state and writable *)
+    )    : States;  (* success => "ok" *)
+
+PROCEDURE PrintErrorMessage(
+    file : Object;
+    msg  : ARRAY OF CHAR
+    );
+
+PROCEDURE GetOpenPath(
+        file : Object;        (* must be valid *)
+    VAR path : IOConsts.Path  (* path of external file, or empty *)
+    );
+
+PROCEDURE GetInput(
+    ) : Object;  (* is "readOnly" *)
+
+PROCEDURE GetOutput(
+    ) : Object;  (* is "appendOnly" *)
+
+END HackTextIO.

@@ -1,0 +1,152 @@
+DEFINITION MODULE SimpleWindows;
+
+(*
+ Simple windowing procedures based upon  VAX SMG$ Run Time Library procedures.
+ This set of procedures provides a simpler method of accessing the SMG$
+*)
+
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+      action_status, PasteBoard, Display,
+      CreateDisplay, CreatePasteBoard, DeleteChars,    DeleteDisplay,
+      DeleteLine,    DeletePasteBoard, DrawLine,       DrawRectangle,
+      EraseChars,    EraseDisplay,     EraseLine,      InsertChars,
+      InsertLine,    LabelBorder,      MoveCursor,     MoveDisplay,
+      PasteDisplay,  PopDisplay,       PutChars,       PutLine,
+      PutWithScroll, RepaintScreen,    RepasteDisplay, RestoreScreen,
+      RingBell,      SaveScreen,       SetCursor,      SetPhysicalCursor,
+      ScrollDisplay, UnpasteDisplay,
+
+      AddBorder,     RemoveBorder,
+
+      VideoTypes,    VideoAttributes,   ChangeDisplayVideo;
+
+(* -------------------------------------------------------------------------- *)
+
+VAR
+   action_status :BOOLEAN;
+
+TYPE
+   PasteBoard; (* hidden *)
+   Display;    (* hidden *)
+
+
+TYPE
+   VideoTypes      = ( video_normal, video_bold, video_reverse, video_blink,
+                       video_underline );
+   VideoAttributes = SET OF VideoTypes;
+
+(* -------------------------------------------------------------------------- *)
+
+PROCEDURE CreateDisplay( VAR  display  :Display;
+                         rows, cols    :CARDINAL;
+                         border        :BOOLEAN );
+   
+PROCEDURE CreatePasteBoard( VAR  pasteboard :PasteBoard );
+
+PROCEDURE DeleteChars( display  :Display;
+                       n_chars  :CARDINAL;
+                       row, col :CARDINAL );
+
+PROCEDURE DeleteDisplay( display :Display );
+
+PROCEDURE DeleteLine( display    :Display;
+                      start_row  :CARDINAL;
+                      n_rows     :CARDINAL );
+
+PROCEDURE DeletePasteBoard( pasteboard :PasteBoard );
+
+PROCEDURE DrawLine( display              :Display;
+                    start_row, start_col :CARDINAL;
+                    end_row, end_col     :CARDINAL );
+
+PROCEDURE DrawRectangle( display       :Display;
+                         top_left_row  :CARDINAL;
+                         top_left_col  :CARDINAL;
+                         bot_right_row :CARDINAL;
+                         bot_right_col :CARDINAL );
+
+PROCEDURE EraseChars( display  :Display;
+                      n_chars  :CARDINAL;
+                      row, col :CARDINAL );
+
+PROCEDURE EraseDisplay( display              :Display;
+                        start_row, start_col :CARDINAL;
+                        end_row, end_col     :CARDINAL );
+
+PROCEDURE EraseLine( display  :Display;
+                     row, col :CARDINAL );
+
+PROCEDURE InsertChars( display  :Display;
+                       text     :ARRAY OF CHAR;
+                       row, col :CARDINAL );
+
+PROCEDURE InsertLine( display  :Display;
+                      row      :CARDINAL;
+                      text     :ARRAY OF CHAR );
+
+PROCEDURE LabelBorder( display :Display;
+                       text    :ARRAY OF CHAR );
+
+PROCEDURE MoveCursor( display              :Display;
+                      delta_row, delta_col :CARDINAL );
+
+PROCEDURE MoveDisplay( display     :Display;
+                       pasteboard  :PasteBoard;
+                       row, col    :CARDINAL );
+
+PROCEDURE PasteDisplay( display    :Display;
+                        pasteboard :PasteBoard;
+                        row, col   :CARDINAL );
+
+PROCEDURE PopDisplay( display    :Display;
+                      pasteboard :PasteBoard );
+
+PROCEDURE PutChars( display   :Display;
+                    text      :ARRAY OF CHAR;
+                    row, col  :CARDINAL );
+
+PROCEDURE PutLine( display   :Display;
+                   text      :ARRAY OF CHAR;
+                   line_adv  :CARDINAL );
+
+PROCEDURE PutWithScroll( display :Display;
+                         text    :ARRAY OF CHAR );
+
+PROCEDURE RepaintScreen( pasteboard :PasteBoard );
+
+PROCEDURE RepasteDisplay( display    :Display;
+                          pasteboard :PasteBoard;
+                          row, col   :CARDINAL );
+
+PROCEDURE RestoreScreen( pasteboard :PasteBoard;
+                         display    :Display );
+   
+PROCEDURE RingBell( display  :Display );
+
+PROCEDURE SaveScreen( pasteboard   :PasteBoard;
+                      VAR  display :Display );
+
+PROCEDURE SetCursor( display  :Display;
+                     row, col :CARDINAL );
+
+PROCEDURE SetPhysicalCursor( pasteboard :PasteBoard;
+                             row, col   :CARDINAL );
+
+PROCEDURE ScrollDisplay( display   :Display;
+                         direction :CARDINAL;
+                         count     :CARDINAL );
+
+PROCEDURE UnpasteDisplay( display    :Display;
+                          pasteboard :PasteBoard );
+
+PROCEDURE AddBorder( display :Display );
+
+PROCEDURE RemoveBorder( display :Display );
+
+PROCEDURE ChangeDisplayVideo( display   :Display;
+                              new_video :VideoAttributes );
+
+END SimpleWindows.

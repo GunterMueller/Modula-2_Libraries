@@ -1,0 +1,15 @@
+DEFINITION MODULE Plotter;
+
+(* X-Y Plotting into a Regis graphics file. *)
+
+(* J. Andrea, Jul.11/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+EXPORT QUALIFIED Plot;
+
+  PROCEDURE Plot( out_file :ARRAY OF CHAR;
+                  title :ARRAY OF CHAR; x, y :ARRAY OF REAL; n :CARDINAL );
+  (* Create a file 'out_file' containing Regis graphics commands,
+     given the data points in 'x,y', with 'n' being the number of points *)
+
+END Plotter.

@@ -1,0 +1,288 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE Strings;
+(*
+ * Provides fundamental string manipulations (assignment, 
+ * concatenation, character deletion, character copying,
+ * comparison, pattern matching, and justification).
+ *
+ * Some definitions used in the descriptions:
+ *     Static length  = HIGH( string ) + 1.
+ *     Dynamic length = return of Length procedure (declared below).
+ *                      The length is either the static length or the
+ *                      number of characters in the string before a
+ *                      null character (0C) is encountered.
+ *
+ * All result strings will be proper Modula-2 strings;
+ * they will be null terminated if necessary.
+ * 
+ * The following rules and definitions attempt to generalize 
+ * the approach taken in this module:
+ *     source     - string to be operated upon.
+ *     dest       - (actual) result of the operation (destination).
+ *     sourceDest - serves as both a "source" and the "dest".
+ *     startIndex - first place in "source" to be begin operating.
+ *     stopIndex  - last place in source to begin operating.
+ *
+ * Rule 1  Applies to Assign, AssignOK, Insert, InsertOK, Concat, 
+ *         ConcatOK, Substring, and SubstringOK:
+ *
+ *         These operations have a logical result and an actual result.
+ *         The actual result is "dest". The logical result ("result") is
+ *         what would have happened if "dest" were of infinite capacity;
+ *         "result" is the non-truncated version of "dest". The "OK"
+ *         versions will return TRUE if "dest" and "result" are the
+ *         same, and FALSE if they are not ("result" had to be truncated).
+ *         In all cases, "dest" is valid, but only the "OK" versions
+ *         indicate that truncation has occurred.
+ *         
+ * Rule 2  Applies to Insert, InsertOK, Substring, SubstringOK, Delete,
+ *         and Position:
+ *
+ *         If "startIndex" or "stopIndex" is not less than or equal to
+ *         the dynamic length of "source", then the caller is terminated.
+ *         The dynamic length may be used as an index even though it
+ *         is technically outside of the "range" of the string.
+ *
+ * Rule 3  Applies to Substring, SubstringOK, Delete:
+ * 
+ *         If stopIndex is strictly less than startIndex,
+ *         the caller is terminated.
+ *)
+IMPORT 
+    Intrinsics,
+    SYSTEM,
+    SysTypes;
+
+EXPORT QUALIFIED
+    BOS,          EOS,          Length,          LengthAdr,
+    Assign, 	  AssignOK,     Concat,       	 ConcatOK,        
+    Insert, 	  InsertOK,     Substring,       SubstringOK,     
+    Delete, 	  Compare,      Position,     
+    Justifications,  		Justify;
+
+CONST
+    (* 
+     * The following values can be passed to any index value parameter.
+     * Their purpose is for documentation and convenience, because they
+     * treat beginning-of-string and end-of-string symbolically. The
+     * value of BOS is, naturally, zero by the definition of Modula-2.
+     * A typical usage is:
+     *
+     *     Strings.Delete( someString, someIndex, Strings.EOS );
+     *
+     * Here, all the characters from someIndex to the end of someString
+     * will be deleted. This is equivalent to:
+     *
+     *     Strings.Delete( string, someIndex, Strings.Length( string ) );
+     *
+     * The advantage in using EOS is that the intention is made more clear.
+     * Note also that the number of procedure calls is reduced when EOS is 
+     * used. Strings.BOS should be used as well for completeness.
+     *)
+    BOS = 0;                            (* Beginning of the string *)
+    EOS = SysTypes.maxArrayIndexCHAR;   (* Logical end of the string *)
+
+PROCEDURE Length(
+    source : ARRAY OF CHAR  (* String to determine the length of *)
+    )      : SysTypes.Card; (* Dynamic length of string *)
+
+PROCEDURE LengthAdr(
+    source : SYSTEM.ADDRESS; (* POINTER TO ARRAY OF CHAR *)
+    high   : SysTypes.Card   (* HIGH( source^ ) *)
+    )      : SysTypes.Card;  (* Dynamic length of string *)
+
+PROCEDURE Assign(
+        source  : ARRAY OF CHAR;  (* String to be copied *)
+    VAR dest    : ARRAY OF CHAR   (* Where to copy *)
+    );
+                  
+PROCEDURE AssignOK(
+        source  : ARRAY OF CHAR;  (* String to be copied *)
+    VAR dest    : ARRAY OF CHAR   (* Where to copy *)
+    )           : BOOLEAN;        (* FALSE => Had to be truncated *)
+    (*
+     * Copy the contents of the source into the destination
+     * starting from BOS for both.
+     *)
+
+PROCEDURE Concat(
+        leftSource  : ARRAY OF CHAR;  (* Left hand part of result concat *)
+        rightSource : ARRAY OF CHAR;  (* Right hand part of result concat *)
+    VAR dest        : ARRAY OF CHAR   (* Concatenation of both *)
+    );
+                                
+PROCEDURE ConcatOK(
+        leftSource  : ARRAY OF CHAR;  (* Left hand part of result concat *)
+        rightSource : ARRAY OF CHAR;  (* Right hand part of result concat *)
+    VAR dest        : ARRAY OF CHAR   (* Concatenation of both *)
+    )               : BOOLEAN;        (* FALSE => Had to be truncated *)
+    (*
+     * Assign "leftSource" to "dest" and then copy the contents of
+     * "rightSource" to the positions starting at Length( leftSource )
+     * index of "dest".
+     *)
+
+PROCEDURE Insert(
+    VAR sourceDest : ARRAY OF CHAR;  (* String to be modified *)
+        startIndex : SysTypes.Card;  (* Where to insert in string *)
+        toInsert   : ARRAY OF CHAR   (* What to insert *)
+    );
+                        
+PROCEDURE InsertOK(
+    VAR sourceDest : ARRAY OF CHAR;  (* String to be modified *)
+        startIndex : SysTypes.Card;  (* Where to insert in sting *)
+        toInsert   : ARRAY OF CHAR   (* What to insert *)
+    )              : BOOLEAN;        (* FALSE => Had to be truncated *)
+    (*
+     * Insert "toInsert" into "sourceDest" at the "startIndex".
+     *
+     * To be exact, split "sourceDest" into two logical parts: 
+     *     source1 : characters at indexes [ BOS .. startIndex - 1 ]
+     *     source2 : characters at indexes [ startIndex .. EOS ]
+     * The operation is then equivalent to:
+     *     Concat( source1, toInsert, sourceDest );
+     *     Concat( sourceDest, source2, sourceDest );
+     *)
+
+PROCEDURE Substring(
+        source     : ARRAY OF CHAR;  (* String to be partially copied *)
+        startIndex : SysTypes.Card;  (* First character to be copied *)
+        stopIndex  : SysTypes.Card;  (* Last character to be copied *)
+    VAR dest       : ARRAY OF CHAR   (* Where to copy *)
+    );
+                                 
+PROCEDURE SubstringOK(
+        source     : ARRAY OF CHAR;  (* String to be partially copied *)
+        startIndex : SysTypes.Card;  (* First character to be copied *)
+        stopIndex  : SysTypes.Card;  (* Last character to be copied *)
+    VAR dest       : ARRAY OF CHAR   (* Where to copy *)
+    )              : BOOLEAN;        (* FALSE => Had to be truncated *)
+    (*
+     * Copy a selected region of characters from source to dest.  
+     *
+     * "startIndex" is the first index to copy from "source" and
+     * "stopIndex" points to the last character to be copied.
+     * The characters are copied into dest starting at BOS.
+     *)
+
+PROCEDURE Delete(
+    VAR sourceDest : ARRAY OF CHAR;  (* String to be modified *)
+        startIndex : SysTypes.Card;  (* First character to be deleted *)
+        stopIndex  : SysTypes.Card   (* Last character to be deleted *)
+    );
+    (*
+     * Eliminate the characters from "sourceDest" starting at
+     * "startIndex" and ending at "stopIndex" (inclusive).
+     *)
+
+PROCEDURE Compare(
+    left  : ARRAY OF CHAR;              (* Left side of comparison *)
+    right : ARRAY OF CHAR               (* Right side of comparison *)
+    )     : Intrinsics.CompareResults;  (* Less, equal or greater *)
+    (*
+     * Provides an implementation dependent deterministic ordering
+     * of all legal Modula-2 strings (as in a dictionary).
+     *
+     * The strings can be of different lengths.
+     *)
+
+PROCEDURE Position(
+        source        : ARRAY OF CHAR;  (* Where to look for "searchPattern" *)
+        startIndex    : SysTypes.Card;  (* Index in "source" to start search *)
+        stopIndex     : SysTypes.Card;  (* Index in "source" to stop search *)
+        searchPattern : ARRAY OF CHAR;  (* What is to be found in "source" *)
+    VAR foundIndex    : SysTypes.Card   (* Index of left most char in source *)
+    )                 : BOOLEAN;        (* TRUE => Found *)
+    (*
+     * Provides simple string pattern matching.
+     *
+     * If the "searchPattern" is completely contained in the region
+     * specified by "startIndex" and "stopIndex", the operation succeeds
+     * and "foundIndex" points to the start of the found "searchPattern".
+     *
+     * The order of searching is dependent upon the values of "startIndex"
+     * and "stopIndex". If "startIndex" is less than "stopIndex", the
+     * "source" will be searched in a normal left to right order. If
+     * "startIndex" is greater than "stopIndex", the search will proceed
+     * backwards from right to left. Thus, this procedure provides both
+     * forward and reverse searching of strings.
+     * 
+     * If searchPattern is empty, this function returns TRUE.
+     *)
+
+TYPE 
+    Justifications = (
+        justifyLeft,    (* "before" -> "before??????" *)
+        justifyCenter,  (* "before" -> "???before???" *)
+        justifyRight    (* "before" -> "??????before" *)
+    );
+                  
+PROCEDURE Justify(
+    VAR sourceDest    : ARRAY OF CHAR;   (* What is to be adjusted *)   
+        justification : Justifications;  (* How to adjust string *)
+        finalLength   : SysTypes.Card;   (* Final length of "sourceDest" *)
+        fillPattern   : ARRAY OF CHAR    (* What to fill blanks with *)
+    );
+    (* 
+     * Performs adjustment of sourceDest in a specified length
+     * with an arbitrary fillPattern. The algorithm has two stages
+     * in which we need to treat sourceDest as "source" and "dest"
+     * so that the result will be apparent.
+     *
+     * The caller will be terminated if "finalLength" is greater
+     * than the static length of "dest", or if the dynamic length
+     * of "fillPattern" is zero.
+     *
+     * Algorithm:
+     *     First, "dest" is made zero in length, then "fillPattern" is
+     *     continuously concatenated onto "dest". Second, "source" is
+     *     copied on top of the newly created "dest"; "source"
+     *     is an overlay on the repeated "fillPattern". The starting
+     *     index of the overlay is governed by the justification value.
+     *
+     *     The starting index is:
+     *         leftJustify   = BOS.
+     *         centerJustify = ( finalLength - Length( source ) ) DIV 2.
+     *         rightJustify  = finalLength - Length( source ).
+     *
+     *     If "finalLength" is less than the dynamic length of "source",
+     *     the above algorithm is not followed and the resulting
+     *     operations degrade to:
+     *         left:
+     *             Truncate the string to finalLength, i.e. 
+     *             Delete( sourceDest, finalLength, EOS );
+     *         center:
+     *             The result is the center section of the string which
+     *             is finalLength characters long, i.e.
+     *             stopIndex := ( Length( source ) - finalLength ) DIV 2 - 1
+     *             Delete( sourceDest, BOS, stopIndex );
+     *             Delete( sourceDest, finalLength, EOS );
+     *         right:
+     *             Delete characters from the left until the dynamic 
+     *             length is equal to finalLength, i.e.
+     *             Delete( sourceDest, BOS, Length( source )-finalLength-1 );
+     *)
+
+END Strings.
+

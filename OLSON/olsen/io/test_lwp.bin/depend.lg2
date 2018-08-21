@@ -1,0 +1,44 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+tkeyboar.mod: ..\test_pc.src\tkeyboar.mpp 
+	${StandardM2pp}
+bintest.mod: ..\test.src\bintest.mpp 
+	${StandardM2pp}
+cardiote.mod: ..\test.src\cardiote.mpp 
+	${StandardM2pp}
+cardioti.mod: ..\test.src\cardioti.mpp 
+	${StandardM2pp}
+changedi.mod: ..\test.src\changedi.mpp 
+	${StandardM2pp}
+dirtest.mod: ..\test.src\dirtest.mpp 
+	${StandardM2pp}
+hello.mod: ..\test.src\hello.mpp 
+	${StandardM2pp}
+intiotes.mod: ..\test.src\intiotes.mpp 
+	${StandardM2pp}
+realiote.mod: ..\test.src\realiote.mpp 
+	${StandardM2pp}
+realioti.mod: ..\test.src\realioti.mpp 
+	${StandardM2pp}
+tcopy.mod: ..\test.src\tcopy.mpp 
+	${StandardM2pp}
+tcopyobj.mod: ..\test.src\tcopyobj.mpp 
+	${StandardM2pp}
+tdirioli.mod: ..\test.src\tdirioli.mpp 
+	${StandardM2pp}
+tionames.mod: ..\test.src\tionames.mpp 
+	${StandardM2pp}
+tioversi.mod: ..\test.src\tioversi.mpp 
+	${StandardM2pp}
+tlistwit.mod: ..\test.src\tlistwit.mpp 
+	${StandardM2pp}
+tscreeni.mod: ..\test.src\tscreeni.mpp 
+	${StandardM2pp}
+tstringb.mod: ..\test.src\tstringb.mpp 
+	${StandardM2pp}

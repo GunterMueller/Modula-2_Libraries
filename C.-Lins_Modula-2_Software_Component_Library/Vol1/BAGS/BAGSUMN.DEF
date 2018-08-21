@@ -1,0 +1,124 @@
+DEFINITION MODULE BagSUMN;
+(*==============================================================
+    Version  : 1.00  02 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Bag
+               Sequential Unbounded Managed Non-Iterator
+
+    INTRODUCTION
+    This module provides the Bag ADT for generic Items.
+
+    REVISION HISTORY
+    v1.00  02 May 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2.
+
+    (C) Copyright 1989 Charles A. Lins
+================================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ErrorHandling IMPORT
+    (*--Proc*) HandlerProc;
+
+FROM BagEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  Bag;
+CONST NullBag = Bag(NIL);
+
+
+    (*---------------------------------*)
+    (*--          EXCEPTIONS         --*)
+
+CONST ModuleID = 8;
+
+PROCEDURE BagError    ()             : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+                           toHandler : HandlerProc (*-- in    *));
+
+
+    (*---------------------------------*)
+    (*--        CONSTRUCTORS         --*)
+
+PROCEDURE Create        (    theType : TypeID (*-- in    *))
+                                     : Bag    (*-- out   *);
+
+PROCEDURE Destroy       (VAR theBag  : Bag    (*-- inout *));
+
+PROCEDURE Clear         (VAR theBag  : Bag    (*-- inout *));
+
+PROCEDURE Assign        (    theBag  : Bag    (*-- in    *);
+                         VAR toBag   : Bag    (*-- inout *));
+
+PROCEDURE Include       (    theItem : Item   (*-- in    *);
+       	       	         VAR inBag   : Bag    (*-- inout *));
+
+PROCEDURE Exclude       (    theItem : Item   (*-- in    *);
+       	       	         VAR fromBag : Bag    (*-- inout *));
+
+PROCEDURE Union         (    left    : Bag    (*-- in    *);
+       	       	             right   : Bag    (*-- in    *);
+                         VAR toBag   : Bag    (*-- inout *));
+
+PROCEDURE Intersection  (    left    : Bag    (*-- in    *);
+       	       	             right   : Bag    (*-- in    *);
+                         VAR toBag   : Bag    (*-- inout *));
+
+PROCEDURE Difference    (    left    : Bag    (*-- in    *);
+       	       	             right   : Bag    (*-- in    *);
+                         VAR toBag   : Bag    (*-- inout *));
+
+PROCEDURE SymDifference (    left    : Bag    (*-- in    *);
+       	       	             right   : Bag    (*-- in    *);
+                         VAR toBag   : Bag    (*-- inout *));
+
+
+    (*---------------------------------*)
+    (*--         SELECTORS           --*)
+
+PROCEDURE IsDefined     (    theBag  : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty       (    theBag  : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual       (    left    : Bag      (*-- in    *);
+                             right   : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE TypeOf        (    theBag  : Bag      (*-- in    *))
+                                     : TypeID   (*-- out   *);
+
+PROCEDURE NumMembers    (    theBag  : Bag      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE UniqueMembers (    theBag  : Bag      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE IsAMember     (    theItem : Item     (*-- in    *);
+       	       	             theBag  : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE NumberOf      (    theItem : Item     (*-- in    *);
+       	       	             theBag  : Bag      (*-- in    *))
+                                     : CARDINAL (*-- out   *);
+
+PROCEDURE IsSubset      (    left    : Bag      (*-- in    *);
+                             right   : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsProperSubset(    left    : Bag      (*-- in    *);
+       	       	             right   : Bag      (*-- in    *))
+                                     : BOOLEAN  (*-- out   *);
+
+END BagSUMN.

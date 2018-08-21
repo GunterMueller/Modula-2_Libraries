@@ -1,0 +1,143 @@
+DEFINITION FOR C MODULE UnixCmath;
+(*
+ * See include file:
+ *     /usr/include/math.h
+ *
+ * See man pages:
+ *     intro(3M), asinh(3M), erf(3M), exp(3M), floor(3M), hypot(3M), 
+ *     ieee(3M), j0(3M), lgamma(3M), matherr(3M), sin(3M), sinh(3M),
+ *     sqrt(3M)
+ *)
+IMPORT
+    UnixCtypes;
+VAR
+    errno   : INTEGER;
+    signgam : INTEGER;
+
+PROCEDURE fmod( x : LONGREAL ) : LONGREAL;
+PROCEDURE gamma( x : LONGREAL ) : LONGREAL;
+
+TYPE
+    struct_exception = RECORD
+	type   : INTEGER;
+	name   : UnixCtypes.p_char;
+	arg1   : LONGREAL;
+	arg2   : LONGREAL;
+	retval : LONGREAL;
+    END;
+    exception = POINTER TO struct_exception;
+
+PROCEDURE matherr(
+    x : exception
+    ) : INTEGER;
+
+PROCEDURE asinh( x : LONGREAL ) : LONGREAL;
+PROCEDURE acosh( x : LONGREAL ) : LONGREAL;
+PROCEDURE atanh( x : LONGREAL ) : LONGREAL;
+PROCEDURE erf( x : LONGREAL ) : LONGREAL;
+PROCEDURE erfc( x : LONGREAL ) : LONGREAL;
+PROCEDURE exp( x : LONGREAL ) : LONGREAL;
+PROCEDURE expm1( x : LONGREAL ) : LONGREAL;
+PROCEDURE log( x : LONGREAL ) : LONGREAL;
+PROCEDURE log10( x : LONGREAL ) : LONGREAL;
+PROCEDURE log1p( x : LONGREAL ) : LONGREAL;
+PROCEDURE pow( x : LONGREAL; y : LONGREAL ) : LONGREAL;
+PROCEDURE fabs( x : LONGREAL ) : LONGREAL; 
+PROCEDURE floor( x : LONGREAL ) : LONGREAL; 
+PROCEDURE ceil( x : LONGREAL ) : LONGREAL; 
+PROCEDURE rint( x : LONGREAL ) : LONGREAL;
+PROCEDURE lgamma( x : LONGREAL ) : LONGREAL;
+PROCEDURE hypot( x : LONGREAL; y : LONGREAL ) : LONGREAL; 
+TYPE
+    struct_z = RECORD
+	x : LONGREAL;
+	y : LONGREAL;
+    END;
+PROCEDURE cabs( z : struct_z ) : LONGREAL;
+PROCEDURE copysign( x : LONGREAL; y : LONGREAL ) : LONGREAL; 
+PROCEDURE drem( x : LONGREAL; y : LONGREAL ) : LONGREAL; 
+PROCEDURE logb( x : LONGREAL ) : LONGREAL; 
+PROCEDURE scalb( x : LONGREAL; n : INTEGER ) : LONGREAL;
+PROCEDURE finite( x : LONGREAL ) : INTEGER;
+PROCEDURE j0( x : LONGREAL ) : LONGREAL; 
+PROCEDURE j1( x : LONGREAL ) : LONGREAL; 
+PROCEDURE jn( x : LONGREAL; n : INTEGER ) : LONGREAL; 
+PROCEDURE y0( x : LONGREAL ) : LONGREAL; 
+PROCEDURE y1( x : LONGREAL ) : LONGREAL; 
+PROCEDURE yn( x : LONGREAL; n : INTEGER ) : LONGREAL;
+PROCEDURE sin( x : LONGREAL ) : LONGREAL; 
+PROCEDURE cos( x : LONGREAL ) : LONGREAL; 
+PROCEDURE tan( x : LONGREAL ) : LONGREAL; 
+PROCEDURE asin( x : LONGREAL ) : LONGREAL; 
+PROCEDURE acos( x : LONGREAL ) : LONGREAL; 
+PROCEDURE atan( x : LONGREAL ) : LONGREAL; 
+PROCEDURE atan2( x : LONGREAL; y : LONGREAL ) : LONGREAL;
+PROCEDURE sinh( x : LONGREAL ) : LONGREAL; 
+PROCEDURE cosh( x : LONGREAL ) : LONGREAL; 
+PROCEDURE tanh( x : LONGREAL ) : LONGREAL; 
+PROCEDURE cbrt( x : LONGREAL ) : LONGREAL; 
+PROCEDURE sqrt( x : LONGREAL ) : LONGREAL;
+PROCEDURE modf( x : LONGREAL ) : LONGREAL; 
+PROCEDURE ldexp( value : LONGREAL; exp : INTEGER ) : LONGREAL; 
+PROCEDURE frexp( value : LONGREAL; VAR eptr : INTEGER ) : LONGREAL; 
+PROCEDURE atof( value : LONGREAL; VAR iptr : LONGREAL ) : LONGREAL;
+
+CONST
+    M_E		= 2.7182818284590452354;
+    M_LOG2E	= 1.4426950408889634074;
+    M_LOG10E	= 0.43429448190325182765;
+    M_LN2	= 0.69314718055994530942;
+    M_LN10	= 2.30258509299404568402;
+    M_PI	= 3.14159265358979323846;
+    M_PI_2	= 1.57079632679489661923;
+    M_PI_4	= 0.78539816339744830962;
+    M_1_PI	= 0.31830988618379067154;
+    M_2_PI	= 0.63661977236758134308;
+    M_2_SQRTPI	= 1.12837916709551257390;
+    M_SQRT2	= 1.41421356237309504880;
+    M_SQRT1_2	= 0.70710678118654752440;
+
+@IF SunArch THEN
+    MAXFLOAT = 3.40282346638528860e+38;
+    (* Compiler restriction:
+	HUGE = 99.0E999;	(* IEEE infinity *)
+    *)
+    HUGE = MAXFLOAT;
+@ELSE 
+    @IF U3bArch OR U3b5Arch THEN
+	MAXFLOAT = 3.40282346638528860e+38;
+    @END
+    @IF Pdp11Arch OR VaxArch THEN
+	MAXFLOAT = 1.701411733192644299e+38;
+    @END
+    @IF GcosArch THEN
+	MAXFLOAT = 1.7014118219281863150e+38;
+    @END
+    HUGE = MAXFLOAT;
+@END
+
+(*
+ * #define _ABS(x)	((x) < 0 ? -(x) : (x))
+ * #define _REDUCE(TYPE, X, XN, C1, C2)	{ \
+ *	double x1 = (double)(TYPE)X, x2 = X - x1; \
+ *	X = x1 - (XN) * (C1); X += x2; X -= (XN) * (C2); }
+ * #define _POLY1(x, c)	((c)[0] * (x) + (c)[1])
+ * #define _POLY2(x, c)	(_POLY1((x), (c)) * (x) + (c)[2])
+ * #define _POLY3(x, c)	(_POLY2((x), (c)) * (x) + (c)[3])
+ * #define _POLY4(x, c)	(_POLY3((x), (c)) * (x) + (c)[4])
+ * #define _POLY5(x, c)	(_POLY4((x), (c)) * (x) + (c)[5])
+ * #define _POLY6(x, c)	(_POLY5((x), (c)) * (x) + (c)[6])
+ * #define _POLY7(x, c)	(_POLY6((x), (c)) * (x) + (c)[7])
+ * #define _POLY8(x, c)	(_POLY7((x), (c)) * (x) + (c)[8])
+ * #define _POLY9(x, c)	(_POLY8((x), (c)) * (x) + (c)[9])
+ *)
+
+CONST
+    DOMAIN	= 1;
+    SING	= 2;
+    OVERFLOW	= 3;
+    UNDERFLOW	= 4;
+    TLOSS	= 5;
+    PLOSS	= 6;
+
+END UnixCmath.

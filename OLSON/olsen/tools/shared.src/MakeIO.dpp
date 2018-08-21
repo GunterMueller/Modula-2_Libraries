@@ -1,0 +1,117 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE MakeIO;
+(*
+ * Provides a clean model for creating makeinstances.
+ * Warning: makefiles may not contain certain entries whose
+ *          string values contain a ":".  This module checks
+ *          for those illegal values and returns failure in
+ *          such an event.
+ *
+ * HISTORY:
+ *     30.09.86 [Rico Cozzio] ported to Sun.
+ *)
+
+
+EXPORT QUALIFIED
+    Instance,		Create,		Destroy,	EntryTypes,
+    BeginEntry, 	AppendEntry;
+
+TYPE
+    Instance;		(* an instance of this module *)
+
+PROCEDURE Create( VAR instance : Instance;
+		      name     : ARRAY OF CHAR )
+			       : BOOLEAN;
+    (*
+     * Tries to create the named makeinstance for writing.  If the instance
+     * already exists, the old instance is overwritten.
+     *
+     * INPUT:
+     *    name     = name of the instance to be created.
+     *
+     * OUTPUT:
+     *    instance = valid instance variable, if <result> is TRUE.
+     *    <result> = TRUE, if the instance was successfully created.
+     *		     FALSE, if for some reason the instance couldn't be opened.
+     *)
+
+PROCEDURE Destroy( VAR instance : Instance ) 
+			        : BOOLEAN;
+    (*
+     * Close the the specified instance.  The last entry will be terminated
+     * properly.
+     *
+     * INPUT:
+     *    instance = valid instance handle.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the close was successful.
+     *		     FALSE, some type of media error occurred.
+     *)
+                 
+TYPE
+    EntryTypes = ( null,		(* separate rules or whatever *)
+		   macroDeclaration,	(* variable declaration *)
+		   dependency,		(* target dependency list *)
+		   comment,		(* comment lines *)
+		   include,		(* include file specification *)
+		   command,		(* a single command line *)
+		   graph );		(* sungrab graph information *)
+
+PROCEDURE BeginEntry( instance : Instance;
+		      string   : ARRAY OF CHAR;
+		      type     : EntryTypes ) 
+		               : BOOLEAN;
+    (*
+     * Initiates a makeinstance entry of the type specified.  The former
+     * entry is properly terminated and a new one is begun.  The string
+     * is either the first part of the entry.
+     * 
+     * INPUT:
+     *    instance = valid instance handle.
+     *    string   = a literal to be output to the makeinstance.
+     *    type	   = what type of entry to initiate.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the operation was successful.
+     * 		     FALSE, failed because of an unopened instance, or...
+     *)
+
+PROCEDURE AppendEntry( instance : Instance;
+		       string   : ARRAY OF CHAR )
+			        : BOOLEAN;
+    (*
+     * Appends the dependent or whatever to the current make entry.
+     * The string is not interpreted specially.
+     * 
+     * INPUT:
+     *    instance = valid instance handle.
+     *    string   = a literal to be output to the makeinstance.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the operation was successful.
+     * 		     FALSE, failed because of an unopened instance, or...
+     *)
+
+END MakeIO.

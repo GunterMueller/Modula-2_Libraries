@@ -1,0 +1,72 @@
+DEFINITION FOR C MODULE UnixCsys_time;
+(* 
+ * See the file:
+ *     /usr/include/sys/time.h
+ *
+ * See the man pages:
+ *     gettimeofday(2), getitimer(2)
+ *)
+IMPORT
+    UnixCtypes;
+
+TYPE
+    struct_timeval = RECORD
+	tv_sec  : UnixCtypes.long;	
+	tv_usec : UnixCtypes.long;	
+    END;
+    timeval = POINTER TO struct_timeval;
+
+    struct_timezone = RECORD
+	tz_minuteswest : INTEGER;	
+	tz_dsttime     : INTEGER;	
+    END;
+    timezone = POINTER TO struct_timezone;
+
+CONST
+    DST_NONE    = 0;	
+    DST_USA	= 1;	
+    DST_AUST 	= 2;	
+    DST_WET	= 3;	
+    DST_MET	= 4;	
+    DST_EET	= 5;	
+    DST_CAN	= 6;	
+    DST_GB	= 7;	
+    DST_RUM	= 8;	
+    DST_TUR	= 9;	
+    DST_AUSTALT = 10;	
+
+CONST
+    ITIMER_REAL	   = 0;
+    ITIMER_VIRTUAL = 1;
+    ITIMER_PROF    = 2;
+
+TYPE
+
+    struct_itimerval = RECORD
+	it_interval : struct_timeval;	
+	it_value    : struct_timeval;	
+    END;
+    itimerval  = POINTER TO struct_itimerval;
+
+PROCEDURE gettimeofday(
+    tp  : timeval;
+    tzp : timezone
+    )   : INTEGER;
+
+PROCEDURE settimeofday(
+    tp  : timeval;
+    tzp : timezone
+    )   : INTEGER;
+
+PROCEDURE getitimer(
+    which : INTEGER;
+    value : itimerval
+    )     : INTEGER;
+
+PROCEDURE setitimer(
+    which  : INTEGER;
+    value  : itimerval;
+    ovalue : itimerval
+    )      : INTEGER;
+
+END UnixCsys_time.

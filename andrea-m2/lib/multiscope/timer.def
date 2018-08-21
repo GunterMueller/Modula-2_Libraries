@@ -1,0 +1,17 @@
+DEFINITION MODULE Timer;
+
+(* get time stats *)
+(* J. Andrea, May.18/92 - dos version ? *)
+
+EXPORT QUALIFIED StartTimer, ShowTimer;
+
+PROCEDURE StartTimer;
+(* start up the timer *)
+
+PROCEDURE StopTimer;
+(* stp the timer *)
+
+PROCEDURE ShowTimer;
+(* get the current value of the timer, since the last show *)
+
+END Timer.

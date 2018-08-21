@@ -1,0 +1,239 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE QStrings;
+(*
+ * The implementation is a real hack.   Once we have more uses, it would
+ * be better to implement a new version of the module Strings which doesn't
+ * use indices, but does car/cdr and snobol type stuff.  It would be interesting
+ * if a string stack implementation would make sense (be a fair amount of
+ * work though).
+ *
+ * The object is two staged, because we need to be able to resize without
+ * changing the pointer returned to the user.  
+ *
+ * Strings are allocated in granules of size granuleLength so that we
+ * don't tear up memory too much.
+ *)
+IMPORT
+    Objects,
+    SafeStorage,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END
+
+CONST
+    moduleName = "QStrings";
+
+CONST
+    lengthToSize = SysTypes.bitsPerArrayCHAR DIV SysTypes.bitsPerSAU;
+	(* 
+	 * To use this value say: size := length DIV lengthToSize.
+	 *
+	 * ASSUMES: SysTypes.bitsPerArrayCHAR >= SysTypes.bitsPerSAU
+	 * See SysTypesCheck in init body.
+	 *)
+
+    granuleLength = 16;	(* Reasonable sized for PC and Sun *)
+    
+TYPE
+    String    = POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR ] OF CHAR;
+
+    Object    = POINTER TO ObjectRec;
+    ObjectRec = RECORD	(* PARTIALLY ALLOCATED *)
+	length    : SysTypes.Card;  (* actual number of chars in the string *)
+	allocated : SysTypes.Card;  (* number of allocated SAUs *)
+	data      : String;	    (* partially allocated; not null 
+				       terminated *)
+    END;
+
+VAR
+    objectMgr : Objects.Manager;
+
+PROCEDURE Create(
+    VAR qstring      : Object;
+        initialValue : ARRAY OF CHAR
+    );
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* Create *)
+	
+	Objects.Allocate( objectMgr, qstring );
+	WITH qstring^ DO 
+	    length := Strings.Length( initialValue );
+	    IF length = 0 THEN
+		data := NIL;
+		allocated := 0;
+		RETURN;
+	    END;
+	    (* Allocate chunks (rounded up, of course) *)
+	    allocated := ( ( ( length + granuleLength - 1 ) DIV granuleLength )
+			   * granuleLength ) DIV lengthToSize;
+	    SafeStorage.ALLOCATE( data, allocated );
+	    FOR i := 0 TO length - 1 DO
+		data^[ i ] := initialValue[ i ];
+	    END;
+	END;
+
+    END Create;
+
+
+PROCEDURE Destroy(
+    VAR qstring : Object
+    );
+    BEGIN (* Destroy *)
+
+	IF NOT Objects.IsValid( objectMgr, qstring ) THEN	
+	    RETURN;	(* Not valid, don't do anything *)
+	END;
+
+	WITH qstring^ DO 
+	    IF allocated # 0 THEN
+		SafeStorage.DEALLOCATE( data, allocated );
+	    END;
+	END; (* WITH *)
+	Objects.Deallocate( objectMgr, qstring );
+    
+    END Destroy;
+
+    
+PROCEDURE SetInvalid(
+    VAR qstring : Object
+    );
+    BEGIN (* SetInvalid *)
+	
+	qstring := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE FromM2(
+    newValue : ARRAY OF CHAR;
+    qstring  : Object
+    );
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* FromM2 *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, qstring );
+	@END (* Assert *)
+
+	WITH qstring^ DO 
+	    (* 
+	     * Only allocate if the string gets larger than "allocated".
+	     *)
+	    length := Strings.Length( newValue );
+	    IF length = 0 THEN
+		RETURN;	(* Nothing to copy *)
+	    END;
+
+	    (* Is the string bigger? *)
+	    IF length > ( allocated * lengthToSize ) THEN
+		(* Something we have to deallocate? *)
+		IF allocated # 0 THEN
+		    SafeStorage.DEALLOCATE( data, allocated );
+		END;
+		(* Allocate rounded up value *)
+		allocated := ( ( ( length + granuleLength - 1 ) 
+			DIV granuleLength ) * granuleLength ) DIV lengthToSize;
+		SafeStorage.ALLOCATE( data, allocated );
+	    END;
+
+	    (* Copy 1 or more bytes *)
+	    FOR i := 0 TO length - 1 DO 
+		data^[ i ] := newValue[ i ]; 
+	    END;
+	END;
+    
+    END FromM2;
+
+
+PROCEDURE ToM2(
+        qstring  : Object;
+    VAR value    : ARRAY OF CHAR
+    );
+    VAR
+	i    : SysTypes.Card;
+	high : SysTypes.Card;
+    BEGIN (* ToM2 *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, qstring );
+	@END (* Assert *)
+
+	WITH qstring^ DO 
+	    (* Get an odd-case out of the way *)
+	    IF length = 0 THEN
+		value[ 0 ] := 0C; 
+		RETURN;
+	    END;
+
+	    (*
+	     * If the value is not big enough, we must use its high.
+	     * If the value is not exactly the right size, then we
+	     * must null-terminate (do it now while we have more info).
+	     *)
+	    high := length - 1; 
+	    IF high > HIGH( value ) THEN
+		high := HIGH( value );
+	    ELSIF high # HIGH( value ) THEN
+		value[ length ] := 0C;
+	    END;
+
+	    (* Move it on over... *)
+	    FOR i := 0 TO high DO
+		value[ i ] := data^[ i ];
+	    END;
+	END; (* WITH *)
+    
+    END ToM2;
+
+
+PROCEDURE Length(
+    qstring : Object
+    )       : SysTypes.Card;
+    BEGIN (* Length *)
+
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, qstring );
+	@END (* Assert *)
+
+	RETURN qstring^.length;
+    END Length;
+
+BEGIN (* QStrings *)
+
+    @IF SysTypesCheck THEN
+	IF lengthToSize = 0 THEN
+	    ProgErr.Terminate( "QStrings: SysTypesCheck failed." );
+	END;
+    @END
+    
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ),
+			   moduleName );
+END QStrings.

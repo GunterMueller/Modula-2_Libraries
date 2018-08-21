@@ -1,0 +1,84 @@
+DEFINITION MODULE REGISGraphics;
+
+(* simple REGIS Graphics routines *)
+(* J. Andrea, Apr.30/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(*
+ This type of graphics is available on VT240, VT241, VT330, and VT430
+ terminals, which includes DECWindows DECTerm windows as well.
+
+ These modules differ slightly from standard REGIS calls in that the
+ standard is to have row values increasing from top to bottom, this set
+ of routines is more geared to X-Y graphics and so:
+ X direction is across columns, increasing from left to right, and
+ Y direction is along rows, increasing from top to bottom.
+
+ There is one known bug in these routines, if SYS$OUTPUT is the output
+ file for interactive graphics then the output may not be flushed after
+ every command so some segments may be missing. A way around this is to
+ close/open the output file after each screen is complete.
+*)
+
+
+EXPORT QUALIFIED
+   BeginRegis, EndRegis,
+   EraseScreen, GetDimensions,  GetPosition,
+   Border, Move, Dot, Line, Circle, Rectangle, VectorMove, VectorLine, Text,
+   Command;
+
+
+PROCEDURE BeginRegis( filename :ARRAY OF CHAR );
+(* define the output file to hold the graphics commands,
+   if interactive graphics then define filename as SYS$OUTPUT *)
+
+PROCEDURE EndRegis;
+(* close the current output file *)
+
+
+PROCEDURE EraseScreen;
+(* erase the whole display *)
+
+PROCEDURE GetDimensions( VAR x, y :CARDINAL );
+(* return the maximum possible dimensions of the display *)
+
+PROCEDURE GetPosition( VAR x, y :CARDINAL );
+(* return the current location of the cursor *)
+
+
+PROCEDURE Border;
+(* draw a border around the largest dimensions *)
+
+PROCEDURE Move( x, y :CARDINAL );
+(* move to the new location, make it the current point *)
+
+PROCEDURE Dot;
+(* draw a dot at the current location *)
+
+PROCEDURE Line( x, y :CARDINAL );
+(* draw a line from the current point to the new point,
+   and the new point will become the current point *)
+
+PROCEDURE Circle( radius :CARDINAL; filled :BOOLEAN );
+(* draw a circle of the given radius from the current point *)
+
+PROCEDURE Rectangle( width, height :CARDINAL; filled :BOOLEAN );
+(* draw a rectangle, one corner at current point,
+   opposite corner at current+width,current+height *)
+
+PROCEDURE VectorMove( length :CARDINAL; angle :REAL );
+(* move from the current location given a length and angle *)
+
+PROCEDURE VectorLine( length :CARDINAL; angle :REAL );
+(* draw a line from the current location given a length and angle,
+   and the new point will become the current point *)
+
+PROCEDURE Text( string :ARRAY OF CHAR; size :CARDINAL );
+(* put some text at the current location *)
+
+
+PROCEDURE Command( string :ARRAY OF CHAR );
+(* put some other REGIS command into the output stream *)
+
+
+END REGISGraphics.

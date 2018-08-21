@@ -1,0 +1,23 @@
+$ Weird stuff. Format: scientific.
+$
+#test1
+0000000000000000000000000000000000.0
+scientific
+normal
+15
+5
+5
+#test1
+0000000000000000000.0000000000000000
+scientific
+normal
+15
+5
+5
+#test1
+0.0000000000000000000000000000000000
+scientific
+normal
+15
+5
+5

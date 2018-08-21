@@ -1,0 +1,12 @@
+Logitech 3.0 Compiler
+8.8.88
+    o The linker gets a fatal error when trying to link our largest program
+      (aprox. 155 modules).  We couldn't get passed this, so we aren't using
+      it any more.   Logitech 2.0 was able to link this, no problem.
+16.9.88
+    o Doesn't support SIZE as a pervasive identifier as Modula-2 3.0 should.
+1.10.88
+    o Can't have relative path names (i.e. ..\foo) in M2OBJ path.
+    o DebugPMD doesn't handle dumps during termination code properly.
+      It should generate a dump by another name instead of writing
+      over the dump of the original error.

@@ -1,0 +1,1329 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE TestStrings; 
+
+IMPORT 
+   Strings, Objects, Intrinsics, CardConvert, SYSTEM, 
+   GenTestIO, TestIO, TestSystem, StringLib;
+
+CONST
+    FalseResult = 8;
+    UnequalSize = 9;
+    PatternMissing = 10;
+    SourceTruncation = 11;
+    ConcatTruncation = 12;
+    SomeTruncation = 13;
+    LessChars = 14;
+    UnequalLength = 15;
+    ResultOk = 16;
+
+TYPE
+    Ops = ( stringResult, cardResult, compResult, 
+	    onStringUsed, twStringsUsed, patternUsed, 
+	    lengthUsed, startUsed, stopUsed,   
+	    justificationUsed );
+    Options = SET OF Ops; 
+    ParmsRec = RECORD
+		   Flags: Options;
+		   String1,
+		   String2,
+		   Pattern: StringLib.string;
+		   Length,
+		   Start,
+		   Stop: CARDINAL;
+		   Justification: Strings.Justifications; 
+               END;
+
+    ResRec = RECORD
+		 Flags: Options;
+		 ResString:StringLib.string;
+		 ResCard: CARDINAL;
+		 ResComp: Intrinsics.CompareResults;
+             END;
+    PointerToData = POINTER TO DataRec;
+    DataRec = RECORD
+                  Parms: ParmsRec;
+		  ExpectedResults,
+		  Results: ResRec;
+              END;
+
+VAR
+    DataMgr: Objects.Manager;
+
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Length( Data: TestSystem.dataType; 
+		  VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+     VAR
+	 Ptr: PointerToData;
+
+    BEGIN
+	Ptr:= Data;
+	WITH Ptr^ DO   
+	    IF Parms.Flags # Options{ onStringUsed } THEN
+		Msg:= TestSystem.WrongData;
+		RETURN FALSE;
+            ELSE
+	        IF Results.Flags # Options{ cardResult } THEN
+		    Msg:= TestSystem.WrongData;
+		    RETURN FALSE;
+                ELSE
+		    WITH Parms.String1 DO WITH Results DO CASE Size OF
+			StringLib.short: 
+			    ResCard:=Strings. Length( ShortString )
+			|
+			StringLib.normal: 
+			    ResCard:=Strings. Length( NormalString )
+			|
+			StringLib.long: 
+			    ResCard:=Strings. Length( LongString )
+                    END;    (* case *)
+		    END;    (* with Results *)
+                    END;    (* with Parms.String1 *)   
+                END;    (* if Results.Flags *)
+            END;    (* if Flags *)
+            RETURN TRUE;
+        END;    (* with Ptr^ *)
+	  
+    END Length; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Justify( Data: TestSystem.dataType; 
+	       VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+(* SinceStrings.Justify pads the initial contents of a string, the argument
+   string of Justify "Parms.String1" has to be copied to "Results.ResString"
+   first, according to the general philosophy of the program ( ha! ). Then,
+   aStrings.Justify with "Results.ResString" as argument is performed. 
+   Notice that Pattern is also ofStringLib.string, that means all the three 
+   variants have to be considered ( another monstrous CASE ). 
+   Justify returns always TRUE with an error-free data file *)
+
+     VAR
+	 Ptr: PointerToData;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ onStringUsed, lengthUsed, 
+				       patternUsed, justificationUsed } 
+	     THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ stringResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+		     WITH Parms DO WITH Results DO IF 
+		     ResString.Size #String1.Size THEN
+			 Msg:= TestSystem.WrongData;
+			 RETURN FALSE;
+                     ELSE CASE ResString.Size OF 
+			 StringLib.short:  
+			     ResString.ShortString:= String1.ShortString;
+			     CASE Pattern.Size OF
+				 StringLib.short:
+				    Strings.Justify( ResString.ShortString, 
+						 Justification, 
+						 Length, 
+						 Pattern.ShortString )
+				 |
+				 StringLib.normal:
+				    Strings.Justify( ResString.ShortString, 
+						 Justification,  
+						 Length, 
+						 Pattern.NormalString )
+				 |
+				 StringLib.long:
+				    Strings.Justify( ResString.ShortString, 
+						 Justification, 
+						 Length, 
+						 Pattern.LongString )
+			     END;    (* case Pattern.Size *)
+			 | 
+			 StringLib.normal:
+			     ResString.NormalString:= String1.NormalString;
+			     CASE Pattern.Size OF
+				 StringLib.short:
+				    Strings.Justify( ResString.NormalString, 
+						 Justification, 
+						 Length, 
+						 Pattern.ShortString )
+				 |
+				 StringLib.normal:
+				    Strings.Justify( ResString.NormalString, 
+						 Justification, 
+						 Length, 
+						 Pattern.NormalString )
+				 |
+				 StringLib.long:
+				    Strings.Justify( ResString.NormalString, 
+						 Justification, 
+						 Length, 
+						 Pattern.LongString )
+			     END;    (* case Pattern.Size *)
+			 |
+			 StringLib.long:  
+			     ResString.LongString:= String1.LongString;
+			     CASE Pattern.Size OF
+				 StringLib.short:
+				    Strings.Justify( ResString.LongString, 
+						 Justification, 
+						 Length, 
+						 Pattern.ShortString )
+				 |
+				 StringLib.normal:
+				    Strings.Justify( ResString.LongString, 
+						 Justification,  
+						 Length, 
+						 Pattern.NormalString )
+				 |
+				 StringLib.long:
+				    Strings.Justify( ResString.LongString, 
+						 Justification,  
+						 Length, 
+						 Pattern.LongString )
+			     END;    (* case Pattern.Size *)
+		     END;    (* case ResString.Size *)
+		     END;    (* if ResString.Size # *)
+		     END;    (* with Results *)
+		     END;    (* with Parms *) 
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	     RETURN TRUE;
+	 END;    (* with Ptr^ *)
+	  
+     END Justify; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Compare( Data: TestSystem.dataType; 
+	           VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+  
+(* If the two argument strings "Parms.String1" and "Parms.String2" have the 
+   same static length, a Strings.Compare is performed and Compare returns
+   TRUE, otherwise Compare returns FALSE *)
+
+     VAR
+	 Ptr: PointerToData;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ twStringsUsed } THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ compResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+		     WITH Parms DO WITH Results DO 
+			 IF String1.Size = String2.Size THEN CASE 
+			 String1.Size OF
+			     StringLib.short: ResComp:= Strings.Compare( 
+					String1.ShortString, 
+					String2.ShortString )
+			     |
+			     StringLib.normal: ResComp:=Strings.Compare( 
+						String1.NormalString, 
+						String2.NormalString )
+			     |
+			     StringLib.long: ResComp:=Strings.Compare( 
+					      String1.LongString, 
+					      String2.LongString )
+			 END;    (* case *)
+			 ELSE
+			     Msg:= UnequalSize; 
+			     RETURN FALSE;
+			 END;    (* if Length1 *)
+		     END;    (* with Results *)
+		     END;    (* with Parms *)
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	     RETURN TRUE;
+	 END;    (* with Ptr^ *)
+	   
+     END Compare; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Position( Data: TestSystem.dataType; 
+	            VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+(* With an error-free data file, Position returns the same boolean Value
+   as the performedStrings.Position *) 
+
+     VAR
+	 Ptr: PointerToData;
+	 ReturnValue: BOOLEAN;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ onStringUsed, startUsed, stopUsed, 
+			               patternUsed } 
+             THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ cardResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+		     WITH Parms DO WITH Results DO CASE String1.Size OF
+			     StringLib.short: 
+				 CASE Pattern.Size OF
+				     StringLib.short:
+					 ReturnValue:= Strings.Position( 
+					   String1.ShortString, 
+					   Start, Stop, 
+					   Pattern.ShortString,
+					   ResCard )
+				     |
+				     StringLib.normal:
+					 ReturnValue:= Strings.Position( 
+					   String1.ShortString, 
+					   Start, Stop, 
+					   Pattern.NormalString,
+					   ResCard )
+				     |
+				     StringLib.long:
+					 ReturnValue:= Strings.Position( 
+					   String1.ShortString, 
+					   Start, Stop, 
+					   Pattern.LongString,
+					   ResCard )
+                                 END;    (* case Pattern.Size *) 
+			     |
+			     StringLib.normal: 
+				 CASE Pattern.Size OF
+				     StringLib.short:
+					 ReturnValue:= Strings.Position( 
+					   String1.NormalString, 
+					   Start, Stop, 
+					   Pattern.ShortString,
+					   ResCard )
+				     |
+				     StringLib.normal:
+					 ReturnValue:= Strings.Position( 
+					   String1.NormalString, 
+					   Start, Stop, 
+					   Pattern.NormalString,
+					   ResCard )
+				     |
+				     StringLib.long:
+					 ReturnValue:= Strings.Position( 
+					   String1.NormalString, 
+					   Start, Stop, 
+					   Pattern.LongString,
+					   ResCard )
+                                 END;    (* case Pattern.Size *) 
+			     |
+			     StringLib.long: 
+				 CASE Pattern.Size OF
+				     StringLib.short:
+					 ReturnValue:= Strings.Position( 
+					   String1.LongString, 
+					   Start, Stop, 
+					   Pattern.ShortString,
+					   ResCard )
+				     |
+				     StringLib.normal:
+					 ReturnValue:= Strings.Position( 
+					   String1.LongString, 
+					   Start, Stop, 
+					   Pattern.NormalString,
+					   ResCard )
+				     |
+				     StringLib.long:
+					 ReturnValue:= Strings.Position( 
+					   String1.LongString, 
+					   Start, Stop, 
+					   Pattern.LongString,
+					   ResCard )
+                                 END;    (* case Pattern.Size *) 
+			 END;    (* caseString1.Size *)
+			 IF NOT ReturnValue THEN
+			     Msg:= PatternMissing; 
+			 END;    (* if NOT ReturnValue *)
+			 RETURN ReturnValue;
+		     END;    (* with Results *)
+		     END;    (* with Parms *)
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	 END;    (* with Ptr^ *)
+	   
+     END Position; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE AssignOK( Data: TestSystem.dataType; 
+	           VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+     VAR
+	 Ptr: PointerToData;
+	 ReturnValue: BOOLEAN;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ onStringUsed } THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ stringResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+
+		 (* We have 3 possibilities of source and 3 possibilities
+		    of destination 
+		    ( 3*3 =UnequalSize ) *)
+
+		     WITH Parms DO WITH Results DO CASE String1.Size OF                              StringLib.short:
+				 CASE String1.Size OF
+				     StringLib.short: ReturnValue:= 
+				       Strings.AssignOK( 
+						    String1.ShortString, 
+						     ResString.ShortString )
+				     |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.AssignOK( 
+						   String1.ShortString, 
+						    ResString.NormalString )
+				     |
+				     StringLib.long: ReturnValue:= 
+				       Strings.AssignOK( 
+						    String1.ShortString, 
+						     ResString.LongString )
+				 END;    (* caseString.Size *)
+			     |
+			     StringLib.normal:
+				 CASE String1.Size OF
+				     StringLib.short: ReturnValue:=
+				       Strings.AssignOK( 
+						    String1.ShortString,
+						     ResString.ShortString )
+				     |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.AssignOK( 
+						   String1.NormalString,
+						    ResString.NormalString )
+				     |
+				     StringLib.long: ReturnValue:= 
+				       Strings.AssignOK( 
+						   String1.NormalString,
+						    ResString.LongString )
+				 END;    (* caseString.Size *)
+			     |
+			     StringLib.long:
+				 CASE String1.Size OF
+				     StringLib.short: ReturnValue:= 
+				       Strings.AssignOK(String1.LongString, 
+						   ResString.ShortString )
+				      |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.AssignOK(String1.LongString, 
+						   ResString.NormalString )
+				      |
+				     StringLib.long: ReturnValue:= 
+				       Strings.AssignOK(String1.LongString, 
+						   ResString.LongString )
+				 END;    (* caseString.Size *)
+			 END;    (* caseString1.Size *)
+			 IF NOT ReturnValue THEN 
+			     Msg:= SourceTruncation;
+			 END;    (* if NOT ReturnValue *)
+			 RETURN ReturnValue;
+		     END;    (* with Results *)
+		     END;    (* with Parms *)
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	 END;    (* with Ptr^ *)
+	   
+     END AssignOK; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE ConcatOK( Data: TestSystem.dataType; 
+	            VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+     VAR
+	 Ptr: PointerToData;
+	 ReturnValue: BOOLEAN;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ twStringsUsed } THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ stringResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+
+		 (* SinceStringLib.string is a variant record 
+
+			CASE Flags OF ...
+			   StringLib.short: ...
+			   |
+			   StringLib.normal: ...
+			   | 
+			   StringLib.long: ...
+			END;
+
+		   the set of all possible cases submitted to concatenation
+		   is the cartesian product 
+		   ( StringLib.short, StringLib.normal, StringLib.long )^3. 
+		   Hence, #( possible cases ) = 3*3*3 = 27. 
+		   This explains this hidious triple CASE.
+		   I probably will write a PhD in Computer Science about
+		   this. *)
+
+		     WITH Parms DO WITH Results DO 
+		     CASE String1.Size OF
+			 StringLib.short:
+			     CASE String2.Size OF
+				 StringLib.short: 
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.ShortString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.ShortString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.ShortString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+				 |
+				 StringLib.normal:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.NormalString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.NormalString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.NormalString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+				 |
+				 StringLib.long:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.LongString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.LongString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.ShortString, 
+						 String2.LongString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+			     END;    (* caseString2 *)
+			 |
+			 StringLib.normal:
+			     CASE String2.Size OF
+				 StringLib.short: 
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.ShortString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.ShortString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.ShortString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+				 |
+				 StringLib.normal:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.NormalString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.NormalString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.NormalString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+				 |
+				 StringLib.long:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.LongString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.LongString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.NormalString, 
+						 String2.LongString,
+						 ResString.LongString )
+				    END;    (* case  ResString *)
+			     END;    (* caseString2 *)
+			 |
+			 StringLib.long:
+			     CASE String2.Size OF
+				 StringLib.short: 
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.ShortString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.ShortString,
+						 ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.ShortString,
+						 ResString.LongString )
+				    END;    (* case ResString *) 
+				 |
+				 StringLib.normal:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.NormalString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.NormalString,
+						  ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.NormalString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+				 |
+				 StringLib.long:
+				     CASE ResString.Size OF
+					StringLib.short: 
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.LongString,
+						 ResString.ShortString )
+					|
+					StringLib.normal:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.LongString,
+						  ResString.NormalString )
+					|
+					StringLib.long:
+					  ReturnValue:= Strings.ConcatOK( 
+						 String1.LongString, 
+						 String2.LongString,
+						 ResString.LongString )
+				    END;    (* case ResString *)
+			     END;    (* caseString2 *)
+		     END;    (* caseString1 *)
+		     END;    (* with Parms *)
+		     END;    (* with Resullts *)
+		     IF NOT ReturnValue THEN 
+			 Msg:= ConcatTruncation;
+		     END;    (* if NOT ReturnValue *)
+		     RETURN ReturnValue;
+                 END;    (* if Results.Flags *)
+             END;    (* if selector *)
+         END;    (* with Ptr^ *)	  
+
+     END ConcatOK; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE InsertOK( Data: TestSystem.dataType; 
+	           VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+     VAR
+	 Ptr: PointerToData;
+	 ReturnValue: BOOLEAN;
+
+    BEGIN
+	Ptr:= Data;
+	WITH Ptr^ DO 
+	    IF Parms.Flags # Options{ onStringUsed, startUsed, patternUsed } 
+	    THEN
+		Msg:= TestSystem.WrongData;
+		RETURN FALSE;
+            ELSE
+	        IF Results.Flags # Options{ stringResult } THEN
+		    Msg:= TestSystem.WrongData;
+		    RETURN FALSE;
+                ELSE
+
+		(* We have 3 possibilities of pattern and 3 possibilities
+		   of destination 
+		   ( 3*3 = Size ) *)
+
+		    WITH Parms DO WITH Results DO 
+			IF ResString.Size #String1.Size THEN
+			    Msg:= UnequalLength;
+			    RETURN FALSE;
+                        ELSE CASE String1.Size OF
+			    StringLib.short:
+				ResString.ShortString:= 
+				  String1.ShortString;
+				CASE Pattern.Size OF
+				    StringLib.short: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.ShortString, 
+					  Start,
+					  Pattern.ShortString )
+				    |
+				    StringLib.normal: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.ShortString, 
+					  Start,
+					  Pattern.NormalString )
+				    |
+				    StringLib.long: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.ShortString, 
+					  Start,
+					  Pattern.LongString )
+				END;    (* case Pattern.Size... *)
+                            |
+			    StringLib.normal:
+                                ResString.NormalString:= 
+				  String1.NormalString;
+				CASE Pattern.Size OF
+				    StringLib.short: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.NormalString, 
+					  Start,
+					  Pattern.ShortString )
+				    |
+				    StringLib.normal: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.NormalString, 
+					  Start,
+					  Pattern.NormalString )
+				    |
+				    StringLib.long: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.NormalString, 
+					  Start,
+					  Pattern.LongString )
+				END;    (* case Pattern.Size... *)
+			    |
+			    StringLib.long:
+                                ResString.LongString:= 
+				  String1.LongString;
+				CASE Pattern.Size OF
+				    StringLib.short: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.LongString, 
+					  Start,
+					  Pattern.ShortString )
+				    |
+				    StringLib.normal: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.LongString, 
+					  Start,
+					  Pattern.NormalString )
+				    |
+				    StringLib.long: 
+					ReturnValue:= Strings.InsertOK( 
+					  ResString.LongString, 
+					  Start,
+					  Pattern.LongString )
+				END;    (* case PatternSize *)
+			END;    (* caseString1 *)
+			END;    (* IF ResString.Size *)
+                        IF NOT ReturnValue THEN 
+			    Msg:= SomeTruncation;
+			END;    (* if NOT ReturnValue *)
+			RETURN ReturnValue;
+                    END;    (* with Results *)
+		    END;    (* with Parms *)
+                END;    (* if Results.Flags *)
+            END;    (* if Results.Flags *)
+        END;    (* with Ptr^ *)
+	  
+    END InsertOK; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE SubstringOK( Data: TestSystem.dataType; 
+	           VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+     VAR
+	 Ptr: PointerToData;
+	 ReturnValue: BOOLEAN;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ onStringUsed, startUsed, stopUsed } 
+	     THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ stringResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+
+		 (* We have 3 possibilities of source and 3 possibilities
+		    of destination 
+		    ( 3*3 = Size ) *)
+
+		     WITH Parms DO WITH Results DO 
+			 CASE String1.Size OF
+			     StringLib.short:
+				 CASE ResString.Size OF
+				     StringLib.short: ReturnValue:= 
+				       Strings.SubstringOK( 
+					 String1.ShortString, 
+					 Start, Stop, 
+					 ResString.ShortString ) 
+				     |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.SubstringOK(                                                            String1.ShortString, 
+					 Start, Stop, 
+					 ResString.NormalString )
+				     |
+				     StringLib.long: ReturnValue:=
+				       Strings.SubstringOK( 
+				         String1.ShortString, 
+				         Start, Stop, 
+				         ResString.LongString )
+				 END;    (* case ResString *)
+			     |
+			     StringLib.normal:
+				 CASE ResString.Size OF
+				     StringLib.short: ReturnValue:= 
+				       Strings.SubstringOK(
+					 String1.NormalString, 
+					 Start, Stop, 
+				         ResString.ShortString )
+				     |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.SubstringOK(
+					 String1.NormalString, 
+					 Start, Stop, 
+				         ResString.NormalString )
+				     |
+				     StringLib.long: ReturnValue:= 
+				       Strings.SubstringOK( 
+					 String1.NormalString, 
+					 Start, Stop, 
+				         ResString.LongString )
+				 END;    (* case ResString *)
+			     |
+			     StringLib.long:
+				 CASE ResString.Size OF
+				     StringLib.short: ReturnValue:= 
+				       Strings.SubstringOK( 
+					 String1.LongString, 
+					 Start, Stop, 
+				         ResString.ShortString )
+				     |
+				     StringLib.normal: ReturnValue:= 
+				       Strings.SubstringOK(
+					 String1.LongString, 
+					 Start, Stop, 
+				         ResString.NormalString )
+				     |
+				     StringLib.long: ReturnValue:= 
+				       Strings.SubstringOK( 
+					 String1.LongString, 
+					 Start, Stop, 
+				         ResString.LongString )
+				 END;    (* case ResString *)
+			 END;    (* caseString1 *)
+			 IF NOT ReturnValue THEN 
+			     Msg:= LessChars;
+			 END;    (* if ResturnValue *)
+			 RETURN ReturnValue;
+		     END;    (* with Results *)
+		     END;    (* with Parms *)
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	 END;    (* with Ptr^ *)
+	   
+     END SubstringOK; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE Delete( Data: TestSystem.dataType; 
+		    VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+   
+     VAR
+	 Ptr: PointerToData;
+
+     BEGIN
+	 Ptr:= Data;
+	 WITH Ptr^ DO 
+	     IF Parms.Flags # Options{ onStringUsed, startUsed, stopUsed } 
+	     THEN
+		 Msg:= TestSystem.WrongData;
+		 RETURN FALSE;
+	     ELSE
+		 IF Results.Flags # Options{ stringResult } THEN
+		     Msg:= TestSystem.WrongData;
+		     RETURN FALSE;
+		 ELSE
+		     WITH Parms DO WITH Results DO  
+		     IF ResString.Size #String1.Size THEN
+			 Msg:= UnequalLength;
+			 RETURN FALSE;
+                     ELSE
+			 CASE ResString.Size OF
+			     StringLib.short: 
+				 ResString.ShortString:=
+				   String1.ShortString;
+				 Strings.Delete( ResString.ShortString, 
+						 Start, Stop );
+			     |
+			     StringLib.normal:  
+				  ResString.NormalString:=
+				    String1.NormalString;
+				  Strings.Delete( ResString.NormalString, 
+						  Start, Stop );
+			     |
+			     StringLib.long: 
+				 ResString.LongString:=
+				   String1.LongString;
+				 Strings.Delete( ResString.LongString, 
+						 Start, Stop );
+			 END;    (* caseString1 *)
+                     END;    (* IF ResString.Size # *)
+		     END;    (* with  Parms *)
+		     END;    (* with Results *) 
+		 END;    (* if Results.Flags *)
+	     END;    (* if Flags *)
+	     RETURN TRUE;
+	 END;    (* with Ptr^ *)
+	   
+     END Delete; 
+(* ---------------------------------------------------------------------- *)
+(* Part2: functional proccedures.                                         *)
+(* ---------------------------------------------------------------------- *)
+PROCEDURE GetInfo( Data: TestSystem.dataType; 
+		   VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    VAR
+	Ptr: PointerToData;
+
+    (* ----------------------------------------------------------------- *)
+    PROCEDURE GetJustyParm( VAR JustyParm:Strings.Justifications; 
+			    Name: ARRAY OF CHAR; VAR Msg: TestIO.ErrMsg ):
+			    BOOLEAN;
+	    
+	VAR
+	    JustyStr: ARRAY[ 0..20 ] OF CHAR;
+
+	BEGIN
+	    IF NOT TestIO.GetString( JustyStr, Name, Msg ) THEN
+		RETURN FALSE;
+	    END;
+	    IF JustyStr[0] = "l" THEN 
+		JustyParm:=Strings.justifyLeft;
+	    ELSIF JustyStr[0] = "c" THEN
+		JustyParm:=Strings.justifyCenter;
+	    ELSIF JustyStr[0] = "r" THEN
+		JustyParm:=Strings.justifyRight;
+	    ELSE
+		Msg:= TestSystem.WrongData;
+		RETURN FALSE;
+	    END;
+	    RETURN TRUE;
+
+	END GetJustyParm;
+    (* ---------------------------------------------------------------- *)
+    PROCEDURE GetCompParm( VAR CompParm: Intrinsics.CompareResults; 
+			   Name: ARRAY OF CHAR; VAR Msg: TestIO.ErrMsg ):
+			   BOOLEAN;
+
+	VAR
+	    CompStr: ARRAY[ 0..20 ] OF CHAR;
+
+	BEGIN
+	    IF NOT TestIO.GetString( CompStr, Name, Msg ) THEN
+		RETURN FALSE;
+	    END;
+	    IF CompStr[0]= "l" THEN 	
+		CompParm:= Intrinsics.less;
+	    ELSIF CompStr[0] = "e" THEN
+		CompParm:= Intrinsics.equal;
+	    ELSIF CompStr[0] = "g" THEN
+		CompParm:= Intrinsics.greater;
+	    ELSE
+		Msg:= TestSystem.WrongData;
+		RETURN FALSE;
+	    END;
+	    RETURN TRUE;
+
+	END GetCompParm;
+    (* ---------------------------------------------------------------- *)
+    (* CleanResults sets a record of type ResultType at a determined value.
+       There are two records of this type ( Results and Expected Results )
+       contained in the main data record.                               *)  
+    (* ---------------------------------------------------------------- *)
+    PROCEDURE CleanResults( VAR Res: ResRec );
+
+	BEGIN
+	    WITH Res DO
+		WITH ResString DO
+		    ShortString[0]:= 0C;
+		    NormalString[0]:= 0C;
+		    LongString[0]:= 0C;
+		END;
+		ResCard:= 0;
+		ResComp:= Intrinsics.equal;
+	    END;    (* with Res *)
+
+	END CleanResults;
+    (* ---------------------------------------------------------------- *)
+(* -------------------------------------------------------------------- *)
+    BEGIN
+	Ptr:= Data;
+        WITH Ptr^ DO WITH Parms DO  
+	    IF ( onStringUsed IN Flags ) OR ( twStringsUsed IN Flags )
+	    THEN
+		IF NOT StringLib.GetString(
+		  String1, 
+		  "String1", "Size of String1 ( short, normal, long )", 
+		  StringLib.sizeRequested, Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF twStringsUsed IN Flags THEN
+		IF NOT StringLib.GetString(String2, 
+		  "String2", "Size of String2 ( short, normal, long )", 
+		  StringLib.sizeRequested, Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF patternUsed IN Flags THEN
+		IF NOT StringLib.GetString( Pattern, 
+		  "Pattern", "Size of Pattern ( short, normal, long )", 
+	          StringLib.sizeRequested, Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF justificationUsed IN Flags THEN
+		IF NOT 
+		GetJustyParm( Justification, "Justification", Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF startUsed IN Flags THEN
+		IF NOT 
+		TestIO.GetCard( Start, "Start index", Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF stopUsed IN Flags THEN
+		IF NOT 
+		TestIO.GetCard( Stop, "Stop index",  Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    IF lengthUsed IN Flags THEN
+		IF NOT 
+		TestIO.GetCard( Length, "Length", Msg )
+		THEN
+		    RETURN FALSE;
+                END;
+            END; 
+	    CleanResults( ExpectedResults );
+	    CleanResults( Results );
+	    WITH ExpectedResults DO
+		IF stringResult IN Flags THEN
+		    IF NOT 
+		    StringLib.GetString( ResString, 
+		      "Expected result ( string )", 
+		      "Size of result ( short, normal, long)", 
+		     StringLib.sizeRequested, Msg )
+		    THEN
+			RETURN FALSE;
+		    END;
+		    Results.ResString.Size:=
+		      ResString.Size;
+		      (* !! otherwise CompareResults fails *)
+		END; 
+		IF cardResult IN Flags THEN
+		    IF NOT 
+		    TestIO.GetCard( ResCard, 
+		      "Expected result ( cardinal )", Msg )
+		    THEN
+			RETURN FALSE;
+		    END;
+		END; 
+		IF compResult IN Flags THEN
+		    IF NOT 
+		    GetCompParm( ResComp, 
+		      "Expected result ( Intrinsics.compareResults )",  Msg )
+		    THEN 
+			RETURN FALSE;
+		    END;
+		END; 
+            END;    (* with ExpectedResults *)
+        TestIO.WriteLn( GenTestIO.GetErrOutput() );
+        RETURN TRUE;
+        END;    (* with Parms *)  
+        END;    (* with Ptr^ *)
+
+    END GetInfo;
+(* ---------------------------------------------------------------------- *)
+(* CompareResults checks if the expected results are the same as the
+   evaluated results                                                      *)
+(* ---------------------------------------------------------------------- *)
+PROCEDURE CompareResults( Data: TestSystem.dataType; 
+			VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    VAR
+	Ptr: PointerToData;
+
+    BEGIN
+	Ptr:= Data;
+	WITH Ptr^ DO
+	    IF Results.Flags # ExpectedResults.Flags THEN
+		Msg:= FalseResult;
+		RETURN FALSE;
+	    ELSE
+		IF stringResult IN Results.Flags THEN
+		    IF NOT StringLib.
+		     StringsEqual( Results.ResString, 
+				    ExpectedResults.ResString )
+		    THEN
+		        Msg:= FalseResult;
+			RETURN FALSE
+		    END;
+		ELSIF cardResult IN Results.Flags THEN
+		    IF Results.ResCard # ExpectedResults.ResCard THEN
+		        Msg:= FalseResult;
+			RETURN FALSE
+		    END
+		ELSIF compResult IN Results.Flags THEN 
+		    IF Results.ResComp # ExpectedResults.ResComp THEN
+		        Msg:= FalseResult;
+			RETURN FALSE
+		    END;
+		END;
+		Msg:= ResultOk;
+		RETURN TRUE;
+	    END;    (* if Results.Flags *) 
+        END;    (* with Ptr^... *)
+
+    END CompareResults;
+(* ---------------------------------------------------------------------- *)
+CONST
+    Less = "less";
+    Equal = "equal";
+    Greater = "greater"; 
+(* ---------------------------------------------------------------------- *)
+PROCEDURE WriteResults( Data: TestSystem.dataType; 
+			VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    VAR
+	Ptr: PointerToData;
+	Str: ARRAY[ 0.. 20 ] OF CHAR;
+
+    BEGIN
+	WITH Ptr^ DO WITH Results DO
+	    TestIO.Write( GenTestIO.GetErrOutput(),  "Result: " );
+	    IF stringResult IN Flags THEN 
+		StringLib.WriteString( GenTestIO.GetErrOutput(), ResString ) 
+	    END;    
+	    IF cardResult IN Flags THEN
+		IF NOT CardConvert.ToString( ResCard, 10, 5, Str )
+		THEN
+		    Msg:= TestSystem.WrongData;
+		    RETURN FALSE;
+                END;
+		TestIO.Write( GenTestIO.GetErrOutput(),  Str );
+	    END;
+	    IF compResult IN Flags THEN
+		CASE ResComp OF
+		    Intrinsics.less:
+		       Str:= Less
+		    |
+		    Intrinsics.equal:
+			Str:= Equal
+		    |
+		    Intrinsics.greater:
+			Str:= Greater 
+		END;    (* case ResComp *)
+		TestIO.Write( GenTestIO.GetErrOutput(), "String1 is " );
+		TestIO.Write( GenTestIO.GetErrOutput(), Str );
+		TestIO.Write( GenTestIO.GetErrOutput(), " String2" );
+	    END;
+	    TestIO.WriteLn( GenTestIO.GetErrOutput() );
+	END;    (* WITH Results *) 
+	END;    (* WITH Ptr^ *) 
+	RETURN TRUE;
+
+    END WriteResults;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE InitMsgTab;
+
+    BEGIN
+	TestIO.AssignMessage( FalseResult,
+	  "Result/s and expected result/s is/are different" );
+	TestIO.AssignMessage( UnequalSize, 
+	  "Compare: strings doesn't have the same static length" );
+	TestIO.AssignMessage( PatternMissing, 
+	  "Position: pattern not found" );
+	TestIO.AssignMessage( SourceTruncation,
+	  "AssignOK: source had to be truncated" );
+	TestIO.AssignMessage( ConcatTruncation, 
+	  "ConcatOK: the concatenation had to be truncated" );
+	TestIO.AssignMessage( SomeTruncation,
+	  "InsertOK: something had to be truncated" );
+	TestIO.AssignMessage( LessChars, 
+	  "SubstringOK: less than len characters were copied" );
+	TestIO.AssignMessage( UnequalLength, 
+	  "Source and result must have the same length" );
+	TestIO.AssignMessage( ResultOk, 
+	  "Result/s and expected result/s is/are equal" );
+
+    END InitMsgTab; 
+(* --------------------------------------------------------------------- *)
+PROCEDURE Init; 
+
+    (* ----------------------------------------------------------------- *)
+    PROCEDURE AddComm( Command: ARRAY OF CHAR; 
+		       CmdProc: TestSystem.standardProc; 
+		       Flags, ResultsFlags: Options );
+
+	VAR
+	    KnownData: PointerToData;
+
+	BEGIN
+	    Objects.Allocate( DataMgr, KnownData );
+	    WITH KnownData^ DO 
+		Parms.Flags:= Flags;
+		Results.Flags:= ResultsFlags;
+		ExpectedResults.Flags:= ResultsFlags;
+	    END;
+	    TestSystem.AddCommand( Command, CmdProc, KnownData );
+
+	END AddComm;
+    (* ----------------------------------------------------------------- *)
+    
+    BEGIN 
+	InitMsgTab; 
+	Objects.CreateManager( DataMgr, SYSTEM.TSIZE( DataRec ), 
+			       "bigkicks" );
+	
+	(* Setting flags and building the command list: *)
+
+        AddComm( "quit", TestSystem.Quit, Options{}, Options{} );
+        AddComm( "length", Length, 
+		 Options{ onStringUsed }, 
+		 Options{ cardResult } );
+        AddComm( "justify", Justify, 
+		 Options{ onStringUsed, lengthUsed, patternUsed, 
+		          justificationUsed }, 
+		 Options{ stringResult } );
+        AddComm( "compare", Compare, 
+		 Options{ twStringsUsed }, 
+		 Options{ compResult } );
+        AddComm( "position", Position, 
+		 Options{ patternUsed, startUsed, stopUsed, onStringUsed }, 
+		 Options{ cardResult } );
+        AddComm( "assign", AssignOK, 
+		 Options{ onStringUsed }, 
+		 Options{ stringResult } );
+        AddComm( "concat", ConcatOK, 
+		 Options{ twStringsUsed }, 
+		 Options{ stringResult } );
+        AddComm( "insert", InsertOK, 
+		 Options{ onStringUsed, startUsed, patternUsed }, 
+		 Options{ stringResult } );
+        AddComm( "substring", SubstringOK, 
+		 Options{ onStringUsed, startUsed, stopUsed  }, 
+		 Options{ stringResult } );
+        AddComm( "delete", Delete, 
+		 Options{ onStringUsed, startUsed, stopUsed }, 
+		 Options{ stringResult } );
+        	
+    END Init;
+(* ---------------------------------------------------------------------- *)
+BEGIN
+    Init;
+    TestSystem.RunTest( GetInfo, WriteResults, CompareResults,
+			"Strings" ); 
+
+END TestStrings.    

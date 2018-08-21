@@ -1,0 +1,24 @@
+DEFINITION MODULE Base2;
+
+(*
+ Convert a base 10 value to/from base 2,
+ the base 2 value is specified as a character string containing "0" and "1"s
+*)
+(* John Andrea, Nov.18/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED Max10, HowMany2, ToBase2, FromBase2;
+
+PROCEDURE Max10() :CARDINAL;
+(* what is the largest base 10 number handled by this module *)
+
+PROCEDURE HowMany2( base10 :CARDINAL ) :CARDINAL;
+(* return the number of base2 digits used to represent the given base10 value *)
+
+PROCEDURE ToBase2( base10 :CARDINAL; VAR base2 :ARRAY OF CHAR;
+                   VAR ok :BOOLEAN );
+
+PROCEDURE FromBase2( base2 :ARRAY OF CHAR; VAR base10 :CARDINAL;
+                     VAR ok :BOOLEAN );
+
+END Base2.

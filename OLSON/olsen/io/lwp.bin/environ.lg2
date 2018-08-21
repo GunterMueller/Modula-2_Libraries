@@ -1,0 +1,24 @@
+#
+# LOCAL "environment" for makes in the current directory.  See the 
+# global file "rules.mak" and the sample "environ.mak" in the 
+# same location.
+
+include ..\..\bin\rules.mak
+include m2source.mak
+
+# What's special about this directory
+M2Path		= ..\bin;..\..\gen\lwp.bin;..\..\gen\bin
+LocalM2SYM	= $(M2Path)
+LocalM2LNK	= $(M2Path)
+LocalM2REF 	= $(M2Path)
+LocalM2MAP	= $(M2Path)
+LocalM2MOD	= $(M2Path)
+
+M2ppFlags	= /D=Tasks
+M2exeRTS	= $(M2exeRTS.lwp)
+
+InstallFiles	= $(LibInstallFiles)
+InstallDir 	= $(LwpInstallDir)
+
+# THIS COMMAND SHOULD BE THE LAST ONE IN THIS FILE.
+export M2PPVARS M2SYM M2LNK M2MAP

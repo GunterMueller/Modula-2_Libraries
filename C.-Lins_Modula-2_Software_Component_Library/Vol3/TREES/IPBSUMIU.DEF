@@ -1,0 +1,72 @@
+(*
+8.3 k-Balanced Binary Search Tree Utilities
+
+This module provides the utility routines for k-Balanced binary
+search trees. The following facilities are provided:
+  a) printing a binary tree; and
+  b) determining the height of a tree.
+*)
+
+DEFINITION MODULE IPBSUMIU;
+(*==============================================================
+    Version  : V2.01  08 December 1989.
+    Compiler : JPI TopSpeed Modula-2
+    Component: k-Balanced Tree SUMI Utilities
+
+    REVISION HISTORY
+    v1.00  17 Mar 1988  C. Lins
+      Initial implementation for TML Modula-2.
+    v1.01  01 Oct 1988  C. Lins
+      Cleaned up comments.
+      Changed PrintTree to use a single procedure parameter.
+    v1.02  29 Jan 1989  C. Lins
+      Added use of Key and Data aliases for generic Items.
+    v2.00  08 Oct 1989  C. Lins
+      Created generic pc version
+    v2.01  08 Dec 1989  I.S.C. Houston.
+          Adapted to JPI Compiler:
+          Used type transfer functions instead of VAL.
+          Used shortened library module names for DOS and OS/2.
+
+        (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM TreeTypes IMPORT
+    (*--Type*) Key, Data;
+
+FROM IPBSUMI IMPORT
+    (*--Type*) Tree, Weight;
+
+
+        (*-----------------------*)
+
+(*
+8.3.1 Utility Selectors
+
+HeightOf returns the height of the given tree.
+*)
+
+PROCEDURE HeightOf (    theTree : Tree     (*--in   *))
+                                                                : CARDINAL (*--out  *);
+
+
+(*
+8.3.2 Debugging Iterators
+
+PrintTree iterates over the given tree such that the nodes may be
+printed. Trees are normally displayed with the root at the top and
+the leaves at the bottom. To simplify the printing process, PrintTree
+displays the tree rotated 90’ to the left. Thus the root is shown at
+the left of the page/screen with the leaves at the right. Furthermore,
+the left branches are shown towards the bottom of the display and the
+right branches at the top. The PrintProc routine is responsible for
+indenting the display appropriately based on the level parameter.
+*)
+TYPE  Level      = CARDINAL;
+TYPE  PrintProc  = PROCEDURE (Level, Key, Data, Weight);
+
+PROCEDURE PrintTree (    theTree: Tree       (*--in   *);
+                         print  : PrintProc  (*--in   *));
+
+END IPBSUMIU.
+

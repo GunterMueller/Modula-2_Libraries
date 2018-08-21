@@ -1,0 +1,100 @@
+DEFINITION MODULE QSCMI;
+(*===========================================================
+    Version  : 1.00  19 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2 Compiler
+    Component: Monolithic Structures - Queue (Opaque version)
+      Non-priority Non-balking Sequential Circular Managed Iterator
+
+    REVISION HISTORY
+    v1.00  19 May 1989  C. Lins:
+      Initial TopSpeed Modula-2 implementation
+
+    (C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM QEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*--------------------*)
+
+
+TYPE  Queue;
+TYPE  QueueSize = [1..8100];
+CONST NullQueue = Queue(NIL);
+
+    (*--------------------*)
+
+
+CONST ModuleID = 17;
+
+PROCEDURE QueueError () : Exceptions (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+                          theHandler : HandlerProc (*-- in    *));
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+
+    (*--------------------*)
+
+PROCEDURE Create  (    theType  : TypeID    (*-- in    *);
+                       theSize  : QueueSize (*-- in    *))
+                                : Queue     (*-- out   *);
+
+PROCEDURE Destroy (VAR theQueue : Queue     (*-- inout *));
+
+PROCEDURE Clear   (    theQueue : Queue     (*-- inout *));
+
+PROCEDURE Assign  (    theQueue : Queue     (*-- in    *);
+                   VAR toQueue  : Queue     (*-- inout *));
+
+PROCEDURE Arrive  (    theQueue : Queue     (*-- inout *);
+                       theItem  : Item      (*-- in    *));
+
+PROCEDURE Depart  (    theQueue : Queue     (*-- inout *));
+
+
+    (*--------------------*)
+
+PROCEDURE IsDefined (    theQueue : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty   (    theQueue : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    left     : Queue    (*-- in    *);
+                         right    : Queue    (*-- in    *))
+                                  : BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    theQueue : Queue    (*-- in    *))
+                                  : CARDINAL (*-- out   *);
+
+PROCEDURE SizeOf    (    theQueue : Queue    (*-- in    *))
+                                  : CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf    (    theQueue : Queue    (*-- in    *))
+                                  : TypeID   (*-- out   *);
+
+PROCEDURE FrontOf   (    theQueue : Queue    (*-- in    *))
+                                  : Item     (*-- out   *);
+
+
+    (*--------------------*)
+
+PROCEDURE LoopOver (    theQueue  : Queue          (*-- in    *);
+                        theProcess: LoopAccessProc (*-- in    *));
+
+PROCEDURE Traverse (    theQueue  : Queue          (*-- in    *);
+                        theProcess: AccessProc     (*-- in    *));
+
+END QSCMI.

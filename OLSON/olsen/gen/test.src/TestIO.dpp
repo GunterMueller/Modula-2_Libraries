@@ -1,0 +1,116 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TestIO;
+
+IMPORT
+    GenTestIO;
+
+EXPORT QUALIFIED
+    NullMessage,         EOF,              CantWrite,        RIP,
+    ErrMsg,
+    MsgTab,
+    CrashWithMessage,    GetString,        GetCard,          WriteResult,    
+    WriteSeparator,      WriteTail,        DisplayMessage,   Write,        
+    WriteLn,             WriteChar,        AssignMessage,
+    WriteLogHeader;           
+
+CONST
+    NullMessage = 0;
+    EOF = 1;
+    CantWrite = 2;
+    RIP = 3;
+
+TYPE
+    ErrMsg = [ 0..30 ];
+    MsgString = ARRAY[ 0..50 ] OF CHAR;
+
+VAR
+    MsgTab: ARRAY ErrMsg  OF MsgString;
+
+PROCEDURE GetString( VAR string: ARRAY OF CHAR; Name: ARRAY OF CHAR;
+		     VAR Msg: ErrMsg ): BOOLEAN;
+
+    (*
+     * Reads a string from the standard input. A line separator
+     * will terminate the string if the string fills up before hitting
+     * end of line.
+     * Caution: if used in batch mode and if the string begins with
+     * a "$", GetString will print out "comments" on the
+     * standard error output.
+     *
+     * INPUT:
+     *     Using GetString interactively, a prompt will be
+     *     displayed on the screen using the following
+     *     convention:
+     *       [ name ]
+     *         --> [ string ] ( string being typed in )
+     *
+     *     Using GetString with input redirection, the following line  
+     *     read will be written into StdLog:
+     *       [ name ][ : ][ string ] ( string being read from StdIn )
+     *
+     * OUTPUT:
+     *     < Result >: TRUE:  Read succesful
+     *                 FALSE: EOF was reached 
+     *
+     *)
+
+PROCEDURE GetCard( VAR Card: CARDINAL; Name: ARRAY OF CHAR; 
+		   VAR Msg: ErrMsg ): BOOLEAN;
+    (*
+     * Reads a cardinal from StdIn by using CardConvert.
+     *)
+
+PROCEDURE Write( file: GenTestIO.File; string: ARRAY OF CHAR );
+
+PROCEDURE WriteLn( file: GenTestIO.File );
+
+PROCEDURE WriteChar( file: GenTestIO.File; Ch: CHAR );
+
+PROCEDURE WriteResult( comment, string: ARRAY OF CHAR );
+
+    (*
+     * Writes a string into StdLog using the following 
+     * convention: "comment:  'string'" 
+     *) 
+
+PROCEDURE WriteSeparator( string: ARRAY OF CHAR );
+
+PROCEDURE WriteLogHeader( string: ARRAY OF CHAR );
+
+PROCEDURE WriteTail( file: GenTestIO.File; string: ARRAY OF CHAR );
+
+    (*
+     * Writes "string" into "file" using the following convention:
+     * ======
+     * string
+     * ======
+     *)
+
+PROCEDURE AssignMessage( MessageNr: ErrMsg; Message: ARRAY OF CHAR );
+
+PROCEDURE CrashWithMessage( Msg: ErrMsg );
+
+PROCEDURE DisplayMessage( file: GenTestIO.File; Msg: ErrMsg );
+
+END TestIO.

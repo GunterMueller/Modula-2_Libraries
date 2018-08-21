@@ -1,0 +1,43 @@
+DEFINITION MODULE SimpleScreen;
+
+(*
+ Screen procedures with simple syntax
+
+ The procedure ErasePage must be called first to set up the display,
+ and afterwords the procedure ScreenFinished should be called to
+ exit screen mode and use ordinary IO again.
+*)
+
+(* J. Andrea Dec 1985,  using VMS V4 screen manipulation *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED
+   ErasePage,  EraseLine,  PutScreen,  SetCursor,  ReDrawScreen,
+   ScreenFinished;
+
+
+
+PROCEDURE ErasePage( row, col :CARDINAL );
+  (* move the cursor to the given row and column on the screen *)
+
+
+PROCEDURE EraseLine( row, col :CARDINAL );
+  (* erase the line from the given coordinates to the end of the screen *)
+
+
+PROCEDURE PutScreen( text :ARRAY OF CHAR; row, col :CARDINAL);
+  (* put output on the screen, no special features *)
+
+
+PROCEDURE SetCursor( row, col :CARDINAL);
+  (* move the cursor to the given row and column on the screen *)
+
+
+PROCEDURE ReDrawScreen;
+
+
+PROCEDURE ScreenFinished;
+
+
+END SimpleScreen.

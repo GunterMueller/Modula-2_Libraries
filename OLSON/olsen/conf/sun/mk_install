@@ -1,0 +1,109 @@
+#!/bin/sh
+#*************************************************************************
+# Copyright 1987, 1988 by Olsen & Associates, Zurich, Switzerland.       *
+#                                                                        *
+#                          All Rights Reserved                           *
+#                                                                        *
+# Permission to use, copy, modify, and distribute this software and its  *
+# documentation for any purpose and without fee is hereby granted,       *
+# provided that the above copyright notice appear in all copies, and     *
+# that both that copyright notice and this permission notice appear in   *
+# supporting documentation, and that all modifications of this software  *
+# or its documentation not made by O&A or its agents are accompanied     *
+# by a prominent notice stating who made the modifications and the date  *
+# of the modifications.                                                  *
+#                                                                        *
+# O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS      *
+# DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND *
+# FITNESS, IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR  *
+# CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF   *
+# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR  *
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR *
+# PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.                     *
+#*************************************************************************
+
+#
+# $1 to $N-1: files to install and options: -nostrip, -strip, -link, & -nolink.
+# $N: destination
+#
+Usage="echo Usage: mk_install [ -strip ] [ -link ] install-files install-dir"
+if [ $# -lt 2 ]; then
+    echo too few arguments
+    $Usage
+    exit 1
+fi
+
+Files=
+Link=false
+Strip=:
+while [ $# -ne 1 ]; do
+    case $1 in
+	-link)
+	    Link=true
+	    ;;
+	-nolink)
+	    Link=false
+	    ;;
+	-strip)
+	    Strip=strip
+	    ;;
+	-nostrip)
+	    Strip=":"	# The "do nothing" command
+	    ;;
+	-*)
+	    echo "Bad option '$1'"
+	    exit 1
+	    ;;
+	*)
+	    Files="$Files $1"
+	    ;;
+    esac
+    shift
+done
+
+# Last file must be a directory.
+InstallDir="$1"
+if [ ! -w "$InstallDir" -o ! -d "$InstallDir" ]; then
+    echo "Warning: $InstallDir"
+    echo "         is not a writable directory.  Not doing install."
+    $Usage
+    exit 1
+fi
+
+
+if [ "x$Files" = x ]; then
+    echo "No files???"
+    exit 1
+fi
+
+CurrentDir=`pwd`
+
+if $Link; then
+    echo "Linking to: $InstallDir"
+    echo "      from: $CurrentDir"
+else
+    echo "Copying to: $InstallDir"
+    echo "      from: $CurrentDir"
+fi
+
+if $Link; then
+    # Always get rid of old ones first
+    ( 
+	cd $InstallDir 
+	rm -f $Files
+	for f in $Files; do
+	    ln -s $CurrentDir/$f
+	done
+    )
+    $Strip $Files 2>&1 | grep -v "not in a.out format"
+else
+    # Use tar so that we get an exact copy of the current directory.  If
+    # files haven't changed, then we won't change the respective dates 
+    # in the $InstallDir.  Note the extra protection of read-only.
+    tar cf - $Files \
+	| ( cd $InstallDir; rm -f $Files;
+	    tar xpf -; chmod a+w $Files; 
+	    $Strip $Files; chmod a-w $Files ) 2>&1 \
+	| grep -v "not in a.out format"
+fi
+exit 0	# Force the  "Error code" to be zero.

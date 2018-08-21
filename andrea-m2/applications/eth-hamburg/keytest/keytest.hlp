@@ -1,0 +1,57 @@
+1 Overview
+ KEYTEST is a program which will show exactly which key was
+ pressed on a VT200 terminal keyboard.
+ This program is very useful for testing and setting up terminal
+ emulation packages on PCs which are connected as dumb terminals.
+
+ Command:
+            KEYTEST
+
+ To stop the program you must type the key sequence of
+      q u i t   or   e x i t
+ 
+ The standard program abort keys of control-Y and control-C
+ are turned off while the program is running.
+
+ Otherwise just type any key while the program is running.
+
+1 Output
+ The output shows the decimal value for each key pressed,
+ as well as the key name, and for any special keyboard application
+ keys the full key name.
+
+1 Keys
+ The following VT220 keys are known by this program and are displayed:
+
+ control-@ to control-_      (values 0 to 31)
+ SPACE     to /              (values 32 to 47)
+ 0         to 9              (values 43 to 57)
+ :         to @              (values 58 to 64)
+ A         to Z              (values 65 to 90)
+ [         to `              (values 91 to 96)
+ a         to z              (values 97 to 122)
+ {         to ~              (values 123 to 126)
+ DEL                         (value 127)
+ ¡         to ý              (values 161 to 253)
+ F6        to F14            (sequence)
+ HELP                        (sequence)
+ DO                          (sequence)
+ F17       to F20            (sequence)
+ PF1       to PF4            (sequence)
+ KEYPAD 0  to KEYPAD 9       (sequence)
+ KEYPAD-  KEYPAD,  KEYPAD.   (sequence) 
+ KEYPAD-ENTER                (sequence) 
+ UP  DOWN  RIGHT  LEFT       (sequence)
+ FIND  INSERT-HERE           (sequence)
+ REMOVE  SELECT              (sequence)
+ PREV-SCREEN  NEXT-SCREEN    (sequence)
+
+
+ The exceptions which cannot be displayed are:
+ control-S     To the terminal this means freeze the screen
+ control-Q     To the terminal this means un-freeze the screen
+ F1            To the terminal this toggles freeze/un-freeze the screen
+ F2            To the terminal this is a local print screen
+ F3            This enters setup mode
+ F4            This is the data/talk key
+ F5            This is the BREAK key

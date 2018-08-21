@@ -1,0 +1,298 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE SafeStorage;
+(*
+ * Dos implementation:
+ *     We don't want to use the supplied Storage module, because it is 6K.  
+ *     However, the stupid run-time system assumes that it can hog all of
+ *     memory. There are two versions depending upon "Storage" as the
+ *     preprocess value. If you don't use Storage, then you must tell
+ *     the run-time system how much space you really want including code
+ *     and it will allocate only that much. If you use the lod2exe program, 
+ *     then you can specify your "workspace" size which should be around 4k.
+ *
+ * Storage implementation:
+ *     If we do use Storage, then we don't need all the DOS stuff and
+ *     we can't be using Tasks.
+ *
+ * Tasks: 
+ *     It is assumed that the "handler" will control re-entrancy.
+ *
+ * TO DO:
+ *     Does it make sense to clear memory before and after allocation?
+ *     It finds interesting bugs that way. Objects does do a lot in
+ *     that direction, however.
+ *)
+IMPORT 
+    ProgErr,
+    SYSTEM,
+    SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+	DosMonitor;
+@END (* Tasks *)
+
+@IF NOT NoStorage AND NOT ( Tasks AND LogitechM2V2 ) THEN
+    IMPORT
+	Storage;
+@ELSE
+    IMPORT
+	DOS;
+
+    CONST
+	bytesPerParagraph = 16;
+@END (* NOT NoStorage *)
+
+PROCEDURE ALLOCATE(
+    VAR anyPointer : SysTypes.SAUPTR;
+        size       : SysTypes.Card
+    );
+    (*
+     * Try to allocate the memory.  If it doesn't work, call the
+     * currently installed handler.  If that doesn't work, then
+     * we just terminate the caller.
+     *
+     * For Dos, we must adjust the size of memory to be in paragraphs.
+     * We always round up to the nearest paragraph boundary except 
+     * if it is exactly a paragraph size.
+     *)
+    VAR
+	dosError : SysTypes.Card;
+	tmpSize  : SysTypes.Card;
+    BEGIN (* ALLOCATE *)
+
+	(* We need to check this, see below *)
+	IF size = 0 THEN
+	    anyPointer := NIL;
+	    RETURN;
+	END;
+
+	@IF NOT NoStorage AND NOT ( Tasks AND LogitechM2V2 ) THEN
+	    (* 
+	     * This obviously won't fly with the Tasks world, because
+	     *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+	    IF NOT Storage.Available( size ) THEN
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+		handler;	(* Must not be in critical section *)
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		IF NOT Storage.Available( size ) THEN
+		    ProgErr.Terminate( 'SafeStorage: out of memory.' );
+		END;
+	    END;
+	    Storage.ALLOCATE( anyPointer, size );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+	@ELSE
+	    (*
+	     * Adjust size into paragraphs.  We can't add to size, because
+	     * it may be 65535 so we substract!   
+	     *)
+	    DEC( size );			(* subtract rounding factor *)
+	    size := size DIV bytesPerParagraph;	(* to paragraphs *)
+	    INC( size );			(* round up on paragraph *)
+
+	    (* Have to use tmpSize, because the DOSCALL is a var parameter *)
+	    tmpSize := size;
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.malloc, tmpSize, anyPointer.SEGMENT, 
+				dosError );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+	    IF dosError # 0 THEN
+		handler;	(* Attempt to clear out of memory condition *)
+		tmpSize := size;	(* Need to do, because it changes *)
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.malloc, tmpSize, anyPointer.SEGMENT,
+				    dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+		IF dosError # 0 THEN
+		    (* Still out of memory, bye bye *)
+		    ProgErr.Terminate( 'SafeStorage: out of memory.' );
+		END;
+	    END;
+
+	    (* Have to set the offset, because dos only sets the segment *)
+	    anyPointer.OFFSET := 0;
+	@END (* NOT NoStorage *)
+	
+    END ALLOCATE;
+
+PROCEDURE AllocateOK(
+    VAR anyPointer : SysTypes.SAUPTR;
+        size       : SysTypes.Card
+    )              : BOOLEAN;
+    (*
+     * Try to allocate the memory.  If it doesn't work, return FALSE.
+     * For Dos, we must adjust the size of memory to be in paragraphs.
+     * We always round up to the nearest paragraph boundary except 
+     * if it is exactly a paragraph size.
+     *)
+    VAR
+	dosError : SysTypes.Card;
+	tmpSize  : SysTypes.Card;
+	result   : BOOLEAN;
+    BEGIN (* AllocateOK *)
+
+	(* We need to check this, see below *)
+	IF size = 0 THEN
+	    anyPointer := NIL;
+	    RETURN FALSE;
+	END;
+
+	@IF NOT NoStorage AND NOT ( Tasks AND LogitechM2V2 ) THEN
+	    (* 
+	     * This obviously won't fly with the Tasks world, because
+	     *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		result := Storage.Available( size );
+		IF result THEN
+		    Storage.ALLOCATE( anyPointer, size );
+		END;
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+	@ELSE
+	    (*
+	     * Adjust size into paragraphs.  We can't add to size, because
+	     * it may be 65535 so we substract!   
+	     *)
+	    DEC( size );			(* subtract rounding factor *)
+	    size := size DIV bytesPerParagraph;	(* to paragraphs *)
+	    INC( size );			(* round up on paragraph *)
+
+	    (* Have to use tmpSize, because the DOSCALL is a var parameter *)
+	    tmpSize := size;
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		SYSTEM.DOSCALL( DOS.malloc, tmpSize, anyPointer.SEGMENT, 
+				dosError );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+
+	    (* Did we get what we wanted? *)
+	    result := dosError = 0;
+
+	    (* Have to set the offset, because dos only sets the segment *)
+	    anyPointer.OFFSET := 0;
+	@END (* NOT NoStorage *)
+
+	RETURN result;
+	
+    END AllocateOK;
+
+PROCEDURE DEALLOCATE(
+    VAR anyPointer : SysTypes.SAUPTR;
+        size       : SysTypes.Card
+    );
+    (*
+     * Storage model is simple, eh?
+     *
+     * This is rough, but it is expected the clown isn't going to 
+     * be playing pointer games and pass us a valid address, but the
+     * segment:offset is not adjusted correctly.  If he does, 
+     * blow him away.  It is too much of a waste to adjust the pointer 
+     * and have DOS tell us that the pointer wasn't valid.
+     *)
+    VAR
+	dosError : SysTypes.Card;
+    BEGIN (* DEALLOCATE *)
+
+	@IF NOT NoStorage AND NOT ( Tasks AND LogitechM2V2 ) THEN
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END (* Tasks *)
+		    Storage.DEALLOCATE( anyPointer, size );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END (* Tasks *)
+	    anyPointer := NIL;	(* As required by the def *)
+	@ELSE
+	    IF anyPointer.OFFSET = 0 THEN
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    (* DOS knows the size *)
+		    SYSTEM.DOSCALL( DOS.free, anyPointer, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+		IF dosError = 0 THEN
+		    anyPointer := NIL;	(* As required by the def *)
+		    RETURN;
+		END;
+	    END;
+
+	    ProgErr.Terminate( 
+	       "SafeStorage: deallocation attempted on illegal pointer." );
+	@END (* NOT NoStorage *)
+
+    END DEALLOCATE;
+
+VAR
+    handler   : PROC;  (* To be called when Storage.Allocate returns NIL *)
+
+PROCEDURE InstallOutOfMemoryHandler(
+        newHandler : PROC;
+    VAR oldHandler : PROC
+    );
+    (*
+     * Return the current handler and install the new one.
+     *)
+    BEGIN (* InstallOutOfMemoryHandler *)
+
+	oldHandler := handler;
+	handler    := newHandler;
+
+    END InstallOutOfMemoryHandler;
+
+
+PROCEDURE DefaultHandler;
+    (* nothing to do ... *)
+    END DefaultHandler;
+
+
+BEGIN  (* SafeStorage *)
+
+    handler := DefaultHandler;
+
+END SafeStorage.

@@ -1,0 +1,86 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ProgEnviron;
+(*
+ * The environment of a program is a set of named values which can be
+ * accessed by the program. The named values are usually set by an
+ * external entity such as an end user before the program is executed.
+ *
+ * The syntax of the names and values is operating system specific.
+ * This module may be unsupported on some systems.
+ *)
+IMPORT
+    NameLists;
+
+EXPORT QUALIFIED 
+    maxNameLength,     maxValueLength,       Name,
+    Value,             GetValue,             ListNames;
+
+CONST
+    @IF MsDosOS THEN
+        maxNameLength  = 128;
+        maxValueLength = 128;
+        (*
+         * These values were empirically determined, but they agree
+         * with the manuals. The actual value for a "set name=value"
+         * is 122, but a little slack couldn't hurt.
+         *)
+    @END
+
+    @IF SunOS THEN
+        maxNameLength  = 256;
+        maxValueLength = 1024;
+        (*
+         * The actual lengths of these entities are theoretically unbounded
+         * on the Sun. However, the practical limits imposed by the shells
+         * on argument lengths impose de facto limits.  Hence, we carry
+         * these shell imposed values to our internal values, because of
+         * common sense (and furthering the cause of pragmatism).
+         *)
+    @END
+
+TYPE
+    Name  = ARRAY[ 0 .. maxNameLength  - 1 ] OF CHAR;
+    Value = ARRAY[ 0 .. maxValueLength - 1 ] OF CHAR; 
+
+PROCEDURE GetValue(
+        nameOfValue : ARRAY OF CHAR;  (* Name to be used in lookup *)
+    VAR value       : Value           (* Associated with "nameOfValue" *)
+    )               : BOOLEAN;        (* TRUE => Defined *)
+    (*
+     * Looks the "nameOfValue" up in the environment and returns
+     * the value associated with the name. If the "nameOfValue"
+     * is not defined in the environment, then nothing is returned.
+     *)
+
+PROCEDURE ListNames(
+    names : NameLists.Object  (* Must be valid *)
+    );
+    (*
+     * Returns all the names in the environment via the predefined NameList.
+     * Found names are added (note that the found names will be no longer
+     * than "maxProgEnvironNameLength"). The "importerObject" given are
+     * NameLists.DONTCARE.
+     *)
+
+END ProgEnviron.

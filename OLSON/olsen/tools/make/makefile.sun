@@ -1,0 +1,13 @@
+# Makefile for make!
+ 
+.SUFFIXES: .obj .c .h 
+ 
+OBJS    =    check.o input.o macro.o main.o make.o reader.o rules.o
+ 
+.c.o:
+	cc -c $<
+
+make:        $(OBJS)
+	cc -o make $(OBJS)
+ 
+$(OBJS):    h.h

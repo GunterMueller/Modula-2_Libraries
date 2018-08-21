@@ -1,0 +1,191 @@
+(**************************************************************************)
+(* This software by Olsen & Associates belongs to the public domain.      *)
+(* Distribution and disclosure are permitted.  The application of the     *)
+(* software is at the user's risk.  Olsen & Associates is not accountable *)
+(* for direct or indirect damage caused by the software or other services *)
+(* linked herewith, and in particular liability is excluded as far as     *)
+(* legally permissible and revoked for auxiliary staff                    *)
+(* (Swiss contract law par. 100/101).	                                  *)
+(**************************************************************************)
+
+IMPLEMENTATION MODULE IntConvert;
+(*
+ * Uses CardConvert to do most of the work. 
+ *)
+IMPORT 
+    CardConvert,
+    Chars,
+    ProgErr,
+    Strings,
+    SysTypes;
+
+CONST
+    base = 10;
+VAR
+    absMINInt : SysTypes.Card;	
+	(*
+	 * We need "absMINInt" to compare to a cardinal.  We
+	 * need to make it a VAR for reasons that are beyond me,
+	 * but the compilers seem to get upset about defining the
+	 * type IntCard.  
+	 *)
+
+PROCEDURE ToString(
+        toConvert : SysTypes.Int;
+	width     : SysTypes.Card;
+    VAR result    : ARRAY OF CHAR
+    )             : BOOLEAN;
+    VAR
+	ourWidth     : SysTypes.Card;  (* may differ from "width" 
+					  if "width" = 0 *)
+	negative     : BOOLEAN;
+	absToConvert : SysTypes.Card;   (* ABS( toConvert ) *)
+    BEGIN (* ToString *)
+
+	ourWidth := width;
+	IF width = 0 THEN
+	    (* user says make it as wide as we need to *)
+	    ourWidth := HIGH( result ) + 1;
+	@IF Assert THEN
+	    ELSIF HIGH( result ) < ourWidth - 1 THEN
+		(* user specified width which was too small for string *)
+		ProgErr.Terminate( 
+			'IntConvert: string smaller than width.' );
+	@END (* Assert *)
+	END;
+
+	negative := toConvert < 0;
+	IF NOT negative THEN
+	    absToConvert := toConvert;
+	ELSE
+	    (* Twos complement funkiness *)
+	    IF toConvert = SysTypes.MINInt THEN
+		absToConvert := absMINInt;
+	    ELSE
+		absToConvert := -toConvert;
+	    END;
+	END;
+
+	(* Use CardConvert so we don't duplicate code all over the place *)
+	IF NOT negative THEN
+	    RETURN CardConvert.ToString( absToConvert, base, width, result );
+	END;
+
+	(* Is negative, have to convert string before inserting minus sign. *)
+	IF NOT CardConvert.ToString( absToConvert, base, 0, result ) THEN
+	    RETURN FALSE;	(* CardConvert already does '*' filling *)
+	END;
+
+	(* If there isn't enough room for the minus sign, return failure *)
+	IF Strings.Length( result ) >= ourWidth THEN
+	    Strings.Justify( result, Strings.justifyRight, width, '*' );
+	    RETURN FALSE;
+	END;
+	Strings.Insert( result, Strings.BOS, '-' );	(* Always OK *)
+
+	(* Justify if needed. *)
+	IF width # 0 THEN
+	    Strings.Justify( result, Strings.justifyRight, width, ' ' );
+	END;
+
+	RETURN TRUE;
+    END ToString;
+
+
+PROCEDURE FromString(
+        toConvert : ARRAY OF CHAR;
+    VAR result    : SysTypes.Int
+    )             : BOOLEAN;
+    CONST
+	maxBeforeOverflow = SysTypes.MAXInt DIV base;
+    VAR
+	i          : SysTypes.Card;
+	len        : SysTypes.Card;
+	cardResult : SysTypes.Card;
+	negative   : BOOLEAN;
+    BEGIN (* FromString *)
+
+	len    := Strings.Length( toConvert );
+	IF len = 0 THEN
+	    RETURN FALSE;
+	END;
+
+	i := 0;
+	(* skip white space *)
+	WHILE Chars.IsWhiteSpace( toConvert[ i ] ) DO
+	    INC( i );
+	    IF i >= len THEN
+		RETURN FALSE;
+	    END;
+	END; (* WHILE *)
+
+	(* check for sign *)
+	negative := toConvert[ i ] = '-';
+	IF negative OR ( toConvert[ i ] = '+' ) THEN
+	    INC( i );	(* Skip only a single leading sign character *)
+	END;
+
+	(* 
+	 * Delete the characters we aren't interested in.  Note that if
+	 * there is nothing left in the string (e.g. '-' is toConvert),
+	 * CardConvert will pick this failure up.
+	 *)
+	IF i > 0 THEN
+	    Strings.Delete( toConvert, Strings.BOS, i - 1 );
+	END;
+
+	(* Convert the value into a cardinal *)
+	IF NOT CardConvert.FromString( toConvert, base, cardResult ) THEN
+	    RETURN FALSE;
+	END;
+
+	(* 
+	 * Do the necessary range checking based on the sign and then 
+	 * follow with the conversion.  Note because of two's complement,
+	 * we *cannot* move the "result := cardResult" outside of the
+	 * sign test.   
+	 *)
+	IF negative THEN
+	    (* Is it big enough? *)
+	    IF cardResult < absMINInt THEN
+		result := - SysTypes.Int( cardResult );
+	    ELSE
+		(* 
+		 * Have to do all this flips and twists to get the
+		 * special assignment of min integer 
+		 *)
+		(* This is some two's complement crap *)
+		IF cardResult > absMINInt THEN
+		    RETURN FALSE;
+		END;
+		result := SysTypes.MINInt;
+	    END;
+	ELSE
+	    (* Is it too big? *)
+	    IF cardResult > SysTypes.MAXInt THEN
+		RETURN FALSE;
+	    END;
+	    result := cardResult;
+	END;
+
+
+	RETURN TRUE;
+    END FromString;
+
+@IF SunM2 OR LogitechM2 THEN
+    VAR
+	tmp : SysTypes.Int;
+@END (* SunM2 OR LogitechM2 *)
+
+BEGIN (* IntConvert *)
+
+    (* The flips and twists of computer arithmetic! *)
+    @IF SunM2 OR LogitechM2 THEN
+	tmp := SysTypes.MINInt;
+	absMINInt := - ( tmp + 1 );
+	INC( absMINInt );
+    @ELSE
+	absMINInt := 1 - ( SysTypes.MINInt + 1 );
+    @END
+
+END IntConvert.

@@ -1,0 +1,51 @@
+DEFINITION MODULE LargeNumbers;
+
+(* Handle very large numbers *)
+(* V3.0, J. Andrea, Nov.14/92 *)
+
+EXPORT QUALIFIED NumType, zero, one,
+                 StatusType, status,
+                 SetDigits, Add, Subtract, Multiply, Divide,
+                 Abs, ChangeSign,
+                 Times10, Divide10,
+                 StringToNum, NumToString;
+
+CONST
+   max_precision = 200;
+   min_exp = -16000;
+   max_exp =  16000;
+   
+TYPE
+   SignType = (positive,negative);
+   NumType  = RECORD
+               man  :ARRAY [-1..max_precision] OF CHAR;   (* mantissa *)
+               sign :SignType;  (* sign of mantissa *)
+               exp  :INTEGER;   (* exponent, may be positive or negative *)
+               an   :CARDINAL;  (* a number, set when each number is initialized *)
+              END;
+   StatusType = ( ok, overflow, underflow, divide_by_zero,
+                  too_few_digits, too_many_digits, invalid_digit,
+                  nan );  (* Not A Number *)
+                  
+VAR
+  status :StatusType;
+  zero, one :NumType;
+
+PROCEDURE SetDigits( d :INTEGER );
+
+PROCEDURE Add( a, b :NumType; VAR c :NumType );
+PROCEDURE Subtract( a, b :NumType; VAR c :NumType );
+PROCEDURE Multiply( a, b :NumType; VAR c :NumType );
+PROCEDURE Divide( a, b :NumType; VAR c :NumType );
+
+PROCEDURE Abs( VAR a :NumType );
+PROCEDURE ChangeSign( VAR a :NumType );
+
+PROCEDURE Times10( VAR a :NumType );
+PROCEDURE Divide10( VAR a :NumType );
+(* Times10 and Divide10 are fast operators *)
+ 
+PROCEDURE StringToNum( s :ARRAY OF CHAR; VAR a :NumType );
+PROCEDURE NumToString( a :NumType; VAR s :ARRAY OF CHAR );
+
+END LargeNumbers.

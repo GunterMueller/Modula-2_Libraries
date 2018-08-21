@@ -1,0 +1,625 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TaskMessages;
+(*
+ * Synchronous messages are easy to implement, because we know that the
+ * sender only needs one buffer.  If this were asynchronous messages,
+ * we would have to buffer management.  Each task has an information
+ * block which is divided into two parts: send and receive.  
+ * 
+ * The send part contains buffer request/reply message information, a state,
+ * and queue management.  The receive part contains a linked list of
+ * all possible senders, that is, each task has a list of tasks which
+ * are currently sending to it.  The tasks are inserted at the tail and
+ * may be removed in any order.  The "next" pointer is in the send field
+ * of the individual senders.   
+ * 
+ * The send state indicates what operations are legal to be performed on
+ * the sender by a receiver.  It is also useful for debugging.  Receive
+ * can be executed only a task which is in the receiver's queue *and*
+ * if the task is awaitingReceive.  Reply can only be executed if the
+ * task is in the replier's (receiver's) queue *and* if the task is
+ * awaitingReply.  The sender is blocked from the entire time it calls
+ * Send till the time Reply is executed to the Send.
+ *
+ * Given that a sender is blocked for the entire message, we play a little
+ * trick when passing data from the sender to the receiver and from the
+ * replier to the sender.   The sender supplies both the request and
+ * reply buffer before it calls Send.  All we have to do is save the
+ * pointers to these stack values and when Receive is called, copy the
+ * data from the sender's stack to the receiver's.  On Reply, the 
+ * same game is played, but the copy direction changes.
+ *)
+IMPORT
+    Bytes,		
+    Objects,
+    ProgErr,
+    ProgErrOutput,	
+    SYSTEM,		
+    SysTypes,
+    TaskInfo,	
+    TaskConsts,
+    Tasks,		
+    TaskTime;	
+
+CONST
+    maxLocalCopy = 8;
+TYPE
+    LocalCopy    = ARRAY [ 0 .. maxLocalCopy - 1 ] OF SysTypes.ANY;
+    LocalCopyPtr = POINTER TO LocalCopy;
+	(*
+	 * In order to save time, we don't call Bytes.Copy if the
+	 * amount of data to be copied is less than or equal to maxLocalCopy.
+	 * The array "data" below is a pointer to the whole data area, but
+	 * you can only copy "LocalCopy" without calling Bytes.
+	 *)
+    Message    = RECORD 
+	data        : LocalCopyPtr; 	(* Pointer to sender's data area *)
+	high        : CARDINAL;		(* high index of sender's data area 
+					   Note this may be greater than
+					   maxLocalCopy. *)
+    END;
+    SendStates = (
+	notSending,	 (* Is not send blocked at the moment *)
+	awaitingReceive, (* Awaiting a Receive call by send.to *)
+	awaitingReply    (* Has been received, but no reply has been sent *)
+    );
+
+    ReceiveStates = (
+	notReceiving,	 	(* Is not in a receive blocked at the moment *)
+	receiveBlocked, 	(* In a call to Receive with no messages *)
+	timedReceiveBlocked     (* In a call to TimedReceive *)
+    );
+
+    Info       = POINTER TO InfoRec;
+
+    InfoRec    = RECORD
+	task    : Tasks.Object;		(* back pointer for convenience *)
+	send    : RECORD
+	    state      : SendStates;	(* What are we doing now... *)
+	    to         : Info; 		(* Task to which this task is sending *)
+	    request    : Message;	(* Where receiver gets the request *)
+	    reply      : Message;	(* Where replier puts the reply *)
+	    next       : Info;		(* Next task in the receive queue *)
+	END;
+	receive : RECORD
+	    state : ReceiveStates;	(* how are we paused *)
+	    head  : Info;		(* First task in receive queue *)
+	    tail  : Info;		(* Last task in receive queue.
+					   Invalid if head = NIL *)
+	END;
+    END; (* InfoRec *)
+
+CONST
+    moduleName = "TaskMessages";
+VAR
+    infoMgr    : Objects.Manager;	(* Allocated task information *)
+    infoID     : TaskInfo.Object;	(* identification of TaskInfo *)
+
+@IF Assert THEN
+CONST
+    taskDeathWithSenders
+	= "TaskMessages: task terminated with outstanding messages.";
+    replyWithoutRecieve 
+	= "TaskMessages: reply to task which wasn't sending to replier.";
+@END (* Assert *)
+
+
+PROCEDURE Send(
+        recipient : Tasks.Object;
+	request   : ARRAY OF SysTypes.ANY;
+    VAR reply     : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * Save the "request" and "reply" data areas in the "send"
+     * part of the requester's info.  The receiver will then be
+     * able to copy the request when it receives.  The requester
+     * is then inserted at the tail of the receiver's queue.
+     * The task then goes to sleep until its state is changed
+     * into notSending.
+     *)
+    VAR
+	requester : Info;	(* TaskInfo.GetCurrent *)
+	receiver  : Info;	(* TaskInfo.Get( recipient ) *)
+    BEGIN (* Send *)
+
+	(*
+	 * Set up as much information as possible before going 
+	 * into the critical section.  It is possible to modify
+	 * "own" information such as "send.request" and "send.reply",
+	 * because this is only modified by the sending task.
+	 *)
+	requester := TaskInfo.GetCurrent( infoID );
+	WITH requester^ DO
+	    send.state        := awaitingReceive;
+	    (* "to" must be set inside critical section *)
+	    send.request.data := SYSTEM.ADR( request );
+	    send.request.high := HIGH( request );
+	    send.reply.data   := SYSTEM.ADR( reply );
+	    send.reply.high   := HIGH( reply );
+	    send.next         := NIL;	(* always insert at the end of list *)
+	END;
+
+	Tasks.DisallowPreemption;
+	    
+	    (* 
+	     * Must be inside the critical section, because
+	     * receiver cannot be allowed to die in the middle
+	     * of the transaction.
+	     *)
+	    receiver := TaskInfo.Get( infoID, recipient );
+
+	    WITH receiver^.receive DO
+		(* Insert at tail in the receive queue *)
+		IF head = NIL THEN
+		    head := requester;
+		ELSE
+		    tail^.send.next := requester;
+		END;
+		tail := requester;
+
+		(* Figure out how to get ahold of the receiver *)
+		CASE state OF
+		    notReceiving:
+			(* Don't do a thing! *)
+		    |
+		    receiveBlocked:
+			Tasks.Ready( recipient );
+		    |
+		    timedReceiveBlocked:
+			TaskTime.WakeUp( recipient );
+		END; (* CASE *)
+	    END; (* WITH *)
+
+	    WITH requester^ DO
+		send.to := receiver;	 (* set to field before suspending *)
+		REPEAT
+		    Tasks.Suspend;	(* wait for receive/reply *)
+		UNTIL send.state = notSending;
+	    END; (* WITH *)
+
+	Tasks.AllowPreemption;
+
+    END Send;
+
+
+PROCEDURE Receive(
+    VAR sender   : Tasks.Object;
+    VAR request  : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * Check to see if there is a pending receive, that is, that the
+     * recieve queue of the current task is non-empty *and* that there
+     * is an entry in the queue which is "awaitingReceive".  If this isn't
+     * true, go to sleep and check again.  Once we get a valid sender,
+     * we must copy sender.send.request.data to "request" and change the
+     * sender's state to awaitingReceive.  We return requester^.task
+     * into the sender parameter.
+     *)
+    VAR
+	receiver  : Info;	(* TaskInfo.GetCurrent *)
+	requester : Info; 	(* Somewhere in receiver^.receive queue *)
+	i	  : CARDINAL;
+    BEGIN (* Receive *)
+
+	receiver := TaskInfo.GetCurrent( infoID );
+
+	Tasks.DisallowPreemption;
+
+	    WITH receiver^ DO 
+		(* 
+		 * Wait for a message to come in.  Since the two types
+		 * of requester's (awaitingReply and awaitingReceive) are 
+		 * on the same, we must check for head = NIL and 
+		 * if any task in the receive queue has yet to be 
+		 * received (i.e. awaitingReceive).
+		 *)
+		receive.state := receiveBlocked;
+		LOOP 
+		    requester := receive.head;
+		    WHILE requester # NIL DO
+			WITH requester^.send DO
+			    CASE state OF
+				awaitingReceive: EXIT;
+				|
+				awaitingReply: (* not interested *)
+
+				(* notSending: CASE tag error *)
+			    END; (* CASE *)
+			    requester := next;
+			    (* with is invalid *)
+			END; (* WITH *)
+		    END; (* WHILE *)
+
+		    Tasks.Suspend;	(* No outstanding sends *)
+
+		END; (* LOOP *)
+		receive.state := notReceiving;
+	    END; (* WITH *)
+
+	    (* 
+	     * Have a valid requester copy its request to the receivers and
+	     * change the state.
+	     *)
+	    
+	    WITH requester^.send.request DO
+		(* 
+		 * Don't call Bytes.Copy if request is small.
+		 * Note that "high" must be less than or equal to
+		 * HIGH( request ).  If it isn't, we will get a range
+		 * error.
+		 *)
+		IF high >= maxLocalCopy THEN
+		    @IF Assert THEN
+			(* Force a range error if buffer to small *)
+			request[ high ] := SysTypes.ANY( 0 );
+		    @END (* Assert *)
+		    Bytes.Copy( data, SYSTEM.ADR( request ), high );
+		ELSE
+		    FOR i := 0 TO high DO
+			request[ i ] := data^[ i ];
+		    END;
+		END;
+	    END; (* WITH *)
+
+	    WITH requester^ DO
+		send.state := awaitingReply;
+		sender     := task;	(* Tell the caller who is the sender *)
+	    END;
+
+	Tasks.AllowPreemption;
+
+    END Receive;
+
+
+PROCEDURE TimedReceive(
+    VAR sender  : Tasks.Object;
+    VAR request : ARRAY OF SysTypes.ANY;
+        timeout : TaskTime.Units
+    )           : BOOLEAN;
+    (*
+     * Check to see if there is a pending receive, that is, that the
+     * recieve queue of the current task is non-empty *and* that there
+     * is an entry in the queue which is "awaitingReceive".  If this isn't
+     * so, then go to sleep for the timeout specified.  Upon wakeup,
+     * check the queue one more time and if it fails, exit with failure.
+     * Once we get a valid sender, we must copy sender.send.request.data 
+     * to "request" and change the sender's state to awaitingReceive.  
+     * We return requester^.task into the sender parameter.
+     *)
+    VAR
+	receiver  : Info;	(* TaskInfo.GetCurrent *)
+	requester : Info; 	(* Somewhere in receiver^.receive queue *)
+	i	  : CARDINAL;
+	result    : BOOLEAN;
+    BEGIN (* TimedReceive *)
+
+	receiver := TaskInfo.GetCurrent( infoID );
+
+	Tasks.DisallowPreemption;
+
+	    WITH receiver^ DO 
+		(* 
+		 * Wait for a message to come in.  Since the two types
+		 * of requester's (awaitingReply and awaitingReceive) are 
+		 * on the same, we must check for head = NIL and 
+		 * if any task in the receive queue has yet to be 
+		 * received (i.e. awaitingReceive).
+		 *
+		 * We only go through the loop one and a half times.  The
+		 * first time through result is true and the second time
+		 * through, it is false.  The test in the middle checks
+		 * to see if result is false in which case it terminates
+		 * with failure.
+		 *)
+		result := TRUE;
+		receive.state := timedReceiveBlocked;
+		LOOP 
+		    requester := receive.head;
+		    WHILE requester # NIL DO
+			WITH requester^.send DO
+			    CASE state OF
+				awaitingReceive: 
+				    result := TRUE;
+				    EXIT;
+				|
+				awaitingReply: (* not interested *)
+
+				(* notSending: CASE tag error *)
+			    END; (* CASE *)
+			    requester := next;
+			    (* with is invalid *)
+			END; (* WITH *)
+		    END; (* WHILE *)
+
+		    (* 
+		     * Only wait one time through the loop.  If we 
+		     * get to this point and result is FALSE, then
+		     * we slept once and didn't get anything.
+		     *)
+		    IF NOT result THEN
+			EXIT;
+		    END;
+		    TaskTime.Sleep( timeout );	
+		    result := FALSE;
+		END; (* LOOP *)
+		receive.state := notReceiving;
+
+	    END; (* WITH *)
+
+	    IF result THEN
+		(* 
+		 * Have a valid requester copy its request to the receivers 
+		 * and change the state.
+		 *)
+	    
+		WITH requester^.send.request DO
+		    (* 
+		     * Don't call Bytes.Copy if request is small.
+		     * Note that "high" must be less than or equal to
+		     * HIGH( request ).  If it isn't, we will get a range
+		     * error.
+		     *)
+		    IF high >= maxLocalCopy THEN
+			@IF Assert THEN
+			    (* Force a range error if buffer to small *)
+			    request[ high ] := SysTypes.ANY( 0 );
+			@END (* Assert *)
+			Bytes.Copy( data, SYSTEM.ADR( request ), high );
+		    ELSE
+			FOR i := 0 TO high DO
+			    request[ i ] := data^[ i ];
+			END;
+		    END;
+		END; (* WITH *)
+
+		WITH requester^ DO
+		    send.state := awaitingReply;
+		    sender     := task;	(* Tell the caller who is the sender *)
+		END;
+	    END;
+
+	Tasks.AllowPreemption;
+
+	RETURN result;
+    END TimedReceive;
+
+
+PROCEDURE Reply(
+    sender : Tasks.Object;
+    reply  : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * Find the "sender" in the receive queue.  Blow up if it isn't
+     * there or if it isn't awaitingReply.  Copy the reply into the
+     * requester's reply buffer.  Delete the requester from the queue and
+     * change the state of the requester to notSending.  Finally,
+     * wake up the sender.
+     *)
+    VAR
+	requester : Info;	(* Tasks.Get( sender ) *)
+	previous  : Info;	(* For queue deletion *)
+	receiver  : Info;	(* Tasks.GetCurrent *)
+	i	  : CARDINAL;
+    BEGIN (* Reply *)
+
+	receiver := TaskInfo.GetCurrent( infoID );
+
+	Tasks.DisallowPreemption;
+
+	    WITH receiver^.receive DO 
+		(* 
+		 * Find the requester in the queue and delete at the
+		 * very same time.  Note that we do the assertion check
+		 * afterwards.  However, if the queue is empty this
+		 * code will blow up with a NIL pointer reference.
+		 *)
+		IF SYSTEM.ADDRESS( head^.task ) = SYSTEM.ADDRESS( sender ) THEN
+		    requester := head;
+		    head      := head^.send.next;
+		    (* Tail may be invalid here, but no big deal *)
+		ELSE
+		    previous := head;
+		    LOOP
+			WITH previous^ DO
+			    @IF Assert THEN
+				IF send.next = NIL THEN
+				    ProgErr.Terminate( replyWithoutRecieve );
+				END;
+			    @END (* Assert *)
+			    IF SYSTEM.ADDRESS( send.next^.task ) = 
+			       SYSTEM.ADDRESS( sender ) THEN
+				requester := send.next;
+				send.next := requester^.send.next;
+				IF tail = requester THEN
+				    tail := previous;	(* update tail *)
+				END;
+				EXIT;
+			    END;
+			    previous := send.next;
+			END; (* WITH *)
+		    END; (* LOOP *)
+		END; (* IF *)
+	    END; (* WITH *)
+
+	    @IF Assert THEN
+		IF requester^.send.state # awaitingReply THEN
+		    ProgErr.Terminate( replyWithoutRecieve );
+		END;
+	    @END (* Assert *)
+
+	    WITH requester^.send.reply DO
+		(* 
+		 * Don't call Bytes.Copy if reply is small.
+		 * Note that "high" must be less than or equal to
+		 * HIGH( reply ).  If it isn't, we will get a range
+		 * error.
+		 *)
+		IF high >= maxLocalCopy THEN
+		    @IF Assert THEN
+			(* Force a range error if buffer to small *)
+			reply[ high ] := SysTypes.ANY( 0 );
+		    @END (* Assert *)
+		    Bytes.Copy( SYSTEM.ADR( reply ), data, high );
+		ELSE
+		    FOR i := 0 TO high DO
+			data^[ i ] := reply[ i ];
+		    END;
+		END;
+	    END; (* WITH *)
+
+	    (* Tell the sender it can go on *)
+	    WITH requester^ DO
+		send.state := notSending;
+		Tasks.Ready( sender );
+	    END;
+
+	Tasks.AllowPreemption;
+
+    END Reply;
+
+
+PROCEDURE Birth(
+    newTask : Tasks.Object
+    )       : SysTypes.ANYPTR;
+    (*
+     * Allocate a new information block for the specified task and
+     * initialize.
+     *)
+    VAR
+	info : Info;
+    BEGIN (* Birth *)
+
+	Objects.Allocate( infoMgr, info );
+	WITH info^ DO
+	    WITH send DO
+		state := notSending;
+		to    := NIL;
+	    END; (* WITH *)
+	    WITH receive DO
+		state := notReceiving;
+		head  := NIL;
+		tail  := NIL;
+	    END;
+	    task := newTask;
+	END; (* WITH *)
+
+	RETURN info;	(* tell 'em about it *)
+
+    END Birth;
+
+
+PROCEDURE Death(
+    deadTask : Tasks.Object;
+    infoAdr  : SysTypes.ANYPTR
+    );
+    (*
+     * The task shouldn't exit with an outstanding non-zero receive queue.
+     * Note that it can't be exiting if it is sending, because it
+     * would be blocked and not falling off the initial thread.
+     *)
+    VAR
+	info : Info;
+    BEGIN (* Death *)
+	
+	@IF Assert THEN
+	    info := infoAdr;
+	    IF info^.receive.head # NIL THEN
+		ProgErr.Terminate( taskDeathWithSenders );
+	    END;
+	@END (* Assert *)
+
+	Objects.Deallocate( infoMgr, infoAdr );
+
+    END Death;
+
+
+PROCEDURE Print(
+    infoAdr : SysTypes.ANYPTR
+    );
+    (*
+     * Called from a non-preemptable section.
+     *
+     * We need to print the message information which consists of
+     * the current send.to field and all other receive.head tasks.
+     * The output line looks like:
+     * 	   Send: blockedOn   Receives: <sender1> sender2 sender3
+     * If <> then the sender is awaiting reply.
+     *
+     * We don't print out "receive.state", because TaskTime prints
+     * out clearer information about the time sleeping.
+     *)
+    VAR
+	info       : Info;	(* infoAdr and receive queue pointer *)
+	hasSenders : BOOLEAN;
+	name       : TaskConsts.Name;
+    BEGIN (* Print *)
+
+	info         := infoAdr;
+	    
+	ProgErrOutput.WriteString( "Send: " );
+	IF info^.send.state # notSending THEN
+	    Tasks.GetName( info^.send.to^.task, name );
+	    ProgErrOutput.WriteString( name );
+	ELSE
+	    ProgErrOutput.WriteString( "none." );
+	END;
+
+	ProgErrOutput.WriteString( "  Receives:" );
+	info := info^.receive.head;
+	hasSenders := FALSE;
+	WHILE info # NIL DO
+	    IF NOT hasSenders THEN
+		hasSenders := TRUE;
+	    END;
+	    WITH info^ DO
+		IF send.state = awaitingReply THEN
+		    ProgErrOutput.WriteString( " <" );
+		ELSE
+		    ProgErrOutput.WriteString( " " );
+		END;
+		Tasks.GetName( info^.task, name );
+		ProgErrOutput.WriteString( name );
+		IF send.state = awaitingReply THEN
+		    ProgErrOutput.WriteString( ">" );
+		END;
+		info := send.next;
+		(* with is invalid *)
+
+	    END; (* WITH *)
+	END; (* WHILE *)
+
+	IF NOT hasSenders THEN
+	    ProgErrOutput.WriteString( " none." );
+	END;
+
+    END Print;
+
+
+BEGIN (* TaskMessages *)
+
+    Objects.CreateManager( infoMgr, SYSTEM.TSIZE( InfoRec ), moduleName );
+
+    TaskInfo.Create( infoID, Birth, Death, Print );
+
+END TaskMessages.

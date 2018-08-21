@@ -1,0 +1,112 @@
+(*
+Sequential Doubly-linked List Search Utilities - Interface
+
+In this section are provided several utility routines implementing
+search algorithms on doubly-linked unbounded lists.
+*)
+
+DEFINITION MODULE ListDUMSearch; 
+(*==========================================================
+    Version  : 1.00  18 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Tools - Structure Utility - Doubly-linked List Search
+
+    Revision History
+    v1.00  18 May 1989  C. Lins
+      Initial implementation.
+	(C) Copyright 1989 Charles A. Lins
+=============================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item, CompareProc;
+
+FROM ListDUM IMPORT
+    (*--Type*) List;
+
+    (*--------------------*)
+
+TYPE  SuccessProc  = PROCEDURE (Item);
+TYPE  FailureProc  = PROCEDURE (Item);
+
+    (*--------------------*)
+
+(*
+PrimarySearch
+
+Searches theList for the first occurance of theItem with the required
+key.  This is called the primary key search.  It is assumed that the
+item comparison routine knows how to extract the key from the items
+if necessary.  If the search succeeds then the found procedure parameter
+is invoked, otherwise the notfound routine is called.  The list is
+assumed to be unordered.
+*)
+
+PROCEDURE PrimarySearch (    theItem   : Item	(*-- in    *);
+	theList   : List	(*-- in    *);
+	keysEqual : CompareProc (*-- in    *);
+	found     : SuccessProc (*-- in    *);
+	notFound  : FailureProc (*-- in    *));
+
+
+(*
+SecondarySearch
+
+Searches theList for every occurance of theItem with the required
+key.  This is called the secondary key search.  It is assumed that the
+item comparison routine knows how to extract the key from the items
+if necessary.  Each time the search succeeds the found procedure parameter
+is invoked.  The list is assumed to be unordered.
+*)
+
+PROCEDURE SecondarySearch (    theItem   : Item	(*-- in    *);
+	theList   : List	(*-- in    *);
+	keysEqual : CompareProc (*-- in    *);
+	found     : SuccessProc (*-- in    *));
+
+
+(*
+Self-organizing Sequential Search - MoveToFront
+
+This routine is essentially the primary key search modified to apply
+a heuristic for improving the list ordering.  When a key is found,
+theItem is moved to the front of the list.  The idea is that the
+access distribution of items in the list is unequal, and therefore,
+the most frequently accessed items should be closer to the front.
+For a sophisticated analysis comparing self-organizing heuristics
+see reference [1].
+*)
+
+PROCEDURE MoveToFront (    theItem   : Item	(*-- in    *);
+	VAR theList   : List	(*-- inout *);
+	keysEqual : CompareProc (*-- in    *);
+	found     : SuccessProc (*-- in    *);
+	notFound  : FailureProc (*-- in    *));
+
+
+(*
+Self-organizing Sequential Search - Transpose
+
+Instead of moving the found item to the front of the list, the Transpose
+heuristic moves the item one position closer to the front by swapping
+positions with its predecessor.
+*)
+
+PROCEDURE Transpose (    theItem   : Item	(*-- in    *);
+	VAR theList   : List	(*-- inout *);
+	keysEqual : CompareProc (*-- in    *);
+	found     : SuccessProc (*-- in    *);
+	notFound  : FailureProc (*-- in    *));
+
+END ListDUMSearch.
+
+(*
+
+References
+
+[1] J.L. Bentley and C.C. McGeoch, Worst-Case Analyses of
+    Self-Organizing Sequential Search Heuristics,
+	Carnegie-Mellon University, 1983.
+[2] G.H. Gonnet, Handbook of Algorithms and Data Structures,
+    Searching Algorithms, Addison-Wesley, London 1984,
+	pp. 23-30.
+*)

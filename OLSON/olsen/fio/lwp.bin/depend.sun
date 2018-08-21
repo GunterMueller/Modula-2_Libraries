@@ -1,0 +1,16 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+ConvertFIO.mod: ../shared.src/ConvertFIO.mpp 
+	${StandardM2pp}
+ErrorFIO.mod: ../shared.src/ErrorFIO.mpp 
+	${StandardM2pp}
+FIOScreen.mod: ../shared.src/FIOScreen.mpp 
+	${StandardM2pp}
+SimpleFIO.mod: ../shared.src/SimpleFIO.mpp 
+	${StandardM2pp}

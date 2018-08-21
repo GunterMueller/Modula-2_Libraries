@@ -1,0 +1,49 @@
+DEFINITION MODULE VeryScreen;
+
+(*
+  Very simple screen management procedures.
+  This is the best choice for programmers starting out with screen handling.
+
+  Specific to VT100 and better terminals (VT102, VT220, VT240, VT320, etc.)
+
+  This set of procedures does only a few operations to screens, but
+  does them quickly and simply with little overhead.
+*)
+(* box and line drawing added, John Andrea, Sep.25/1991 *)
+(* John Andrea, Feb.1/1991 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED
+   Home,       EraseScreen,  EraseLine,
+   PutString,  PutCursor,    CursorOn,
+   Line,       Box;
+
+
+PROCEDURE Home;
+(* move the cursor to top of screen *)
+
+PROCEDURE EraseScreen;
+(* erase the screen from the cursor down *)
+
+PROCEDURE EraseLine;
+(* erase from the cursor to then end of the current line *)
+
+PROCEDURE PutString( text :ARRAY OF CHAR; row, col :CARDINAL );
+(* put some text at the given location *)
+
+PROCEDURE PutCursor( row, col :CARDINAL );
+(* move the cursor to the given location *)
+
+PROCEDURE CursorOn( turn_on :BOOLEAN );
+(* turn cursor on or off, true=on, false=off *)
+(* if you forget to turn it back on at the end of your program *)
+(* use the editor, it will force the cursor back on *)
+
+PROCEDURE Line( row1, col1, row2, col2 :CARDINAL );
+(* draw a horizontal or vertical line between the two endpoints *)
+
+PROCEDURE Box( row1, col1, row2, col2 :CARDINAL );
+(* draw a box using the given corners *)
+
+END VeryScreen.

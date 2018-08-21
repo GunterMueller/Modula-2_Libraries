@@ -1,0 +1,399 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Interrupts;
+(*
+ * An interrupt handler is a two part sequence.  The importers of this
+ * module supply the main thread as Modula procedure.  This module
+ * provides the "dressing" around the thread, called the Envelope.
+ * The Envelope is the procedure that is registered with the signal
+ * handler.  When a signal occurs, the Envelope is called which establishes
+ * the proper interrupt environment (signals blocked, preemption off, etc.)
+ * and then calls the list of handlers registered for that signal.  It stops
+ * calling handlers when there are no more or the handler doesn't allow
+ * chaining.  Upon return, the ready queue and preemption state are checked.
+ * A task switch occurs if running is not at the head of the ready queue and
+ * running is preemptable.  If there is no task switch, the Envelope merely
+ * returns.
+ *
+ * Task switching is performed as a two stage process.  The Envelope is
+ * not given all of the necessary information for saving the task state
+ * so we must "return" to save the registers.  This is kind of tricky.
+ * The Envelope gets a sigcontext which specifies the PC, PSL, and sigmask.
+ * We save these global values in the variables defined by TasksAsm
+ * (tasksSavedPC, tasksSavedPSL, tasksSavedMask).   Then the tricky stuff
+ * starts, we set the PC and Mask to values of our interest and return
+ * from the signal.  The PC points to TasksAsm.InterruptsSwitchRunning
+ * The mask blocks all signals.  TasksAsm takes the saved values and
+ * puts them in their appropriate places in the stack.  
+ *
+ * We use a different signal stack to catch signals, because Unix really
+ * soaks up stack space on signal handling.
+ *)
+IMPORT
+    Notices,
+    Objects,
+    ProgErr,
+    SafeStorage,
+    SYSTEM,
+    SysTypes,
+    TasksAsm,
+    TasksPRIVATE,
+    UnixCerrno,
+    UnixCsignal,
+    UnixError;
+
+IMPORT
+    Tasks;	(* This is imported to ensure initialization order
+		   as specified in TasksPRIVATE. *)
+
+CONST
+    moduleName = "Interrupts";
+
+    stackSize = 800H;
+    stackSlop = 100H;
+VAR
+    stackBase : SysTypes.SAUPTR;
+    lowestSP  : SYSTEM.ADDRESS;	(* farthest we have gotten on the sigstack *)
+
+CONST
+    destroyConfusedMsg = 
+	"Interrupts.Destroy: the list of interrupt handlers is munged.";
+    createDuringTerminateMsg =
+	"Interrupts.Create attempted after all handlers restored.";
+    unableToSetSignal = 
+	"Interrupts: unable to set signal via sigvec";
+    stackOverflow =
+	"Interrupts: stack overflow";
+    sigstackFailed =
+	"Interrupts: unable to set sigstack";
+
+TYPE
+    Object    = POINTER TO ObjectRec;
+    ObjectRec = RECORD
+	number    : SysTypes.Card;  (* signal number *)
+	proc	  : HandlerProc;    (* who to call *)
+	impObj	  : SysTypes.ANYPTR;(* pass to "proc" *)
+	previous  : Object;         (* handler which was installed before *)
+	chain	  : BOOLEAN;	    (* afterReturn = callPrevious *)
+    END;
+
+VAR
+    objectMgr : Objects.Manager;
+    signals   : ARRAY [ 1 .. UnixCsignal.NSIG ] OF Object;
+	(*
+	 * List of all signals registered.  Most recently registered
+	 * is inserted at the head.  This array must be modified with
+	 * signals turned off.
+	 *)
+
+PROCEDURE Envelope(
+    signal  : SysTypes.Card;
+    code    : SysTypes.Int;
+    context : UnixCsignal.sigcontext
+    );
+    (*
+     * Called when a signal occurs.  Signals are already blocked, so
+     * all we have to do is save the preemption level and set to 
+     * firstLevelDisallow.  Then we call the handlers (stopping when
+     * one isn't "chaining".   Upon return, we restore the preemption
+     * state and check the ready queue (and preemption).  If we don't
+     * have to switch, we just return.  Otherwise, we must setup for
+     * a return to "TasksAsm.InterruptsSwitchRunning". 
+     *)
+    VAR
+	savedPreemptionLevel : SysTypes.Card;
+	savedErrno	     : SysTypes.Int;
+	p		     : Object;
+    BEGIN (* Envelope *)
+    
+	@IF Assert THEN
+	    IF SYSTEM.ADR( p ) < lowestSP THEN
+		lowestSP := SYSTEM.ADR( p );
+		IF lowestSP < stackBase + stackSlop THEN
+		    ProgErr.Terminate( stackOverflow );
+		END;
+	    END;
+	@END
+	savedPreemptionLevel := TasksPRIVATE.preemptionLevel;
+	savedErrno := UnixCerrno.errno;
+	
+	currentCode := code;	(* Save for GetCode *)
+	TasksPRIVATE.preemptionLevel := TasksPRIVATE.firstLevelDisallow;
+	
+	p := signals[ signal ];
+	LOOP
+	    WITH p^ DO
+		proc( impObj );	   (* Call the handler *)
+		IF NOT chain THEN
+		    EXIT;
+		END;
+		p := previous;
+	    END;
+
+	    IF p = NIL THEN
+		EXIT;	 (* no one to chain to! *)
+	    END;
+	END;
+	
+	(* Restore the state *)
+	TasksPRIVATE.preemptionLevel := savedPreemptionLevel;
+	UnixCerrno.errno := savedErrno;
+	
+	IF ( TasksPRIVATE.preemptionLevel # TasksPRIVATE.allowPreemption )
+	  OR ( TasksPRIVATE.running = TasksPRIVATE.readyQueue ) THEN
+	    RETURN;    (* Nothing to do *)
+	END;
+	
+	WITH context^ DO
+	    TasksAsm.tasksSavedPC := TasksAsm.Register32( sc_pc );
+	    TasksAsm.tasksSavedPSL := TasksAsm.Register32( 
+					    BITSET( sc_ps ) - { 16 .. 31 } );
+	    TasksAsm.tasksSavedMask := TasksAsm.Mask( sc_mask );
+	    
+	    sc_pc := SysTypes.Int( TasksAsm.InterruptsSwitchRunning );
+	    sc_mask := SysTypes.Int( blockAll );
+	END; (* WITH *)
+	
+	(* Context switch will occur upon return *)
+	 
+    END Envelope;
+
+    
+PROCEDURE EmptyHandler( 
+    DONTCARE : SysTypes.ANYPTR 
+    );
+    END EmptyHandler;
+    
+    
+VAR
+    savedSigVecs : ARRAY [ 1 .. UnixCsignal.NSIG ] OF
+		      UnixCsignal.struct_sigvec;
+        (*
+	 * saved signal vector values for ResetSigVec.
+	 *)
+
+PROCEDURE SetSigVec(
+    number : SysTypes.Card
+    );
+    (*
+     * Establishes Envelope as the signal handler and saves the previous
+     * value in savedSigVecs.  Assumes that the appropriate signals have
+     * been blocked.
+     *)
+    VAR
+	newVec : UnixCsignal.struct_sigvec;
+    BEGIN (* SetSigVec *)
+	
+	WITH newVec DO
+	    sv_handler := PROC( Envelope );
+	    sv_mask    := SysTypes.Int( blockAll );
+	    sv_flags   := UnixCsignal.SV_ONSTACK;
+	END; (* WITH *)
+	
+	IF UnixCsignal.sigvec( number, SYSTEM.ADR( newVec ), 
+			       SYSTEM.ADR( savedSigVecs[ number ] ) ) = -1 THEN
+	    UnixError.PrintMessage( UnixError.Get(), moduleName );
+	    ProgErr.Terminate( unableToSetSignal );
+	END;
+	
+    END SetSigVec;
+
+
+PROCEDURE ResetSigVec(
+    number : SysTypes.Card
+    );
+    (*
+     * Resets the old signal handler to the value it was before we
+     * got involved.
+     *)
+    VAR
+	DONTCARE : UnixCsignal.struct_sigvec;
+    BEGIN (* ResetSigVec *)
+	
+	IF UnixCsignal.sigvec( number, SYSTEM.ADR( savedSigVecs[ number ] ),
+			       SYSTEM.ADR( DONTCARE ) ) = -1 THEN
+	    UnixError.PrintMessage( UnixError.Get(), moduleName );
+	    ProgErr.Terminate( unableToSetSignal );
+	END;
+	
+    END ResetSigVec;
+
+
+PROCEDURE Create( 
+    VAR handler        : Object;
+        thread         : HandlerProc;
+        importerObject : SysTypes.ANYPTR;
+        vectorNumber   : SysTypes.Card;
+        afterReturn    : ReturnTypes 
+    );
+    (*
+     * Allocates the handler.  If there are no handlers registered,
+     * then we must SetSigVec and put it in the signals[ vectorNumber ]
+     * (previous set to NIL).  Note this must be done with signals
+     * blocked.
+     *)
+    VAR
+	oldMask : BITSET;
+    BEGIN (* Create *)
+
+	Objects.Allocate( objectMgr, handler );
+	WITH handler^ DO
+	    number   := vectorNumber;
+	    proc     := thread;
+	    impObj   := importerObject;
+	    chain    := afterReturn = callPrevious;
+
+	    oldMask := UnixCsignal.sigblock( blockAll );
+		IF signals[ vectorNumber ] = NIL THEN
+		    previous := NIL;
+		    signals[ vectorNumber ] := handler;
+		    SetSigVec( vectorNumber );
+		ELSE
+		    previous := signals[ vectorNumber ];
+		    signals[ vectorNumber ] := handler;
+		    (* sigvec already set *)
+		END;
+	    oldMask := UnixCsignal.sigsetmask( oldMask );
+
+	END; (* WITH *)
+	    
+    END Create;
+
+
+PROCEDURE Destroy( 
+    VAR handler : Object 
+    );
+    (* 
+     * We first remove ourselves from the list of signals and if
+     * handler is the last in the list, we must reset the vector.
+     * After removal, deallocate the object.
+     *)
+    VAR
+	oldMask  : BITSET;
+	p        : Object;
+    BEGIN (* Destroy *)
+
+	IF NOT Objects.IsValid( objectMgr, handler ) THEN
+	    RETURN;
+	END;
+
+	WITH handler^ DO
+	    (* Remove the signal from the list of handlers *)
+	    oldMask := UnixCsignal.sigblock( blockAll );
+		(*  
+		 * Delete from the list and blow up if not in the list.
+		 * If the handler is the last to be de-installed, then
+		 * reset the handler.
+		 *)
+		IF signals[ number ] = handler THEN
+		    signals[ number ] := previous;
+		    IF previous = NIL THEN
+			ResetSigVec( number );
+		    END;
+		ELSE
+		    p := signals[ number ];
+		    (* Will get a range error if not in the list *)
+		    WHILE p^.previous # handler DO
+			p := p^.previous;
+		    END; (* WHILE *)
+		    p := previous;
+		END;
+
+	    oldMask := UnixCsignal.sigsetmask( oldMask );
+
+	END; (* WITH *)
+
+	Objects.Deallocate( objectMgr, handler );
+
+    END Destroy;
+
+
+PROCEDURE SetInvalid( 
+    VAR handler : Object 
+    );
+    BEGIN (* SetInvalid *)
+
+	handler := NIL;
+
+    END SetInvalid;
+    
+VAR
+    currentCode : SysTypes.Int;
+
+PROCEDURE GetCode(
+    ) : SysTypes.Int;
+    (*
+     * Assumes that only one signal can occur at a time.  If this
+     * is not the case, then a complicated piece of code must be implemented.
+     *)
+    BEGIN (* GetCode *)
+	(* Probably should have checking here. *)
+	RETURN currentCode;
+
+    END GetCode;
+
+
+PROCEDURE Terminate( 
+    mode : SysTypes.ANYPTR
+    );
+    (*
+     * Only destroy if we are terminating normally.
+     *)
+    BEGIN (* Terminate *)
+	
+	IF mode = Notices.normalTermination THEN
+	    Objects.DestroyManager( objectMgr );
+	END;
+	(* Don't destroy signal stack in case we get signals during term... *)
+
+    END Terminate;
+
+PROCEDURE Initialize;
+    VAR
+	i     : SysTypes.Card;
+	stack : UnixCsignal.struct_sigstack;
+    BEGIN (* Initialize *)
+
+	FOR i := 1 TO HIGH( signals ) DO
+	    signals[ i ] := NIL;
+	END;
+
+	(* Set up the signal stack *)
+	SafeStorage.ALLOCATE( stackBase, stackSize );
+	stack.ss_sp := stackBase + stackSize - 2;
+	lowestSP := stack.ss_sp;
+	stack.ss_onstack := 0;	(* Not on the stack right now *)
+	IF UnixCsignal.sigstack( SYSTEM.ADR( stack ), NIL ) = -1 THEN
+	    ProgErr.Terminate( sigstackFailed );
+	END;
+
+	Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ),
+			       moduleName );
+
+	Notices.Register( Notices.GetTerminationNotice(), Terminate );
+
+    END Initialize;
+
+BEGIN (* Interrupts *)
+    Initialize;
+END Interrupts.

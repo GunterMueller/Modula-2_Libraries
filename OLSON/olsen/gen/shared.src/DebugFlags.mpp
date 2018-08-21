@@ -1,0 +1,289 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DebugFlags;
+(*
+ * The only tricky part to this module is storing the command line flags
+ * without reparsing the command line each time.  We do this with a special
+ * address.  The values isTrue and isFalse are pointers to isTruePlace
+ * and isFalsePlace.  During initialization, we scan the flags once and
+ * put the names in the boolFlags list with the values isTrue or isFalse.
+ * When RegisterBool is called, we can know if it is the command line 
+ * argument or a previously registered flag by checking these values.
+ * This saves us from a more complicated memory allocation structure.
+ *)
+IMPORT
+    GenConsts,
+    NameLists,
+    ProgArgs,
+    ProgErr,
+    ProgErrOutput,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+VAR
+    isTrue       : BoolPtr;	(* Points to below *)
+    isTruePlace  : BOOLEAN;	(* Value doesn't matter *)
+    isFalse      : BoolPtr;	(* Points to below *)
+    isFalsePlace : BOOLEAN;	(* Value doesn't matter *)
+    boolFlags    : NameLists.Object;	(* List of names with flag value *)
+
+CONST
+    alreadyRegistered = ": DebugFlags: name already registered.";
+    notRegistered = ": DebugFlags: name not registered.";
+    
+PROCEDURE ResizeName( 
+    VAR name : ARRAY OF CHAR 
+    );
+    (*
+     * Make into the lenth of GenConsts.Identifier.
+     *)
+    BEGIN (* ResizeName *)
+    
+	IF Strings.Length( name ) > GenConsts.maxIdentifierLength THEN
+	    (* Fast truncate *)
+	    name[ GenConsts.maxIdentifierLength ] := 0C;
+	END;
+    
+    END ResizeName;
+
+
+PROCEDURE RegisterBool(
+    name    : ARRAY OF CHAR; (* Must be a unique name *)
+    toBeSet : BoolPtr     (* Must point to a *global* boolean variable *)
+    );
+    (*
+     * First look up the name in the list.  If not there, just insert
+     * and return.  Otherwise, may have been passed on the command line.
+     * If this was the case, set the toBeSet to the value on the command
+     * line and change the object to point to the new bool ptr.  If the
+     * name is in the list and wasn't isTrue or isFalse, then this is
+     * a duplicate registration.  Print a message and die.
+     *)
+    VAR
+	boolPtr : BoolPtr;    (* Found in the list *)
+    BEGIN (* RegisterBool *)
+    
+	ResizeName( name );
+	
+	IF NOT NameLists.Find( boolFlags, name, boolPtr ) THEN
+	    NameLists.Insert( boolFlags, name, toBeSet );
+	    RETURN;
+	END;
+	
+	(* Was the flag value passed on the command line? *)
+	IF boolPtr = isTrue THEN
+	    toBeSet^ := TRUE;
+	ELSIF boolPtr = isFalse THEN
+	    toBeSet^ := FALSE;
+	ELSE
+	    (* No flag on the command line, blow 'im eh way *)
+	    ProgErrOutput.WriteString( name );
+	    ProgErr.Terminate( alreadyRegistered );
+	END;
+
+	(* Flag was on command line and has been modified *)
+	NameLists.ChangeCurrentObject( boolFlags, toBeSet );
+	
+    
+    END RegisterBool;
+    
+
+PROCEDURE DeregisterBool(
+    name : ARRAY OF CHAR (* Need not be registered *)
+    );
+    (*
+     * If the name has been defined in the database, then remove it
+     * from the list of know registrants.
+     *)
+    VAR
+	boolPtr	: BoolPtr;
+    BEGIN (* DeregisterBool *)
+    
+	ResizeName( name );
+	
+	IF NOT NameLists.Find( boolFlags, name, boolPtr ) THEN
+	    RETURN;    (* not there *)
+	END;
+	
+	(* Flag can't have been registered if boolPtr is special value *)
+	IF ( boolPtr = isTrue ) OR ( boolPtr = isFalse ) THEN
+	    RETURN;
+	END;
+	
+	(* Really was registered, so just delete *)
+	NameLists.DeleteCurrent( boolFlags );
+	
+    END DeregisterBool;
+    
+
+PROCEDURE GetBool(
+    name : ARRAY OF CHAR  (* Must be a currently registered name *)
+    )    : BOOLEAN;
+    (*
+     * Resize, lookup, and return value.  Blow eh way when not there.
+     *)
+    VAR
+	boolPtr : BoolPtr;
+    BEGIN (* GetBool *)
+
+	ResizeName( name );
+	(* Can't be registered if flag isTrue or isFalse *)
+	IF NOT NameLists.Find( boolFlags, name, boolPtr ) OR
+	   ( boolPtr = isTrue ) OR ( boolPtr = isFalse ) THEN
+	    ProgErrOutput.WriteString( name );
+	    ProgErr.Terminate( notRegistered );
+	END;
+	
+	RETURN boolPtr^;
+
+    END GetBool;
+
+
+PROCEDURE SetBool(
+    name     : ARRAY OF CHAR;  (* Must be a currently registered name *)
+    newValue : BOOLEAN
+    );
+    (*
+     * Resize, lookup, and set.  Blow eh way when not there.
+     *)
+    VAR
+	boolPtr : BoolPtr;
+    BEGIN (* SetBool *)
+    
+	ResizeName( name );
+	(* Can't be registered if flag isTrue or isFalse *)
+	IF NOT NameLists.Find( boolFlags, name, boolPtr ) OR
+	   ( boolPtr = isTrue ) OR ( boolPtr = isFalse ) THEN
+	    ProgErrOutput.WriteString( name );
+	    ProgErr.Terminate( notRegistered );
+	END;
+	
+	boolPtr^ := newValue;
+	
+    END SetBool;
+
+
+PROCEDURE IsValidBool(
+    nameToTest : ARRAY OF CHAR	(* Can be any name *)
+    )          : BOOLEAN;	(* TRUE => is a currently registered name *)
+    VAR
+	boolPtr : BoolPtr;
+    BEGIN (* IsValidBool *)
+    
+	ResizeName( nameToTest );
+
+	(* Can't be registered if flag isTrue or isFalse *)
+	RETURN NameLists.Find( boolFlags, nameToTest, boolPtr ) AND
+	   ( boolPtr # isTrue ) AND ( boolPtr # isFalse );
+
+    END IsValidBool;
+
+
+PROCEDURE PrintList(
+    mode : PrintModes	(* What should we see? *)
+    );
+    (*
+     * Only print out the names which are actually registered.  Only
+     * print the header if the mode is printWithValues.
+     *)
+    VAR
+	boolPtr : BoolPtr;
+	name    : GenConsts.Identifier;
+    BEGIN (* PrintList *)
+	
+	IF mode = printWithValues THEN
+	    ProgErrOutput.WriteString( 
+		"Debug Flags (ON is marked with a '*')" );
+	    ProgErrOutput.WriteLn;
+	END;
+
+	NameLists.MakeFirstNext( boolFlags );
+	WHILE NameLists.Next( boolFlags, name, boolPtr ) DO
+	    (* Is the name currently registered? *)
+	    IF ( boolPtr # isTrue ) AND ( boolPtr # isFalse ) THEN
+		IF mode = printWithValues THEN
+		    IF boolPtr^ THEN
+			ProgErrOutput.WriteString( "*" );
+		    ELSE
+			ProgErrOutput.WriteString( " " );
+		    END;
+		END;
+		ProgErrOutput.WriteString( name );
+		ProgErrOutput.WriteLn;
+	    END;
+	END; (* WHILE *)
+ 
+    END PrintList;
+
+
+PROCEDURE SetInitValue( 
+    DONTCARE : ProgArgs.String;
+    isWhat   : SysTypes.ANYPTR;	(* set to isTrue or isFalse *)
+    name     : ProgArgs.String	(* Name of flag to be set *)
+    )        : BOOLEAN;	        (* Always true *)
+    (*
+     * Sets the initial value of flags which are registered in this module.
+     * ProgArgs can call this procedure repeatedly, so we must be prepared
+     * to handle the case when someone has registered and ProgArgs was
+     * called.
+     *)
+    VAR
+	boolPtr : BoolPtr;
+    BEGIN (* SetInitValue *)
+
+	ResizeName( name );
+	IF NOT NameLists.Find( boolFlags, name, boolPtr ) THEN
+	    (* Not registered nor see before *)
+	    NameLists.Insert( boolFlags, name, isWhat );
+	    
+	ELSIF ( boolPtr = isTrue ) OR  ( boolPtr = isFalse ) THEN
+	    (* Flag hasn't been registered yet. *)
+	    NameLists.ChangeCurrentObject( boolFlags, isWhat );
+	    
+	(* ELSE flag was already Registered *)  
+	END;
+	
+	RETURN TRUE;
+	
+    END SetInitValue;
+
+VAR
+    DONTCARE : BOOLEAN;	   (* For ProgArgs parsing *)
+
+BEGIN (* DebugFlags *)
+
+    isTrue := SYSTEM.ADR( isTruePlace );
+    isFalse := SYSTEM.ADR( isFalsePlace );
+
+    NameLists.Create( boolFlags, NameLists.forwardSorted, 
+		      NameLists.caseSensitive );
+
+    ProgArgs.RegisterStringHandler( setTrue1, SetInitValue, isTrue );
+    ProgArgs.RegisterStringHandler( setTrue2, SetInitValue, isTrue );    
+    ProgArgs.RegisterStringHandler( setFalse, SetInitValue, isFalse );
+    
+    (* Set up initial values *)
+    DONTCARE := ProgArgs.Parse( ProgArgs.ignoreErrors );
+
+END DebugFlags.

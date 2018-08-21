@@ -1,0 +1,78 @@
+m2depend.obj: ..\..\gen\bin\chars.sym ..\..\io\bin\dirio.sym  \
+              ..\..\io\bin\ioconsts.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\io\bin\ionames.sym ..\..\gen\bin\intrinsi.sym  \
+              m2parser.sym makeio.sym makepara.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+              ..\..\gen\bin\safestor.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym 
+m2depend.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\..\io\bin\confbina.obj ..\..\gen\bin\dos.obj  \
+              ..\..\io\bin\dirio.obj ..\..\io\bin\dosbinar.obj  \
+              ..\..\io\bin\dosioerr.obj ..\..\io\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+              ..\..\io\bin\ionames.obj ..\..\io\bin\iosearch.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj m2parser.obj  \
+              m2scanne.obj makeio.obj makepara.obj ..\..\gen\bin\modinit.obj  \
+              ..\..\gen\bin\namelist.obj ..\..\gen\bin\notices.obj  \
+              ..\..\gen\bin\objects.obj ..\..\gen\bin\progargs.obj  \
+              ..\..\gen\bin\progenvi.obj ..\..\gen\bin\progerr.obj  \
+              ..\..\gen\bin\progerro.obj ..\..\gen\bin\safestor.obj  \
+              ..\..\io\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\..\io\bin\textio.obj  \
+              ..\..\io\bin\textiopr.obj m2depend.obj 
+m2parser.sym: m2scanne.sym ..\..\gen\bin\namelist.sym 
+m2parser.obj: ..\..\gen\bin\intrinsi.sym m2parser.sym m2scanne.sym  \
+              ..\..\gen\bin\namelist.sym ..\..\gen\bin\progerro.sym  \
+              ..\..\gen\bin\strings.sym 
+m2pp.obj: ..\..\io\bin\dirio.sym ..\..\io\bin\ioconsts.sym  \
+          ..\..\io\bin\ioerrors.sym ..\..\io\bin\iosearch.sym m2pparse.sym  \
+          m2pscann.sym ..\..\gen\bin\namelist.sym ..\..\gen\bin\progargs.sym  \
+          ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+          ..\..\io\bin\stringio.sym ..\..\gen\bin\strings.sym  \
+          ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+m2pp.exe: ..\..\io\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+          ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+          ..\..\io\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+          ..\..\io\bin\confbina.obj ..\..\gen\bin\dos.obj  \
+          ..\..\io\bin\dirio.obj ..\..\io\bin\dosbinar.obj  \
+          ..\..\io\bin\dosioerr.obj ..\..\io\bin\dosionam.obj  \
+          ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+          ..\..\io\bin\ioconsts.obj ..\..\io\bin\ioerrors.obj  \
+          ..\..\io\bin\ionames.obj ..\..\io\bin\iosearch.obj  \
+          ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj m2pparse.obj  \
+          m2pscann.obj ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+          ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+          ..\..\gen\bin\progargs.obj ..\..\gen\bin\progenvi.obj  \
+          ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+          ..\..\gen\bin\safestor.obj ..\..\io\bin\stringio.obj  \
+          ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+          ..\..\io\bin\textio.obj ..\..\io\bin\textiopr.obj m2pp.obj 
+m2pparse.sym: m2pscann.sym ..\..\gen\bin\namelist.sym 
+m2pparse.obj: ..\..\gen\bin\genconst.sym m2pparse.sym m2pscann.sym  \
+              ..\..\gen\bin\namelist.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym 
+m2pscann.sym: ..\..\gen\bin\genconst.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+m2pscann.obj: ..\..\gen\bin\cardconv.sym ..\..\gen\bin\chars.sym  \
+              ..\..\gen\bin\genconst.sym ..\..\io\bin\ioconsts.sym  \
+              m2pscann.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\gen\bin\safestor.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+m2scanne.sym: 
+m2scanne.obj: ..\..\gen\bin\cardconv.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym m2scanne.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\gen\bin\safestor.sym  \
+              ..\..\io\bin\stringio.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+makeio.sym: 
+makeio.obj: ..\..\io\bin\dirio.sym ..\..\io\bin\ioerrors.sym makeio.sym  \
+            ..\..\gen\bin\safestor.sym ..\..\io\bin\stringio.sym  \
+            ..\..\gen\bin\strings.sym ..\..\io\bin\textio.sym 
+makepara.sym: ..\..\gen\bin\namelist.sym 
+makepara.obj: ..\..\io\bin\iosearch.sym makepara.sym  \
+              ..\..\gen\bin\namelist.sym ..\..\gen\bin\progargs.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym 

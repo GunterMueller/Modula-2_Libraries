@@ -1,0 +1,6 @@
+M2Defs= GenTestIO.def StringLib.def TestDate.def TestIO.def TestSystem.def 
+M2Imps= GenTestIO.mod StringLib.mod TestIO.mod TestSystem.mod 
+M2Mods= TestCRC16.mod TestCardConv.mod TestIntConv.mod TestNameLists.mod  \
+        TestRealConv.mod TestStrings.mod tBytes.mod tCrash.mod  \
+        tDebugFlags.mod tHello.mod tProgArgs.mod tProgEnviron.mod  \
+        tQStrings.mod tSysTypes.mod 

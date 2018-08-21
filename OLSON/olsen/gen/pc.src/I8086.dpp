@@ -1,0 +1,222 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE I8086;
+(*
+ * Machine language codes for the 8086/88.
+ *
+ * These codes can be used with SYSTEM.CODE.
+ * Assumes that the programmer is familiar with 8086/88 assembly language.
+ *
+ * WARNING:
+ *     Note whether Reg (SYSTEM), FromReg, ToReg, or ThroughReg
+ *     should be used with the desired instruction. No type checking
+ *     is possible. Unpredicatable results occur if the the wrong
+ *     combination of instructions and registers types is used.
+ *)
+IMPORT 
+    SYSTEM;
+
+EXPORT QUALIFIED
+    (* Operand modifiers *)
+    FromAX,    FromBX,    FromCX,   FromDX,
+    FromSI,    FromDI,    FromBP,   FromSP,
+    ToAX,      ToBX,      ToCX,     ToDX,
+    ToSI,      ToDI,      ToBP,     ToSP,
+    ThroughBX, ThroughSI, ThroughDI,
+
+    (* Arithmetic instructions *)
+    Neg, Neg2, Add, Adc, Sub, Sbb, Mul, Mul2, Div, Div2,
+
+    (* Stack instructions *)
+    Pop, Push, Popf, Pushf,
+
+    (* String instructions *)
+    Cld,   Std,   Rep,   Cmpsb, Cmpsw,  
+    Movsb, Movsw, Scasb, Scasw, Stosb, Stosw,
+
+    (* Logical Operations *)
+    Not, Not2, And, Or, Xor,
+
+    (* Logical Shift Instructions *)
+    Logical, LogicalCX,
+    Rol, Ror, Rcl, Rcr, Sal, Sar, Shl, Shr,
+
+    (* Move Instructions *)
+    Mov, Xchg, XchgAX,
+
+    (* Misc  *)
+    SegES, SegCS,  SegSS,  SegDS, Les,   Lds,
+    Loop, Jmp, Je, Jne,  Jz, Jnz, Jc, Jnc, Ja,  Jae, Jb, Jbe,
+    Jg,   Jge, Jl, Jle,  Jo, Jno, Js, Jns,
+    Nop,  JmpFarImmediate, CallFarImmediate, Iret,
+    Cli,  Sti,
+    
+    (* Things which are useful in Modula-2 *)
+    Flags, FlagsRegister;
+
+CONST
+    (* Mode field *)
+    Regs  = 0C0H;     (* Specifies Reg-Reg Operation *)
+    oFrom = 8;        (* "From" Multiplier *)
+
+    (* 
+     * To use the following, the d bit must be clear for all instructions
+     * which take two arguments and a mode byte.  For example, Adc is 11H
+     * not 13H.
+     *)
+    FromAX = SYSTEM.AX * oFrom + Regs;
+    FromCX = SYSTEM.CX * oFrom + Regs;
+    FromDX = SYSTEM.DX * oFrom + Regs;
+    FromBX = SYSTEM.BX * oFrom + Regs;
+    FromSP = SYSTEM.SP * oFrom + Regs;
+    FromBP = SYSTEM.BP * oFrom + Regs;
+    FromSI = SYSTEM.SI * oFrom + Regs;
+    FromDI = SYSTEM.DI * oFrom + Regs;
+
+    (*  For Use With Lds, Les Only *)
+    ToAX = SYSTEM.AX * oFrom;
+    ToCX = SYSTEM.CX * oFrom;
+    ToDX = SYSTEM.DX * oFrom;
+    ToBX = SYSTEM.BX * oFrom;
+    ToSP = SYSTEM.SP * oFrom;
+    ToBP = SYSTEM.BP * oFrom;
+    ToSI = SYSTEM.SI * oFrom;
+    ToDI = SYSTEM.DI * oFrom;
+    ThroughSI = 4;
+    ThroughDI = 5;
+    ThroughBX = 7;
+
+    (* 
+     * Instructions codes.
+     * Usage: Reg is SYSTEM.AX..SYSTEM.SP from SYSTEM.
+     * FromReg is one of the above.
+     *)
+
+    (* arithmetic instructions *)
+    Neg    = 0F7H; Neg2  = Regs + 18H;  (* Neg,  Neg2  + Reg *)
+    Add    = 001H;                      (* Add,  FromReg + Reg *)
+    Adc    = 011H;                      (* Adc,  FromReg + Reg *)
+    Sbb    = 019H;                      (* Sbb,  FromReg + Reg *)
+    Sub    = 029H;                      (* Sub,  FromReg + Reg *)
+    Div    = 0F7H; Div2  = Regs + 30H;  (* Div,  Div2  + Reg *)
+    Mul    = 0F7H; Mul2  = Regs + 20H;  (* Mul,  Mul2  + Reg *)
+
+    (* Stack instructions *)
+    Pop    = 58H;                       (* Pop  + Reg *)
+    Push   = 50H;                       (* Push + Reg *)
+    Popf   = 9DH;
+    Pushf  = 9CH;
+
+    (* String instructions *)
+    Cld    = 0FCH; Std    = 0F9H;
+    Rep    = 0F3H;               (*[1]*)
+    Cmpsb  = 0A6H; Cmpsw  = 0A7H;       (* [Rep,] Cmps_      *)
+    Movsb  = 0A4H; Movsw  = 0A5H;(*[2]*)(* [Rep,] Movs_      *)
+    Scasb  = 0AEH; Scasw  = 0AFH;       (* [Rep,] Scas_      *)
+    Stosb  = 0AAH; Stosw  = 0ABH;       (* [Rep,] Stos_      *)
+
+    (* Logical Operation Instructions *)
+    And    =  21H;                      (* And, FromReg + Reg *)
+    Or     =  0BH;                      (* Or,  FromReg + Reg *)
+    Xor    =  31H;                      (* Xor, FromReg + Reg *)
+    Not    = 0F7H; Not2   = Regs + 10H; (* Not, Not2    + Reg *)
+
+    (* Logical Shift Instructions *)
+    Logical   = 0D1H;                   (* Logical, <op> + Reg *)
+    LogicalCX = 0D3H;                   (* e.g.:               *)
+                                        (* Logical,   Rcl + SYSTEM.AX *)
+                                        (* LogicalCX, Ror + SYSTEM.DX *)
+    Rol = Regs;       
+    Ror = Regs + 08H;
+    Rcl = Regs + 10H;
+    Rcr = Regs + 18H;
+    Sal = Regs + 20H;
+    Sar = Regs + 38H;
+    Shl = Sal;
+    Shr = Regs + 28h;
+                      
+
+    (* Move Instructions *)
+    Xchg   =  85H;                      (* Xchg,  FromReg + Reg *)
+    XchgAX =  90H;                      (* XchgAX + Reg *)
+    Mov    =  80H;                      (* Mov,   FromReg + Reg *)
+
+    (* Misc Instructions *)
+    SegES  =  26H;
+    SegCS  =  2EH;
+    SegSS  =  36H;
+    SegDS  =  3EH;
+
+    Les    = 0C4H;                      (* Les, ToReg + ThroughReg *)
+    Lds    = 0C5H;
+
+    (* 
+     * USE JUMPS WITH EXTREME CAUTION, since the DISP is relative to PC
+     * and any changes to the code between the jump and the target may
+     * require changing the jump instruction as well.
+     *
+     * For all Transfer of Control Instructions, pc points to the
+     * address after the jump instruction before Disp is added.
+     *)
+    Loop   = 0E2H;                      (* Loop,   Disp  *)
+    Jmp    = 0EBH;                      (* Jmp,    Disp  *)
+                                        (* Jcond,  Disp  *)
+    Je     =  74H;    Jne    =  75H;
+    Jz     =   Je;    Jnz    =  Jne;
+    Jc     =  72H;    Jnc    =  73H;
+
+    (* Unsigned Comparisons *)
+    Ja     =  77H;    Jae    =  Jnc;
+    Jb     =   Jc;    Jbe    =  76H;
+    (* Signed Comparisons *)
+    Jg     =  7FH;    Jge    =  7DH;
+    Jl     =  7CH;    Jle    =  7EH;
+    Jo     =  70H;    Jno    =  71H;
+    Js     =  78H;    Jns    =  79H;
+
+    Nop    =  90H;
+
+    (* These are used for major processor changes *)
+    JmpFarImmediate     = 0EAH;         (* Jmp offset, segment   *)
+    CallFarImmediate    = 09AH;         (* Call offset, segment  *)
+    Iret                = 0CFH;         (* Return from Interrupt *)
+    Retf                = 0CBH;         (* Return Far *)
+    Cli                 = 0FAH;         (* SYSTEM.DISABLE *)
+    Sti                 = 0FAH;         (* SYSTEM.ENABLE *)
+
+
+TYPE
+    (* The following are useful declarations for the Modula-2 world *)
+    Flags  = (
+        carryFlag, reserved1, parityFlag, reserved2,
+        auxCarryFlag, reserved3, zeroFlag, signFlag,
+        trapFlag, intEnableFlag, directionFlag, overflowFlag,
+        reserved4, reserved5, reserved6, reserved7
+    );
+    FlagsRegister = SET OF Flags;
+    (*
+     * These are the 8088 Flag register values.
+     *)
+
+END I8086.
+

@@ -1,0 +1,403 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOCard;
+(* 
+ * Reading and writing integer via formatio is the same as cardinals
+ * and cards.
+ * We have to determine the size of the objects.
+ * We do as many manipulations in BiggestCARDINAL as possible, since
+ * this makes things easier. However, this makes things slower for
+ * Logitech. There should possibly be a completely seperate implementation
+ * of this module for the PC.
+ *
+ * TODO:
+ *     Separate into two modules.  Write now its just a mess, sorry.
+ *)
+
+IMPORT 
+    CardConvert,
+    CardIO,
+    FIOBase,
+    IOErrors,
+    ModInit,	(* MUST BE HERE -- See ConfFIO *)
+    Strings,
+    StringIO,
+    SysTypes,
+    SYSTEM,
+    TextIO;
+
+@IF LogitechM2 THEN
+    IMPORT
+	Card32,
+        Intrinsics;
+@END (* LogitechM2 *)
+
+CONST
+    (* Default modifiers are used when user doesn't supply a value *)
+    defaultWidth         = 0;
+    defaultFillChar      = ' ';
+    defaultJustification = Strings.justifyRight;
+    defaultBase          = 10;
+   
+TYPE
+    CardPtr     = RECORD
+	@IF M2V2 THEN
+	    CASE CARDINAL OF	(* Case tag is version 1.0 *)
+	@ELSE
+	    CASE : CARDINAL OF	(* Correct version of case tag *)
+	@END
+	    0: adr : SysTypes.SAUPTR;
+	    |
+	    1: ptr16 : POINTER TO SysTypes.CARDINAL16;
+	    |
+	    2: ptr32 : POINTER TO SysTypes.CARDINAL32;
+	    @IF SunM2 THEN
+	    |
+		3: ptr8  : POINTER TO SysTypes.CARDINAL8;
+	    @END (* SunM2 *)
+      END; (* CASE *)
+    END;
+
+    MaxCardString   = ARRAY [ 0 .. 32 ] OF CHAR;
+    BiggestCARDINAL = SysTypes.CARDINAL32;
+
+   
+PROCEDURE Write(
+    DONTCARE : SysTypes.ANYPTR;
+    outFile  : TextIO.Object;
+    format   : ARRAY OF CHAR;
+    dataAdr  : SysTypes.SAUPTR;
+    length   : SysTypes.Card 
+    )        : TextIO.States;
+    (* 
+     * Get the parameters off the format string and then write out the
+     * cardinal!
+     *)
+    VAR
+	cardPtr   : CardPtr;
+	card      : BiggestCARDINAL;
+	cardStr   : MaxCardString;
+	modifiers : FIOBase.ModifierValues;
+	base      : CARDINAL;
+	error     : BOOLEAN;
+    BEGIN (* Write *)
+
+	cardPtr.adr := dataAdr;
+	(* Check out the size and set up card accordingly *)
+	IF length = SYSTEM.TSIZE( SysTypes.CARDINAL16 ) THEN
+	    @IF LogitechM2 THEN
+		Card32.FromCard16( cardPtr.ptr16^, 0, card );
+	    @ELSE
+		card := cardPtr.ptr16^;
+	    @END (* LogitechM2 *)
+	ELSIF length = SYSTEM.TSIZE( SysTypes.CARDINAL32 ) THEN
+	    card := cardPtr.ptr32^;
+	@IF SunM2 THEN
+	    ELSIF length = SYSTEM.TSIZE( SysTypes.CARDINAL8 ) THEN
+		card := cardPtr.ptr8^;
+	@END (* SunM2 *)
+	ELSE
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+	(* establish defaults *)
+	WITH modifiers DO
+	    width         := defaultWidth;
+	    fillChar      := defaultFillChar;
+	    justification := defaultJustification;
+	END;
+
+	(* scan for default modifiers *)
+	IF NOT FIOBase.ScanModifiers( format, FIOBase.writeModifierSet,
+	    outFile, modifiers, format ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+	(* Find other the command characters we are interested in *)
+	base := defaultBase;
+	WHILE format[ 0 ] # 0C DO
+	    CASE FIOBase.GetSpecifier(format) OF
+		'b':  (* base *)
+		    error := NOT FIOBase.GetCard( format, 10, base );
+		ELSE  (* unknown *)
+		    error := TRUE;
+	    END; (* CASE *)
+	    IF error THEN
+		RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	    END;
+	END; (* WHILE *)
+
+	IF NOT CardConvert.ToString32( card, base, 0, cardStr ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END;
+
+	WITH modifiers DO
+	    RETURN StringIO.WriteJustifiedField(
+		outFile, cardStr, justification, width, fillChar );
+	END; (* WITH *)
+
+    END Write;
+
+
+@IF LogitechM2 THEN
+    PROCEDURE GetCard32(
+        VAR formatString : ARRAY OF CHAR;
+	    base         : CARDINAL;
+	VAR modifier     : SysTypes.CARDINAL32
+        )                : BOOLEAN;
+	VAR
+	    cardString : MaxCardString;
+	BEGIN (* GetCard32 *)
+
+	    RETURN FIOBase.GetString( formatString, cardString ) AND
+		   CardConvert.FromString32( cardString, base, modifier );
+
+	END GetCard32;
+
+    VAR
+	(*
+	 * These are needed for quick assignment.
+	 *)
+	MINCARDINAL16 : SysTypes.CARDINAL32;
+	MAXCARDINAL16 : SysTypes.CARDINAL32;
+	MINCARDINAL32 : SysTypes.CARDINAL32;
+	MAXCARDINAL32 : SysTypes.CARDINAL32;
+@END (* LogitechM2 *)
+@IF SunM2 THEN
+    CONST
+	(* Need this for simplicity of code later on... *)
+	MINCARDINAL16 = SysTypes.MINCARDINAL16;
+	MAXCARDINAL16 = SysTypes.MAXCARDINAL16;
+	MINCARDINAL32 = SysTypes.MINCARDINAL32;
+	MAXCARDINAL32 = SysTypes.MAXCARDINAL32;
+@END (* SunM2 *)
+   
+PROCEDURE Read(
+    DONTCARE1  : SysTypes.ANYPTR;
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    dataAdr    : SysTypes.SAUPTR;
+    length     : SysTypes.Card;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    (*
+     * Figures out the type of card (SunM2) and then proceeds to 
+     * get the paramters.  After getting the defaults, it goes to
+     * the "locals" which are "u" and "l" for upper and lower bounds.
+     * Finally, it enters the standard read loop.  Since this is a
+     * formatted object, we return badData on endOfLine.
+     *)
+    VAR
+	cardPtr    : CardPtr;
+	card	   : BiggestCARDINAL;
+	error      : BOOLEAN;
+	state      : TextIO.States;
+	modifiers  : FIOBase.ModifierValues;
+	base       : SysTypes.Card;
+	upper      : BiggestCARDINAL;
+	lower      : BiggestCARDINAL;
+	(* Several sizes, so have to set dynamically *) 
+	maxUpper   : BiggestCARDINAL;
+	maxLower   : BiggestCARDINAL;
+	@IF LogitechM2 THEN
+	    DONTCARE   : SysTypes.Card;
+	@END (* LogitechM2 *)
+    BEGIN (* Read *)
+
+	(* Check out the size and set up the size dependent parameters *)
+	IF length = SYSTEM.TSIZE( SysTypes.CARDINAL16 ) THEN
+	    (* This is pretty gross *)
+	    maxUpper := MAXCARDINAL16;
+	    maxLower := MINCARDINAL16;
+	ELSIF length = SYSTEM.TSIZE( SysTypes.CARDINAL32 ) THEN
+	    maxUpper := MAXCARDINAL32;
+	    maxLower := MINCARDINAL32;
+	@IF SunM2 THEN
+	    ELSIF length = SYSTEM.TSIZE( SysTypes.CARDINAL8 ) THEN
+		maxUpper := SysTypes.MAXCARDINAL8;
+		maxLower := SysTypes.MINCARDINAL8;
+	@END (* SunM2 *)
+	ELSE
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+
+	(* scan for default modifiers *)
+	IF prompting THEN
+	    modifiers.messageOutput := FALSE;
+	    IF NOT FIOBase.ScanModifiers( format, FIOBase.readModifierSet,
+					  promptFile, modifiers, format ) 
+	      THEN RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	    END;
+	END;
+
+	upper := maxUpper;
+	lower := maxLower;
+	base  := defaultBase;
+	WHILE format[0] # 0C DO
+	    CASE FIOBase.GetSpecifier( format ) OF
+		@IF LogitechM2 THEN
+		    'l': (* lower *)
+			error := NOT GetCard32( format, base, lower );
+		    |
+		    'u': (* upper *)
+			error := NOT GetCard32( format, base, upper );
+		@ELSE
+		    'l': (* lower *)
+			error := NOT FIOBase.GetCard( format, base, lower );
+		    |
+		    'u': (* upper *)
+			error := NOT FIOBase.GetCard( format, base, upper );
+		@END (* LogitechM2 *)
+		|
+		'b':  (* base *)
+		    error := NOT FIOBase.GetCard( format, 10, base );
+		ELSE  
+		    error := TRUE;
+	    END; (* CASE *)
+	    IF error THEN
+		RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	    END;
+	END; (* WHILE *)
+
+	(* Verify that the guy has a correct parameter *)
+	@IF LogitechM2 THEN
+	    IF ( Card32.Compare( upper, lower ) = Intrinsics.less ) OR 
+	       ( Card32.Compare( upper, maxUpper ) = Intrinsics.greater ) OR
+	       ( Card32.Compare( lower, maxLower ) = Intrinsics.less ) THEN 
+		RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+	    END;
+	@ELSE
+	    IF ( upper < lower ) OR 
+	       ( upper > maxUpper ) OR 
+	       ( lower < maxLower ) THEN 
+		RETURN TextIO.SetError(inFile, IOErrors.badParameter);
+	    END;
+	@END (* LogitechM2 *)
+
+	(* 
+	 * we have the parameters: repeat the read until a valid value is read 
+	 * Note that a message may have been put out.  If one hasn't,
+	 * then we don't prompt (unless the guy gets something wrong).
+	 *)
+	LOOP  
+	    IF prompting AND NOT modifiers.messageOutput THEN
+		(* 
+		 * We output a message of the form 
+		 *    "Enter a card number [ -1.23E6 .. 2.75E5 ]: " 
+		 *)
+		error := 
+		    ( StringIO.Write( promptFile, 'Enter a cardinal number [ ' )
+			# TextIO.ok ) OR
+		    ( CardIO.WriteBase32( promptFile, lower, base, 0 ) 
+			# TextIO.ok ) OR
+		    ( StringIO.Write( promptFile, ' .. ' ) # TextIO.ok );
+		error := error OR
+		    ( CardIO.WriteBase32( promptFile, upper, base, 0 ) 
+			# TextIO.ok ) OR
+		    ( StringIO.Write( promptFile, ' ]: ' ) # TextIO.ok ) OR
+		    ( TextIO.Flush( promptFile ) # TextIO.ok );
+
+		IF error THEN
+		    (* Got an error during prompting, something's wrong *)
+		    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+		END;
+	    END;
+
+	    (* now, do the read as requested *)
+	    state := CardIO.ReadBase32( inFile, base, card );
+
+	    (* First figure out if there was an error *)
+	    IF state = TextIO.ok THEN
+
+		(* Do the range check *)
+		@IF LogitechM2 THEN
+		    IF ( Card32.Compare( lower, card ) # Intrinsics.greater ) AND
+		       ( Card32.Compare( card, upper ) # Intrinsics.greater ) 
+		       THEN
+		@ELSE 
+		    IF ( lower <= card ) AND ( card <= upper ) THEN
+		@END (* LogitechM2 *)
+
+		    (* We're looking at some heavy case variant record action! *)
+		    cardPtr.adr := dataAdr;
+		    IF length = SYSTEM.TSIZE( SysTypes.CARDINAL16 ) THEN
+			@IF LogitechM2 THEN
+			    Card32.ToCard16( card, cardPtr.ptr16^, DONTCARE );
+			@ELSE
+			    cardPtr.ptr16^ := card;
+			@END (* LogitechM2 *)
+		    @IF SunM2 THEN
+			ELSIF length = SYSTEM.TSIZE( SysTypes.CARDINAL8 ) THEN
+			    cardPtr.ptr8^ := card;
+		    @END (* SunM2 *)
+		    ELSE (* length = SYSTEM.TSIZE( SysTypes.CARDINAL32 ) *)
+			cardPtr.ptr32^ := card;
+		    END;
+
+		    RETURN TextIO.ok;
+		END; (* bounds check *)
+
+		(* Got a range error *)
+		state := TextIO.SetError( inFile, IOErrors.badData );
+	    END; (* IF state *)
+
+	    (* Nothing we can do if we aren't prompting! *)
+	    IF NOT prompting THEN
+		IF state = TextIO.endOfLine THEN	(* expected card *)
+		    RETURN TextIO.SetError( inFile, IOErrors.badData );
+		END;
+		RETURN state;
+	    END;
+
+	    (* We are prompting, so use the standard procedure for errors *)
+	    state := FIOBase.PromptForReread( promptFile, inFile );
+	    IF state # TextIO.ok THEN
+		RETURN state;
+	    END;
+
+	    modifiers.messageOutput := FALSE;
+            (* Force a re-prompt at top *)
+
+	END; (* LOOP *)
+
+    END Read;
+      
+
+BEGIN (* FIOCard *)
+
+    @IF LogitechM2 THEN
+	(* Initialize local variables before telling the world. *)
+	Card32.FromCard16( SysTypes.MINCARDINAL16, 0, MINCARDINAL16 );
+	Card32.FromCard16( SysTypes.MAXCARDINAL16, 0, MAXCARDINAL16 );
+	SysTypes.MINCARDINAL32( MINCARDINAL32 );
+	SysTypes.MAXCARDINAL32( MAXCARDINAL32 );
+    @END (* LogitechM2 *)
+
+    FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE,
+			   FIOBase.noSizeCheck );
+
+    FIOBase.RegisterRead( formatName, Read, FIOBase.DONTCARE,
+			  FIOBase.noSizeCheck );
+
+END FIOCard.

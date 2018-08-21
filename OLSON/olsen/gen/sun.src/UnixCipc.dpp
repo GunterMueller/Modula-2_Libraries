@@ -1,0 +1,226 @@
+DEFINITION FOR C MODULE UnixCipc;
+(*
+ * See the files:
+ *     /usr/include/sys/socket.h, 
+ *)
+IMPORT
+    SYSTEM,
+    UnixCsys_types,
+    UnixCtypes;
+
+CONST
+
+    SOCK_STREAM		= 1;	
+    SOCK_DGRAM		= 2;	
+    SOCK_RAW		= 3;	
+    SOCK_RDM		= 4;	
+    SOCK_SEQPACKET	= 5;	
+
+    SO_DEBUG		= 01H;	
+    SO_ACCEPTCONN	= 02H;	
+    SO_REUSEADDR	= 04H;	
+    SO_KEEPALIVE	= 08H;	
+    SO_DONTROUTE	= 10H;	
+    				
+    SO_USELOOPBACK	= 40H;	
+    SO_LINGER		= 80H;	
+    SO_DONTLINGER	= 00H;	
+
+    AF_UNSPEC	= 0;		
+    AF_UNIX	= 1;		
+    AF_INET	= 2;		
+    AF_IMPLINK	= 3;		
+    AF_PUP	= 4;		
+    AF_CHAOS	= 5;		
+    AF_NS	= 6;		
+    AF_NBS	= 7;		
+    AF_ECMA	= 8;		
+    AF_DATAKIT	= 9;		
+    AF_CCITT	= 10;		
+    AF_SNA	= 11;		
+    AF_NIT	= 12;		
+
+    AF_MAX	= 13;
+
+    PF_UNSPEC	= AF_UNSPEC;
+    PF_UNIX	= AF_UNIX;
+    PF_INET	= AF_INET;
+    PF_IMPLINK	= AF_IMPLINK;
+    PF_PUP	= AF_PUP;
+    PF_CHAOS	= AF_CHAOS;
+    PF_NS	= AF_NS;
+    PF_NBS	= AF_NBS;
+    PF_ECMA	= AF_ECMA;
+    PF_DATAKIT	= AF_DATAKIT;
+    PF_CCITT	= AF_CCITT;
+    PF_SNA	= AF_SNA;
+    PF_NIT	= AF_NIT;
+
+    PF_MAX	= 13;
+
+    SOL_SOCKET	= 0FFFFH;	
+
+    SOMAXCONN	= 5;
+
+    IPPROTO_ICMP	= 1;		
+    IPPROTO_GGP		= 2;		
+    IPPROTO_TCP		= 6;		
+    IPPROTO_PUP		= 12;		
+    IPPROTO_UDP		= 17;		
+    IPPROTO_ND		= 77;		
+
+    IPPROTO_RAW		= 255;		
+    IPPROTO_MAX		= 256;
+
+TYPE
+    struct_iovec = RECORD
+	iov_base : SYSTEM.ADDRESS;
+	iov_len  : INTEGER;
+    END;
+
+    iovec = POINTER TO struct_iovec;
+
+    struct_msghdr = RECORD
+	msg_name         : UnixCsys_types.caddr_t;  
+	msg_namelen      : INTEGER;		    
+	msg_iov          : iovec;		    
+	msg_iovlen       : INTEGER;		    
+	msg_accrights    : UnixCsys_types.caddr_t;  
+	msg_accrightslen : INTEGER;
+    END;
+
+    msghdr = POINTER TO struct_msghdr;
+
+CONST
+    MSG_OOB		= 1H;	
+    MSG_PEEK		= 2H;	
+    MSG_DONTROUTE	= 4H;	
+
+    MSG_MAXIOVLEN	= 16;
+
+TYPE
+    struct_in_addr = RECORD	
+    	CASE : INTEGER OF
+    	    1: 
+		s_net   : UnixCsys_types.u_char;  
+	        s_host  : UnixCsys_types.u_char;  
+		s_lh    : UnixCsys_types.u_char;  
+		s_impno : UnixCsys_types.u_char;  
+	    |   
+	    2: 
+		s_w1    : UnixCsys_types.u_short;
+		s_imp	: UnixCsys_types.u_short; 
+	    |   
+	    3: 
+		s_addr	: UnixCsys_types.u_long; 
+
+    	END;
+    END;
+    in_addr = POINTER TO struct_in_addr;
+
+    struct_sockaddr_un = RECORD		 
+    	sun_family : UnixCsys_types.u_short;
+    	sun_path   : ARRAY [ 0 .. 108 ] OF CHAR;
+    END;
+
+    struct_sockaddr_in = RECORD		
+    	sin_family : UnixCtypes.short;
+    	sin_port   : UnixCsys_types.u_short;
+    	sin_addr   : struct_in_addr;
+    	sin_zero   : ARRAY [ 0 .. 7 ] OF CHAR;
+    END;
+
+    struct_hostent = RECORD
+	h_name     : UnixCtypes.p_char;		
+	h_aliases  : UnixCtypes.pp_char;	
+	h_addrtype : INTEGER;			
+	h_length   : INTEGER;			
+	h_addr     : UnixCtypes.p_char;		
+    END;
+
+    hostent = POINTER TO struct_hostent;
+
+PROCEDURE socket(
+    af       : INTEGER; 
+    type     : INTEGER; 
+    protocol : INTEGER
+    )        : INTEGER;
+
+PROCEDURE connect(
+    s       : INTEGER; 
+    name    : SYSTEM.ADDRESS;  
+    namelen : INTEGER
+    )       : INTEGER;
+
+PROCEDURE getsockname(
+    s       : INTEGER; 
+    name    : SYSTEM.ADDRESS; 
+    namelen : SYSTEM.ADDRESS
+    )       : INTEGER;
+
+PROCEDURE bind(
+    s       : INTEGER; 
+    name    : SYSTEM.ADDRESS;   
+    namelen : INTEGER
+    )       : INTEGER;
+
+PROCEDURE listen(
+    s       : INTEGER;
+    backlog : INTEGER
+    )       : INTEGER;
+
+PROCEDURE send(
+    s     : INTEGER; 
+    msg   : SYSTEM.ADDRESS; 
+    len   : INTEGER;
+    flags : INTEGER
+    )     : INTEGER;
+
+PROCEDURE recv(
+    s     : INTEGER; 
+    buf   : SYSTEM.ADDRESS; 
+    len   : INTEGER;
+    flags : INTEGER
+    )     : INTEGER;
+
+PROCEDURE recvmsg(
+    s     : INTEGER;
+    msg   : SYSTEM.ADDRESS;  
+    flags : INTEGER
+    )     : INTEGER;
+
+PROCEDURE sendmsg(
+    s     : INTEGER;
+    msg   : SYSTEM.ADDRESS;  
+    flags : INTEGER
+    )     : INTEGER;
+
+PROCEDURE pmap_set(
+    program  : CARDINAL;
+    version  : CARDINAL;
+    protocol : CARDINAL;
+    port     : UnixCsys_types.u_short
+    )        : BOOLEAN;
+
+PROCEDURE pmap_getport(
+    address  : SYSTEM.ADDRESS;
+    program  : CARDINAL;
+    version  : CARDINAL;
+    protocol : CARDINAL
+    )        : UnixCsys_types.u_short;
+
+PROCEDURE pmap_unset(
+    program : CARDINAL;
+    version : CARDINAL
+    )       : BOOLEAN;
+
+PROCEDURE gethostname(
+    string : ARRAY OF CHAR;
+    len    : CARDINAL
+    );
+
+PROCEDURE gethostbyname(
+    hostname : ARRAY OF CHAR
+    )        : hostent;
+
+END UnixCipc.

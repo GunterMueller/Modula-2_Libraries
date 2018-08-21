@@ -1,0 +1,47 @@
+DEFINITION MODULE IntegerItems; 
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Utility - INTEGER Item Type Definitions
+
+    INTRODUCTION
+    This module provides operations supporting INTEGER Items.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    INTERFACE DESIGN ISSUES
+    * The procedure type declarations representing assignment, equality,
+      and comparison operations, are not strictly necessary since these
+      operations can be accomplished using the predefined operations for
+      INTEGERs.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved.
+====================================================================*)
+
+TYPE  Item	= INTEGER;  (*-- The discrete item data type *)
+CONST NullItem	= 0;	    (*-- An ‘empty’ INTEGER value *)
+
+
+TYPE  AssignProc  = PROCEDURE (    Item (*-- in    *))
+				 : Item (*-- out   *);
+
+TYPE  EqualProc   = PROCEDURE (    Item    (*-- in    *),
+				   Item    (*-- in    *))
+				 : BOOLEAN (*-- out   *);
+
+
+TYPE  AccessProc    = PROCEDURE (    Item     (*-- in	 *));
+TYPE  ChangeProc    = PROCEDURE (VAR Item     (*-- inout *));
+
+
+TYPE  Continue	     = BOOLEAN;
+TYPE  LoopAccessProc = PROCEDURE (    Item     (*-- in	  *))
+				    : Continue (*-- out   *);
+
+TYPE  LoopChangeProc = PROCEDURE (VAR Item     (*-- inout *))
+				    : Continue (*-- out   *);
+
+END IntegerItems.

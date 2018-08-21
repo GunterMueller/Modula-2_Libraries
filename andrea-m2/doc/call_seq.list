@@ -1,0 +1,188 @@
+Calling sequences of modules in MOD$LIBRARY
+which call other modules in MOD$LIBRARY
+
+ASCII
+   none
+
+Base2
+   StringOperations
+
+Base3
+   StringOperations
+
+BinaryIO
+   none
+
+BitmapOperations
+   StringOperations
+
+BitsetFunctions
+   none
+
+BlockIO
+   none
+
+Break
+   none
+
+CardArrays
+   none
+
+CmdLine
+   ForeignCommand
+
+DateOperations
+   StringOperations
+
+DirectAccessFiles
+   FortranDirectAccess
+
+ExtendStrings
+   none
+
+ForeignCommand
+   StringOperations
+
+FortranDirectAccess
+   FORTRANDIRECTACCESS.FOR
+
+FortranFormat
+   FORTRANFORMAT.FOR
+
+GetCharacter
+   none
+
+LargeNumbers
+   StringOperations
+
+LargeSets
+   none
+
+LewertsScale
+   MoreMath
+
+MatrixOperations
+   none
+
+MemoryStatus
+   FortranJPI
+
+MoreIO
+   StringOperations
+
+MoreMath
+   none
+
+MoreStrings
+   StringOperations
+
+PackArray
+   none
+
+PackMatrix
+   PackArray
+
+Plotter
+   CardArrays
+   LewertsScale
+   REGISGraphics
+
+PSDots
+   none
+
+PSGraphics
+   none
+
+Queues
+   MoreMath
+
+Randomly
+   none
+
+RealArrays
+   none
+
+RealInOut
+   FortranFormat
+
+REGISGrapics
+   none
+
+RomanNumerals
+   StringOperations
+
+SayNumber
+   MoreMath
+   StringOperations
+
+SetOfChar
+   LargeSets
+
+Shuffle
+   LargeSets
+   Randomly
+
+ShuffleFast
+   Randomly
+
+SimpleScreen
+   none
+
+SimpleWindows
+   none
+
+Sorting
+   none
+
+SpecialInOut
+   RealInOut
+
+Stacks
+   Queues
+
+StringOperations
+   MoreMath
+
+SystemConstants
+   none
+
+VeryScreen
+   none
+
+WordHash
+   StringOperations
+
+
+
+
+
+Use the following list for topological sorting:
+-this module-       -is called by this module-
+CardArrays          Plotter
+FortranDirectAccess DirectAccessFiles
+FortranFormat       RealInOut
+ForeignCommand      CommandLine
+LargeSets           SetOfChar
+LargeSets           Shuffle
+LewertsScale        Plotter
+MoreMath            LewertsScale
+MoreMath            Queues
+MoreMath            SayNumber
+MoreMath            StringOperations
+PackArray           PackMatrix
+Queues              Stacks
+Randomly            Shuffle
+Randomly            ShuffleFast
+RealInOut           SpecialInOut
+REGISGraphics       Plotter
+StringOperations    Base2
+StringOperations    Base3
+StringOperations    BitmapOperations
+StringOperations    DateOperations
+StringOperations    ForeignCommand
+StringOperations    LargeNumbers
+StringOperations    MoreIO
+StringOperations    MoreStrings
+StringOperations    RomanNumerals
+StringOperations    SayNumber
+StringOperations    WordHash

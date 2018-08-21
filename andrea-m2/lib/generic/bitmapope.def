@@ -1,0 +1,79 @@
+DEFINITION MODULE BitmapOperations;
+
+(* Bitmap operations using dynamic memory *)
+
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Mar.18/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant bitmap.
+* If 'ok' is FALSE, then the resultant bitmap will not exist.
+*)
+
+EXPORT QUALIFIED Bitmap,                           (* the type *)
+                 Build, Destroy,                   (* matrix creation/deletion*)
+                 Put, Get,                         (* element access *)
+                 Size, Compare,                    (* status *)
+                 Clear, Copy, Duplicate,           (* new copy *)
+                 Not, And, Or, Xor,                (* advanced operations *)
+                 Line,                             (* advanced operations *)
+                 PrintText, PrintSixel, PrintPS;   (* output to a file *)
+
+TYPE Bitmap;   (* opaque *)
+
+PROCEDURE Build( VAR a :Bitmap; rows, columns :CARDINAL );
+(* create a bitmap of the specified size *)
+
+PROCEDURE Destroy( VAR a :Bitmap );
+(* get rid of the specified bitmap *)
+
+PROCEDURE Put( a :Bitmap; row, col :CARDINAL; set :CARDINAL );
+(* 'set'=0 means turn off, =1 is turn on, =2 is flip, bit at 'row,col' *)
+
+PROCEDURE Get( a :Bitmap; row, col :CARDINAL ) :BOOLEAN;
+(* return the value at 'row,col' *)
+
+PROCEDURE Size( a :Bitmap; VAR rows, cols :CARDINAL );
+(* return the size of a bitmap *)
+
+PROCEDURE Compare( a, b :Bitmap ) :BOOLEAN;
+(* compare two bitmaps, return TRUE if they are the same *)
+
+PROCEDURE Clear( a :Bitmap );
+(* set the whole bitmap to off *)
+
+PROCEDURE Copy( a, b :Bitmap );
+(* copy 'a' into a 'b', iff sizes are the same *)
+
+PROCEDURE Duplicate( a :Bitmap; VAR b :Bitmap );
+(* copy bitmap 'a' into a new bitmap 'b' *)
+
+PROCEDURE Not( a :Bitmap; VAR b :Bitmap );
+(* invert every dot in 'a' into new bitmap 'b' *)
+
+PROCEDURE And( a, b :Bitmap; VAR c :Bitmap; VAR ok :BOOLEAN );
+(* perform AND on all elements in 'a' with 'b', giving 'c' *)
+
+PROCEDURE Or( a, b :Bitmap; VAR c :Bitmap; VAR ok :BOOLEAN );
+(* perform OR on all elements in 'a' with 'b', giving 'c' *)
+
+PROCEDURE Xor( a, b :Bitmap; VAR c :Bitmap; VAR ok :BOOLEAN );
+(* perform XOR on all elements in 'a' with 'b', giving 'c' *)
+
+PROCEDURE Line( a :Bitmap; row1, col1, row2, col2 :CARDINAL; set :CARDINAL );
+(* draw a line from position 1 to position 2, same option as Put *)
+
+PROCEDURE PrintText( a :Bitmap; file_name :ARRAY OF CHAR; VAR ok :BOOLEAN );
+(* print the bitmap into a simple text file using simple characters *)
+
+PROCEDURE PrintSixel( a :Bitmap; file_name :ARRAY OF CHAR; VAR ok :BOOLEAN );
+(* print the bitmap into Sixel graphics file, for DEC line printers *)
+
+PROCEDURE PrintPS( a :Bitmap; file_name :ARRAY OF CHAR; size :CARDINAL;
+                   VAR ok :BOOLEAN );
+(* print the bitmap into graphic PostScript file, each dot being 'size' points *)
+
+END BitmapOperations.

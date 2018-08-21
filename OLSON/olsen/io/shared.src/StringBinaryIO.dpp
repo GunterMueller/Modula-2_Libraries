@@ -1,0 +1,89 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE StringBinaryIO;
+(*
+ * Provides memory-only files.
+ *
+ * The initial value of the file is the path passed to BinaryIO.Open;
+ * to read a string as if it were a file, use the following:
+ *
+ *     BinaryIO.Open( stringToRead, BinaryIO.readOnly,
+ *         stringFileOptions );
+ *
+ * You can specify the blocking factor to be used by this module via
+ * MakeOptions (see below).
+ *
+ * PORTABILITY NOTE:
+ *     On systems where bitsPerSAU and bitsPerArrayChar are different,
+ *     the "string" passed to Open may only be legal in conjunction
+ *     with opening a text file (a la TextIO).
+ *)
+IMPORT
+    BinaryIO;
+
+EXPORT QUALIFIED
+    className,          minBlockSize,       maxBlockSize,
+    defaultBlockSize,   BlockSizes,         maxOptionsLength,
+    Options,            FullOptions,        MakeOptions;
+
+CONST
+    className = 'String';
+
+CONST
+    minBlockSize     = (* IMPLEMENTATION SPECIFIC *) 32;
+	(* Too small would be too much overhead *)
+    maxBlockSize     = (* IMPLEMENTATION SPECIFIC *) 8192;
+	(* Reasonable size for files *)
+    defaultBlockSize = (* IMPLEMENTATION SPECIFIC *) 128;   
+	(* For informational purposes *)
+TYPE
+    BlockSizes = [ minBlockSize .. maxBlockSize ];
+	(* This is in numbers of SysTypes.SAUs *)
+
+CONST
+    maxOptionsLength = (* IMPLEMENTATION SPECIFIC *) 6;
+TYPE
+    Options     = ARRAY[ 0 .. maxOptionsLength - 1 ] OF CHAR;
+    FullOptions = ARRAY[ 0 .. maxOptionsLength + 
+                      BinaryIO.maxOptionsLength - 1 ] OF CHAR;
+
+PROCEDURE MakeOptions(
+        blockSize : BlockSizes;    (* Internal size of pieces used *)
+    VAR result    : ARRAY OF CHAR  (* To be passed to BinaryIO procedure *)
+    );
+    (*
+     * An options string is a combination of dynamically interpreted
+     * values. This module supports "string files".
+     *
+     * For some applications, larger block sizes are applicable. If
+     * you are trying to keep disk files in memory (e.g. for an editor),
+     * you might want larger block sizes. The default is designed for
+     * formated string conversions, that is, relatively small files.
+     *
+     * Note that "result" must be at least as large as Options declared
+     * above. If HIGH( result ) is less than "maxOptionsLength" - 1,
+     * the caller will be terminated.
+     *)
+
+END StringBinaryIO.
+

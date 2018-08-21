@@ -1,0 +1,88 @@
+conffio.sym: 
+conffio.lnk: conffio.sym fiobool.sym fiocard.sym fioint.sym fioreal.sym  \
+             fiostrin.sym ..\..\gen\bin\modinit.sym 
+convertf.sym: ..\..\gen\bin\systypes.sym 
+convertf.lnk: ..\..\io\bin\binaryio.sym convertf.sym formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\io\bin\stringbi.sym  \
+              ..\..\io\bin\stringio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+datafio.sym: ..\..\gen\bin\genconst.sym ..\..\io\bin\ioconsts.sym  \
+             ..\..\io\bin\ioversio.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+datafio.lnk: ..\..\io\bin\binaryio.sym ..\..\gen\bin\chars.sym datafio.sym  \
+             ..\..\io\bin\dirio.sym fiobase.sym formatio.sym  \
+             ..\..\gen\bin\genconst.sym ..\..\io\bin\ioconsts.sym  \
+             ..\..\io\bin\ioerrors.sym ..\..\io\bin\ionames.sym  \
+             ..\..\io\bin\ioversio.sym ..\..\gen\bin\intconve.sym  \
+             ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\namelist.sym  \
+             ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+             ..\..\io\bin\stringbi.sym ..\..\io\bin\stringio.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+errorfio.sym: ..\..\gen\bin\systypes.sym 
+errorfio.lnk: errorfio.sym formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym ..\..\io\bin\textiopr.sym 
+fiobase.sym: ..\..\gen\bin\chars.sym ..\..\gen\bin\genconst.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+fiobase.lnk: ..\..\gen\bin\cardconv.sym ..\..\gen\bin\chars.sym fiobase.sym  \
+             fiopriva.sym formatio.sym ..\..\io\bin\ioerrors.sym  \
+             ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\modinit.sym  \
+             ..\..\gen\bin\namelist.sym ..\..\gen\bin\objects.sym  \
+             ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+fiobool.sym: 
+fiobool.lnk: ..\..\gen\bin\chars.sym fiobase.sym fiobool.sym formatio.sym  \
+             ..\..\gen\bin\genconst.sym ..\..\io\bin\ioerrors.sym  \
+             ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\modinit.sym  \
+             ..\..\io\bin\stringio.sym ..\..\gen\bin\strings.sym  \
+             ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+fiocard.sym: 
+fiocard.lnk: ..\..\gen\bin\card32.sym ..\..\gen\bin\cardconv.sym  \
+             ..\..\io\bin\cardio.sym fiobase.sym fiocard.sym  \
+             ..\..\io\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+             ..\..\gen\bin\modinit.sym ..\..\io\bin\stringio.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+fioint.sym: 
+fioint.lnk: fiobase.sym fioint.sym formatio.sym ..\..\io\bin\ioerrors.sym  \
+            ..\..\gen\bin\intconve.sym ..\..\io\bin\intio.sym  \
+            ..\..\gen\bin\modinit.sym ..\..\io\bin\stringio.sym  \
+            ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+            ..\..\io\bin\textio.sym 
+fiopriva.sym: fiobase.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+fiopriva.lnk: conffio.sym fiobase.sym fiopriva.sym formatio.sym  \
+              ..\..\io\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+              ..\..\gen\bin\modinit.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\io\bin\stringio.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+fioreal.sym: 
+fioreal.lnk: fiobase.sym fioreal.sym formatio.sym ..\..\io\bin\ioerrors.sym  \
+             ..\..\gen\bin\modinit.sym ..\..\gen\bin\realconv.sym  \
+             ..\..\io\bin\realio.sym ..\..\io\bin\stringio.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+             ..\..\io\bin\textio.sym 
+fioscree.sym: 
+fioscree.lnk: fiobase.sym fioscree.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\io\bin\screenio.sym ..\..\gen\bin\systypes.sym  \
+              ..\..\io\bin\textio.sym 
+fiostrin.sym: 
+fiostrin.lnk: fiobase.sym fiostrin.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\gen\bin\modinit.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\io\bin\stringio.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+formatio.sym: ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+formatio.lnk: fiobase.sym fiopriva.sym formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\gen\bin\modinit.sym ..\..\io\bin\stringio.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym 
+simplefi.sym: ..\..\gen\bin\systypes.sym 
+simplefi.lnk: formatio.sym ..\..\io\bin\ioerrors.sym  \
+              ..\..\gen\bin\progerr.sym simplefi.sym  \
+              ..\..\gen\bin\systypes.sym ..\..\io\bin\textio.sym  \
+              ..\..\io\bin\textiopr.sym 

@@ -1,0 +1,62 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+TTestCardConvert: ../test_sun.src/TTestCardConvert.sh 
+	${StandardScript}
+TTestGeneralLib: ../test_sun.src/TTestGeneralLib.sh 
+	${StandardScript}
+TTestIntConvert: ../test_sun.src/TTestIntConvert.sh 
+	${StandardScript}
+TTestRealConvert: ../test_sun.src/TTestRealConvert.sh 
+	${StandardScript}
+TestDate.def: ../test_sun.src/TestDate.dpp 
+	${StandardM2pp}
+GenTestIO.def: ../test.src/GenTestIO.dpp 
+	${StandardM2pp}
+StringLib.def: ../test.src/StringLib.dpp 
+	${StandardM2pp}
+TestIO.def: ../test.src/TestIO.dpp 
+	${StandardM2pp}
+TestSystem.def: ../test.src/TestSystem.dpp 
+	${StandardM2pp}
+GenTestIO.mod: ../test_sun.src/GenTestIO.mpp 
+	${StandardM2pp}
+StringLib.mod: ../test.src/StringLib.mpp 
+	${StandardM2pp}
+TestCRC16.mod: ../test.src/TestCRC16.mpp 
+	${StandardM2pp}
+TestCardConv.mod: ../test.src/TestCardConv.mpp 
+	${StandardM2pp}
+TestIO.mod: ../test.src/TestIO.mpp 
+	${StandardM2pp}
+TestIntConv.mod: ../test.src/TestIntConv.mpp 
+	${StandardM2pp}
+TestNameLists.mod: ../test.src/TestNameLists.mpp 
+	${StandardM2pp}
+TestRealConv.mod: ../test.src/TestRealConv.mpp 
+	${StandardM2pp}
+TestStrings.mod: ../test.src/TestStrings.mpp 
+	${StandardM2pp}
+TestSystem.mod: ../test.src/TestSystem.mpp 
+	${StandardM2pp}
+tBytes.mod: ../test.src/tBytes.mpp 
+	${StandardM2pp}
+tCrash.mod: ../test.src/tCrash.mpp 
+	${StandardM2pp}
+tDebugFlags.mod: ../test.src/tDebugFlags.mpp 
+	${StandardM2pp}
+tHello.mod: ../test.src/tHello.mpp 
+	${StandardM2pp}
+tProgArgs.mod: ../test.src/tProgArgs.mpp 
+	${StandardM2pp}
+tProgEnviron.mod: ../test.src/tProgEnviron.mpp 
+	${StandardM2pp}
+tQStrings.mod: ../test.src/tQStrings.mpp 
+	${StandardM2pp}
+tSysTypes.mod: ../test.src/tSysTypes.mpp 
+	${StandardM2pp}

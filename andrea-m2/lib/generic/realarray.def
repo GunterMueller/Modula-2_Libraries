@@ -1,0 +1,66 @@
+DEFINITION MODULE RealArrays;
+
+(* Operations on a dynamic array of reals *)
+
+(* V1.1, J, Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J, Andrea, May.18/92 *)
+(* This code may be freely used and distributed, it may not be sold *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant matrix.
+* If 'ok' is FALSE, then the resultant matrix will not exist.
+*)
+
+EXPORT QUALIFIED RealArray,                        (* the type *)
+                 Build, Destroy,                   (* matrix creation/deletion*)
+                 Put, Get,                         (* element access *)
+                 Size, Compare,                    (* status *)
+                 Assign,                           (* per element *)
+                 Copy, Duplicate,                  (* new copy *)
+                 Min, Max,                         (* basic operations *)
+                 Add, Multiply;                    (* basic operations *)
+
+TYPE RealArray;   (* opaque *)
+
+PROCEDURE Build( VAR a :RealArray; min_index, max_index :CARDINAL );
+(* create a new array of the specified size *)
+
+PROCEDURE Destroy( VAR a :RealArray );
+(* get rid for the specified RealArray *)
+
+PROCEDURE Put( a :RealArray; index :CARDINAL; value :REAL );
+(* put the specified value into the RealArray at the index *)
+
+PROCEDURE Get( a :RealArray; index :CARDINAL ) :REAL;
+(* return the value at 'index' *)
+
+PROCEDURE Size( a :RealArray; VAR min_index, max_index :CARDINAL );
+(* return the size of the array *)
+
+PROCEDURE Min( a :RealArray ) :REAL;
+(* return the minimum value in the array *)
+
+PROCEDURE Max( a :RealArray ) :REAL;
+(* return the maximum value in the array *)
+
+PROCEDURE Compare( a, b :RealArray ) :BOOLEAN;
+(* compare two arrays, return TRUE if they are the same in size and contents *)
+
+PROCEDURE Assign( a :RealArray; x :REAL );
+(* set all elements in the array to 'x' *)
+
+PROCEDURE Copy( a, b :RealArray );
+(* copy 'a' into 'b', iff sizes are the same *)
+
+PROCEDURE Duplicate( a :RealArray; VAR b :RealArray );
+(* copy 'a' into a new 'b' *)
+
+PROCEDURE Add( a :RealArray; x :REAL );
+(* add 'x' to all elements of 'a' *)
+
+PROCEDURE Multiply(  a :RealArray; x :REAL );
+(* multiply 'x' by all elements of 'a' *)
+
+END RealArrays.

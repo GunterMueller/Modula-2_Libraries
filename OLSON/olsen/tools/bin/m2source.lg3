@@ -1,0 +1,5 @@
+M2Defs= m2parser.def m2pparse.def m2pscann.def m2scanne.def makeio.def  \
+        makepara.def 
+M2Imps= m2parser.mod m2pparse.mod m2pscann.mod m2scanne.mod makeio.mod  \
+        makepara.mod 
+M2Mods= m2depend.mod m2pp.mod 

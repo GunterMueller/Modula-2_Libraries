@@ -1,0 +1,8 @@
+logi2bug.txt	- Description of some Logitech 2.X bugs we have found
+logi3bug.txt	- Description of some Logitech 3.0 bugs we have found
+sunbugs.shr	- Description and test suite of some Sun Modula-2 bugs
+X.dpp		- X11 header files (not fully tested)
+Xlib.dpp	- ditto
+Xproc.dpp	- ditto
+Xutil.dpp	- ditto
+dbx.shr		- Helps when you want to debug using dbx

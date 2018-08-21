@@ -1,0 +1,210 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TextSupportIO;
+(*
+ * This is a hack implementation, because both MsDosOS and SunOS treat
+ * files in the same way.
+ *)
+IMPORT
+    DirIO,
+    IOErrors,
+    TextIO,BinaryIO,
+    TextIOPRIVATE,
+    BinarySupportIO,
+    SYSTEM,
+    SysTypes;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END
+
+@IF NOT ( MsDosOS OR SunOS ) THEN
+    Woops! Has not been ported to this implementation....
+@END
+
+
+PROCEDURE Copy(
+    source     : ARRAY OF CHAR;
+    dest       : ARRAY OF CHAR;
+    createMode : DirIO.CreateModes
+    )          : IOErrors.Errors;
+    (*
+     * For now, we don't have any implementations for which this isn't ok.
+     *)
+    BEGIN (* Copy *)
+
+	RETURN BinarySupportIO.Copy( source, dest, createMode );
+
+    END Copy;
+
+
+PROCEDURE CopyObject(
+    source : TextIO.Object;
+    dest   : TextIO.Object
+    )      : IOErrors.Errors;
+    (*
+     * We go right inside the TextIOPRIVATE.Object.  First, we
+     * must see if the files are set up properly.  We then make sure
+     * that there isn't a complicated state lying around in source
+     * in which case we resort to calling readChar until we have
+     * a nice state.  Next, we flush the buffers of dest and write 
+     * the remains of the buffer from source to dest.
+     *
+     * This may look long and complicated for no reason at all, but
+     * text files are complicated.  If the files are clean (i.e.
+     * freshly openned and/or rewound), then the special cases just
+     * fall through to the bottom.
+     *)
+    VAR
+	privateSource : TextIOPRIVATE.Object;
+	privateDest   : TextIOPRIVATE.Object;
+	char          : CHAR;
+	DONTCARE      : SysTypes.Card;
+	result        : IOErrors.Errors;
+    BEGIN (* CopyObject *)
+
+	privateSource := TextIOPRIVATE.Object( source );
+	privateDest   := TextIOPRIVATE.Object( dest );
+
+	@IF Assert THEN
+	    (* 
+	     * We must do our own assertion checking, because we are
+	     * reaching behind the back of TextIO.
+	     *)
+	    IF NOT TextIOPRIVATE.IsValid( privateSource, 
+					  TextIOPRIVATE.readAccess ) THEN
+		RETURN privateSource^.errorState;
+	    END;
+	    IF NOT TextIOPRIVATE.IsValid( privateDest, 
+					  TextIOPRIVATE.writeAccess ) THEN
+		RETURN privateDest^.errorState;
+	    END;
+	@END (* Assert *)
+
+	(* 
+	 * If we have an undoAvail or an endOfLine (for MsDos games),
+	 * then we must read a character and copy to output until
+	 * we have an "ok" state.
+	 *)
+	WITH privateSource^ DO
+	    IF ( undo.state = TextIOPRIVATE.undoAvailable ) OR
+	       ( state = TextIO.endOfLine ) THEN
+	        LOOP
+	            CASE TextIO.Read( source, char ) OF
+			TextIO.ok:
+			    IF TextIO.Write( dest, char ) # TextIO.ok THEN
+				RETURN privateDest^.errorState;
+			    END;
+			    EXIT;
+			|
+			TextIO.endOfLine:
+			    (* Keep writing lines till we have no more! *)
+			    IF TextIO.WriteLn( dest ) # TextIO.ok THEN
+				RETURN privateDest^.errorState;
+			    END;
+			|
+			TextIO.endOfFile:
+			    (* No more, just bail *)
+			    RETURN IOErrors.ok;
+			|
+			TextIO.error:
+			    (* Something is bad. *)
+			    RETURN errorState;
+		    END; (* CASE *)
+	        END; (* LOOP *)
+	    END;
+	END; (* WITH *)
+
+	(*
+	 * We must flush the buffers before we go directly to the
+	 * BinaryIO object.
+	 *)
+	WITH privateDest^ DO 
+	    (* Do we need to flush the buffer? *)
+	    IF writesBuffered AND ( buffer^.length # 0 ) THEN
+		IF TextIOPRIVATE.WriteBuffer( privateDest ) # TextIO.ok THEN
+		    RETURN errorState;
+		END;
+	    END;
+	END; (* WITH *)
+
+	(*
+	 * Now we dump the rest of the read buffer (if non-empty)
+	 * directly to the privateDest^.binaryFile.
+	 *)
+	IF privateSource^.bufferOption = TextIO.doBuffering THEN
+	    WITH privateSource^.buffer^ DO
+		WITH privateDest^ DO
+		    IF readIndex < length THEN
+			IF BinaryIO.WriteBytes( binaryFile, 
+					SYSTEM.ADR( data[ readIndex ] ), 
+					length - readIndex, DONTCARE ) 
+			  # BinaryIO.ok THEN
+			    TextIO.DONTCARE := TextIO.SetError( dest, 
+					      BinaryIO.GetError( binaryFile ) );
+			    RETURN errorState;
+			END;
+			length := 0;	 (* no more data in buffer *)
+		    END;
+		END; (* WITH *)
+	    END; (* WITH *)
+	END;
+
+	(*
+	 * Now switch over to BinaryIO to do the rest of the work.
+	 *)
+	WITH privateSource^ DO
+	    (* 
+	     * If everything ok, then set the source file to eof and return 
+	     *)
+	    IF BinarySupportIO.CopyObject( binaryFile, 
+	      privateDest^.binaryFile ) = IOErrors.ok THEN
+		state := TextIO.endOfFile;	(* must set! *)
+		RETURN IOErrors.ok;
+	    END;
+
+	    (* 
+	     * We had a failure, must set the text file with the error to 
+	     * its corresponding binary file.
+	     *)
+	    result := BinaryIO.GetError( binaryFile );
+	    IF result # IOErrors.ok THEN
+		TextIO.DONTCARE := TextIO.SetError( source, result );
+	    ELSE
+		result := BinaryIO.GetError( privateDest^.binaryFile );
+		TextIO.DONTCARE := TextIO.SetError( dest, result );
+	    END;
+	END; (* WITH *)
+
+	RETURN result;
+    END CopyObject;
+    
+BEGIN (* TextSupportIO *)
+    
+    @IF SysTypesCheck THEN
+	IF SysTypes.bitsPerSAU # SysTypes.bitsPerArrayCHAR THEN
+	    ProgErr.Terminate( "TextSupportIO: SysTypesCheck failed." );
+	END;
+    @END (* SysTypesCheck *)
+END TextSupportIO.

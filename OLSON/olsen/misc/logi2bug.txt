@@ -1,0 +1,30 @@
+Logitech 2.0 Compiler
+17.5.87
+    o If you get an error in a System.TermProcedure and the original
+      termination was caused by a run-time system trap, then the
+      machine will jump into outer-space.  The RTS needs to prepare
+      for this event by fixing the stack inside CallTermProc.  We
+      have done this at olsen and it is only a couple of lines of code.
+    o This is a very strange bug:
+	   TYPE
+		File = POINTER TO FileRec;
+		FilePtr = POINTER TO File;
+	    VAR
+		filePtr : FilePtr;
+	    Open( filePtr^ ....
+      Doesn't seem to work, but it will work if you do the call with a
+      a temporary of type File and then do an assignment.
+    o You can't have extra "|" values in your CASE statements.  This
+      is a version 3 change.
+14.6.87
+    o The following construction seems to generate bad code:
+	  procs[ varParameter ]( values[ varParameter ] );
+      Basically, the program goes off into outer space. (varParameter
+      is a varParameter.  procs is a global variable. values is an
+      array within a pointer variable.  If you use a local variable
+      instead of varParameter it seems to work.
+    o You can't take the address of a variable which is declared as an
+      opaque type.  Seems like you should be able to do that.
+11.11.87
+    o If you set your M2REF or M2MOD paths to a value greater than ~80 chars,
+      the debuggers will hang when searching for files past the ~80 mark.

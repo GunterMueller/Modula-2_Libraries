@@ -1,0 +1,272 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE NameLists;
+(*
+ * Provides a simple method for managing lists of "names".
+ *
+ * One can specify sorted (reverse or forward), queued (FIFO),
+ * or stacked (LIFO) orderings. Names need not be unique.
+ *
+ * "importerObject":
+ *     Each name may have an associated "importerObject" (if the
+ *     importer so desires). The object is unmodified by NameLists.
+ *     Each time the name is retrieved from the list, its object
+ *     is returned as well.
+ *
+ *     Usually, the importerObject is dynamic memory allocated
+ *     by the Objects module, but this is not required. One may
+ *     manipulate NameLists without the use of the "importerObject"
+ *     feature. In this case, one should use the DONTCARE variable 
+ *     in routines which take an importerObject as a parameter.
+ *
+ * Looking for names:
+ *     There are two ways of looking for the names in a list: in
+ *     order traversal and by searching. Searching is accomplished
+ *     via the Find procedure which is passed a name for which to look 
+ *     in a list. The procedure Next (and MakeFirstNext) is used to
+ *     iteratively access each name in the list in the order of the
+ *     list. The order of the list is specified at creation time
+ *     and may not be changed. 
+ *
+ * Current name:
+ *     Each time a Find or Next succeeds or after an Insert,
+ *     the value returned (inserted) becomes the current name.
+ *
+ *     Several operations are valid only on the current name:
+ *         DeleteCurrent       : eliminate the current from the list
+ *         GetCurrent          : return name and object of the current
+ *         ChangeCurrentObject : replace object of current with new value
+ *         ChangeCurrentName   : replace name of current with new value
+ *
+ *     The current name is not always valid. If the current name is
+ *     invalid, the four procedures above terminate the caller.
+ *     The current name is invalid if DeleteCurrent or MakeFirstNext
+ *     are called, or when Next and Find return FALSE.
+ *
+ * WARNING:
+ *     This module assumes that the importer knows the lengths of the
+ *     names inserted into a specific list. The calls which return names
+ *     will SILENTLY truncate names if the caller supplies a string
+ *     variable which is not long enough to hold the found name.
+ *)
+IMPORT
+    Lists,
+    SysTypes;
+
+EXPORT QUALIFIED
+    Object,         Orderings,            FindCases,         Create,
+    Destroy,        SetInvalid,           DONTCARE,          Insert,
+    DeleteCurrent,  DeleteAll,		  Find,              Next,
+    MakeFirstNext,  GetCurrent,           ChangeCurrentObject,  
+    ChangeCurrentName, 			  GetCount,          GetOrdering,    
+    GetFindCase;
+
+TYPE
+    Object;
+
+TYPE
+    Orderings = Lists.Orderings;
+    (* 
+     * Order in which Next returns elements.  
+     *)
+
+    FindCases = (
+        caseSensitive,    (* Searches are case-dependent, names unaltered *)
+        caseInsensitive,  (* Searches are case-insensitive, names unaltered *)
+        allLowerCase,     (* Case-insensitive but returned in lower case *)
+        allUpperCase      (* Case-insensitive but returned in upper case *)
+    );
+    (* 
+     * How the names are compared by the Find procedure,
+     * and what is returned by Next, GetCurrent, etc.
+     *)
+
+PROCEDURE Create(
+    VAR list          : Object;     (* In any state, will be valid *)
+        howToTraverse : Orderings;  (* How the names should be returned *)
+        howToFind     : FindCases   (* Order in which Next returns *)
+    );
+    (*
+     * Create a name list with the specified ordering and search scheme.
+     *)
+
+PROCEDURE Destroy(
+    VAR list : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Dispose of a name list object.
+     *
+     * Notice that, while the NameLists module can dispose of the internal
+     * data structures relating to the list, it cannot dispose of any
+     * dynamically allocated values or "importerObjects" which have 
+     * been associated with elements. Thus, Destroying lists which have
+     * dynamic memory associated with the elements must be done in two
+     * phases: the destroy must first free all the memory associated
+     * with the lists by iterating through the list via MakeFirstNext
+     * and Next, and then the destroyer is free to call this procedure.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR list : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Initializes the list variable to an invalid object.
+     *)
+
+VAR
+    DONTCARE : SysTypes.ANYPTR;
+    (*
+     * Parameter to procedures when importerObject is not required.
+     * Make no other use of this variable.
+     *)
+
+PROCEDURE Insert(
+    list           : Object;         (* Must be valid *)
+    name           : ARRAY OF CHAR;  (* Must be correct for the list *)
+    importerObject : SysTypes.ANYPTR (* Object returned by Find, etc *)
+    );
+    (*
+     * Add a new entry to the list (name and associated "importerObject").
+     * The object will be returned when the associated name is retrieved
+     * from the list.
+     *
+     * The current name of the list is set to the name just inserted.
+     *
+     * The position of an inserted name/object depends on the parameters
+     * passed to Open when the List was created (see comments at top
+     * and in Orderings declaration).
+     *)
+
+PROCEDURE DeleteCurrent(
+    list : Object  (* must be valid with current, current will be invalid *)
+    );
+    (*
+     * Delete the current element from the list.
+     *
+     * To delete all the objects in a list, you must continually call
+     * MakeFirstNext followed by calls to Next. This way of proceeding
+     * is usually unnecessary, given that Destroy does exactly this.
+     *)
+
+PROCEDURE DeleteAll(
+    list : Object    (* must be a valid object *)
+    );
+    (*
+     * Deletes all elements in the list.  This may be dangerous if the
+     * elements have associated data in their importerObjects which
+     * must be deallocated.
+     *)
+
+PROCEDURE Find(
+        list           : Object;         (* Must be valid *)
+        name           : ARRAY OF CHAR;  (* Name to be sought for *)
+    VAR importerObject : SysTypes.ANYPTR (* Associated with name *)
+    )                  : BOOLEAN;        (* Found => TRUE *)
+    (*
+     * Search the list for a specific name. If the name is found, the object
+     * associated with the name is returned in "importerObject" and the
+     * found element becomes the current element. Otherwise failure is
+     * indicated and current is invalid.
+     *
+     * When a list contains duplicate names, the following conditions apply
+     * (dependent upon search order):
+     *    queue         - successive calls to Next will return MORE recently
+     *                    inserted duplicates.
+     *    stack         - successive calls to Next will return LESS recently
+     *                    inserted duplicates.
+     *    forwardSorted - calls to Next will return other duplicates, but 
+     *                    the order is unspecified.
+     *    reverseSorted - is identical to forwardSorted.
+     *)
+
+PROCEDURE Next(
+        list           : Object;         (* Must be valid with current *)
+    VAR name           : ARRAY OF CHAR;  (* the next name in list *)
+    VAR importerObject : SysTypes.ANYPTR (* Associated with name *)
+    )                  : BOOLEAN;        (* Current valid => TRUE *)
+    (*
+     * Traverse the list in the order specified to Create.
+     *
+     * There are four cases:
+     *     - if current is defined, return the next element after current,
+     *     - if MakeFirstNext was just called, return the first element,
+     *     - if the previous next was the last, return FALSE,
+     *     - otherwise, the call is invalid and the caller will be terminated.
+     *)
+
+PROCEDURE MakeFirstNext(
+    list : Object  (* Must be valid, current will be invalid *)
+    );
+    (*
+     * Sets up the list so that the following call to Next will
+     * return the first element in the list.
+     *)
+
+PROCEDURE GetCurrent(
+        list           : Object;         (* Must be valid with current *)
+    VAR name           : ARRAY OF CHAR;  (* Name of current element *)
+    VAR importerObject : SysTypes.ANYPTR (* Object of current element *)
+    );
+    (*
+     * Return the name and object of the current element of the list.
+     * If current is not defined, caller is terminated.
+     *)
+
+PROCEDURE ChangeCurrentObject(
+    list              : Object;         (* Must be valid with current *)
+    newImporterObject : SysTypes.ANYPTR (* To be associated with current *)
+    );
+    (*
+     * Replace the object for the current element with "newImporterObject".
+     *)
+
+PROCEDURE ChangeCurrentName(
+    list    : Object;        (* Must be valid with current *)
+    newName : ARRAY OF CHAR  (* To be used in place of current name *)
+    );
+    (*
+     * Change the name of the current element to be "newName".
+     * If current is not defined, caller is terminated.
+     *
+     * If the list is ordered, the entry is re-inserted in the list
+     * at a new appropriate location.
+     *)
+
+PROCEDURE GetCount( 
+    list : Object          (* must be valid *)
+    )    : SysTypes.Card;  (* number of names in the list *)
+    (*
+     * Returns the count of elements.
+     *)
+    
+PROCEDURE GetOrdering(
+    list : Object      (* Must be valid *)
+    )    : Orderings;  (* Search order of the list specified to Create *)
+
+
+PROCEDURE GetFindCase(
+    list : Object      (* Must be valid *)
+    )    : FindCases;  (* Find case of the list specified to Create *)
+
+END NameLists.
+

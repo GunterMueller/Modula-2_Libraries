@@ -1,0 +1,401 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Modula-2 Preprocessor}
+
+\section{Intended Usage}
+
+This preprocessor has a very limited scope.  The purpose is to provide
+pre-compile time control of declarations and executable statements in a 
+portable manner.  Typically, the preprocessor serves as a version control
+mechanism so that the same source file can be used with several
+different machines and/or operating systems.   Another use is to 
+control the inclusion or exclusion of debugging code in a module.
+
+\section{Input}
+
+There are two types of input to the preprocessor: \newterm{source code}
+and \newterm{control variables}.  Source code is normal Modula-2
+code inseminated with preprocessor statements.  Control
+variables are Modula-2 identifiers which indicate boolean values.
+If a control variable is passed to the preprocessor, its
+value is \newterm{true}.  If a control variable does not exist,
+the preprocessor treats its value as \newterm{false}.  In other
+words, a control variable's existence indicates its value.
+
+\section{Output}
+
+The preprocessor parses the source code for preprocessor statements.
+If preprocessor statements are not found, the output is {\em identical}
+to the input.  There is only one type of preprocessor statement:
+the \newterm{If-Then-Else-End}.  The syntax is identical to Modula-2 
+except for the \code{@} characters as shown in the following example.
+
+\begin{verbatim}
+    Other Modula-2 Code;
+    @IF SomeIdentifier THEN
+        Some Modula-2 Code;
+    @END
+    More Modula-2 Code;
+\end{verbatim}
+
+The semantics of this statement are quite simple.  If \code{SomeIdentifier}
+is \newterm{true}, then \code{Some Modula-2 Code;} is included in 
+the output file as follows:
+
+\begin{verbatim}
+    Other Modula-2 Code;
+    
+        Some Modula-2 Code;
+    
+    More Modula-2 Code;
+\end{verbatim}
+
+If \code{SomeIdentifier} is \newterm{false}, the output looks like:
+
+\begin{verbatim}
+    Other Modula-2 Code;
+    
+
+    
+    More Modula-2 Code;
+\end{verbatim}
+
+There are two important things to note.  First, preprocessor statements 
+are always eliminated during preprocessing.  Second, the number of lines
+in the output is always equal to the number of lines read from the
+source code.  Therefore, source code oriented diagnostic output (from
+compilers or debuggers) can always be directed at the source code
+as opposed to having to use the preprocessed versions of the source
+code..
+
+The \newterm{Else-Clause} and \newterm{Elsif-Clause} are 
+optional (as demonstrated in the previous
+example).  They behave just as in Modula-2.  If the expression between
+the \code{@IF} and the \code{THEN} is true, then the code in between
+the \code{THEN} and the \code{@ELSE} is included and the code between
+the \code{@ELSE} and the \code{@END} is not included.  If the expression
+is false, the code after the \code{THEN} is not included and the
+code after \code{@ELSE} is included.
+
+\newterm{Expressions} are combinations of identifiers and operators.  
+The operators are the normal Modula-2 boolean operators:
+\code{AND}, \code{OR}, and \code{NOT}.  The expressions may be
+parenthesized to force a specific interpretation order.  The
+default precedence is identical to that of Modula-2.  
+
+\newterm{Identifiers} indicate truth values based on their existence
+(as made known to the preprocessor).  The preprocessor is initialized
+with a set of \newterm{true} identifiers; the value true
+is used in place of the identifier in expressions.
+If an expression contains an identifier which is not in this list,
+its value is taken to be {\em false}.
+Two keywords have been defined for the programmer's convenience:
+\code{TRUE}\index{\code{TRUE}} and \code{FALSE}\index{\code{FALSE}}.
+These variables always represent the logical values true and false, 
+respectively.
+
+Preprocessor statements may be nested as in Modula-2.  They may
+appear anywhere and may be indented or distributed across several
+lines.  The following are all legal examples of preprocessor statements,
+but they are highly unorthodox and not a recommended style convention.
+\begin{verbatim}
+    @IF SomeExpression THEN Some Modula-2 Code @END
+
+    @IF SomeLongExpression
+      THEN
+    @END
+
+    @IF
+        SomeWeirdExpression
+            THEN
+                @ELSE
+                    @END
+\end{verbatim}
+
+
+\section{Usage}
+
+There are two ways to use the preprocessor: as a command
+and as a Modula-2 module.  The command is called \code{m2pp}\index{m2pp}.
+There are several ways one can execute \code{m2pp}, as follows.
+
+\newcommand{\PromptedCommand}[1]{{\tt yfp\% \underline{#1}}}
+\begin{quote}
+    \PromptedCommand{m2pp input output}
+\end{quote}
+or
+\begin{quote}
+    \PromptedCommand{m2pp input > output}
+\end{quote}
+or
+\begin{quote}
+    \PromptedCommand{m2pp < input > output}
+\end{quote}
+
+\subsection{Options}
+The following options are defined:
+\begin{description}
+    \item{\tt D {\em variable}}
+	sets the specified {\em variable} to {\em true}.
+    \item{\tt U {\em variable}}
+	sets the specified {\em variable} to {\em false}.
+    \item{\tt w}
+	makes the output file writable.  This option is defined only
+	for the Sun implementation.  The output file must be specified
+	on the command line (as opposed to being redirected).  By default
+	on the Sun, output is read-only to avoid mistakes editing the
+	wrong files.
+    \item{\tt Strip}
+	eliminates comments from the source.  This feature can be useful
+	for disk space conservation.   If this option is used, comments
+	with semantic value that being with a `\code{\$}' immediately
+	following the comment bracket are {\em not stripped}.
+\end{description}
+
+On the Sun, arguments are passed in the form:
+\begin{quote}
+    \PromptedCommand{m2pp -DTrue1 -D True2 -UFalse1 input output}
+\end{quote}
+The {\em space} between the \code{D} and \code{True2} is not required,
+because the module \module{ProgArgs} has a flexible format for single
+letter flagged values.
+
+On MS-DOS, arguments are passed as follows:
+\begin{quote}
+    \PromptedCommand{m2pp/D=True1/D=True2/U=False1 input output}
+\end{quote}
+Given the command line limitations of the MS-DOS, you probably want
+to use the \code{M2ppVars} variable described in the next section.
+
+\subsection{Environment}
+\index{\code{M2ppVars}, environment variable}
+The environment variable \code{M2ppVars} can be defined by the user.
+\code{M2ppVars} specifies a list of {\em true} control variables to
+be used by \code{m2pp}.  On the Sun, this variable is of the form:
+\begin{verbatim}
+    M2ppVars=True1:True2:True3
+\end{verbatim}
+On the PC,
+\begin{verbatim}
+    M2PPVARS=True1;True2;True3
+\end{verbatim}
+
+\code{m2pp} reads \code{M2ppVars} {\em before} reading the command line
+arguments \code{U} and \code{D}.
+
+\section{Preprocessing from a Modula-2 Program}
+
+The module \module{M2PParser} and \module{M2PScanner} provide 
+programmatic access to
+the preprocessor.  The following facilities are provided:
+\begin{itemize}
+\item
+    Control variable truth value control on a per file basis
+\item
+    Integrated multiple file preprocessing (including standard input)
+\end{itemize}
+The definition modules provide an exact explanation of the entry points
+and facilities provided.
+
+\section{Syntax}
+
+In the interest of thoroughness, the Extended Backus Naur Form\index{Extended
+Backus Naur Form}(EBNF)
+of the preprocessor language follows.
+
+\begin{description}
+
+\item[\newterm{Statement}]
+    = \newterm{If-Then-Else-End} {\tt |} 
+      \{ \newterm{Other} \} \{ \newterm{Statement} \} \{ \newterm{Other} \} 
+
+\item[\newterm{If-Then-Else-End}]
+    = \code{@IF}\newterm{Expression} \code{THEN}  
+      \{ \newterm{Other} \} \{ \newterm{Statement} \} \{ \newterm{Other} \} 
+      \{ \newterm{Elsif-Clause} \}
+      \{ \newterm{Else-Clause} \} \code{@END}.
+
+\item[\newterm{Elsif-Clause}]
+    = \code{@ELSIF} \newterm{Expression} \code{THEN}
+      \{ \newterm{Other} \} \{ \newterm{Statement} \} \{ \newterm{Other} \}.
+
+\item[\newterm{Else-Clause}]
+    = \code{@ELSE} \{ \newterm{Other} \} 
+      \{ \newterm{Statement} \} \{ \newterm{Other} \}.
+
+\item[\newterm{Expression}]
+    = \newterm{OrFactor}.
+
+\item[\newterm{OrFactor}]
+    = \newterm{AndFactor} \{ \code{OR} \newterm{AndFactor} \}.
+
+\item[\newterm{AndFactor}]
+    = \newterm{NotFactor} \{ \code{AND} \newterm{NotFactor} \}.
+
+\item[\newterm{NotFactor}]
+    = \newterm{Identifier} {\tt |} \code{TRUE} {\tt |} \code{FALSE} {\tt |} 
+      \code{NOT} \newterm{NotFactor} {\tt |}
+      \code{(} \newterm{OrFactor} \code{)}.
+
+\item[\newterm{Identifier}]
+    = Modula-2 identifier.
+
+\item[\newterm{Other}]
+    = Any sequence of characters except ASCII null.
+
+\item[\newterm{ReservedTokens}]
+    = \code{@} {\tt |} \code{IF} {\tt |} \code{THEN}{\tt |} \code{ELSIF} 
+      {\tt |} \code{ELSE}  
+      {\tt |} \code{END} {\tt |} \code{(} {\tt |} \code{)} {\tt |}
+      \code{FALSE} {\tt |} \code{TRUE} {\tt |} \code{AND} {\tt |} 
+      \code{OR} {\tt |} \code{NOT}.
+
+\end{description}
+
+\section{File Names}
+    \index{Preprocessor File Names}
+    \index{\code{m2pp} File Names}
+Since Modula-2 preprocessor input is not Modula-2, a different file naming
+convention\index{file naming convention}\index{convention, file naming} has 
+been chosen.  The file name suffix replacements
+to be used are:
+\begin{description}
+
+\item[\codeterm{.mpp}]
+    in place of \codeterm{.mod}
+
+\item[\codeterm{.dpp}]
+    in place of \codeterm{.def}
+
+\end{description}
+
+\section{Preprocessor Controls}\index{preprocessor control}
+There are several classes of preprocessor control:
+
+\begin{itemize}
+	\item
+	Portability -- e.g. LittleEndian
+	\item
+	Feature Inclusion -- e.g. Tasks
+	\item
+	Bug Exclusion -- e.g. SunBug
+	\item
+	Code Efficiency -- e.g. Assert
+	\item
+	Test Code -- e.g. Simulate
+\end{itemize}
+
+\section{Variable Names}
+    \index{Preprocessor Variable Names}
+    \index{\code{m2pp} Variable Names}
+    
+The following list defines all of the \term{Modula-2 Preprocessor}
+variable names used by
+the library and then some.  The policy used throughout the library
+is to use the weakest form of the name possible.\footnote{
+    The current implementation of the library is errant in this
+    respect, because the major use of the \codeterm{SunOS} 
+    variable is for \codeterm{UnixOS} features, i.e. \codeterm{UnixOS}
+    is weaker than \codeterm{SunOS}.
+    }
+For example, if a feature is applicable to all version of the
+IBM PC architecture, the variable \codeterm{IbmPcArch} should
+be used as opposed to \codeterm{IbmPcAtArch} even though the 
+software will probably be only run on an IBM PC AT.  
+
+\begin{description}
+\newcommand{\codedesc}[1]{\item[\codeterm{#1}]}
+
+\codedesc{Assert} -- Assertion checking code
+
+\codedesc{BigEndian} -- Low address contains most significant byte
+
+\codedesc{Debug} -- Debugging code
+
+\codedesc{FALSE} -- Always undefined
+
+\codedesc{IbmPcArch} -- all IBM PC architectures
+
+\codedesc{LittleEndian} -- Low address contains least significant byte
+
+\codedesc{LogitechM2} -- all Logitech Modula-2 language processors
+
+\codedesc{LogitechM2V2} -- Logitech 2.X Modula-2 language processor
+
+\codedesc{LogitechM2V3} -- Logitech 2.X Modula-2 language processor
+
+\codedesc{MC68881Arch} -- Motorola 68881 floating point chip
+
+\codedesc{MsDosOS} -- All MS-DOS (PC-DOS) operating systems
+
+\codedesc{M2OnePass} -- Requires \codeterm{FORWARD} statements
+
+\codedesc{M2V2} -- Version 2 Modula-2 as defined by Wirth
+
+\codedesc{M2V3} -- Version 3 Modula-2 as defined by Wirth
+
+\codedesc{NoNotices} -- The module \module{Notices} is not used
+
+\codedesc{NoStorage} -- The module \module{Storage} is not used
+
+\codedesc{SunArch} -- all Sun architectures
+
+\codedesc{Sun3Arch} -- Sun 3 hardware
+
+\codedesc{Sun4Arch} -- Sun 4 hardware
+
+\codedesc{SunM2} -- Sun Modula-2 language processor
+
+\codedesc{SunOS} -- all Sun operating systems
+
+\codedesc{Sun3OS} -- Sun 3.X operating systems
+
+\codedesc{Sun4OS} -- Sun 4.X operating systems
+
+\codedesc{Tasks} -- Ligthweight process code
+
+\codedesc{TRUE} -- Always defined
+
+\codedesc{U3bOS} -- AT\&T 3b architecture
+
+\codedesc{U3b5OS} -- AT\&T 3b5 architecture
+
+\codedesc{UnixOS} -- all Unix operating systems
+
+\codedesc{UnixBsd4d2OS} -- Berkeley 4.2 Unix operating system 
+
+\codedesc{UnixAttVOS}  -- AT\&T System V Unix operating system
+
+\codedesc{VaxArch}     -- Vax architecture
+
+\end{description}
+
+\section{Known Bugs}
+There is a problem with extremely long lines and comment strip mode.
+In the event the `\code{(}' and `\code{*}' are in two separate buffers,
+the comment will not be stripped.  Comments with semantic meaning will
+be stripped if the `\code{\$}' is in a separate buffer from the comment
+bracket `\code{(*}'.  The buffer size is 
+\codeterm{GenConsts.maxLineLength} (which in the distributed version of
+the library is 100 characters).

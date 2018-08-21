@@ -1,0 +1,44 @@
+%FOREIGN DEFINITION MODULE FortranDirectAccess;
+
+(*
+   Allow for direct access files in Modula-2,
+   but actually do the work by using calls to FORTRAN routines.
+   This work could be done by making the proper called to RMS routines
+   which are already setup in the module FileSystem, but that route
+   would take considerably more work than this route.
+*)
+
+(* V2.0, J. Andrea, Aug.8/91 - rename module *)
+(* V1.0, J. Andrea, 1984 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT ADDRESS;
+
+EXPORT QUALIFIED  For$DirCreate, For$DirOpen, For$DirClose,
+                  For$DirRead, For$DirWrite;
+
+PROCEDURE For$DirCreate( %REF file     :CARDINAL;
+                         %STDESCR name :ARRAY OF CHAR;
+                         %REF maxrec   :CARDINAL;
+                         %REF status   :CARDINAL );
+
+PROCEDURE For$DirOpen( %REF file     :CARDINAL;
+                       %STDESCR name :ARRAY OF CHAR;
+                       %REF status   :CARDINAL );
+
+PROCEDURE For$DirClose( %REF file   :CARDINAL;
+                        %REF status :CARDINAL );
+
+PROCEDURE For$DirWrite( %REF file          :CARDINAL;
+                        %REF record_number :CARDINAL;
+                        %IMMED record      :ADDRESS;
+                        %REF n_bytes       :CARDINAL;
+                        %REF status        :CARDINAL );
+
+PROCEDURE For$DirRead( %REF file          :CARDINAL;
+                       %REF record_number :CARDINAL;
+                       %IMMED record      :ADDRESS;
+                       %REF n_bytes       :CARDINAL;
+                       %REF status        :CARDINAL );
+
+END FortranDirectAccess.

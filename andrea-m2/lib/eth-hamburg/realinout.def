@@ -1,0 +1,114 @@
+DEFINITION MODULE RealInOut;
+
+(*
+  This module provides procedures for the reading/writing and
+  formatting of floating point numbers.
+
+  Based loosely on the module of the same name as described in
+  Programming In Modula-2 3th edition
+*)
+(* Implemented by J. Andrea, Aug.8/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED Done, ReadReal, WriteReal, FWriteReal, EWriteReal,
+                 ToFString, ToEString;
+
+
+
+VAR
+   Done :BOOLEAN;  (* test Done after each I/O operation *)
+
+
+PROCEDURE ReadReal( VAR x :REAL );
+(*
+  Read a real number from standard input.
+  This procedure actually calls InOut.ReadReal so see that
+  procedure for details.
+*)
+
+
+
+PROCEDURE WriteReal( x :REAL; width :CARDINAL );
+(*
+  Write a real number to standard output.
+  This procedure actually calls InOut.WriteReal so see that
+  procedure for details.
+*)
+
+
+
+PROCEDURE FWriteReal( x :REAL; width, decimals :CARDINAL );
+(*
+  Write a real number to standard output with numeric formatting
+  as specified by the parameters 'width' and 'decimals'.
+  This procedure calls ToFString then InOut.WriteString so see
+  those procedures for details.
+*)
+
+PROCEDURE EWriteReal( x :REAL; width, decimals :CARDINAL );
+(*
+  Write a real number to standard output with numeric formatting
+  as specified by the parameters 'width' and 'decimals'.
+  This procedure calls ToEString then InOut.WriteString so see
+  those procedures for details.
+*)
+
+
+
+
+PROCEDURE ToFString( x :REAL; width, decimals :CARDINAL;
+                     VAR out_string :ARRAY OF CHAR );
+(*
+  This procedure will convert a real number (VAX F-Floating),
+    into a character string representation of that number using
+    the specified formatting parameters. The formatting is performed
+    in the same style as FORTRAN F formatting.
+
+  'width' is the total width of the output number representation, and
+  'decimals' is the number of places after the decimal point.
+
+  Be sure to consider the decimal point which is always printed,
+    and a possible negative sign when choosing a width.
+  If the number cannot be represented in 'width' characters then
+    the output string will contain all astreks.
+  A 'width' of zero will cause a null string to be returned.
+  If the size of the string is less than 'width' then 'width' will
+    be reduced to the size of the string.
+  If 'decimals' is >= 'width' then 'decimals' will be set to 'width'-1.
+  Examples:   number     width  decimals   output
+            12345.678      9      3       "12345.678"
+            12345.678      9      2       " 12345.68"
+            12345.678      9      1       "  12345.7"
+            12345.678      9      0       "   12346."
+            12345.678     10      4      "12345.6777"
+            12345.678      9      4       "*********"
+            12345.678      6      0          "12346."
+            12345.678      6      1          "******"
+           -12345.678     10      3      "-12345.678"
+           -12345.678      9      3       "*********"
+*)
+
+
+
+PROCEDURE ToEString( x :REAL; width, decimals :CARDINAL;
+                     VAR out_string :ARRAY OF CHAR );
+(*
+  This procedure will convert a real number (VAX F-Floating),
+    into a character string representation of that number using
+    the specified formatting parameters. The formatting is performed
+    in the same style as FORTRAN E formatting.
+
+  The operation of this procedure is similar to ToFString.
+  Examples:   number     width  decimals   output
+             12345.678       9       3       "0.123E+05"
+             12345.678       8       3       ".123E+05"
+             12345.678       7       3       "*******"
+             12345.678      12       6       "0.123457E+05"
+             12345.678      13       8       ".12345678E+05"
+             12345.678      14       9       ".123456777E+05"
+       0.0000012345678       9       3       "0.123E-05"
+       0.0000012345678       8       3       ".123E-05"
+*)
+
+END RealInOut.

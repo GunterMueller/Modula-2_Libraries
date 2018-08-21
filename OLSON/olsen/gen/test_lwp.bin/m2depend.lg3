@@ -1,0 +1,430 @@
+gentesti.sym: 
+gentesti.obj: ..\bin\dos.sym gentesti.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\safestor.sym  \
+              ..\bin\strings.sym 
+inttasks.obj: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\tasks.sym 
+inttasks.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj inttasks.obj 
+pingpong.obj: ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+pingpong.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj pingpong.obj 
+stringli.sym: gentesti.sym testio.sym 
+stringli.obj: gentesti.sym stringli.sym testio.sym 
+tbytes.obj: ..\bin\bytes.sym ..\bin\intrinsi.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\bin\systypes.sym 
+tbytes.exe: ..\bin\bytes.obj ..\bin\dos.obj ..\bin\i8086.obj  \
+            ..\bin\intrinsi.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+            ..\bin\systypes.obj tbytes.obj 
+tcrash.obj: ..\bin\i8086.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tcrash.exe: ..\bin\dos.obj ..\bin\i8086.obj ..\bin\progerr.obj  \
+            ..\bin\progerro.obj ..\bin\systypes.obj tcrash.obj 
+tdebug1.obj: ..\bin\cardconv.sym ..\bin\intrinsi.sym ..\bin\notices.sym  \
+             ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+             ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+             ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+             ..\lwp.bin\taskmess.sym ..\lwp.bin\taskmoni.sym  \
+             ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+             ..\lwp.bin\tasks.sym 
+tdebug1.exe: ..\bin\bytes.obj ..\bin\card32.obj ..\bin\cardconv.obj  \
+             ..\bin\chars.obj ..\bin\dos.obj ..\lwp.bin\dosmonit.obj  \
+             ..\bin\genconst.obj ..\bin\i8086.obj ..\lwp.bin\interrup.obj  \
+             ..\bin\intrinsi.obj ..\bin\lists.obj ..\bin\namelist.obj  \
+             ..\lwp.bin\notices.obj ..\lwp.bin\objects.obj  \
+             ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+             ..\lwp.bin\safestor.obj ..\bin\strings.obj ..\bin\systypes.obj  \
+             ..\lwp.bin\taskcons.obj ..\lwp.bin\taskdebu.obj  \
+             ..\lwp.bin\taskinfo.obj ..\lwp.bin\taskmess.obj  \
+             ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+             ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+             ..\lwp.bin\taskspri.obj tdebug1.obj 
+tdebug2.obj: ..\bin\cardconv.sym ..\lwp.bin\interrup.sym ..\bin\notices.sym  \
+             ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+             ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+             ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tdebug2.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+             ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+             ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+             ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+             ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+             ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+             ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+             ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+             ..\lwp.bin\tasknoti.obj ..\lwp.bin\tasks.obj  \
+             ..\lwp.bin\taskspri.obj tdebug2.obj 
+tdebugfl.obj: ..\bin\debugfla.sym ..\bin\progerr.sym ..\bin\progerro.sym 
+tdebugfl.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\bin\debugfla.obj ..\lwp.bin\dosmonit.obj  \
+              ..\bin\genconst.obj ..\bin\i8086.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj tdebugfl.obj 
+testcard.obj: ..\bin\cardconv.sym ..\bin\chars.sym gentesti.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testcard.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              gentesti.obj ..\bin\i8086.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj stringli.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj testio.obj  \
+              testsyst.obj testcard.obj 
+testcrc1.obj: ..\bin\crc16.sym ..\bin\cardconv.sym ..\bin\progerro.sym 
+testcrc1.exe: ..\bin\crc16.obj ..\bin\card32.obj ..\bin\cardconv.obj  \
+              ..\bin\chars.obj ..\bin\dos.obj ..\bin\i8086.obj  \
+              ..\bin\intrinsi.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj testcrc1.obj 
+testintc.obj: gentesti.sym ..\bin\intconve.sym ..\bin\objects.sym  \
+              stringli.sym testio.sym testsyst.sym 
+testintc.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              gentesti.obj ..\bin\i8086.obj ..\bin\intconve.obj  \
+              ..\bin\intrinsi.obj ..\bin\lists.obj ..\bin\namelist.obj  \
+              ..\lwp.bin\notices.obj ..\lwp.bin\objects.obj  \
+              ..\bin\progargs.obj ..\bin\progerr.obj ..\bin\progerro.obj  \
+              ..\lwp.bin\safestor.obj stringli.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj testio.obj  \
+              testsyst.obj testintc.obj 
+testio.sym: gentesti.sym 
+testio.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\progerr.sym  \
+            ..\bin\safestor.sym ..\bin\strings.sym testio.sym 
+testname.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\objects.sym stringli.sym testio.sym testsyst.sym 
+testname.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              gentesti.obj ..\bin\i8086.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj stringli.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj testio.obj  \
+              testsyst.obj testname.obj 
+testreal.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\objects.sym  \
+              ..\bin\realconv.sym stringli.sym ..\bin\systypes.sym testio.sym  \
+              testsyst.sym 
+testreal.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              gentesti.obj ..\bin\i8086.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\bin\realconv.obj ..\lwp.bin\safestor.obj  \
+              stringli.obj ..\bin\strings.obj ..\bin\systypes.obj  \
+              ..\lwp.bin\taskcons.obj ..\lwp.bin\tasks.obj  \
+              ..\lwp.bin\taskspri.obj testio.obj testsyst.obj testreal.obj 
+teststri.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\intrinsi.sym  \
+              ..\bin\objects.sym stringli.sym ..\bin\strings.sym testio.sym  \
+              testsyst.sym 
+teststri.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              gentesti.obj ..\bin\i8086.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj stringli.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj testio.obj  \
+              testsyst.obj teststri.obj 
+testsyst.sym: testio.sym 
+testsyst.obj: ..\bin\cardconv.sym gentesti.sym ..\bin\namelist.sym  \
+              ..\bin\notices.sym ..\bin\objects.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\strings.sym testio.sym testsyst.sym 
+thello.obj: ..\bin\progerro.sym ..\lwp.bin\tasks.sym 
+thello.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+            ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+            ..\bin\i8086.obj ..\bin\intrinsi.obj ..\lwp.bin\objects.obj  \
+            ..\bin\progerr.obj ..\bin\progerro.obj ..\lwp.bin\safestor.obj  \
+            ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+            ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj thello.obj 
+tint1.obj: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+tint1.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tint1.obj 
+tint2.obj: ..\lwp.bin\interrup.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym ..\lwp.bin\tasks.sym 
+tint2.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tint2.obj 
+tmess1.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+            ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+            ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmess.sym  \
+            ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tmess1.exe: ..\bin\bytes.obj ..\bin\card32.obj ..\bin\cardconv.obj  \
+            ..\bin\chars.obj ..\bin\dos.obj ..\lwp.bin\dosmonit.obj  \
+            ..\bin\genconst.obj ..\bin\i8086.obj ..\lwp.bin\interrup.obj  \
+            ..\bin\intrinsi.obj ..\bin\lists.obj ..\bin\namelist.obj  \
+            ..\lwp.bin\notices.obj ..\lwp.bin\objects.obj ..\bin\progargs.obj  \
+            ..\bin\progerr.obj ..\bin\progerro.obj ..\lwp.bin\safestor.obj  \
+            ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+            ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+            ..\lwp.bin\taskmess.obj ..\lwp.bin\tasknoti.obj  \
+            ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+            ..\lwp.bin\taskspri.obj tmess1.obj 
+tmon1.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmoni.sym  \
+           ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasks.sym 
+tmon1.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon1.obj 
+tmon2.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon2.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon2.obj 
+tmon3.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon3.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon3.obj 
+tmon4.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon4.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon4.obj 
+tmon5.obj: ..\bin\cardconv.sym ..\bin\notices.sym ..\bin\objects.sym  \
+           ..\bin\progargs.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+           ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+           ..\lwp.bin\taskinfo.sym ..\lwp.bin\taskmoni.sym  \
+           ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+           ..\lwp.bin\tasks.sym ..\lwp.bin\taskspri.sym 
+tmon5.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon5.obj 
+tmon6.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon6.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon6.obj 
+tmon7.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon7.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon7.obj 
+tmon8.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasktime.sym ..\lwp.bin\tasks.sym 
+tmon8.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon8.obj 
+tmon9.obj: ..\bin\notices.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\lwp.bin\taskcons.sym  \
+           ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskinfo.sym  \
+           ..\lwp.bin\taskmoni.sym ..\lwp.bin\tasknoti.sym  \
+           ..\lwp.bin\tasks.sym 
+tmon9.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+           ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+           ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+           ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+           ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+           ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+           ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+           ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+           ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+           ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+           ..\lwp.bin\taskspri.obj tmon9.obj 
+tmonitor.obj: ..\bin\intrinsi.sym ..\bin\namelist.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\taskdebu.sym ..\lwp.bin\taskmoni.sym  \
+              ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+tmonitor.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+              ..\lwp.bin\taskmoni.obj ..\lwp.bin\tasknoti.obj  \
+              ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+              ..\lwp.bin\taskspri.obj tmonitor.obj 
+tprogarg.obj: ..\bin\cardconv.sym ..\bin\namelist.sym ..\bin\progargs.sym  \
+              ..\bin\progerro.sym 
+tprogarg.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj tprogarg.obj 
+tprogenv.obj: ..\bin\namelist.sym ..\bin\progargs.sym ..\bin\progenvi.sym  \
+              ..\bin\progerro.sym 
+tprogenv.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\bin\lists.obj  \
+              ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progenvi.obj  \
+              ..\bin\progerr.obj ..\bin\progerro.obj ..\lwp.bin\safestor.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj tprogenv.obj 
+tqstring.obj: ..\bin\progerro.sym ..\bin\qstrings.sym ..\bin\strings.sym 
+tqstring.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\lwp.bin\objects.obj  \
+              ..\bin\progerr.obj ..\bin\progerro.obj ..\bin\qstrings.obj  \
+              ..\lwp.bin\safestor.obj ..\bin\strings.obj ..\bin\systypes.obj  \
+              ..\lwp.bin\taskcons.obj ..\lwp.bin\tasks.obj  \
+              ..\lwp.bin\taskspri.obj tqstring.obj 
+tsemapho.obj: ..\bin\intrinsi.sym ..\bin\namelist.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progargs.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\strings.sym ..\lwp.bin\taskcons.sym  \
+              ..\lwp.bin\taskdebu.sym ..\lwp.bin\tasknoti.sym  \
+              ..\lwp.bin\tasksema.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+tsemapho.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+              ..\lwp.bin\tasknoti.obj ..\lwp.bin\tasksema.obj  \
+              ..\lwp.bin\tasktime.obj ..\lwp.bin\tasks.obj  \
+              ..\lwp.bin\taskspri.obj tsemapho.obj 
+tstack.obj: ..\lwp.bin\taskinfo.sym ..\lwp.bin\tasks.sym 
+tstack.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+            ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+            ..\bin\i8086.obj ..\bin\intrinsi.obj ..\lwp.bin\objects.obj  \
+            ..\bin\progerr.obj ..\bin\progerro.obj ..\lwp.bin\safestor.obj  \
+            ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+            ..\lwp.bin\taskinfo.obj ..\lwp.bin\tasks.obj  \
+            ..\lwp.bin\taskspri.obj tstack.obj 
+tsystype.obj: ..\bin\systypes.sym 
+tsystype.exe: ..\bin\systypes.obj tsystype.obj 
+ttaskinf.obj: ..\bin\objects.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\taskinfo.sym  \
+              ..\lwp.bin\tasks.sym 
+ttaskinf.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\bin\intrinsi.obj ..\lwp.bin\objects.obj  \
+              ..\bin\progerr.obj ..\bin\progerro.obj ..\lwp.bin\safestor.obj  \
+              ..\bin\strings.obj ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\taskinfo.obj ..\lwp.bin\tasks.obj  \
+              ..\lwp.bin\taskspri.obj ttaskinf.obj 
+ttasktim.obj: ..\bin\cardconv.sym ..\bin\notices.sym ..\bin\progargs.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\strings.sym  \
+              ..\lwp.bin\taskcons.sym ..\lwp.bin\taskdebu.sym  \
+              ..\lwp.bin\tasknoti.sym ..\lwp.bin\tasktime.sym  \
+              ..\lwp.bin\tasks.sym 
+ttasktim.exe: ..\bin\card32.obj ..\bin\cardconv.obj ..\bin\chars.obj  \
+              ..\bin\dos.obj ..\lwp.bin\dosmonit.obj ..\bin\genconst.obj  \
+              ..\bin\i8086.obj ..\lwp.bin\interrup.obj ..\bin\intrinsi.obj  \
+              ..\bin\lists.obj ..\bin\namelist.obj ..\lwp.bin\notices.obj  \
+              ..\lwp.bin\objects.obj ..\bin\progargs.obj ..\bin\progerr.obj  \
+              ..\bin\progerro.obj ..\lwp.bin\safestor.obj ..\bin\strings.obj  \
+              ..\bin\systypes.obj ..\lwp.bin\taskcons.obj  \
+              ..\lwp.bin\taskdebu.obj ..\lwp.bin\taskinfo.obj  \
+              ..\lwp.bin\tasknoti.obj ..\lwp.bin\tasktime.obj  \
+              ..\lwp.bin\tasks.obj ..\lwp.bin\taskspri.obj ttasktim.obj 

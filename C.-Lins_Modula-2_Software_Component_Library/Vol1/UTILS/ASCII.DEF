@@ -1,0 +1,115 @@
+DEFINITION MODULE ASCII;
+(*====================================================================
+    Version : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler: JPI TopSpeed Modula-2
+
+    INTRODUCTION
+    This module provides standard mnemonics for the ISO/ASCII control
+    characters and non-alphanumeric characters common to most keyboards.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    INTERFACE DESIGN ISSUES
+    * The mnemonic names are given in all lowercase letters for
+      compatibility with other Modula-2 systems.
+
+    * Should the names for non-alphanumeric characters be capitalized?
+      The decision was to not capitalize, and use all lowercase letters.
+	+ Easier to key without using Shift-Key.
+	+ Consistant with mnemonics for control characters.
+====================================================================*)
+
+	(*-- Mnemonics for the non-printing ASCII control codes --*)
+
+CONST	nul = 000C; (*-- null			  *)
+	soh = 001C; (*-- start of header	  *)
+	stx = 002C; (*-- start of text		  *)
+	etx = 003C; (*-- end of text		  *)
+	eot = 004C; (*-- end of transmission	  *)
+	enq = 005C; (*-- enquiry		  *)
+	ack = 006C; (*-- acknowledge		  *)
+	bel = 007C; (*-- bell			  *)
+
+	bs  = 010C; (*-- backspace		  *)
+	ht  = 011C; (*-- horizontal tab 	  *)
+	lf  = 012C; (*-- line feed		  *)
+	vt  = 013C; (*-- vertical tab		  *)
+	ff  = 014C; (*-- form feed		  *)
+	cr  = 015C; (*-- carriage return	  *)
+	so  = 016C; (*-- shift out		  *)
+	si  = 017C; (*-- shift in		  *)
+
+	dle = 020C; (*-- data link escape	  *)
+	dc1 = 021C; (*-- device-control 1	  *)
+	dc2 = 022C; (*-- device-control 2	  *)
+	dc3 = 023C; (*-- device-control 3	  *)
+	dc4 = 024C; (*-- device-control 4	  *)
+	nak = 025C; (*-- negative acknowledge	  *)
+	syn = 026C; (*--			  *)
+	etb = 027C; (*-- end transmission block   *)
+
+	can = 030C; (*-- cancel 		  *)
+	em  = 031C; (*-- end of message 	  *)
+	sub = 032C; (*--			  *)
+	esc = 033C; (*-- escape 		  *)
+	fs  = 034C; (*-- file seperator 	  *)
+	gs  = 035C; (*-- group seperator	  *)
+	rs  = 036C; (*-- record seperator	  *)
+	us  = 037C; (*-- unit seperator 	  *)
+
+	del = 177C; (*-- delete 		  *)
+
+
+	(*-- Mnemonics for the non-alphanumeric ASCII codes --*)
+
+CONST	space	   = ' ';
+
+	ampersand  = '&' ;
+	asterisk   = '*' ;
+	atsign	   = '@' ;
+
+	backslash  = '\' ;
+	bar	   = '|' ;
+
+	circumflex = '^' ;
+	colon	   = ':' ;
+	comma	   = ',' ;
+
+	dollar	   = '$' ;
+
+	equalsign  = '=' ;
+	exclam	   = '!' ;
+
+	grave	   = '`' ;
+	gtrsign    = '>' ;
+
+	lesssign   = '<' ;
+	lbrace	   = '{' ;
+	lbracket   = '[' ;
+	lparen	   = '(' ;
+
+	minussign  = '-' ;
+
+	percent    = '%' ;
+	period	   = '.' ;
+	plussign   = '+' ;
+
+	query	   = '?' ;
+	quote	   = "'" ;
+	quotequote = '"' ;
+
+	rbrace	   = '}' ;
+	rbracket   = ']' ;
+	rparen	   = ')' ;
+
+	semicolon  = ';' ;
+	sharp	   = '#' ;
+	slash	   = '/' ;
+
+	tilde	   = '~' ;
+
+	underscore = '_' ;
+
+END ASCII.

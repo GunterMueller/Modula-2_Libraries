@@ -1,0 +1,494 @@
+#!/bin/sh
+# This is a shell archive, meaning:
+#    1. Remove everything above the "#!/bin/sh" line.
+#    2. Save the resulting test in a file.
+#    3. Execute the file with /bin/sh (not csh) to create the files:
+# 	DBX
+# 	gen-switch.sh
+# 	m2dbx.man
+# 	m2dbx.sh
+# 	m2dbxtool.man
+# 	restore-running.dbx
+# 	save-running.dbx
+# 	switch-task.dbx
+# 	tasks-core.dbx
+# 	tasks-process.dbx
+# Creation date: Sun Oct 9 21:38:52 EET 1988
+echo '	'DBX
+sed 's/^X//' >DBX << 'END-of-DBX'
+XCopyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+X
+X                       All Rights Reserved
+X
+XPermission to use, copy, modify, and distribute this software and its
+Xdocumentation for any purpose and without fee is hereby granted,
+Xprovided that the above copyright notice appear in all copies, and
+Xthat both that copyright notice and this permission notice appear in
+Xsupporting documentation, and that all modifications of this software
+Xor its documentation not made by O&A or its agents are accompanied
+Xby a prominent notice stating who made the modifications and the date
+Xof the modifications.
+X
+XO&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+XDOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+XFITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+XCONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+XUSE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+XOTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+XPERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+X*********************
+X
+XThis file contains some information which may be useful to people
+Xwho are using dbx.  The following files should also have been supplied:
+X    m2dbx.sh - Reads environ.mak to set up "-I" flags before calling dbx
+X	       or dbxtool (if the file is named m2dbxtool).
+X    m2dbx.man - man page for above
+X    m2dbxtool.man - just sources m2dbx.man
+X
+XFor the light weight process environment, the following dbx command
+Xfiles are provided.
+X    tasks-core.dbx - sets up aliases to debug from a core file.
+X    gen-switch.sh - creates a file to switch to a new task when debugging
+X		    from a core file.
+X
+X    tasks-process.dbx - sets up alias to debug from a running process.
+X    save-running.dbx - saves "running" in a special area so
+X		       you can do task switching.
+X    restore-running.dbx	- restores "running" in from save area
+X    switch-task.dbx - look at the task specified by "dbxtask".
+X
+XThese files have been set up to be located in "$HOME/dbx".   You can
+Xobviously change this.
+X
+XThere are two modes: core and process.  
+X
+XCORE DEBUGGING:
+XWhen debugging from a core file, you must execute the following commands 
+X(assumed program is Solver located in the demo directory).
+X
+X    STEP 1. Run the debugger, this is anyone of: m2dbx, m2dbxtool, 
+X	    dbx, dbxtool.  For example,
+X
+X		% m2dbx Solver core
+X
+X    STEP 2. Initialize the aliases from the file "tasks-core.dbx" as 
+X	    follows:
+X		(dbx) source ~/dbx/tasks-core.dbx
+X	    This will create four aliases: restore, task, and switch.
+X	    You don't need "restore", it is there just for compatibility
+X	    with process debugging.
+X
+X    STEP 3. Locate the task variable you are interested in.  This may be
+X	    a global or on the stack of the current task you are looking at.
+X	    In this example, we use the "timer" task which is a global
+X	    in Solver.mod.  Make sure this is the variable you want by
+X	    typing:
+X		(dbx) print *timer
+X    
+X    STEP 4. To look at this task, you must execute two dbx commands as
+X	    follows:
+X		(dbx) task timer
+X		(dbx) switch
+X	    This will display a stack trace so that it resets dbx's idea
+X	    of where it is (otherwise dbx gets confused and you wouldn't
+X	    want that!).  NOTE: dbx may print some silly error message
+X	    of the form 'core file read error', but ignore these, the
+X	    task switch has occurred.
+X
+X    OPTIONAL STEP 5. 
+X	    You may repeat steps 3 and 4 as many times as you like.  
+X	    To restore to the original task, you will have to re-debug 
+X	    as follows:
+X		(dbx) debug Solver core
+X	    This will reset dbx's internal variables so that it is
+X	    pointing at the task which caused the core dump.
+X    PROBLEMS:
+X	1. The current directory must be writable.
+X	2. No one else must be debugging in the directory.
+X	3. The temporary file core-task-switch.dbx is created in the
+X	   current directory, but it is not destroyed.
+X	
+XPROCESS DEBUGGING:
+X
+XDebugging with Tasks is a bit tricky for several reasons.  The primary
+Xproblem is UnixAsynchIO which sets the mode of the tty so that dbx will
+Xget a fatal error.  Therefore,
+X
+X    STEP 1. You must run the process to be debugged in a separate
+X	    window from dbx.  If you don't have a window system, then
+X	    start the process so that it runs on another terminal as
+X	    follows:
+X		% Solver < /dev/ttya >& /dev/ttya &
+X
+XWe are using the Solver program throughout this tutorial, because it
+Xis a fairly complex program and shows that you can debug Tasks using
+Xdbx.  The next thing is you must look up the process number, e.g.
+X    STEP 2. Look up the process number by doing:
+X		% jobs -l
+X		[3]    11997 Running              Solver ...
+X	    or
+X		% ps ax | grep Solver
+X		11895 p5 S     0:00 grep Solver
+X		11872 p8 I     0:07 Solver
+X
+X    STEP 3. Executing dbx from a running process.  This may be one of:
+X	    dbx, dbxtool, m2dbx, or m2dbxtool.
+X		% m2dbx Solver 11872
+X    
+X    STEP 4. Initialize the aliases for debugging tasks of a running process
+X	    as follows:
+X		(dbx) source ~/dbx/tasks-process.dbx
+X	    This will establish four aliases: restore, task, & switch.
+X	    It will also save the state of "running" in the variable
+X	    "TasksPRIVATE.dbxsave" so that "restore" will work.
+X
+X    STEP 5. Locate the task variable you are interested in.  This may be
+X	    a global or on the stack of the current task you are looking at.
+X	    In this example, we use the "timer" task which is a global
+X	    in Solver.mod.  Make sure this is the variable you want by
+X	    typing:
+X		(dbx) print *timer
+X    
+X    STEP 6. To look at this task, you must execute two dbx commands as
+X	    follows:
+X		(dbx) task timer
+X		(dbx) switch
+X	    This will display a stack trace so that it resets dbx's idea
+X	    of where it is (otherwise dbx gets confused and you wouldn't
+X	    want that!). 
+X    
+X    STEP 7. You may do steps 5 and 6 as many times as you like, BUT YOU
+X	    MUST cont OR detach WITHOUT DOING THE FOLLOWING:
+X		(dbx) restore
+X	    This will re-establish the state of the unix process before
+X	    you started looking at all the tasks.  If you happen to 
+X	    cause the process to crash, you will have to run "ttyreset"
+X	    (see the tools directory).
+X
+XSAMPLE PROCESS DEBUGGING RUN:
+X
+X% ps ax | grep Solver
+X11895 p5 S     0:00 grep Solver
+X11872 p8 I     0:07 Solver
+X% m2dbx Solver 11872
+XReading symbolic information...
+XRead 12345 symbols
+X(dbx) source $HOME/dbx/tasks.dbx
+X(dbx) where
+Xwrite(0x282be, 0x2a178, 0x3, 0x2a15c) at 0x18c30
+X`BinaryIO`BinaryIO`WriteBytes(file = 0x282be, bufferSize = 3, buffer = 172408, amountWritten = 172396), line 321 in "BinaryIO.mod"
+XWriteChars(file = 0x2840a, buf = 172408), line 958 in "TextIO.mod"
+X`StringIO`StringIO`Write(file = 0x2840a, toWrite =  ARRAY ), line 93 in "StringIO.mod"
+XPutBoldStringAt(point =  RECORD , str =  ARRAY ), line 110 in "Screen.mod"
+XTimerTask(DONTCARE2 = 0), line 284 in "Solver.mod"
+XTaskEnvelope(parent = 0x21f66, thread = 0x2a58, importerObject = 0), line 206 in "Tasks.mod"
+X(dbx) print *running
+X*running = (savedLevel = 1, stackBase = 171824, stackSize = 768, intStack = (ptr = 0x2a136, adr = 172342), lowestSP = 172330, nextAlloc = 0x29a98, allocSize = 884, state = readyOrRunning, priority = 130, nextReady = 0x37ae8, otherNext = 0x21f66, info = (172602, 172630, 172658, 0, 0, 0, 0, 0, 0, 0), name = "TimerIN", magic = 48812)
+X(dbx) set dbxtask=mainTask
+X(dbx) switch
+XMoved down 5 calls
+XSuspend(), line 408 in "Tasks.mod"
+XReceive(request =  ARRAY , sender = 0x2a2a0), line 256 in "TaskMessages.mod"
+X`Solver`Solver`Solver(), line 470 in "Solver.mod"
+Xm2_init() at 0x163cf
+XTaskEpilogue(?args?)
+Xmain(), line 64 in "Tasks.mod"
+XCurrent function is Suspend
+X  408       END Suspend;
+X(dbx) up
+XCurrent function is Receive
+X  254   		    Tasks.Suspend;	
+X(dbx) up
+XCurrent function is Solver
+X  470   	TaskMessages.Receive( child, DONTCARE ); 
+X(dbx) set dbxtask=child
+X(dbx) switch
+XMoved down 4 calls
+XSuspend(), line 408 in "Tasks.mod"
+XReceive(request =  ARRAY , sender = 0x2a684), line 256 in "TaskMessages.mod"
+XSolverTask(DONTCARE = 0), line 196 in "Solver.mod"
+XTaskEnvelope(parent = 0x21f66, thread = 0x269c, importerObject = 0), line 206 in "Tasks.mod"
+XCurrent function is Suspend
+X  408       END Suspend;
+X(dbx) up
+XCurrent function is Receive
+X  254   		    Tasks.Suspend;	
+X(dbx) up
+XCurrent function is SolverTask
+X  196                       TaskMessages.Receive( child, childResult ); 
+X(dbx) restore
+XMoved down 7 calls
+Xwrite(0x282be, 0x2a178, 0x3, 0x2a15c) at 0x18c30
+X`BinaryIO`BinaryIO`WriteBytes(file = 0x282be, bufferSize = 3, buffer = 172408, amountWritten = 172396), line 321 in "BinaryIO.mod"
+XWriteChars(file = 0x2840a, buf = 172408), line 958 in "TextIO.mod"
+X`StringIO`StringIO`Write(file = 0x2840a, toWrite =  ARRAY ), line 93 in "StringIO.mod"
+XPutBoldStringAt(point =  RECORD , str =  ARRAY ), line 110 in "Screen.mod"
+XTimerTask(DONTCARE2 = 0), line 284 in "Solver.mod"
+XTaskEnvelope(parent = 0x21f66, thread = 0x2a58, importerObject = 0), line 206 in "Tasks.mod"
+XCurrent function is write
+X/lindor/nagler/dbx/restore-running.dbx: 27: couldn't read "libg.s"
+X(dbx) cont
+X^C
+Xinterrupt in sigsetmask at 0x17f8c
+Xsigsetmask+6:		bcss 	sigpause+0xa
+X(dbx) detach
+X(dbx) quit
+X%
+END-of-DBX
+echo '	'gen-switch.sh
+sed 's/^X//' >gen-switch.sh << 'END-of-gen-switch.sh'
+X#!/bin/sh
+Xif [ $# -ne 1 ]; then
+X    echo You must specify only one parameter, a task variable.
+X    rm -f dbx-task-switch-$USER
+X    exit 1
+Xfi
+X
+Xif [ ! -w . ]; then
+X    echo The current directory must be writable for this command to work.
+X    exit 1
+Xfi
+X
+X# Note that we can only set the registers.
+Xtask=$1
+Xcat > core-task-switch.dbx << EOF
+Xset \$sp=$task.intStack.adr
+X
+Xset \$d0=$task.intStack.ptr.registerD0
+Xset \$d1=$task.intStack.ptr.registerD1
+Xset \$d2=$task.intStack.ptr.registerD2
+Xset \$d3=$task.intStack.ptr.registerD3
+Xset \$d4=$task.intStack.ptr.registerD4
+Xset \$d5=$task.intStack.ptr.registerD5
+Xset \$d6=$task.intStack.ptr.registerD6
+Xset \$d7=$task.intStack.ptr.registerD7
+X
+Xset \$a0=$task.intStack.ptr.registerA0
+Xset \$a1=$task.intStack.ptr.registerA1
+Xset \$a2=$task.intStack.ptr.registerA2
+Xset \$a3=$task.intStack.ptr.registerA3
+Xset \$a4=$task.intStack.ptr.registerA4
+Xset \$a5=$task.intStack.ptr.registerA5
+Xset \$a6=$task.intStack.ptr.registerA6
+X
+Xset \$pc=$task.intStack.ptr.registerPC
+Xwhere
+Xdown
+XEOF
+END-of-gen-switch.sh
+echo '	'm2dbx.man
+sed 's/^X//' >m2dbx.man << 'END-of-m2dbx.man'
+X.TH M2DBX 1L  "3 September 1987"
+X.SH NAME
+Xm2dbx \- execute dbx(1) in Modula-2 environment.
+X.br
+Xm2dbxtool \- execute dbxtool(1) in Modula-2 environment.
+X.SH SYNOPSIS
+Xm2dbx \fIdbx\-args\fP
+X.br
+Xm2dbxtool \fIdbxtool\-args\fP
+X.SH DESCRIPTION
+X.IX  m2dbx m2dbxtool  ""  "\fLm2dbx\fP \(em execute dbx in Modula-2 environ."
+X.IX  files  "m2dbx command"
+X.IX  files  "m2dbxtool command"
+XThese programs attempt to produce a proper environment for 
+X\fIdbx(1)\fP by searching the \fImake(1)\fP environment for
+Xthe compilation ``include'' path.  The file \fIenviron.mak\fP
+Xcontains the search path to be used
+Xby compiler, \fIm2c(1)\fP.  The programs translate this search
+Xpath into a path suitable to \fIdbx(1)\fP.  Note that all
+Xcommand line arguments are passed directly to \fIdbx(1)\fP or 
+X\fIdbxtool\fP in addition to the search path.
+XIf the directory of \fBobj\fP is not the current directory, the
+Xdirectory part of \fBobj\fP will be used to find \fIenviron.mak\fP.
+X.SH "SEE ALSO"
+Xdbx(1), dbxtool(1), m2c(1), make(1), buildmake(l)
+X.SH FILES
+X.TP 1.25i
+X.I environ.mak
+Xfile produced by \fIbuildmake(1)\fP containing \fI\-M\fP flags.
+END-of-m2dbx.man
+echo '	'm2dbx.sh
+sed 's/^X//' >m2dbx.sh << 'END-of-m2dbx.sh'
+X#!/bin/sh
+X# Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+X# 
+X#                        All Rights Reserved
+X# 
+X# Permission to use, copy, modify, and distribute this software and its
+X# documentation for any purpose and without fee is hereby granted,
+X# provided that the above copyright notice appear in all copies, and
+X# that both that copyright notice and this permission notice appear in
+X# supporting documentation, and that all modifications of this software
+X# or its documentation not made by O&A or its agents are accompanied
+X# by a prominent notice stating who made the modifications and the date
+X# of the modifications.
+X# 
+X# O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+X# DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+X# FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+X# CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+X# USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+X# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+X# PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+X################################
+X#
+X# This hack starts up 'dbx(tool)' with an include directory list that
+X# is obtained from the current directory's make environment.
+X#
+X# TODO:
+X#    Probably shouldn't just grep for "-M".   Could really just "import"
+X#    the makefile "m2source.mak" into the shell's variable space.   This
+X#    may be slower, however.
+X#
+XdbxArgs=
+XfirstUnflagged=true
+Xcurrent=`pwd`			# Where we are now.
+XobjDir=$current			# Home of the object file
+XINCLUDE=
+Xwhile [ $# -ne 0 ]; do
+X    case $1 in
+X	-*)
+X	    dbxArgs="$dbxArgs $1"
+X	    ;;
+X	*)	# Must be obj or core file
+X	    if $firstUnflagged; then
+X		firstUnflagged=false
+X		dir=`dirname $1`
+X		if [ "x$dir" != x ]; then
+X		    cd $dir	# will crash if no such directory
+X		    objDir=`pwd`		# Must save for below
+X		    INCLUDE="-I$objDir"		# Force to be first in path 
+X		fi
+X	    fi
+X	    dbxArgs="$dbxArgs $1"
+X    esac
+X    shift
+Xdone
+Xif [ -r environ.mak ]; then
+X    for m in `sed -e '/^#/d' $objDir/environ.mak 2>/dev/null`; do
+X	case $m in
+X	-M*)
+X	    dir=`expr substr $m 3 999`
+X	    if expr match $dir / > /dev/null 2>&1; then
+X		INCLUDE="$INCLUDE -I$dir"
+X	    else
+X		cd $dir		# make absolute
+X		INCLUDE="$INCLUDE -I"`pwd`
+X		cd $objDir
+X	    fi
+X	    ;;
+X	esac
+X    done
+Xfi
+Xcd $current
+X# Save the number of useless processes.
+Xif [ `basename $0` = m2dbx ]; then
+X    exec dbx $INCLUDE $dbxArgs
+Xelse
+X    exec dbxtool $INCLUDE $dbxArgs
+Xfi
+END-of-m2dbx.sh
+echo '	'm2dbxtool.man
+sed 's/^X//' >m2dbxtool.man << 'END-of-m2dbxtool.man'
+X.so manl/m2dbx.l
+END-of-m2dbxtool.man
+echo '	'restore-running.dbx
+sed 's/^X//' >restore-running.dbx << 'END-of-restore-running.dbx'
+Xset $sp=`TasksPRIVATE`TasksPRIVATE`dbxsave.sp
+X
+Xset errno=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.errno
+X
+Xset $d0=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD0
+Xset $d1=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD1
+Xset $d2=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD2
+Xset $d3=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD3
+Xset $d4=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD4
+Xset $d5=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD5
+Xset $d6=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD6
+Xset $d7=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD7
+X
+Xset $a0=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA0
+Xset $a1=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA1
+Xset $a2=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA2
+Xset $a3=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA3
+Xset $a4=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA4
+Xset $a5=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA5
+Xset $a6=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA6
+X
+Xset $pc=`TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerPC
+X
+Xset `TasksPRIVATE`TasksPRIVATE`preemptionLevel=`TasksPRIVATE`TasksPRIVATE`dbxsave.savedLevel
+Xwhere
+Xdown
+END-of-restore-running.dbx
+echo '	'save-running.dbx
+sed 's/^X//' >save-running.dbx << 'END-of-save-running.dbx'
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.sp=$sp
+X
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.errno=errno
+X
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD0=$d0
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD1=$d1
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD2=$d2
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD3=$d3
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD4=$d4
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD5=$d5
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD6=$d6
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerD7=$d7
+X
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA0=$a0
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA1=$a1
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA2=$a2
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA3=$a3
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA4=$a4
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA5=$a5
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerA6=$a6
+X
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.regs.registerPC=$pc
+X
+Xset `TasksPRIVATE`TasksPRIVATE`dbxsave.savedLevel=`TasksPRIVATE`TasksPRIVATE`preemptionLevel
+END-of-save-running.dbx
+echo '	'switch-task.dbx
+sed 's/^X//' >switch-task.dbx << 'END-of-switch-task.dbx'
+Xset $sp=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.adr
+X
+Xset errno=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.errno
+X
+Xset $d0=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD0
+Xset $d1=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD1
+Xset $d2=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD2
+Xset $d3=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD3
+Xset $d4=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD4
+Xset $d5=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD5
+Xset $d6=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD6
+Xset $d7=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerD7
+X
+Xset $a0=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA0
+Xset $a1=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA1
+Xset $a2=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA2
+Xset $a3=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA3
+Xset $a4=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA4
+Xset $a5=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA5
+Xset $a6=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerA6
+X
+Xset $pc=`TasksPRIVATE`TasksPRIVATE`dbxtask.intStack.ptr.registerPC
+X
+Xset `TasksPRIVATE`TasksPRIVATE`preemptionLevel=`TasksPRIVATE`TasksPRIVATE`dbxtask.savedLevel
+Xwhere
+Xdown
+END-of-switch-task.dbx
+echo '	'tasks-core.dbx
+sed 's/^X//' >tasks-core.dbx << 'END-of-tasks-core.dbx'
+Xalias restore 	"sh echo You need to restart dbx to restore running, sorry."
+Xalias task      "sh sh $HOME/dbx/gen-switch.sh '!:1'"
+Xalias switch 	"source core-task-switch.dbx"
+END-of-tasks-core.dbx
+echo '	'tasks-process.dbx
+sed 's/^X//' >tasks-process.dbx << 'END-of-tasks-process.dbx'
+Xalias restore 	"source $HOME/dbx/restore-running.dbx"
+Xalias task	"set `TasksPRIVATE`TasksPRIVATE`dbxtask=!:1"
+Xalias switch 	"source $HOME/dbx/switch-task.dbx"
+Xsource $HOME/dbx/save-running.dbx
+END-of-tasks-process.dbx
+exit

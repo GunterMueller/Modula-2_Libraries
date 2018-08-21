@@ -1,0 +1,47 @@
+DEFINITION MODULE RomanNumerals;
+
+(* convert to/from strings of Roman Numerals to cardinal values *)
+(* J. Andrea, Sept.5/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED FromRoman, ToRoman;
+
+
+PROCEDURE FromRoman( numerals :ARRAY OF CHAR; VAR value :CARDINAL );
+(*
+ Convert from a Roman numeral string to a number.
+ Zero is returned if the given string is an invalid roman numeral,
+ remember that Romans didn't know the concept of zero.
+
+ This routine is fairly robust, it will attempt to convert
+ improper roman numbers, but the result may be strange.
+
+ It is also very forgiving of badly formed roman numerals
+ and will always produce a result, though it may not be what is expected
+ but remember, garbage in -> garbage out.
+
+ Things like this will get translated:
+
+ iv = 4          this is normal, and properly formed
+ vv = 10         not proper, but acceptable
+ iiv = 3         this is improperly formed, but result is as expected
+ iiiiv = 1       same as above
+ iiiiiv = 10     the group of 5 i's is not smaller than V so add rather
+                 than subtract
+ vvx = 20        again, VV is not smaller than X, so add them
+ ivx = 6         think of it as ((iv)x) = 10 - (5-1) = 10-4 = 6
+ viiiiii = 1     5,6 the 5 is smaller so its subtracted from 6
+ ivvx = 1        i(vv)x = 1(10)10 = (9)10 = 1
+*)
+
+
+PROCEDURE ToRoman( value :CARDINAL; VAR numerals :ARRAY OF CHAR );
+(*
+ Convert from a cardinal value to a Roman numeral string.
+ An impossible number returns an empty string or if the output string is
+ not long enough to hold the value then an empty string is also returned.
+*)
+
+
+END RomanNumerals.

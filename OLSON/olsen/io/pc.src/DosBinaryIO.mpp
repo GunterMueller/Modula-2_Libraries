@@ -1,0 +1,1252 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DosBinaryIO;
+(*
+ * Implements the Dos class of BinaryIO.
+ * The following system configurations are supported by this module:
+ *      CPU      : Intel iAPX family 
+ *      OS       : MS-DOS 2.X/3.X 
+ *      Compiler : Logitech 2.0 
+ *
+ * Throughout this module, the following terms are used:
+ *     local     - the Object declared in this module (classBasedInfo).
+ *     file      - the BinaryIO.Object.
+ *     private   - the CatBinaryIO.Object.
+ *     dosReturn - the values returned by Dos functions.
+ *     result    - value returned by the procedure.
+ * 
+ * ASSERT:
+ * Note that we don't need to do assertion checking on the procedures
+ * which we don't export.  They can't be called unless they were assigned
+ * by "Open" in this module which means that the "file" is implemented
+ * by this class.  Exported procedures must check the file and the
+ * classBasedInfo, because it could be passed a valid BinaryIO file which
+ * is implemented by another class.
+ *
+ * dos errors:
+ * We maintain the value from the last system call, but it isn't set on
+ * success (only failure).  SetError (however) doesn't call this module,
+ * it merely manages the internal error state.  Therefore, we don't know
+ * when the guy resets the dosError.  Since we don't check it, it isn't
+ * a big deal, but we do export GetError which returns the "dosError".  In
+ * this routine, we have to deal with this case specially.
+ *
+ * bytesWritten = 0:
+ * We must check for this case since this is the DOS truncate call.
+ *
+ * Flush:
+ * Sigh, but the only way to get Dos to flush is to close and re-open
+ * the file, but this isn't possible if the handle is supplied (we don't
+ * know the file name to reopen it with!)  Note that if the file is
+ * not isFlushable, then we don't flush it AND we don't return an error.
+ * Essentially, the files are really written to the disk and the only
+ * thing that "flush" does is guarantee that the directory entry gets
+ * updated (really stupid, but I guess it goes faster on floppies).
+ *
+ * Nasty errors:
+ * There are some nasty errors in here which screw up the file.  For example,
+ * if the guy calls GetEnd and it can't return back to the original position
+ * of the file.  In this case, we set the error.  If the guy wants to reset
+ * it, it is his problem.
+ *
+ * ??DefaultOpen:
+ * There is a debate.  Currently, DefaultOpen sets up the file so that
+ * the handleSupplied is true and Close will not call Dos (see Close).
+ * So the standard files can't be gotten rid of by just closing the 
+ * BinaryIO.Objects for GetInput, GetOutput, and GetErrorOutput.  We
+ * could easily turn this feature off by setting handleSupplied to FALSE
+ * after we call BinaryIO.Open in DefaultOpen.  However, if the guy is
+ * really worried about file handles, then he can close them himself.
+ *
+ * Card32 and Indexes:
+ * We open up the insides of CARINAL32.  This probably isn't correct
+ * usage, but the damn Logitech procedure calls are so slow...
+ *)
+IMPORT
+    BinaryIO,
+    CatBinaryIO,
+    DOS,	
+    DosIOErrors,
+    Chars,
+    CardConvert,
+    ConfBinaryIO,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    ModInit,	(* MUST BE HERE -- SEE ConfBinaryIO *)
+    Objects,
+    ProgErrOutput,	
+    ProgErr,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+	DosMonitor;
+@END (* Tasks *)
+
+CONST
+    moduleName = 'DosBinaryIO';
+
+TYPE
+    AbsolutePath = ARRAY [ 0 .. 2 * IOConsts.maxPathLength ] OF CHAR;
+	(*
+	 * We have to allow for double the length of the path for 
+	 * an "absolute", because we don't have a very clean method
+	 * of making absolute paths (also accounts for ASCIIZ).
+	 *)
+    Object    = POINTER TO ObjectRec; (* CatBinaryIO.ObjectRec.classBasedInfo *)
+    ObjectRec = RECORD
+        dosHandle      : SysTypes.Card; (* Dos file handle              *)
+        dosError       : SysTypes.Card; (* most recent error code       *)
+	handleSupplied : BOOLEAN;       (* Was handle supplied on open? *)	
+	isFlushable    : BOOLEAN;       (* Files without names and devices
+					  are not flushed. *)
+	absolutePath   : AbsolutePath;  (* Needed for flush! *)
+	driveSpecified : BOOLEAN;	(* If drive letter in openPath *)
+	openPathIndex  : SysTypes.Card;	(* where to start copying "path"
+					   from absolutePath *)
+    END;
+
+CONST
+    badHandle = SysTypes.MAXCard;	
+	(*  
+	 * There is a funny case inside of Flush which closes the file
+	 * and can't reopen it.  We set the dosHandle to badHandle when
+	 * this case occurs.   badHandle should be something that
+	 * always fails when you call DOS.
+	 *)
+
+VAR
+    objectMgr     : Objects.Manager;
+    toDosOpenMode : ARRAY BinaryIO.Modes OF SysTypes.Card;
+		(* For converting from BinaryIO.Modes to local open modes. *)
+      
+PROCEDURE GetHandle(
+    file : BinaryIO.Object
+    )    : SysTypes.Card;
+    (*
+     * Exported procedure, so it must do assertion checking on both
+     * the file and the classBasedInfo.
+     *)
+    VAR
+        local   : Object;
+	private : CatBinaryIO.Object;
+    BEGIN (* GetHandle*)
+
+	private := CatBinaryIO.Object( file );
+	@IF Assert THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, private );
+	@END
+
+	local   := Object( private^.classBasedInfo );
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, local );
+	@END
+
+	RETURN local^.dosHandle;
+    END GetHandle;
+
+
+PROCEDURE GetError(
+    file : BinaryIO.Object
+    )    : SysTypes.Card;
+    (*
+     * Exported procedure, so it must do assertion checking on both
+     * the file and the classBasedInfo.  Note also that we must check
+     * the errorState of the file.  If it is not in error, then we
+     * return DOS.success.  This case occurs, when someone does
+     * a SetError and then calls this routine.
+     *)
+    VAR
+        local   : Object;
+	private : CatBinaryIO.Object;
+    BEGIN (* GetError*)
+
+	private := CatBinaryIO.Object( file );
+	@IF Assert THEN
+	    Objects.Assert( CatBinaryIO.objectMgr, private );
+	@END
+
+	local   := Object( private^.classBasedInfo );
+	@IF Assert THEN
+	    Objects.Assert( objectMgr, local );
+	@END
+
+	IF private^.errorState = IOErrors.ok THEN
+	    local^.dosError := DOS.success;
+	END;
+
+	RETURN local^.dosError;
+    END GetError;
+
+
+PROCEDURE SetAbsolutePath(
+              private  : CatBinaryIO.Object;
+    (*IN*)VAR openPath : ARRAY OF CHAR
+    )                  : BOOLEAN;
+    (*
+     * Takes openPath and converts it into the absolutePath field 
+     * in local^.absolutePath and does a little name syntax checking.  
+     *
+     * To make an absolute path, we fill in the non-specified parts of 
+     * openPath.  If openPath is already absolute, then we just copy 
+     * it an return.  Otherwise, we have to either look up the absolutePath 
+     * by the drive letter specified or get the default drive and then look 
+     * up the path.  We insert the drive and path directly from DOS and
+     * then append the openPath relative part (i.e. everything but the
+     * drive letter).
+     *
+     * Note that "absolutePath" is twice as long as an IOConsts.Path 
+     * (openPath's max length), so we can use this simple model of making
+     * the path absolute.  We keep an index into absolutePath so that
+     * we can fulfill the needs of GetOpenPath.  This is the same
+     * reason that "driveSpecified" is defined.
+     *)
+    VAR
+	local          : Object;
+	tmpPath        : IOConsts.Path;
+	driveNum       : SysTypes.Card;	(* 'A' is 0; 'B' is 1;... *)
+	pathIsAbsolute : BOOLEAN;	(* If leading "\" in openPath *)
+    BEGIN (* SetAbsolute *)
+
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+
+	    WITH local^ DO
+		
+		IF openPath[ 0 ] = 0C THEN
+		    RETURN FALSE;	(* illegal name *)
+		END;
+
+		(* Always skip past drive specification *)
+		openPathIndex := 0;
+
+		(* Is this file a "drive" or "device"? *)
+		IF openPath[ Strings.Length( openPath ) - 1 ] = ':' THEN
+		    (* Do nothing, because already absolute *)
+		    Strings.Assign( openPath, absolutePath );
+		    RETURN TRUE;
+		END;
+
+		(*
+		 * If the file is already an absolute path, then just
+		 * copy it.  We know that the string is at least
+		 * on character long.  Also, HIGH( openPath ) is
+		 * greater than 2 characters so this check is kosher.
+		 *)
+		driveSpecified := openPath[ 1 ] = ':';
+		IF driveSpecified THEN
+		    IF openPath[ 2 ] = '\' THEN
+			(* Guaranteed to fit and already absolute *)
+			Strings.Assign( openPath, absolutePath );
+			RETURN TRUE;
+		    END;
+
+		    (* 
+		     * Copy out the drive letter from the open path. Note
+		     * if the drive letter is not an alpha, DOS will tell
+		     * us when we try to do the Open.
+		     *)
+		    pathIsAbsolute := FALSE;
+		    driveNum := ORD( CAP( openPath[ 0 ] ) ) - ORD( 'A' );
+		    absolutePath[ 0 ] := openPath[ 0 ];
+		ELSE
+		    (* No drive specified, so have to get the default *)
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			(* 
+			 * Get the drive number from DOS.
+			 *)
+			SYSTEM.DOSCALL( DOS.getCurrentDrive, driveNum );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+		    pathIsAbsolute := openPath[ 0 ] = '\';
+		    absolutePath[ 0 ] := 'a';
+		    INC( absolutePath[ 0 ], driveNum );
+
+		    (* Skip over drive spec for when getting openPath *)
+		    INC( openPathIndex, 2 );
+		END;
+
+		(* Set up for Insert later *)
+		absolutePath[ 1 ] := ':';	(* letter already inserted *)
+		absolutePath[ 2 ] := 0C; (* make sure it is null terminated *)
+
+		IF NOT pathIsAbsolute THEN
+		    (* 
+		     * Need to get an absolute path, but DOS doesn't return
+		     * a '\' at the end or the beginning.  We must assign
+		     * prefix slash now, before getting to Strings.
+		     *)
+		    absolutePath[ 2 ] := '\';
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.pwd, driveNum + 1, 
+					SYSTEM.ADR( absolutePath[ 3 ] ), 
+					dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+
+		    IF dosError # DOS.success THEN
+			RETURN FALSE;
+		    END;
+
+		    (* 
+		     * Special case:  for "X:\", it returns nothing and
+		     * we aren't allowed to have two slashes in a row.
+		     * we must delete.
+		     *)
+		    IF absolutePath[ 3 ] # 0C THEN	
+			(* Have to append a trailing slash, DOS doesn't *)
+			Strings.Insert( absolutePath, Strings.EOS, '\' );
+		    END;
+		    (* 
+		     * The openPath always begins after the absolutePath
+		     *)
+		    openPathIndex := Strings.Length( absolutePath );
+		END;
+
+		(* 
+		 * The first part of the absolute path has the drive and
+		 * possibly the directory.  We also know that if the
+		 * drive was specified, then we have to extract the trailing
+		 * part of the path (since we have to "insert" the current
+		 * directory).
+		 *)
+		IF driveSpecified THEN
+		    (* Skip past "c:" *)
+		    Strings.Substring( openPath, 2, Strings.EOS, tmpPath );
+		ELSE
+		    (* Don't have a drive letter so we need the whole thing *)
+		    Strings.Assign( openPath, tmpPath );
+		END;
+
+		(* This will always be ok, because absolutePath is long *)
+		Strings.Insert( absolutePath, Strings.EOS, tmpPath );
+
+	    END; (* WITH local *)
+
+	END; (* WITH private *)
+
+	RETURN TRUE;
+    END SetAbsolutePath;
+
+
+PROCEDURE SetInteractiveFlushAndIndexable(
+    private : CatBinaryIO.Object
+    )       : BOOLEAN;
+    (*
+     * Sets the fields private^.isIndexable, private^.isInteractive,
+     * and local^.isFlushable.  It also adjusts the file index in the
+     * case the file is appendOnly (and is not a device).
+     *	isIndexable ==> not a device and not appendOnly.
+     *	isFlushable ==> not a device and not handleSupplied.
+     *  isInteractive ==> is a device and not the clock or nul.
+     * Upon failure dosError contains the reason.
+     *)
+    CONST
+	nonInteractiveDevices = { DOS.isNullDeviceBit, DOS.isClockDeviceBit };
+	    (* 
+	     * The other devices are the console and comm ports.  The
+	     * null device and the clock seem to be likely non-interactive
+	     * devices.
+	     *)
+    VAR
+	dosDeviceInfo : BITSET;
+	local         : Object;
+	DONTCARE      : SysTypes.Card;
+	isDevice      : BOOLEAN;	(* If IOCTL says it is a device *)
+    BEGIN (* SetInteractiveFlushAndIndexable *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		(*
+		 * Ask DOS for the device information on the file handle.
+		 *)
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.ioctl, DOS.getDeviceInfoIOCTL,
+				    dosHandle, dosDeviceInfo, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+		IF dosError # DOS.success THEN
+		    RETURN FALSE;
+		END;
+
+		(* 
+		 * Based on what Dos told us fill in the isFlushable,
+		 * isIndexable, and isInteractive values.
+		 *)
+		isDevice    := DOS.isDeviceBit IN dosDeviceInfo;
+		isFlushable := NOT handleSupplied AND NOT isDevice;
+		isInteractive := isDevice AND
+		    ( nonInteractiveDevices * dosDeviceInfo = {} );
+		isIndexable := NOT isDevice 
+				AND ( openMode # BinaryIO.appendOnly );
+
+		(*
+		 * If the file isn't a device and the mode is appendOnly,
+		 * then we must seek to the end of the file so that it
+		 * really is append.
+		 *)
+		IF NOT isDevice AND ( openMode = BinaryIO.appendOnly ) THEN
+		    (* set to end of file in appendOnly case *)
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+				 DOS.seekFromEnd, 0, 0, DONTCARE, DONTCARE, 
+				 dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+
+		    (* Check the result below *)
+
+		END; (* IF *)
+
+		RETURN dosError = DOS.success;	(* should always be "ok" *)
+
+	    END; (* WITH local *)
+
+	END; (* WITH private *)
+    END SetInteractiveFlushAndIndexable;
+
+
+PROCEDURE Open(
+          VAR private : CatBinaryIO.Object;
+    (*IN*)VAR path    : ARRAY OF CHAR;
+    (*IN*)VAR options : ARRAY OF CHAR
+    )                 : IOErrors.Errors;
+    (*
+     * We allocate the object first.  We do this so we can check to 
+     * see if "absolutePath" (which is part of "classBasedInfo") is
+     * ok to open the file (so that Flush can work).  This may be an
+     * error, that is, the right thing to do is to use openPath, but
+     * because of the complexities of Flush and the stupidity of DOS
+     * directory caching, it is better to use absolutePath.
+     *
+     * We use a LOOP as a forward exit because of the complexity of 
+     * error handling states.  
+     *)
+    VAR
+	badResult    : IOErrors.Errors;	
+	local        : Object;
+	DONTCARE     : SysTypes.Card;
+	fileIsOpen   : BOOLEAN;	(* used after LOOP, if necessary *)
+	dosOpenMode  : SysTypes.Card;
+	haveOptions  : BOOLEAN;
+	optionHandle : SysTypes.Card;
+    BEGIN (* Open *)
+
+	(* Do we have to open the file? *)
+	haveOptions := options[ 0 ] # 0C;
+	IF haveOptions AND NOT SeparateOptions( options, optionHandle ) THEN
+	    RETURN IOErrors.badParameter;
+	END;
+
+	WITH private^ DO
+
+	    LOOP (* For forward exits only *)
+
+		fileIsOpen := FALSE;	(* Used to clean-up later *)
+
+		(* 
+		 * Must allocate first, because the SetAbsolute and
+		 * SetInteractive... use classBasedInfo field of private.
+		 *)
+		Objects.Allocate( objectMgr, local ); 
+		classBasedInfo := local;
+
+		WITH local^ DO 
+
+		    dosOpenMode := toDosOpenMode[ openMode ];
+
+		    (* Do we have to open the file? *)
+		    handleSupplied := haveOptions;
+		    IF handleSupplied THEN
+			dosHandle    := optionHandle;
+			(* We need to set this stuff up for GetOpenPath *)
+			Strings.Assign( path, absolutePath );
+			openPathIndex  := 0;	
+			driveSpecified := TRUE;
+		    ELSE
+			(* Open the file locally *)
+			IF NOT SetAbsolutePath( private, path ) THEN
+			    badResult := IOErrors.illegalName;
+			    EXIT;	(* Absolute name look up failed *)
+			END;
+
+			(* obtain DOS handle the "honest" way *)
+			@IF Tasks THEN
+			    DosMonitor.Enter;
+			@END (* Tasks *)
+			    SYSTEM.DOSCALL( DOS.open, 
+				SYSTEM.ADR( absolutePath ), dosOpenMode, 
+				dosHandle, dosError );
+			@IF Tasks THEN
+			    DosMonitor.Exit;
+			@END (* Tasks *)
+
+			(* Was the open unsuccessful? *)
+			IF dosError # DOS.success THEN
+			    badResult := DosIOErrors.ToIOError( dosError );
+			    EXIT;	(* Open failed *)
+			END;
+			fileIsOpen := TRUE;	(* have to close if failure *)
+		    END; (* IF handleSupplied *)
+
+		    (* Set the rest of the bits of the local record *)
+		    IF NOT SetInteractiveFlushAndIndexable( private ) THEN
+			badResult := DosIOErrors.ToIOError( dosError );
+			EXIT;
+		    END;
+
+		    dosError := DOS.success;	(* Ensure this is ok... *)
+		END; (* WITH *)
+
+		(* 
+		 * The operating system interface stuff is ok, proceed normally 
+		 * Assign the procedures to the CatBinaryIO.Object, then
+		 * allocate the classBasedInfo and initialize it.
+		 *)
+		methods := SYSTEM.ADR( methodTable );
+
+		RETURN IOErrors.ok;
+		
+	    END; (* LOOP for forward exists *)
+
+	    (*
+	     * We have failed for some reason.  "badResult" is already set.
+	     * Only set if we actually call Dos for the open.
+	     *)
+	    IF fileIsOpen THEN
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.close, local^.dosHandle, DONTCARE );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+	    END;
+
+	    Objects.Deallocate( objectMgr, local );
+
+	END; (* WITH private *)
+
+	RETURN badResult;
+    END Open;
+
+
+PROCEDURE MakeOptions(
+        handleToUse : FileHandles;
+    VAR result    : ARRAY OF CHAR
+    );
+    BEGIN (* MakeOptions *)
+	
+	IF HIGH( result ) < maxOptionsLength - 1 THEN
+	    ProgErr.Terminate( 
+	       "DosBinaryIO.MakeOptions: result string is too short." );
+	END;
+
+	(* Will always work *)
+	CardConvert.DONTCARE := CardConvert.ToString( 
+		handleToUse, Chars.maxBase, maxOptionsLength, result );
+
+	(* Mark it as our "type" *)
+	result[ 0 ] := CatBinaryIO.classOptionsChar;
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(
+        options     : ARRAY OF CHAR;
+    VAR handleToUse : SysTypes.Card
+    )               : BOOLEAN;
+    (*
+     * Need to specify an integer here for the convenience of Open.
+     *)
+    VAR
+	card : SysTypes.Card;	(* Need a temporary to do range check *)
+    BEGIN (* SeparateOptions *)
+
+	(* Will always work *)
+	IF options[ 0 ] # CatBinaryIO.classOptionsChar THEN
+	    RETURN FALSE;
+	END;
+
+	options[ 0 ] := ' ';	(* So we can convert easily *)
+	IF ( NOT CardConvert.FromString( options, Chars.maxBase, card ) ) OR
+	   ( card < minFileHandle ) OR ( card > maxFileHandle ) THEN
+	    RETURN FALSE;
+	END;
+
+	handleToUse := card;
+	RETURN TRUE;
+    END SeparateOptions;
+
+
+PROCEDURE Close(
+    VAR private : CatBinaryIO.Object
+    )           : IOErrors.Errors;
+    (* 
+     * If the handle wasn't user supplied, then try to close it.
+     * Return the error state of the close, if it was bad.
+     *)
+    VAR
+        local  : Object;
+	result : IOErrors.Errors;
+    BEGIN (* Close *)
+
+	result := IOErrors.ok;
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		IF NOT handleSupplied THEN
+
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.close, dosHandle, dosError ); 
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+
+		    IF dosError # DOS.success THEN
+			result := DosIOErrors.ToIOError( dosError );
+		    END;
+		END;
+	    END; (* WITH local *)
+
+	END; (* WITH private *)
+
+	Objects.Deallocate( objectMgr, local );
+
+	RETURN result;
+    END Close;
+
+
+PROCEDURE SetErrorState(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Saves code when setting the private^.errorState field from the
+     * local^.dosError field.  This saves a bit of code in several places.
+     *)
+    VAR
+	local : Object;
+    BEGIN (* SetErrorState *)
+
+	local := private^.classBasedInfo;
+
+	RETURN BinaryIO.SetError( BinaryIO.Object( private ),
+	    DosIOErrors.ToIOError( local^.dosError ) );
+    END SetErrorState;
+
+
+PROCEDURE ReadBytes(
+        private    : CatBinaryIO.Object;
+        buffer     : SysTypes.SAUPTR;
+        bufferSize : SysTypes.Card;
+    VAR bytesRead  : SysTypes.Card
+    )              : BinaryIO.States;
+    (* 
+     * Try to read from Unix.  If it doesn't succeed, then set the
+     * dosError and error.   If the read returns 0, then return endOfFile.
+     *)
+    VAR
+	local : Object;
+    BEGIN (* ReadBytes *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.read, dosHandle, bufferSize, buffer, 
+			bytesRead, dosError);
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+
+		(* State is already ok by definition of ReadBytes *)
+		IF bytesRead = 0 THEN
+		    state := BinaryIO.endOfFile;
+		END;
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END ReadBytes;
+
+	
+PROCEDURE WriteBytes(
+        private      : CatBinaryIO.Object;
+        buffer       : SysTypes.SAUPTR;
+        bufferSize   : SysTypes.Card;  
+    VAR bytesWritten : SysTypes.Card
+    )                : BinaryIO.States;
+    VAR
+	local     : Object;
+        dosReturn : SysTypes.Card;
+    BEGIN (* WriteBytes *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		(* 
+		 * There is a really stupid feature of DOS (among many)
+		 * that truncates a file when you write 0 bytes to it.
+		 * We don't think that this is a polite feature to have
+		 * in a portable library.
+		 *)
+		IF bufferSize = 0 THEN 
+		    bytesWritten := 0;
+		    state := BinaryIO.ok;
+		    RETURN state;
+		END;
+
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.write, dosHandle, bufferSize, buffer, 
+				    bytesWritten, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+
+
+	    END; (* WITH local *)
+
+	    state := BinaryIO.ok;
+	    RETURN BinaryIO.ok;		(* always must be ok... *)
+
+	END; (* WITH private *)
+    END WriteBytes;
+
+
+PROCEDURE Flush(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Oh the lovely Dos flush... To do a flush in DOS, you must close
+     * and reopen the file.   If there was only an easier way...
+     * If we get an error after we have closed the file, then we must
+     * mark the file with a "permanent" error which is best done by
+     * invalidating the DOS file handle (setting it to badHandle).
+     *)
+    VAR
+	dosOpenMode : SysTypes.Card;
+	oldIndex    : BinaryIO.Index;
+	DONTCARE    : SysTypes.Card;
+        local       : Object;
+    BEGIN (* Flush *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		IF NOT isFlushable THEN  
+		    RETURN state;
+		END;
+
+		(* 
+		 * get current file position.  Can't use GetIndex directly 
+		 * because it won't work if the file is appendOnly, and we 
+		 * need to position those files in this special case.
+		 *)
+		WITH oldIndex.PRIVATE DO
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+			    DOS.seekFromCurrent, 0, 0, 
+			    hi16Bits, lo16Bits, dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+		END;
+
+		(* This is a recoverable error... *)
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.close, dosHandle, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+		
+		(* If the close fails, we really don't care... *)
+
+		(* try to re-open the file *)
+		dosOpenMode := toDosOpenMode[ openMode ];
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.open, SYSTEM.ADR( absolutePath ), 
+				    dosOpenMode, dosHandle, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    (* Got an error trying to re-open the file! *)
+		    dosHandle := badHandle;	(* invalidate the file *)
+		    RETURN SetErrorState( private );
+		END;
+
+		(* Have to go back to the old position... *)
+		WITH oldIndex.PRIVATE DO
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+				DOS.seekFromStart, hi16Bits, lo16Bits, 
+				DONTCARE, DONTCARE, dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+		END; (* WITH *)
+
+
+		IF dosError # DOS.success THEN
+		    (* 
+		     * We weren't able to seek back to the position.  This
+		     * may be for several reasons, but it isn't good.  We
+		     * will not blow away the handle, but leave an error 
+		     * on the file.
+		     *)
+		    RETURN SetErrorState( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;	(* <unchanged> *)
+
+	END; (* WITH private *)
+    END Flush;
+
+
+PROCEDURE Truncate(
+    private : CatBinaryIO.Object
+    )       : BinaryIO.States;
+    (* 
+     * Take advantage of the DOS feature that a write of 0 bytes truncates
+     * the file.
+     *)
+    VAR
+	DONTCARE : SysTypes.Card;
+	local    : Object;
+    BEGIN (* Truncate *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		@IF Tasks THEN
+		    DosMonitor.Enter;
+		@END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.write, dosHandle, 0,
+			SYSTEM.ADR( DONTCARE ), DONTCARE, dosError );
+		@IF Tasks THEN
+		    DosMonitor.Exit;
+		@END (* Tasks *)
+
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    RETURN state;	(* <unchanged> *)
+
+	END; (* WITH private *)
+    END Truncate;
+
+
+(*
+ * Start of routines to support random access to file positions.
+ *)
+
+PROCEDURE GetEnd(
+        private  : CatBinaryIO.Object;
+    VAR index    : BinaryIO.Index
+    )            : BinaryIO.States;
+    (*
+     * Note the forward exit LOOP.   There are three seeks that have
+     * to be performed.  Get the current position, get the end of
+     * file position, and then seek back to the old current position.
+     * If any of these seeks fail, then the operation is halted and
+     * an EXIT is performed.  The bottom of the LOOP is success.
+     *)
+    VAR
+	currentIndex : BinaryIO.Index;
+	local        : Object;
+	DONTCARE     : SysTypes.Card;
+    BEGIN (* GetEnd *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+		
+		LOOP (* Used for forward exits only *)
+		    (* 
+		     * First, get current index location, 
+		     * so we can return to it later 
+		     *)
+		    WITH currentIndex.PRIVATE DO
+			@IF Tasks THEN
+			    DosMonitor.Enter;
+			@END (* Tasks *)
+			    SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+				    DOS.seekFromCurrent, 0, 0, hi16Bits, 
+				    lo16Bits, dosError );
+			@IF Tasks THEN
+			    DosMonitor.Exit;
+			@END (* Tasks *)
+		    END; (* WITH *)
+
+		    IF dosError # DOS.success THEN
+			EXIT;
+		    END;
+
+		    (* Find end of file position *)
+		    WITH index.PRIVATE DO
+			@IF Tasks THEN
+			    DosMonitor.Enter;
+			@END (* Tasks *)
+			    SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+				DOS.seekFromEnd, 0, 0, hi16Bits, lo16Bits, 
+				dosError );
+			@IF Tasks THEN
+			    DosMonitor.Exit;
+			@END (* Tasks *)
+		    END; (* WITH *)
+
+		    IF dosError # DOS.success THEN
+			EXIT;
+		    END;
+
+		    (* 
+		     * Now we have to try an position back to the start
+		     * of the file.  This operation really messes up the
+		     * file if it fails, but we only 
+		     *)
+		    WITH currentIndex.PRIVATE DO
+			@IF Tasks THEN
+			    DosMonitor.Enter;
+			@END (* Tasks *)
+			    SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+				DOS.seekFromStart, hi16Bits, lo16Bits, 
+				DONTCARE, DONTCARE, dosError );
+			@IF Tasks THEN
+			    DosMonitor.Exit;
+			@END (* Tasks *)
+		    END; (* WITH *)
+		    IF dosError # DOS.success THEN
+			EXIT;
+		    END;
+
+		    RETURN state;
+
+		END; (* LOOP *)
+
+		(* Something went wrong, tell the caller *)
+		RETURN SetErrorState( private );
+
+	    END; (* WITH local *)
+	END; (* WITH private *)
+    END GetEnd;
+
+
+PROCEDURE GetIndex(
+        private : CatBinaryIO.Object;
+    VAR index   : BinaryIO.Index
+    )           : BinaryIO.States;
+    (* 
+     * Just call seek and make sure it is ok.
+     *)
+    VAR
+	local : Object;
+    BEGIN (* GetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		(* get the current position *)
+		WITH index.PRIVATE DO
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+		    SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+			DOS.seekFromCurrent, 0, 0, hi16Bits, lo16Bits, 
+			dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+		END;
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+		
+	    END; (* WITH local *)
+
+	    RETURN state;
+
+	END; (* WITH private *)
+    END GetIndex;
+
+
+PROCEDURE SetIndex(
+    private : CatBinaryIO.Object;
+    index   : BinaryIO.Index
+    )       : BinaryIO.States;
+    (* 
+     * The reason we do the "end check" (inside Assert) is because of
+     * the following "feature" of seek.  The question I have is:
+     * what does "far beyond" mean?
+     *
+     *   NOTES
+     *       Seeking far beyond the end of a file, then writing,  creates
+     *       a  gap or "hole", which occupies no physical space and reads
+     *       as zeros.
+     *) 
+    VAR
+	endIndex : BinaryIO.Index;
+	local    : Object;
+	DONTCARE : SysTypes.Card;
+    BEGIN (* SetIndex *)
+	WITH private^ DO
+
+	    local := Object( classBasedInfo );
+	    WITH local^ DO
+
+		@IF Assert THEN
+		    (* 
+		     * Make sure the clown doesn't try to seek past EOF.
+		     *)
+		    IF GetEnd( private, endIndex ) = BinaryIO.error THEN
+			RETURN BinaryIO.error;
+		    END;
+
+		    (* We know the structure of an index, so... *)
+		    IF BinaryIO.CompareIndex( index, endIndex ) 
+			= Intrinsics.greater THEN
+			RETURN SetErrorState( private );
+		    END;
+		@END (* Assert *)
+
+		(* index is OK: proceed *)
+		WITH index.PRIVATE DO
+		    @IF Tasks THEN
+			DosMonitor.Enter;
+		    @END (* Tasks *)
+			SYSTEM.DOSCALL( DOS.lseek, dosHandle, 
+			    DOS.seekFromStart, hi16Bits, lo16Bits, 
+			    DONTCARE, DONTCARE, dosError );
+		    @IF Tasks THEN
+			DosMonitor.Exit;
+		    @END (* Tasks *)
+		END; (* WITH *)
+
+		IF dosError # DOS.success THEN
+		    RETURN SetErrorState( private );
+		END;
+
+	    END; (* WITH local *)
+
+	    state  := BinaryIO.ok;
+	    RETURN state;
+
+	END; (* WITH private *)
+    END SetIndex;
+
+
+PROCEDURE GetOpenPath(
+        private : CatBinaryIO.Object;
+    VAR path    : IOConsts.Path
+    );
+    (*
+     * This is kind of tricky, because we have an "absolutePath" and
+     * we want to construct and "open" path from this.   We first assign
+     * the whole thing, then pare things off until we get to what we want.  
+     *)
+    VAR
+        local     : Object;
+    BEGIN (* GetOpenPath *)
+
+        local := Object( private^.classBasedInfo );
+	WITH local^ DO
+
+	    (* First get the "file" part out of absolutePath *)
+	    Strings.Substring( absolutePath, openPathIndex, 
+			       Strings.EOS, path );
+	    IF driveSpecified AND ( openPathIndex # 0 ) THEN
+		(* Need to insert the drive letter *)
+		Strings.Insert( path, Strings.BOS, "X:" );
+		path[ 0 ] := absolutePath[ 0 ];
+	    END;
+
+	END; (* WITH local *)
+    END GetOpenPath;
+
+(*
+ * Initialization 
+ *)
+TYPE
+    SetProc = PROCEDURE(
+        BinaryIO.Object
+    ) : BinaryIO.States;
+
+PROCEDURE DefaultOpen(
+    handle : SysTypes.Card;
+    mode   : BinaryIO.Modes;
+    path   : ARRAY OF CHAR;
+    set    : SetProc
+    );
+    (*
+     * This routine is only called if we are the default class as specified
+     * in ConfBinaryIO.  This means that we don't have to construct a full
+     * BinaryIO options string, just one with our options.
+     *)
+    VAR
+	file        : BinaryIO.Object;
+	options     : Options;
+	ioError     : IOErrors.Errors;
+	state       : BinaryIO.States;
+	errorString : IOErrors.String;
+    BEGIN (* DefaultOpen *)
+
+	(* Make our options. *)
+	MakeOptions( handle, options );
+
+	(* Try the open *)
+	ioError := BinaryIO.Open( file, path, mode, options );
+	IF ioError = IOErrors.ok THEN
+
+	    (* Try to set the default file to this *)
+	    IF set( file ) # BinaryIO.error THEN
+		RETURN; (* All is ok *)
+	    END;
+
+	    (* Set operation failed *)
+	    ioError := BinaryIO.GetError( file );
+
+	END;
+
+	(*
+	 * Something went wrong.  We can't continue.
+	 *)
+	ProgErrOutput.WriteString( path );
+	ProgErrOutput.WriteString( ": " );
+	IOErrors.ToString( ioError, errorString );
+	ProgErrOutput.WriteString( errorString );
+	ProgErrOutput.WriteLn;
+	ProgErrOutput.WriteString( moduleName );
+	ProgErrOutput.WriteString( ": " );
+	ProgErr.Terminate( "unable to open default file." );
+
+    END DefaultOpen;
+
+VAR
+    tmpName     : BinaryIO.ClassName;
+    methodTable : CatBinaryIO.MethodTable;   
+
+BEGIN (* DosBinaryIO *)
+    
+    @IF SysTypesCheck THEN
+	IF SysTypes.bitsPerArrayCHAR # SysTypes.bitsPerSAU THEN
+	    ProgErr.Terminate( "DosBinaryIO: SysTypesCheck failed." );
+	END;
+    @END
+
+    (* Initialize local data before doing anything *)
+    toDosOpenMode[ BinaryIO.readOnly  ]  := SysTypes.Card( DOS.readAccess );	
+    toDosOpenMode[ BinaryIO.appendOnly ] := SysTypes.Card( DOS.writeAccess );	
+    toDosOpenMode[ BinaryIO.readWrite ]  := SysTypes.Card( DOS.readWriteAccess );	
+
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), 
+			   moduleName );
+    WITH methodTable DO
+        close       := Close;
+        readBytes   := ReadBytes;
+        writeBytes  := WriteBytes;
+        flush       := Flush;
+        truncate    := Truncate;
+        getEnd      := GetEnd;
+        getIndex    := GetIndex;
+        setIndex    := SetIndex;
+        getOpenPath := GetOpenPath;
+    END; (* WITH *)
+
+    (* 
+     * Must register before initializing default files, because
+     * DefaultOpen calls BinaryIO.
+     *)
+    CatBinaryIO.Register( className, Open );
+
+    (* 
+     * Only initialize the default files, if we are the default class.
+     *)
+    ConfBinaryIO.GetDefaultClassName( tmpName );
+    IF Strings.Compare( tmpName, className ) = Intrinsics.equal THEN
+
+	DefaultOpen( DOS.stdInputHandle, BinaryIO.readOnly, 
+		     'Standard Input', BinaryIO.SetInput );
+
+	DefaultOpen( DOS.stdOutputHandle, BinaryIO.appendOnly, 
+		     'Standard Output', BinaryIO.SetOutput );
+
+	(* We use standard output, because we can't redirect stdErr *)
+	DefaultOpen( DOS.stdOutputHandle, BinaryIO.appendOnly, 
+            'Standard Error Output', BinaryIO.SetErrorOutput );
+    END;
+
+END DosBinaryIO.

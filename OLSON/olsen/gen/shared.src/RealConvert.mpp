@@ -1,0 +1,869 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE RealConvert;
+(*
+ * The IEEE standard defines two methods of real exceptions ( NaNs and
+ * infinities ) detection: trapping and non-trapping.
+ * Since our system is a trapping one, a correct input is assumed and no 
+ * checking is performed when translating from machine representation to 
+ * string representation.  
+ * Inversely, a checking for overflow is performed when translating 
+ * from string representation to machine represenatation, since nobody 
+ * garantees a correct string. A trapping system requires precondition,
+ * a non trapping postcondition checking. To handle this situation, we 
+ * defined the preprocessor flag "NontrappingReals", which controls the
+ * inluding of the appropriated code.
+ * NaNs can only be a result of an invalid operation and therefore they are
+ * not representable in a string form, which makes a check for them
+ * unnecessery when translating from string representation to machine
+ * represenation.
+ *)
+IMPORT
+    CardConvert,
+    Chars,
+    ProgErr,
+    Strings,
+    SysTypes;
+
+CONST
+    TERMINATOR = 0C;
+    decimalBase = 10;
+
+    guardDigitIndex = SysTypes.maxDecimalDigitsReal;
+TYPE
+    Formats = ( floating, scientific, engineering );
+
+VAR
+    cosmetics: ARRAY[ floating..engineering ] OF SysTypes.Card;
+
+@IF Assert THEN
+    PROCEDURE SizeFault; 
+        BEGIN
+            ProgErr.Terminate( "RealConvert: size of string too small" );
+        END SizeFault; 
+
+    PROCEDURE ParamFault; 
+        BEGIN
+            ProgErr.Terminate( "RealConvert: wrong parameter combination" );
+        END ParamFault; 
+@END (* Assert *)
+
+PROCEDURE IncMod10(
+    VAR digit: CHAR
+    );
+    BEGIN
+	IF digit = "9" THEN
+	    digit:= "0"
+	ELSE
+	    INC( digit );
+	END;
+    END IncMod10;
+
+
+PROCEDURE ToDigitsAndExp(     
+	toConvert            : SysTypes.Real; 	
+        numSignificantDigits : SysTypes.Card;
+    VAR rawMantissa          : ARRAY OF CHAR;
+    VAR exponent             : SysTypes.Int 
+    );
+    (*
+     * Converts the specified number into a string version of the mantissa
+     * and an integer version of the exponent.  The rawMantissa has an 
+     * implied decimal point after the first digit [PUT THIS IN DEF MOD].
+     * We use numSignficantDigits as a hint as to the number of significants
+     * the caller requires.   If the caller requests more than is possible,
+     * we lower the number to the maximum number possible (including a 
+     * guard digit).
+     *)
+    VAR
+	index: SysTypes.Card;
+	tmp: SysTypes.Card;
+    BEGIN
+
+	exponent:= 0;
+	IF toConvert = 0.0 THEN
+	    (* Nothing more to say, eh? *)
+	    rawMantissa[ 0 ] := "0";
+	    rawMantissa[ 1 ] := 0C;
+	    RETURN;
+	END;
+
+	(* Normalisation to one nondecimal digit: *)
+	toConvert:= ABS( toConvert );
+	WHILE toConvert >= 10.0 DO
+	    toConvert:= toConvert / 10.0;
+	    INC( exponent );
+	END;
+	WHILE toConvert < 1.0 DO
+	    toConvert:= toConvert * 10.0;
+	    DEC( exponent );
+	END;
+
+	(* If the user asks for more than is possible, set to max possible *)
+	IF numSignificantDigits > guardDigitIndex THEN
+	    numSignificantDigits:= guardDigitIndex + 1;
+	END;
+
+	(* If the user asks for more than can fit, we just round down *)
+	IF numSignificantDigits > HIGH( rawMantissa ) THEN
+	    numSignificantDigits := HIGH( rawMantissa ) + 1;
+	ELSE
+	    (* Null-terminate before we enter the loop *)
+	    rawMantissa[ numSignificantDigits ] := 0C;
+	END;
+
+	(* Extracting the required number of signicant digits: *)
+	FOR index:= Strings.BOS TO numSignificantDigits - 1 DO
+	    tmp := TRUNC( toConvert );	(* Expensive operation *)
+	    rawMantissa[ index ]:= Chars.FromDigit( tmp );
+	    toConvert:= toConvert - FLOAT( tmp );
+	    toConvert:= toConvert * 10.0;
+	END;
+
+	(* rawMantissa is already null-terminated (if need be) *)
+    END ToDigitsAndExp;
+
+
+PROCEDURE StringRound(     
+	numSignificantDigits : SysTypes.Card; (* must be non-zero *)
+    VAR rawMantissa          : ARRAY OF CHAR; 
+    VAR exponent             : SysTypes.Int
+    );
+    (*
+     * StringRound performs an addition with report on the string - part
+     * of the string - integer representation of a real number, 
+     * incrementing the last digit of a required precision by "1" when it 
+     * is greater than "5". A final report may lead to a shift - right, 
+     * which implies an incrementing of the exponent by 1.
+     *)
+    VAR
+	index : SysTypes.Card;
+	high  : SysTypes.Card;	(* Last digit in rawMantissa *)
+    BEGIN
+	(* If we want more signficants than are legitimately possible, trunc *)
+	IF numSignificantDigits > guardDigitIndex THEN
+	    numSignificantDigits := guardDigitIndex;
+	END;
+
+	(* If the caller wants more digits than he has got or has just enough *)
+	high := Strings.Length( rawMantissa ) - 1;	(* Shouldn't be 0 *)
+	IF numSignificantDigits > high THEN
+	    RETURN;
+	END;
+
+	(* 
+	 * At this point, we know numSignificant digits is <= HIGH.
+	 * We determine if the last digit rounds "up" in which case we must
+	 * go through an increment process.
+	 *)
+	index:= numSignificantDigits;
+	IF rawMantissa[ index ] >= "5" THEN
+	    LOOP
+		(* adding "1": *)
+		DEC( index );
+
+		IncMod10( rawMantissa[ index ] );
+		IF rawMantissa[ index ] # "0" THEN
+		    EXIT;
+		END;
+	
+		(* final shift if necessary: *)
+
+		IF index = Strings.BOS THEN  
+		    Strings.Insert( rawMantissa, Strings.BOS, "1" );
+		    INC( exponent );
+		    EXIT;
+		END;
+
+	    END; (* LOOP *)
+	END;
+
+	(* termination: *)
+	rawMantissa[ numSignificantDigits ]:= TERMINATOR; 
+    END StringRound;
+
+
+PROCEDURE ToFloatingString(
+        toConvert     : SysTypes.Real;
+        totalWidth    : SysTypes.Card;
+        fractionWidth : SysTypes.Card;
+    VAR result        : ARRAY OF CHAR
+    )                 : BOOLEAN;
+    (*
+     * Performs the complete translation from machine 
+     * representation to string representation in floating format. 
+     * The significant digits are displayed, the rest of the string 
+     * if there is any is filled with zeros.
+     *)
+    VAR
+	exponent      : SysTypes.Int;
+	decPointIndex : SysTypes.Card;
+	totalLength   : SysTypes.Card;
+	len           : SysTypes.Card;
+	tmp           : SysTypes.Int;
+	width         : SysTypes.Card;
+	prev          : CHAR;
+	allZeroes     : BOOLEAN;
+    BEGIN
+
+	(* preliminary size - checks: *)
+	IF totalWidth = 0 THEN
+	    width := HIGH( result ) + 1;
+	ELSE
+	    width := totalWidth;
+	END;
+
+	@IF ASSERT THEN
+	    IF width > HIGH( result ) + 1 THEN
+		SizeFault;
+	    END;
+	    (* <=, because there must be leading digit left of "." *)
+	    IF width <= fractionWidth + cosmetics[ floating ] THEN
+		ParamFault;
+	    END;
+	@END (* ASSERT *);
+
+	(* hard - men work: *)
+
+	ToDigitsAndExp( toConvert, width, result, exponent );
+
+	(* determining the position of the digit to round: *) 
+	IF exponent >= 0 THEN
+	    totalLength := exponent;
+	    INC( totalLength, fractionWidth + 1 );  (* +1 is for ones *)
+	ELSE
+	    (* Note: we know that the number will fit, because of assertion
+		     checks that are performed above *)
+	    tmp := fractionWidth + 2; 		(* + 2 is for guard & ones *)
+	    (* Is exponent so smaller forces the number to zero?*)
+	    IF -exponent >= tmp THEN 
+		result[ 0 ] := "0";
+		result[ 1 ] := TERMINATOR;
+		toConvert := 0.0;	(* so we don't get -0.000 *)
+		totalLength := 1;
+	    ELSE
+		totalLength := tmp + exponent;
+		(* Number is non-zero. get rid of superfluous *)
+		result[ totalLength ] := 0C;
+		(* So we don't get a string shift as the result of rounding *)
+		Strings.Insert( result, Strings.BOS, "0" );
+	    END;
+	END;
+
+	(* Now adjust the string to have totalDigits signficants *)
+	StringRound( totalLength, result, exponent );
+
+	(* 
+	 * The following piece of code is necessary to avoid "-0.000".
+	 * We also compute "totalLength".  This code could probably be
+	 * more efficient....
+	 *)
+	totalLength := 0;
+	allZeroes := TRUE;
+	LOOP 
+	    IF result[ totalLength ] = 0C THEN
+		IF allZeroes THEN
+		    toConvert := 0.0;	(* Definitely all zeroes *)
+		END;
+		EXIT;
+	    END;
+	    IF result[ totalLength ] # '0' THEN
+		allZeroes := FALSE;
+	    END;
+	    INC( totalLength );
+	END;
+
+	LOOP (* forward exit, sorry Dr.Wirth *)
+	    decPointIndex:= 1;
+
+	    IF exponent < 0 THEN
+		(* Fill string with leading zeros (also left of ".") *)
+		totalLength := 1 + fractionWidth;
+		Strings.Justify( result, Strings.justifyRight,
+                    totalLength, '0' );
+	    ELSE
+		INC( decPointIndex, exponent );
+
+		len := decPointIndex + fractionWidth;	(* NO +1 for "." *)
+		(* Do we need to add insignificant zeros to the right? *)
+		IF len > totalLength THEN
+		    IF width < len THEN
+			EXIT;   (* Can't possibly fit *)
+		    END;
+		    Strings.Justify( result, Strings.justifyLeft, len, "0" );
+		    totalLength := len;
+		END;
+	    END;
+
+	    (* insertion of the decimal point: *)
+
+	    IF NOT Strings.InsertOK( result, decPointIndex, "." ) THEN
+		EXIT;  (* "result" physically too short *)
+	    END;
+	    INC( totalLength );
+	    IF toConvert < 0.0 THEN
+		IF NOT Strings.InsertOK( result, Strings.BOS, "-" ) THEN
+		    EXIT;  (* "result" physically too short *)
+		END;
+		INC( totalLength );
+	    END;
+
+	    (* final justification and size checks: *)
+
+	    IF totalWidth # 0 THEN
+		IF totalLength > totalWidth THEN
+		    EXIT;  (* wasn't able to do it in the requested size *)
+		END;
+		Strings.Justify( result, Strings.justifyRight, 
+                    totalWidth, ' ' );
+	    END;
+
+	    RETURN TRUE;
+	END; (* LOOP *)
+
+	(* error : *)
+
+	(* Fill with stars only if totalWidth is non-zero *)
+	result[ 0 ] := TERMINATOR;
+	Strings.Justify( result, Strings.justifyLeft, totalWidth, "*" );
+	RETURN FALSE;
+    END ToFloatingString;
+
+
+@IF NOT UserAgent THEN
+
+    PROCEDURE LeadingBlanksToZeros(
+        VAR string : ARRAY OF CHAR
+        );
+    VAR
+        index: SysTypes.Card;
+    BEGIN
+	(* values are blanks, don't need to call IsWhiteSpace *)
+	FOR index := 0 TO HIGH( string ) DO
+	    IF string[ index ] # ' ' THEN
+		RETURN;
+	    END;
+	    string[ index ]:= "0";
+	END;
+    END LeadingBlanksToZeros;
+
+    PROCEDURE LocalToExp(
+            toConvert     : SysTypes.Real;
+	    format        : Formats;
+	    totalWidth    : SysTypes.Card;
+	    fractionWidth : SysTypes.Card;
+	    exponentWidth : SysTypes.Card;
+	VAR result        : ARRAY OF CHAR
+       )                  : BOOLEAN;
+	(*
+	 * LocalToExp performs a complete translation from the machine 
+	 * representation to string representation. 
+	 * The supported formats are: 
+	 * a.) scientific:
+	 *         - a mantissa with one nondecimal digit
+	 * b.) engineering:
+	 *         - a mantissa with one to three nondecimal digits
+	 *         - an exponent which is always a multiple of three
+	 *)
+    VAR
+	exponent         : SysTypes.Int;
+	mantissa         : ARRAY[ 0..guardDigitIndex + 1] OF CHAR;
+	signficantDigits : SysTypes.Card;
+        decPointIndex    : SysTypes.Card;
+	fractionDigits   : SysTypes.Card;
+	width            : SysTypes.Card;
+	eString          : ARRAY[ 0 .. 1 ] OF CHAR;
+    BEGIN
+	(* preliminary size - checks: *)
+
+	IF totalWidth = 0 THEN
+	    width := HIGH( result ) + 1;
+	ELSE
+	    width := totalWidth;
+	END;
+	@IF ASSERT THEN
+	    IF width > HIGH( result ) + 1 THEN
+		SizeFault;
+	    END;
+	    IF width <= fractionWidth + exponentWidth +
+                cosmetics[ format ]
+            THEN
+		ParamFault;
+	    END;
+	@END (* ASSERT *);
+
+	(* hard - men work: *)
+
+	exponent:= 0;
+	ToDigitsAndExp( toConvert, width, mantissa, exponent );
+
+	(* determining the position of the digit to round: *) 
+
+	signficantDigits:= fractionWidth + 1;  (* +1 left of point *)
+	decPointIndex:= 1;
+	IF format = engineering THEN 
+	    WHILE ( exponent MOD 3 ) # 0 DO
+	        DEC( exponent );
+		INC( signficantDigits ); 
+		INC( decPointIndex );
+	    END; (* WHILE *)
+	END;
+	StringRound( signficantDigits, mantissa, exponent );
+
+	(* cosmetics and sizing: *)
+
+	LOOP (* forward exit *)
+	(*  
+	 * We finish building the mantissa in the "mantissa".
+	 * The exponent is then built in the "result", because it is the
+	 * limiting factor on the ultimate size.  With the "mantissa",
+	 * we only have significant digits.  Later, we insert insignificant
+	 * zeros if that is what is required. 
+	 *)
+	    (* mantissa: *)
+	    Strings.Insert( mantissa, decPointIndex, "." );
+	    IF toConvert < 0.0 THEN
+		Strings.Insert( mantissa, Strings.BOS, "-" );
+		INC( decPointIndex );	(* Needed below *)
+	    END;
+
+	    (* exponent: *)
+	    (* Let CardConvert to most of the work of adjustment *)
+	    IF NOT CardConvert.ToString( ABS( exponent ), decimalBase, 
+					 exponentWidth, result ) THEN
+		EXIT;
+	    END;
+
+	    (* Check before calling (goes faster) *)
+	    IF result[ 0 ] = ' ' THEN
+		LeadingBlanksToZeros( result );	(* Fix up the CardConvert *)
+	    END;
+
+	    (* Build up the prefix for the exponent string *)
+	    eString := "E";
+	    IF exponent < 0 THEN
+		IF result[ 0 ] = "0" THEN
+		    result[ 0 ]:= "-";	(* replace leading zero with digit *)
+		ELSE
+		    eString := "E-";
+		END;
+	    END;
+	    IF NOT Strings.InsertOK( result, Strings.BOS, eString ) THEN
+		EXIT; (* result to short *)
+	    END;
+
+	    (* 
+	     * We only need to put in insignificant zeros when we don't have
+	     * enough fraction digits.  We can detect this by checking
+	     * fractionWidth against the total length of the mantissa.
+	     *)
+	    fractionDigits := Strings.Length( mantissa ) - decPointIndex - 1;
+	    IF fractionDigits < fractionWidth THEN
+		(*  
+		 * Note we don't need to check for "overflow", because
+		 * the Strings.InsertOK below will do this for us.
+		 *)
+		Strings.Justify( result, Strings.justifyRight, 
+				 Strings.Length( result ) + 
+				 ( fractionWidth - fractionDigits ), '0' );
+	    END;
+
+	    (* Insert the mantissa's significant part into the result *)
+	    IF NOT Strings.InsertOK( result, Strings.BOS, mantissa ) THEN
+		EXIT;
+	    END;
+
+	    (* final adjusting: *)
+	    IF totalWidth # 0 THEN
+		(* Strings.Justify does nothing if the width is "ok" *)
+		Strings.Justify( result, Strings.justifyRight,
+                    totalWidth, ' ' );
+	    END;
+
+	    RETURN TRUE;
+	END; (* LOOP *)
+
+	(* error: *)
+
+	(* Fill with stars only if totalWidth is non-zero *)
+	result[ 0 ] := TERMINATOR;
+	Strings.Justify( result, Strings.justifyLeft, totalWidth, "*" );
+
+	RETURN FALSE;
+    END LocalToExp;
+
+
+TYPE
+    ScanStates = (
+	nothingRead,	(* Nothing has been read. *)
+	readSign,	(* Read sign, but not any digits *)
+	readDigits,	(* Read digits, but not a decimal point *)
+	readDecimal,	(* Read decimal point and digits *)
+	readE,		(* Read 'e' or 'E' *)
+	readESign, 	(* Read sign after 'E' *)
+	pastE,		(* Past 'E' and digit, call CardConvert *)
+	syntaxError     (* well... *)
+    );
+
+PROCEDURE Scanner(
+        realString     : ARRAY OF CHAR; 
+    VAR mantissa       : SysTypes.Real;
+    VAR cardString     : ARRAY OF CHAR;
+    VAR fractionDigits : SysTypes.Card;
+    VAR isNegative     : BOOLEAN;
+    VAR isNegativeExp  : BOOLEAN
+     )                 : ScanStates;
+    VAR
+	digit        : SysTypes.Card;
+	significants : SysTypes.Card;
+	index        : SysTypes.Card;
+	upperIndex   : SysTypes.Card;
+	state        : ScanStates;
+	symbol       : CHAR;
+    BEGIN 
+	index:= 0;
+	upperIndex:= Strings.Length( realString ) - 1;
+	state:= nothingRead;
+	significants:= 0;
+	LOOP
+	    symbol:= realString[ index ];
+	    digit:= Chars.ToDigit( symbol ); 
+
+	    (* Is this a digit? most likely case at the top... *)
+	    IF digit <= 9 THEN 
+		CASE state OF
+		    nothingRead,
+		    readSign:
+			state:= readDigits;
+		    |
+		    readDecimal:
+			INC( fractionDigits );
+			(* Count digits to the right *)
+		    |
+		    readE,
+		    readESign:
+			IF NOT Strings.SubstringOK( realString,
+						    index,
+						    upperIndex,
+						    cardString )
+			THEN
+			EXIT
+			ELSE
+			    RETURN pastE;	(* Let CardIO read it *)
+			END;
+		ELSE
+			(* fall through *)
+		END;    (* CASE *) 
+
+		(* 
+		 * We got a digit, now add it to the value.  We may want
+		 * to only do the multiplications if the digit is signficant
+		 * and if we don't have too many (too many with small
+		 * reals can cause blow up!).  Note that this goes for
+		 * fractionDigits as well.
+		 *)
+		IF ( digit # 0 ) OR ( mantissa # 0.0 ) THEN
+
+		    (* Must <= maximum number of significants *)
+
+		    IF significants < SysTypes.maxDecimalDigitsReal THEN
+			INC( significants );
+			mantissa := ( mantissa * 10.0 ) + FLOAT( digit );
+		    ELSIF state = readDecimal THEN
+
+			(* Don't count passed over significants *)
+
+			DEC( fractionDigits );
+		    END;
+		END;    (* IF  *)
+
+	    ELSE 
+		CASE symbol OF
+		    '+',
+		    '-':
+			CASE state OF
+			    nothingRead:
+				state := readSign;
+				isNegative := symbol = '-';
+			    |
+			    readE:
+				state := readESign;
+				isNegativeExp := symbol = '-';
+			ELSE
+			    EXIT;    (* falls through to "error" *)
+			END;
+		    |
+		    'E',
+		    'e':
+			CASE state OF
+			    readDigits,
+			    readDecimal:
+				state := readE;
+			ELSE
+			    EXIT;    (* falls through to "error" *)
+			END;
+		    |
+		    '.':
+			CASE state OF
+			    nothingRead,
+			    readSign,
+			    readDigits:
+				state := readDecimal;
+			ELSE
+			    EXIT;    (* falls through to "error" *)
+			END;
+		ELSE
+		    IF Chars.IsWhiteSpace( symbol ) THEN
+			IF state # nothingRead THEN
+			    EXIT;	    
+			END;
+		    ELSE
+			EXIT;   (* falls through to "error" *) 
+		    END;
+		END;    (* CASE *)
+	    END;    (* IF symbol ... *)
+
+	    IF index < upperIndex THEN
+		INC( index )
+	    ELSE
+		CASE state OF
+		    readDigits,
+		    readDecimal:
+			RETURN state;    (* no exponent *)
+		ELSE
+		    EXIT;	 (* falls through to "error" *)
+		END;
+	    END;
+
+	END; (* LOOP *)
+
+	RETURN syntaxError;	
+    END Scanner;
+
+
+VAR
+    maxAbsRealDivTen : SysTypes.Real;
+    minAbsRealMulTen : SysTypes.Real;
+
+PROCEDURE FromString(
+        realString : ARRAY OF CHAR; 
+    VAR toRead     : SysTypes.Real
+    )              : BOOLEAN;
+    VAR
+	tmpCard        : SysTypes.Card;
+	fractionDigits : SysTypes.Card;
+	exponent       : SysTypes.Int;
+	tmpInt         : SysTypes.Int;
+	cardString     : ARRAY[ 0 .. 100 ] OF CHAR;
+	mantissa       : SysTypes.Real;
+	isNegative     : BOOLEAN;
+	isNegativeExp  : BOOLEAN;
+    BEGIN
+	(* Can't convert nuthin' *)
+	IF realString[ 0 ] = TERMINATOR THEN
+	    RETURN FALSE;
+	END;
+	mantissa:= 0.0;
+	fractionDigits:= 0;
+	isNegative:= FALSE;
+	isNegativeExp:= FALSE;
+	cardString[ 0 ]:= TERMINATOR;
+	exponent:= 0;
+	CASE Scanner( realString, mantissa, cardString,
+	    fractionDigits, isNegative, isNegativeExp )
+	OF
+	    readDigits,
+	    readDecimal:
+		DEC( exponent, fractionDigits );
+		(* Fall through to everything ok. *)
+	    |
+	    pastE:
+		IF NOT CardConvert.FromString( cardString,
+					       10,
+					       tmpCard )
+		THEN
+		    RETURN FALSE
+		END;	
+	     
+		(*
+		 * exponent verification is kind of ugly, because we
+		 * don't want the program to blow up on user input
+		 * errors.  If we just add/subtract arbitrary cardinals,
+		 * we will get range errors (for stupid users).  However,
+		 * it is perfectly legal to say stuff like:
+		 * 	       .00000000000000000000000001E20
+		 * Therefore, we have to play these games.  We assume
+		 * that the guy can't enter enough fractionDigits to
+		 * cause cardinal overflow.
+		 *)
+
+		DEC( exponent, fractionDigits );	(* Verified below *)
+		IF isNegativeExp THEN
+		    (* Verify that the cardinal isn't too big to DEC *)
+		    IF tmpCard >= SysTypes.Card( SysTypes.MAXInt + exponent )
+		     THEN RETURN FALSE;
+		    END;
+		    DEC( exponent, tmpCard ); (* May be over *)
+
+		(* Verify that the cardinal isn't too big to INC *)
+		ELSIF ( fractionDigits > tmpCard ) 
+		  OR ( tmpCard - fractionDigits < SysTypes.MAXInt ) THEN
+		    INC( exponent, tmpCard );	(* may be over *)
+		ELSE
+		    (* "tmpCard" is too big *)
+		    RETURN FALSE;
+		END;
+	    ELSE (* syntax error *)
+
+		RETURN FALSE;
+
+	END; (* CASE *)
+
+	(*
+	 * We have an exponent and now have to adjust the number.
+	 * If the exponent is 0 or the number is 0 (common case), 
+	 * then number is valid and we can return.  We use
+	 * the fact that toRead is not zero below.
+	 * Note there is a real problem with the trapping based system, 
+	 * because it blows in the middle of the range for a particular 
+	 * exponent so the checks have to occur each iteration (slow, but 
+	 * just a compare...).
+	 *)
+	
+	toRead := mantissa;
+	IF ( exponent = 0 ) OR ( toRead = 0.0 ) THEN
+	    IF isNegative THEN
+		toRead := -toRead;
+	    END;
+	    RETURN TRUE 
+	END;
+
+	IF exponent < 0 THEN
+	    FOR tmpInt:= -1 TO exponent BY -1 DO
+		@IF NOT NontrappingReals THEN
+		    IF toRead < minAbsRealMulTen THEN
+			RETURN FALSE 
+		    END;
+		@END (* NOT NontrappingReals *)
+		toRead := toRead / 10.0;
+	    END;
+	    @IF NontrappingReals THEN
+		(* Postcondition: non-trapping based system *)
+		(* Did we have underflow? *)
+		IF toRead = 0.0 THEN
+		    RETURN FALSE 
+		END;
+	    @END (* NontrappingReals *)
+	ELSE
+	    FOR tmpInt:= + 1 TO exponent BY + 1 DO
+		@IF NOT NontrappingReals THEN
+		    IF toRead > maxAbsRealDivTen THEN 
+			RETURN FALSE 
+		    END;
+		@END (* NOT NontrappingReals *)
+		toRead:= toRead * 10.0;
+	    END;
+	    @IF NontrappingReals THEN
+		(* Postcondition: non-trapping based system *)
+		(* Did we get infinity? *)
+		IF toRead / 2.0 = toRead THEN
+		    RETURN FALSE 
+		END;
+	    @END (* NontrappingReals *)
+	END;
+
+	IF isNegative THEN
+	    toRead := -toRead;
+	END;
+
+	RETURN TRUE;
+    END FromString;
+
+@END (* NOT UserAgent *)
+
+
+(* Init: *)
+PROCEDURE Init;
+    BEGIN
+	cosmetics[ floating ]:= 1;
+	cosmetics[ scientific ]:= 2;
+	cosmetics[ engineering ]:= 2;
+
+	maxAbsRealDivTen:= SysTypes.MAXReal / 10.0;
+	minAbsRealMulTen:= SysTypes.minPosReal * 10.0;
+
+    END Init;
+
+
+PROCEDURE ToScientificString(
+        toConvert     : SysTypes.Real;
+        totalWidth    : SysTypes.Card;
+        fractionWidth : SysTypes.Card;
+        exponentWidth : SysTypes.Card;
+    VAR result        : ARRAY OF CHAR
+    )                 : BOOLEAN;
+@IF UserAgent THEN
+    BEGIN (* Crashes because of no return *)
+@ELSE
+    BEGIN
+        RETURN LocalToExp( toConvert, scientific, totalWidth,
+	    fractionWidth, exponentWidth, result );
+@END (* UserAgent *)
+    END ToScientificString;
+
+
+PROCEDURE ToEngineeringString(
+        toConvert     : SysTypes.Real;
+        totalWidth    : SysTypes.Card;
+        fractionWidth : SysTypes.Card;
+        exponentWidth : SysTypes.Card;
+    VAR result        : ARRAY OF CHAR
+    )                 : BOOLEAN;
+@IF UserAgent THEN
+    BEGIN (* Crashes because of no return *)
+@ELSE
+    BEGIN
+	RETURN LocalToExp( toConvert, engineering, totalWidth,
+	    fractionWidth, exponentWidth, result );
+@END (* UserAgent *)
+    END ToEngineeringString;
+
+
+PROCEDURE FromString64(
+        toConvert : ARRAY OF CHAR;
+    VAR result    : SysTypes.REAL64
+    )             : BOOLEAN;
+@IF UserAgent THEN
+    BEGIN (* Crashes because of no return *)
+@ELSE
+    BEGIN
+	RETURN FromString( toConvert, result );
+@END (* UserAgent *)
+    END FromString64;
+
+
+BEGIN
+
+    Init;
+
+END RealConvert.

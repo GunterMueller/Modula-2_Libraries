@@ -1,0 +1,321 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE MakeIO;
+(*
+ * Very simple implementation, lots of constants all over the
+ * place, then again makefile format isn't changing tomorrow.
+ * (Famous last words...)
+ *)
+
+
+IMPORT
+    StringIO, TextIO, IOErrors, Strings, ASCII, DirIO;
+
+FROM SafeStorage IMPORT
+    ALLOCATE,           DEALLOCATE;
+
+CONST
+    maxLineLen  = 79;   (* for aesthetic reasons *)
+    tabLength   = 8;    (* not sure where this really goes *)
+
+TYPE
+    Line        = ARRAY [ 0 .. maxLineLen ] OF CHAR;
+
+    Instance    = POINTER TO InstanceRec;
+    InstanceRec = RECORD
+	output      : TextIO.Object;       
+	entryType   : EntryTypes;
+	baseLen     : CARDINAL;
+	lineLen     : CARDINAL;  (* =0 implies that the entry is null *)
+	spaces      : Line;      (* we modify this *)
+    END;
+
+VAR
+    lineOfSpaces  : Line;
+    commandPrefix : ARRAY [ 0 .. 0 ] OF CHAR;
+
+
+PROCEDURE Create( VAR instance : Instance;
+		      name     : ARRAY OF CHAR )
+			       : BOOLEAN;
+    (*
+     * Allocate an instance record and initialize it.
+     *)
+    BEGIN (* Create *)
+
+	NEW( instance );
+	IF instance = NIL THEN
+	    RETURN FALSE;
+	END;
+
+	WITH instance^ DO
+	    IF DirIO.CreateEntry( name, DirIO.createTextFile, 
+				  DirIO.overwritePath ) # IOErrors.ok
+	    THEN
+		DISPOSE( instance );
+		RETURN FALSE;
+	    END;
+	    IF TextIO.Open( output, name, TextIO.appendOnly, "" ) # IOErrors.ok THEN
+		DISPOSE( instance );
+		RETURN FALSE;
+	    END;
+	    entryType := comment;        (* random *)
+	    baseLen   := 0;
+	    lineLen   := 0;
+	    spaces    := lineOfSpaces;
+
+	END; (* WITH instance *)
+	
+	RETURN TRUE;
+
+    END Create;
+
+
+PROCEDURE Destroy( VAR instance : Instance ) 
+				: BOOLEAN;
+    (*
+     * Close the output and dispose of the instance.
+     *)
+    VAR
+	result : BOOLEAN;
+    BEGIN (* Destroy *)
+	
+	IF instance = NIL THEN
+	    RETURN TRUE; (* do nothing *)
+	END;
+
+	result := TRUE;
+	WITH instance^ DO
+	    IF lineLen # 0 THEN
+		result := EndEntry( instance );
+	    END;
+	    IF TextIO.Close( output ) # IOErrors.ok THEN
+		result := FALSE;
+	    END;
+	END;
+
+	DISPOSE( instance );
+
+	RETURN result;
+
+    END Destroy;
+
+
+PROCEDURE BeginEntry( instance : Instance;
+		      string   : ARRAY OF CHAR;
+		      type     : EntryTypes ) 
+			       : BOOLEAN;
+    (*
+     *)
+    VAR
+	Index : CARDINAL;
+	Ok     : BOOLEAN;
+	result : BOOLEAN;
+    BEGIN (* BeginEntry *)
+	
+	WITH instance^ DO
+	    IF lineLen # 0 THEN
+		IF NOT EndEntry( instance ) THEN
+		    RETURN FALSE;
+		END;
+	    END;
+
+	    lineLen   := Strings.Length( string ); (* not for all, but some *)
+	    entryType := type;
+	    CASE type OF
+		null:
+		    result := ( TextIO.WriteLn( output ) = TextIO.ok );
+		    (* don't have to mark as begun *)
+		|
+		macroDeclaration:
+		    result := ( StringIO.Write( output, string ) = TextIO.ok ) 
+			    AND ( StringIO.Write( output, "= " ) = TextIO.ok );
+		    INC( lineLen, 2 );
+		    baseLen := lineLen;
+		|
+		dependency:
+		    (* Make sure the string doesn't have a colon in it. *)
+		    IF NOT Strings.Position( string, Strings.BOS, Strings.EOS, 
+							":", Index ) THEN
+			result := (StringIO.Write( output, string ) = TextIO.ok)
+			      AND ( StringIO.Write( output, ": " ) = TextIO.ok );
+			INC( lineLen, 2 );
+			baseLen := lineLen;
+		    ELSE
+			entryType := null;      (* illegal start *)
+		    END;
+		|
+		comment:
+		    result := (StringIO.Write( output, "#" ) = TextIO.ok )    AND
+			      (TextIO.WriteLn( output ) = TextIO.ok )         AND
+			      (StringIO.Write( output, "# " ) = TextIO.ok )   AND
+			      (StringIO.Write( output, string ) = TextIO.ok ) AND
+			      (TextIO.WriteLn( output ) = TextIO.ok );
+		    lineLen := 1;       (* mark as begun *)
+		|
+		include:
+		    result := (StringIO.Write( output, "include " )=TextIO.ok)AND
+			      (StringIO.Write( output, string ) = TextIO.ok ) AND
+			      (TextIO.WriteLn( output ) = TextIO.ok );
+		    (* don't have to mark as begun *)
+		|
+		command:
+		    result:=(StringIO.Write(output,commandPrefix)=TextIO.ok) AND
+			      ( StringIO.Write( output, string ) = TextIO.ok );
+		    INC( lineLen, tabLength );
+		    baseLen := tabLength + ( tabLength DIV 2 );
+		|
+		graph:
+		    result := ( StringIO.Write( output, string ) = TextIO.ok) AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok );
+		    lineLen := 1;       (* mark as begun *)
+	    END; (* CASE *)
+
+	    spaces[ baseLen ] := 0C;
+
+	END; (* WITH *)
+
+	RETURN result;
+
+    END BeginEntry;
+
+
+PROCEDURE EndEntry( instance : Instance )
+			     : BOOLEAN;
+    (*
+     * Finish off the current entry.
+     *)
+    VAR
+	result : BOOLEAN;
+    BEGIN (* EndEntry *)
+	
+	WITH instance^ DO
+	    spaces[ baseLen ] := ' ';  (* readjust spaces array *)
+	    CASE entryType OF
+		comment:
+		    result := ( StringIO.Write( output, "#" ) = TextIO.ok ) AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok )    AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok );
+		|
+		null,
+		include:
+		    result := TRUE;
+
+		ELSE 
+		    result := ( TextIO.WriteLn( output ) = TextIO.ok );
+
+	    END; (* CASE *)
+
+	    lineLen := 0;
+	    baseLen := 0;
+	END; (* WITH *)
+
+	RETURN result;
+		    
+    END EndEntry;
+
+
+PROCEDURE AppendEntry( instance : Instance;
+		       string   : ARRAY OF CHAR )
+				: BOOLEAN;
+    (*
+     *)
+    VAR
+	Index  : CARDINAL;
+	Ok     : BOOLEAN;
+	result : BOOLEAN;
+	strLen : CARDINAL;
+    BEGIN (* AppendEntry *)
+
+	WITH instance^ DO
+	    IF lineLen = 0 THEN
+		RETURN FALSE;   (* entry hasn't been begun! *)
+	    END;
+
+	    result := TRUE;
+	    CASE entryType OF
+		null:
+		    result := ( TextIO.WriteLn( output ) = TextIO.ok );
+		|
+		macroDeclaration,
+		dependency,
+		command:
+		    strLen := Strings.Length( string ) + 1;
+		    (* Nothing should happen... *)
+		    IF strLen > 1 THEN
+			IF NOT Strings.Position( string, Strings.BOS, Strings.EOS, 
+							":", Index ) OR
+			   ( entryType # dependency )  THEN
+			    INC( lineLen, strLen );
+			    IF lineLen >= maxLineLen THEN
+				result := (StringIO.Write( output, " \" ) 
+					   = TextIO.ok) AND
+					  (TextIO.WriteLn( output ) 
+					   = TextIO.ok) AND
+					  (StringIO.Write( output, spaces ) 
+					   = TextIO.ok);
+				lineLen := baseLen + strLen;
+			    END;
+			    IF result THEN
+				    result := ( StringIO.Write( output, string ) 
+					       = TextIO.ok ) AND 
+					       ( StringIO.Write( output, " " )
+					       = TextIO.ok );
+			    END;
+			END;
+		    END;
+		|
+		comment:
+		    result := ( StringIO.Write( output, "# " ) = TextIO.ok )   AND
+			      ( StringIO.Write( output, string ) = TextIO.ok ) AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok );
+		|
+		include:
+		    result := ( StringIO.Write( output, "include " ) = TextIO.ok ) AND
+			      ( StringIO.Write( output, string ) = TextIO.ok ) AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok );
+		|
+		graph:
+		    result := ( StringIO.Write( output, string ) = TextIO.ok ) AND
+			      ( TextIO.WriteLn( output ) = TextIO.ok );
+	    END; (* CASE *)
+
+	END; (* WITH *)
+	
+	RETURN result;
+
+    END AppendEntry;
+	    
+
+VAR
+    i : CARDINAL;
+BEGIN (* MakeIO *)
+
+    commandPrefix[ 0 ] := ASCII.ht;
+
+    FOR i := 0 TO HIGH( lineOfSpaces ) DO
+	lineOfSpaces[ i ] := ' ';
+    END;
+    
+
+END MakeIO.

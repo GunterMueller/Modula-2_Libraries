@@ -1,0 +1,35 @@
+DEFINITION MODULE GetCharacter;
+
+(*
+  GET a single character from the terminal,
+  without first setting the proper mode, ordinary non-GET mode is used
+  wherein a RETURN is needed to input data.
+
+  Use StartGet and StopGet to turn on and off single-character-mode.
+*)
+(* J. Andrea, May.18/92 - dos version *)
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED StartGet, StopGet, Get, GetNoWait;
+
+
+  PROCEDURE Get( VAR ch :CHAR );
+  (* return a single character, no Carriage-Return needed *)
+
+
+  PROCEDURE GetNoWait( VAR ch :CHAR );
+  (* return a single character, no Carriage-Return needed *)
+  (* and don't wait till a character occurs, returns null character if there
+   * is no character in the buffer *)
+
+
+  PROCEDURE StartGet;
+  (* Enter single character mode *)
+
+
+  PROCEDURE StopGet;
+  (* Exit single character mode *)
+  (* And return to "carriage-return needed for input" mode *)
+
+END GetCharacter.

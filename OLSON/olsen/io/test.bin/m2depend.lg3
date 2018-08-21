@@ -1,0 +1,297 @@
+bintest.obj: ..\bin\binaryio.sym ..\..\gen\bin\cardconv.sym ..\bin\dirio.sym  \
+             ..\bin\ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+             ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+bintest.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+             ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+             ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+             ..\..\gen\bin\dos.obj ..\bin\dirio.obj ..\bin\dosbinar.obj  \
+             ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+             ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+             ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+             ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+             ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+             ..\..\gen\bin\objects.obj ..\..\gen\bin\progerr.obj  \
+             ..\..\gen\bin\progerro.obj ..\..\gen\bin\safestor.obj  \
+             ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj bintest.obj 
+cardiote.obj: ..\..\gen\bin\card32.sym ..\bin\cardio.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\bin\simpleio.sym  \
+              ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+cardiote.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj cardiote.obj 
+cardioti.obj: ..\bin\cardio.sym ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+cardioti.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\stringio.obj  \
+              ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+              ..\bin\textio.obj ..\bin\textiopr.obj cardioti.obj 
+changedi.obj: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\progargs.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym 
+changedi.exe: ..\..\gen\bin\bytes.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\..\gen\bin\chars.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dirio.obj ..\bin\dosioerr.obj  \
+              ..\bin\dosionam.obj ..\..\gen\bin\genconst.obj  \
+              ..\..\gen\bin\i8086.obj ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\namelist.obj ..\..\gen\bin\notices.obj  \
+              ..\..\gen\bin\objects.obj ..\..\gen\bin\progargs.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\safestor.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj changedi.obj 
+dirtest.obj: ..\bin\dirio.sym ..\bin\ioerrors.sym ..\..\gen\bin\progerr.sym  \
+             ..\bin\simpleio.sym 
+dirtest.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+             ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+             ..\bin\cardio.obj ..\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+             ..\bin\confbina.obj ..\..\gen\bin\dos.obj ..\bin\dirio.obj  \
+             ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+             ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+             ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+             ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+             ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+             ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+             ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+             ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+             ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+             ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+             ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+             ..\..\gen\bin\systypes.obj ..\bin\textio.obj ..\bin\textiopr.obj  \
+             dirtest.obj 
+hello.obj: ..\bin\simpleio.sym 
+hello.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+           ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj ..\bin\catbinar.obj  \
+           ..\..\gen\bin\chars.obj ..\bin\confbina.obj ..\..\gen\bin\dos.obj  \
+           ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\..\gen\bin\genconst.obj  \
+           ..\..\gen\bin\i8086.obj ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+           ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+           ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+           ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+           ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+           ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+           ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+           ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj ..\bin\stringio.obj  \
+           ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+           ..\bin\textio.obj ..\bin\textiopr.obj hello.obj 
+intiotes.obj: ..\bin\simpleio.sym 
+intiotes.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj intiotes.obj 
+realiote.obj: ..\bin\simpleio.sym ..\..\gen\bin\systypes.sym 
+realiote.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj realiote.obj 
+realioti.obj: ..\bin\realio.sym ..\..\gen\bin\systypes.sym ..\bin\textio.sym 
+realioti.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\stringio.obj  \
+              ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+              ..\bin\textio.obj ..\bin\textiopr.obj realioti.obj 
+tcopy.obj: ..\bin\dirio.sym ..\bin\ioerrors.sym ..\..\gen\bin\progargs.sym  \
+           ..\..\gen\bin\progerr.sym ..\bin\textsupp.sym 
+tcopy.exe: ..\bin\binaryio.obj ..\bin\binarysu.obj ..\..\gen\bin\bytes.obj  \
+           ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+           ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+           ..\..\gen\bin\dos.obj ..\bin\dirio.obj ..\bin\dosbinar.obj  \
+           ..\bin\dosioerr.obj ..\bin\dosionam.obj ..\..\gen\bin\genconst.obj  \
+           ..\..\gen\bin\i8086.obj ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+           ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+           ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+           ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+           ..\..\gen\bin\progargs.obj ..\..\gen\bin\progerr.obj  \
+           ..\..\gen\bin\progerro.obj ..\..\gen\bin\safestor.obj  \
+           ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+           ..\bin\textio.obj ..\bin\textiopr.obj ..\bin\textsupp.obj  \
+           tcopy.obj 
+tcopyobj.obj: ..\bin\ioerrors.sym ..\..\gen\bin\progerr.sym ..\bin\textio.sym  \
+              ..\bin\textsupp.sym 
+tcopyobj.exe: ..\bin\binaryio.obj ..\bin\binarysu.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dirio.obj ..\bin\dosbinar.obj  \
+              ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\safestor.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj ..\bin\textsupp.obj tcopyobj.obj 
+tdirioli.obj: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\bin\simpleio.sym 
+tdirioli.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\cardio.obj ..\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\bin\confbina.obj ..\..\gen\bin\dos.obj ..\bin\dirio.obj  \
+              ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj tdirioli.obj 
+tionames.obj: ..\bin\ioconsts.sym ..\bin\ionames.sym ..\bin\simpleio.sym 
+tionames.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\cardio.obj ..\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\bin\confbina.obj ..\..\gen\bin\dos.obj ..\bin\dirio.obj  \
+              ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj ..\bin\ionames.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progargs.obj ..\..\gen\bin\progerr.obj  \
+              ..\..\gen\bin\progerro.obj ..\..\gen\bin\realconv.obj  \
+              ..\bin\realio.obj ..\..\gen\bin\safestor.obj  \
+              ..\bin\simpleio.obj ..\bin\stringio.obj  \
+              ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+              ..\bin\textio.obj ..\bin\textiopr.obj tionames.obj 
+tioversi.obj: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\bin\ioversio.sym ..\..\gen\bin\namelist.sym  \
+              ..\..\gen\bin\notices.sym ..\..\gen\bin\progerr.sym  \
+              ..\bin\simpleio.sym 
+tioversi.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\cardio.obj ..\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\bin\confbina.obj ..\..\gen\bin\dos.obj ..\bin\dirio.obj  \
+              ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj ..\bin\ionames.obj  \
+              ..\bin\ioversio.obj ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progargs.obj ..\..\gen\bin\progerr.obj  \
+              ..\..\gen\bin\progerro.obj ..\..\gen\bin\realconv.obj  \
+              ..\bin\realio.obj ..\..\gen\bin\safestor.obj  \
+              ..\bin\simpleio.obj ..\bin\stringio.obj  \
+              ..\..\gen\bin\strings.obj ..\..\gen\bin\systypes.obj  \
+              ..\bin\textio.obj ..\bin\textiopr.obj tioversi.obj 
+tkeyboar.obj: ..\..\gen\bin\cardconv.sym ..\bin\keyboard.sym  \
+              ..\..\gen\bin\progerro.sym 
+tkeyboar.exe: ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\..\gen\bin\chars.obj ..\..\gen\bin\dos.obj  \
+              ..\..\gen\bin\i8086.obj ..\..\gen\bin\intrinsi.obj  \
+              ..\bin\keyboard.obj ..\..\gen\bin\progerr.obj  \
+              ..\..\gen\bin\progerro.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj tkeyboar.obj 
+tlistwit.obj: ..\bin\dirio.sym ..\bin\ioconsts.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progerr.sym  \
+              ..\bin\simpleio.sym ..\..\gen\bin\strings.sym 
+tlistwit.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\cardio.obj ..\bin\catbinar.obj ..\..\gen\bin\chars.obj  \
+              ..\bin\confbina.obj ..\..\gen\bin\dos.obj ..\bin\dirio.obj  \
+              ..\bin\dosbinar.obj ..\bin\dosioerr.obj ..\bin\dosionam.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intconve.obj ..\bin\intio.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\realconv.obj ..\bin\realio.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\simpleio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj tlistwit.obj 
+tscreeni.obj: ..\bin\cardio.sym ..\bin\ioerrors.sym ..\bin\screenio.sym  \
+              ..\bin\stringio.sym ..\bin\textio.sym 
+tscreeni.exe: ..\bin\binaryio.obj ..\..\gen\bin\card32.obj  \
+              ..\..\gen\bin\cardconv.obj ..\bin\cardio.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\notices.obj ..\..\gen\bin\objects.obj  \
+              ..\..\gen\bin\progerr.obj ..\..\gen\bin\progerro.obj  \
+              ..\..\gen\bin\safestor.obj ..\bin\screenio.obj  \
+              ..\bin\stringio.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj ..\bin\textio.obj  \
+              ..\bin\textiopr.obj tscreeni.obj 
+tstringb.obj: ..\bin\binaryio.sym ..\..\gen\bin\card32.sym  \
+              ..\..\gen\bin\cardconv.sym ..\bin\ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\bin\stringbi.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+tstringb.exe: ..\bin\binaryio.obj ..\..\gen\bin\bytes.obj  \
+              ..\..\gen\bin\card32.obj ..\..\gen\bin\cardconv.obj  \
+              ..\bin\catbinar.obj ..\..\gen\bin\chars.obj ..\bin\confbina.obj  \
+              ..\..\gen\bin\dos.obj ..\bin\dosbinar.obj ..\bin\dosioerr.obj  \
+              ..\..\gen\bin\genconst.obj ..\..\gen\bin\i8086.obj  \
+              ..\bin\ioconsts.obj ..\bin\ioerrors.obj  \
+              ..\..\gen\bin\intrinsi.obj ..\..\gen\bin\lists.obj  \
+              ..\..\gen\bin\modinit.obj ..\..\gen\bin\namelist.obj  \
+              ..\..\gen\bin\objects.obj ..\..\gen\bin\progerr.obj  \
+              ..\..\gen\bin\progerro.obj ..\..\gen\bin\safestor.obj  \
+              ..\bin\stringbi.obj ..\..\gen\bin\strings.obj  \
+              ..\..\gen\bin\systypes.obj tstringb.obj 

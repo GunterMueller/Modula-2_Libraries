@@ -1,0 +1,115 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE System;
+(*
+ * 12-May-87 [RJN]:
+ * Olsen library implementation of the module System.  It seems that
+ * this module is imported by the module Reals for System.Terminate.
+ * We don't have the source code to Reals to fix it.  In any event,
+ * this module only declares what Reals needs and blows up on all
+ * other calls.
+ *)
+IMPORT
+    ProgErr,
+    SYSTEM;
+
+PROCEDURE Terminate(
+    st : Status
+    );
+    (*
+     * Set the error code and terminate the program.
+     *)
+    CONST
+	terminateSWI	= 0BH;	(* Terminate the caller *)
+
+    BEGIN (* Terminate *)
+
+	(* 
+	 * Set the termination code in the curProcess which is always
+	 * correct, because it is modified by the run-time system.
+	 *)
+	curProcess^^.status := st;
+
+	SYSTEM.SETREG( SYSTEM.BX, st );
+	SYSTEM.SETREG( SYSTEM.AX, terminateSWI );
+	SYSTEM.SWI( SYSTEM.RTSVECTOR );
+
+    END Terminate;
+
+PROCEDURE NotImplemented;
+    BEGIN (* NotImplemented *)
+
+	ProgErr.Terminate( "System: procedure not implemented." );
+
+    END NotImplemented;
+
+PROCEDURE InitProcedure(
+    p : PROC
+    );
+    BEGIN (* InitProcedure *)
+	NotImplemented;
+    END InitProcedure;
+
+PROCEDURE CallInitProc;
+    BEGIN (* CallInitProc *)
+	NotImplemented;
+    END CallInitProc;
+    
+PROCEDURE TermProcedure(
+    p: PROC
+    );
+    BEGIN (* TermProcedure *)
+	NotImplemented;
+    END TermProcedure;
+
+PROCEDURE CallTermProc;
+    BEGIN (* CallTermProc *)
+	NotImplemented;
+    END CallTermProc;
+
+CONST
+    getPDAdrSWI = 17H;	
+	(*
+	 * Get the process descriptor address so that we can
+	 * set its termination code.  DX:BX is the address
+	 * of the process descriptor.
+	 *)
+	 
+VAR
+    curProcessAdr : SYSTEM.ADDRESS;	(* temporary *)
+
+BEGIN (* System *)
+    
+    (* 
+     * Thanx to the wonderful system of "loose coupling", we have
+     * to initialized the global variables exported directly by this
+     * module.  The only module in the Olsen library which should be
+     * using this is Tasks (for normal termination).
+     *)
+    curProcessAdr := SYSTEM.ADR( curProcess );
+    SYSTEM.SETREG( SYSTEM.DX, curProcessAdr.SEGMENT );
+    SYSTEM.SETREG( SYSTEM.BX, curProcessAdr.OFFSET );
+    SYSTEM.SETREG( SYSTEM.AX, getPDAdrSWI );
+    SYSTEM.SWI( SYSTEM.RTSVECTOR );
+
+END System.

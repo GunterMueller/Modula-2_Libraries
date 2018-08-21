@@ -1,0 +1,151 @@
+DEFINITION MODULE SetEnum;
+
+(*==============================================================
+
+    Version  : 1.00  30 Apr 1989  C. Lins
+
+    Compiler : TopSpeed Modula-2
+
+    Component: Set Enumerations Utility
+
+
+
+    THE ABSTRACTION
+
+    This module provides definitions of the standard set exceptions
+
+    and operations.
+
+
+
+    REVISION HISTORY
+
+    v1.00  30 Apr 1989  C. Lins:
+
+        Initial JPI Modula-2 implementation.
+
+
+
+    (C) Copyright 1989 Charles A. Lins
+
+==============================================================*)
+
+
+
+CONST ComponentID = 768;	(*-- must be a multiple of 256 *)
+
+
+
+    (*---------------------------------*)
+
+    (*--        SET OPERATIONS       --*)
+
+
+
+TYPE  Operations = (
+
+                    (*-- Module Initialization *)
+
+                    modinit,
+
+
+
+                    (*-- Constructors *)
+
+                    create, destroy, clear, assign, include, exclude,
+
+                    inclrange, exclrange, union, intersection,
+
+                    difference, symdifference, merge, complement,
+
+                    construct,
+
+
+
+                    (*-- Selectors *)
+
+                    isdefined, isempty, isequal, sizeof, typeof,
+
+                    nummembers, ismember, issubset, ispropersubset,
+
+					universeof, inuniverse, minmember, maxmember,
+
+
+
+                    (*-- Iterators *)
+
+                    loopover, traverse,
+
+
+
+                    (*-- Guarded Concurrent Operations *)
+
+                    seize, release
+
+                   );
+
+
+
+TYPE  Constructors = Operations [ create    .. construct ];
+
+TYPE  Selectors    = Operations [ isdefined .. maxmember ];
+
+TYPE  Iterators    = Operations [ loopover  .. traverse ];
+
+TYPE  GuardedOps   = Operations [ seize     .. release ];
+
+
+
+
+
+    (*---------------------------------*)
+
+    (*--       SET EXCEPTIONS        --*)
+
+
+
+TYPE  Exceptions = (noerr,      (*-- Nothing went wrong, all's well. *)
+
+                    initfailed, (*-- Module initialization failure. *)
+
+
+
+                    domainerr,  (*-- Item outside the Universe, or
+
+                                  -- Set Universes mismatched, or
+
+                                  -- Invalid Universe definition *) 
+
+
+
+                    iteminset,  (*-- Item already exists in set *)
+
+
+
+                    notinset,   (*-- Item does not exist in set *)
+
+
+
+                    overflow,   (*-- Set cannot grow big enough for
+
+                                  -- the requested operation. *)
+
+
+
+                    typeerror,  (*-- TypeID mismatch between sets *)
+
+
+
+                    undefined   (*-- Set has not been Created, or
+
+                                  -- set has been Destroyed. *)
+
+                   );
+
+
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+
+
+END SetEnum.

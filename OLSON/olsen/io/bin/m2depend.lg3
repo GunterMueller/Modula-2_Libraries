@@ -1,0 +1,110 @@
+binaryio.sym: ..\..\gen\bin\genconst.sym ioconsts.sym ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\systypes.sym 
+binaryio.obj: binaryio.sym ..\..\gen\bin\card32.sym  \
+              ..\..\gen\bin\cardconv.sym catbinar.sym ioconsts.sym  \
+              ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym 
+binarysu.sym: binaryio.sym dirio.sym ioerrors.sym 
+binarysu.obj: binaryio.sym binarysu.sym dirio.sym ioerrors.sym  \
+              ..\..\gen\bin\systypes.sym 
+cardio.sym: ..\..\gen\bin\chars.sym ..\..\gen\bin\systypes.sym textio.sym 
+cardio.obj: ..\..\gen\bin\card32.sym ..\..\gen\bin\cardconv.sym cardio.sym  \
+            ..\..\gen\bin\chars.sym ioerrors.sym ..\..\gen\bin\intrinsi.sym  \
+            stringio.sym ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym  \
+            textio.sym 
+catbinar.sym: binaryio.sym ioconsts.sym ioerrors.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\systypes.sym 
+catbinar.obj: binaryio.sym catbinar.sym confbina.sym ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\modinit.sym  \
+              ..\..\gen\bin\namelist.sym ..\..\gen\bin\objects.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+confbina.sym: binaryio.sym 
+confbina.obj: binaryio.sym confbina.sym dosbinar.sym  \
+              ..\..\gen\bin\modinit.sym ..\..\gen\bin\strings.sym 
+dirio.sym: ..\..\gen\bin\dos.sym ioconsts.sym ioerrors.sym  \
+           ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\systypes.sym 
+dirio.obj: ..\..\gen\bin\card32.sym ..\..\gen\bin\dos.sym dirio.sym  \
+           dosioerr.sym dosionam.sym ioconsts.sym ioerrors.sym  \
+           ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\namelist.sym  \
+           ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+dosbinar.sym: binaryio.sym ..\..\gen\bin\systypes.sym 
+dosbinar.obj: binaryio.sym ..\..\gen\bin\cardconv.sym catbinar.sym  \
+              ..\..\gen\bin\chars.sym confbina.sym ..\..\gen\bin\dos.sym  \
+              dosbinar.sym dosioerr.sym ioconsts.sym ioerrors.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\modinit.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym 
+dosioerr.sym: ioerrors.sym ..\..\gen\bin\systypes.sym 
+dosioerr.obj: ..\..\gen\bin\dos.sym dosioerr.sym ioerrors.sym  \
+              ..\..\gen\bin\systypes.sym 
+dosionam.sym: ioconsts.sym 
+dosionam.obj: ..\..\gen\bin\bytes.sym dosionam.sym 
+intio.sym: ..\..\gen\bin\systypes.sym textio.sym 
+intio.obj: cardio.sym ..\..\gen\bin\chars.sym ioerrors.sym  \
+           ..\..\gen\bin\intconve.sym intio.sym stringio.sym  \
+           ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym 
+ioconsts.sym: 
+ioconsts.obj: ioconsts.sym 
+ioerrors.sym: 
+ioerrors.obj: ioerrors.sym ..\..\gen\bin\progerro.sym 
+ionames.sym: ioconsts.sym 
+ionames.obj: ..\..\gen\bin\cardconv.sym ..\..\gen\bin\chars.sym  \
+             ..\..\gen\bin\dos.sym dirio.sym ioconsts.sym ioerrors.sym  \
+             ionames.sym ..\..\gen\bin\intrinsi.sym  \
+             ..\..\gen\bin\progargs.sym ..\..\gen\bin\progerr.sym  \
+             ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+iosearch.sym: ioconsts.sym ..\..\gen\bin\namelist.sym 
+iosearch.obj: dirio.sym ioconsts.sym ioerrors.sym ionames.sym iosearch.sym  \
+              ..\..\gen\bin\namelist.sym ..\..\gen\bin\progenvi.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+ioversio.sym: ioerrors.sym ..\..\gen\bin\systypes.sym 
+ioversio.obj: ..\..\gen\bin\cardconv.sym ..\..\gen\bin\chars.sym dirio.sym  \
+              ioconsts.sym ioerrors.sym ionames.sym ioversio.sym  \
+              ..\..\gen\bin\intrinsi.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+keyboard.sym: ..\..\gen\bin\systypes.sym 
+keyboard.obj: ..\..\gen\bin\i8086.sym keyboard.sym ..\..\gen\bin\systypes.sym 
+realio.sym: ..\..\gen\bin\systypes.sym textio.sym 
+realio.obj: cardio.sym ..\..\gen\bin\chars.sym ioerrors.sym  \
+            ..\..\gen\bin\realconv.sym realio.sym stringio.sym  \
+            ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym 
+screenio.sym: ..\..\gen\bin\notices.sym ..\..\gen\bin\systypes.sym textio.sym 
+screenio.obj: binaryio.sym ..\..\gen\bin\cardconv.sym dosbinar.sym  \
+              ioerrors.sym ..\..\gen\bin\notices.sym  \
+              ..\..\gen\bin\progerr.sym screenio.sym stringio.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym 
+simpleio.sym: ..\..\gen\bin\systypes.sym 
+simpleio.obj: cardio.sym ioerrors.sym intio.sym ..\..\gen\bin\progerr.sym  \
+              realio.sym simpleio.sym stringio.sym ..\..\gen\bin\systypes.sym  \
+              textio.sym textiopr.sym 
+stringbi.sym: binaryio.sym 
+stringbi.obj: binaryio.sym ..\..\gen\bin\bytes.sym ..\..\gen\bin\card32.sym  \
+              ..\..\gen\bin\cardconv.sym catbinar.sym ..\..\gen\bin\chars.sym  \
+              ioconsts.sym ioerrors.sym ..\..\gen\bin\objects.sym  \
+              ..\..\gen\bin\progerr.sym stringbi.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym 
+stringio.sym: ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym 
+stringio.obj: ..\..\gen\bin\genconst.sym ioerrors.sym  \
+              ..\..\gen\bin\progerr.sym stringio.sym  \
+              ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym 
+textio.sym: ioconsts.sym ioerrors.sym ..\..\gen\bin\systypes.sym 
+textio.obj: binaryio.sym ..\..\gen\bin\cardconv.sym catbinar.sym  \
+            ..\..\gen\bin\chars.sym ..\..\gen\bin\genconst.sym ioconsts.sym  \
+            ioerrors.sym ..\..\gen\bin\notices.sym ..\..\gen\bin\objects.sym  \
+            ..\..\gen\bin\progerr.sym ..\..\gen\bin\progerro.sym  \
+            ..\..\gen\bin\strings.sym ..\..\gen\bin\systypes.sym textio.sym  \
+            textiopr.sym 
+textiopr.sym: binaryio.sym ioerrors.sym ..\..\gen\bin\objects.sym  \
+              ..\..\gen\bin\systypes.sym textio.sym 
+textiopr.obj: binaryio.sym ioerrors.sym ..\..\gen\bin\notices.sym  \
+              ..\..\gen\bin\objects.sym ..\..\gen\bin\progerr.sym  \
+              ..\..\gen\bin\progerro.sym ..\..\gen\bin\strings.sym  \
+              ..\..\gen\bin\systypes.sym textio.sym textiopr.sym 
+textsupp.sym: dirio.sym ioerrors.sym textio.sym 
+textsupp.obj: binaryio.sym binarysu.sym dirio.sym ioerrors.sym  \
+              ..\..\gen\bin\progerr.sym ..\..\gen\bin\systypes.sym textio.sym  \
+              textiopr.sym textsupp.sym 

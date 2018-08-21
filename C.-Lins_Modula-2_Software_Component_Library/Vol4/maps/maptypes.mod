@@ -1,0 +1,2 @@
+IMPLEMENTATION MODULE MapTypes; 
+END MapTypes.

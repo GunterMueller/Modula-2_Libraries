@@ -1,0 +1,274 @@
+BinTest.o: ../bin/BinaryIO.sym ../../gen/bin/CardConvert.sym ../bin/DirIO.sym  \
+           ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+           ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym 
+BinTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../bin/CatBinaryIO.o  \
+         ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+         ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+         ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+         ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+         ../../gen/bin/NameLists.o ../../gen/bin/Objects.o  \
+         ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+         ../../gen/bin/SafeStorage.o ../../gen/bin/Strings.o  \
+         ../../gen/bin/SysTypes.o ../bin/UnixBinaryIO.o  \
+         ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+         BinTest.o 
+CardIOTest.o: ../bin/SimpleIO.sym 
+CardIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+            ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+            ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+            ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+            ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+            ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o ../bin/StringIO.o  \
+            ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+            ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o CardIOTest.o 
+CardIOTimer.o: ../bin/CardIO.sym ../../gen/bin/SysTypes.sym ../bin/TextIO.sym 
+CardIOTimer: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+             ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+             ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+             ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+             ../../gen/bin/ProgErrOutput.o ../../gen/bin/SafeStorage.o  \
+             ../bin/StringIO.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../bin/TextIO.o ../bin/TextIOPRIVATE.o  \
+             ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+             ../bin/UnixIOErrors.o ../bin/UnixIONames.o CardIOTimer.o 
+ChangeDir.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+             ../../gen/bin/ProgArgs.sym ../../gen/bin/ProgErr.sym  \
+             ../../gen/bin/ProgErrOutput.sym 
+ChangeDir: ../../gen/bin/ASCII.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../../gen/bin/Chars.o ../bin/DirIO.o  \
+           ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+           ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+           ../../gen/bin/Lists.o ../../gen/bin/NameLists.o  \
+           ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+           ../../gen/bin/ProgArgs.o ../../gen/bin/ProgErr.o  \
+           ../../gen/bin/ProgErrOutput.o ../../gen/bin/SafeStorage.o  \
+           ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+           ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+           ../bin/UnixIONames.o ChangeDir.o 
+DirTest.o: ../bin/DirIO.sym ../bin/IOErrors.sym ../../gen/bin/ProgErr.sym  \
+           ../bin/SimpleIO.sym 
+DirTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+         ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+         ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+         ../../gen/bin/IntConvert.o ../bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+         ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+         ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+         ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+         ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+         ../bin/RealIO.o ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o  \
+         ../bin/StringIO.o ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+         ../bin/TextIO.o ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+         ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o ../bin/UnixIONames.o  \
+         DirTest.o 
+Hello.o: ../bin/SimpleIO.sym 
+Hello: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+       ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+       ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../../gen/bin/GenConsts.o  \
+       ../bin/IOConsts.o ../bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+       ../bin/IntIO.o ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+       ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+       ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+       ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+       ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+       ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o ../bin/StringIO.o  \
+       ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+       ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+       ../bin/UnixIOErrors.o ../bin/UnixIONames.o Hello.o 
+IntIOTest.o: ../bin/SimpleIO.sym 
+IntIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+           ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+           ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+           ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+           ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+           ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+           ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+           ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+           ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+           ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o ../bin/StringIO.o  \
+           ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+           ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+           ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+           ../bin/UnixIONames.o IntIOTest.o 
+RealIOTest.o: ../bin/SimpleIO.sym ../../gen/bin/SysTypes.sym 
+RealIOTest: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+            ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+            ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+            ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+            ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+            ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o ../bin/StringIO.o  \
+            ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+            ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o RealIOTest.o 
+RealIOTimer.o: ../bin/RealIO.sym ../../gen/bin/SysTypes.sym ../bin/TextIO.sym 
+RealIOTimer: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+             ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+             ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+             ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+             ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+             ../bin/RealIO.o ../../gen/bin/SafeStorage.o ../bin/StringIO.o  \
+             ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+             ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+             ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+             ../bin/UnixIONames.o RealIOTimer.o 
+tCopy.o: ../bin/DirIO.sym ../bin/IOErrors.sym ../../gen/bin/ProgArgs.sym  \
+         ../../gen/bin/ProgErr.sym ../bin/TextSupportIO.sym 
+tCopy: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../bin/BinarySupportIO.o  \
+       ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o ../bin/CatBinaryIO.o  \
+       ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+       ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+       ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+       ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+       ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+       ../../gen/bin/Objects.o ../../gen/bin/ProgArgs.o  \
+       ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+       ../../gen/bin/SafeStorage.o ../../gen/bin/Strings.o  \
+       ../../gen/bin/SysTypes.o ../bin/TextIO.o ../bin/TextIOPRIVATE.o  \
+       ../bin/TextSupportIO.o ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+       ../bin/UnixIOErrors.o ../bin/UnixIONames.o tCopy.o 
+tCopyObject.o: ../bin/IOErrors.sym ../../gen/bin/ProgErr.sym  \
+               ../bin/TextIO.sym ../bin/TextSupportIO.sym 
+tCopyObject: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../bin/BinarySupportIO.o  \
+             ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+             ../bin/CatBinaryIO.o ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+             ../bin/DirIO.o ../../gen/bin/GenConsts.o ../bin/IOConsts.o  \
+             ../bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+             ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+             ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+             ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+             ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+             ../../gen/bin/SafeStorage.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../bin/TextIO.o ../bin/TextIOPRIVATE.o  \
+             ../bin/TextSupportIO.o ../bin/UnixBinaryIO.o  \
+             ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+             ../bin/UnixIONames.o tCopyObject.o 
+tDirIOList.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+              ../bin/SimpleIO.sym 
+tDirIOList: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+            ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+            ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+            ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+            ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+            ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+            ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+            ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+            ../../gen/bin/RealConvert.o ../bin/RealIO.o  \
+            ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o ../bin/StringIO.o  \
+            ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+            ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+            ../bin/UnixIONames.o tDirIOList.o 
+tIONames.o: ../bin/IOConsts.sym ../bin/IONames.sym ../bin/SimpleIO.sym 
+tIONames: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+          ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+          ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+          ../bin/IONames.o ../../gen/bin/IntConvert.o ../bin/IntIO.o  \
+          ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+          ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+          ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+          ../../gen/bin/ProgArgs.o ../../gen/bin/ProgErr.o  \
+          ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+          ../bin/RealIO.o ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o  \
+          ../bin/StringIO.o ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+          ../bin/TextIO.o ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+          ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+          ../bin/UnixIONames.o tIONames.o 
+tIOVersions.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+               ../bin/IOVersions.sym ../../gen/bin/NameLists.sym  \
+               ../../gen/bin/Notices.sym ../../gen/bin/ProgErr.sym  \
+               ../bin/SimpleIO.sym 
+tIOVersions: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+             ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+             ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o ../bin/DirIO.o  \
+             ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+             ../bin/IONames.o ../bin/IOVersions.o ../../gen/bin/IntConvert.o  \
+             ../bin/IntIO.o ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+             ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+             ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+             ../../gen/bin/ProgArgs.o ../../gen/bin/ProgErr.o  \
+             ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+             ../bin/RealIO.o ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o  \
+             ../bin/StringIO.o ../../gen/bin/Strings.o  \
+             ../../gen/bin/SysTypes.o ../bin/TextIO.o ../bin/TextIOPRIVATE.o  \
+             ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+             ../bin/UnixIOErrors.o ../bin/UnixIONames.o tIOVersions.o 
+tListWithInfo.o: ../bin/DirIO.sym ../bin/IOConsts.sym ../bin/IOErrors.sym  \
+                 ../../gen/bin/Intrinsics.sym ../../gen/bin/ProgErr.sym  \
+                 ../bin/SimpleIO.sym ../../gen/bin/Strings.sym 
+tListWithInfo: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+               ../../gen/bin/CardConvert.o ../bin/CardIO.o  \
+               ../bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+               ../bin/ConfBinaryIO.o ../bin/DirIO.o ../../gen/bin/GenConsts.o  \
+               ../bin/IOConsts.o ../bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+               ../bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+               ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+               ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+               ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+               ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+               ../bin/RealIO.o ../../gen/bin/SafeStorage.o ../bin/SimpleIO.o  \
+               ../bin/StringIO.o ../../gen/bin/Strings.o  \
+               ../../gen/bin/SysTypes.o ../bin/TextIO.o  \
+               ../bin/TextIOPRIVATE.o ../bin/UnixBinaryIO.o  \
+               ../../gen/bin/UnixError.o ../bin/UnixIOErrors.o  \
+               ../bin/UnixIONames.o tListWithInfo.o 
+tScreenIO.o: ../bin/CardIO.sym ../bin/IOErrors.sym ../bin/ScreenIO.sym  \
+             ../bin/StringIO.sym ../bin/TextIO.sym 
+tScreenIO: ../../gen/bin/ASCII.o ../bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+           ../../gen/bin/CardConvert.o ../bin/CardIO.o ../bin/CatBinaryIO.o  \
+           ../../gen/bin/Chars.o ../bin/ConfBinaryIO.o  \
+           ../../gen/bin/GenConsts.o ../bin/IOConsts.o ../bin/IOErrors.o  \
+           ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+           ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+           ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+           ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+           ../../gen/bin/ProgErrOutput.o ../../gen/bin/SafeStorage.o  \
+           ../bin/ScreenIO.o ../bin/StringIO.o ../../gen/bin/Strings.o  \
+           ../../gen/bin/SysTypes.o ../bin/TextIO.o ../bin/TextIOPRIVATE.o  \
+           ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+           ../bin/UnixIOErrors.o ../bin/UnixIONames.o tScreenIO.o 
+tStringBinaryIO.o: ../bin/BinaryIO.sym ../../gen/bin/CardConvert.sym  \
+                   ../bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+                   ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+                   ../bin/StringBinaryIO.sym ../../gen/bin/Strings.sym  \
+                   ../../gen/bin/SysTypes.sym 
+tStringBinaryIO: ../../gen/bin/ASCII.o ../bin/BinaryIO.o  \
+                 ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+                 ../bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+                 ../bin/ConfBinaryIO.o ../../gen/bin/GenConsts.o  \
+                 ../bin/IOConsts.o ../bin/IOErrors.o  \
+                 ../../gen/bin/IntConvert.o ../../gen/bin/Intrinsics.o  \
+                 ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+                 ../../gen/bin/NameLists.o ../../gen/bin/Objects.o  \
+                 ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+                 ../../gen/bin/SafeStorage.o ../bin/StringBinaryIO.o  \
+                 ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+                 ../bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+                 ../bin/UnixIOErrors.o ../bin/UnixIONames.o tStringBinaryIO.o 
+${M2Programs}: 
+	${StandardM2link}

@@ -1,0 +1,279 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tDataFIO;
+(* 
+ * This module attempts to test the main parts of DataFIO.  We can't
+ * test the Default files, because we are using them to do the prompted
+ * reads.
+ *)
+IMPORT
+    DataFIO,	
+    IOConsts,
+    IOVersions,
+    Intrinsics,
+    SimpleFIO,	
+    SimpleIO,
+    Strings;
+
+PROCEDURE OpenFile( VAR file : DataFIO.Object )
+			     : BOOLEAN;
+    VAR
+	ch       : CHAR;
+	card     : CARDINAL;
+	specific : IOVersions.Number;
+	mode     : DataFIO.OpenVersionModes;
+	low	 : IOVersions.Number;
+	high	 : IOVersions.Number;
+	path     : IOConsts.Path;
+    BEGIN (* OpenFile *)
+
+	SimpleFIO.PromptedRead1( '[String,mEnter input path: ][NL]', path );
+	IF path[ 0 ] = 0C THEN
+	    RETURN FALSE;
+	END;
+
+	IF Strings.Compare( path, "default" ) = Intrinsics.equal THEN
+	    SimpleFIO.Write( "Reading/writing default file, go ahead![NL" );
+	    DataFIO.Save( DataFIO.GetDefault(), DataFIO.noVersion,
+			  DataFIO.DONTCARE );
+	    RETURN FALSE;	(* Can't do anything else! *)
+	END;
+
+	specific := DataFIO.DONTCARE;
+	low := DataFIO.DONTCARE;
+	high := DataFIO.DONTCARE;
+	LOOP
+	    SimpleFIO.PromptedRead1( 
+	       '[Char,mN(oVersion  M)ostRecent  S)pecific: ][NL]', ch );
+	    CASE ch OF
+		'N', 'n':
+		    mode := DataFIO.noVersion;
+		    EXIT;
+		|
+		'M', 'm':
+		    SimpleFIO.PromptedRead1( 
+		       '[Card,mEnter a cycle size: ,l1][NL]', card );
+		    low := IOVersions.minNumber;
+		    high := card + IOVersions.minNumber;
+		    mode := DataFIO.newestInCycle;
+		    EXIT;
+		|
+		'S', 's':
+		    SimpleFIO.PromptedRead1( 
+		       '[Card,mEnter a version number: ][NL]', card );
+		    specific := card;
+		    mode := DataFIO.specificVersion;
+		    EXIT;
+		ELSE
+		    (* didn't make it *)
+	    END; (* CASE *)
+	END; (* LOOP *)
+
+	DataFIO.Open( file, path, DataFIO.readOverwrite, mode, low, high,
+		      specific );
+
+	RETURN TRUE;
+
+    END OpenFile;
+
+
+PROCEDURE GetVariables( file : DataFIO.Object );
+    VAR
+	name        : DataFIO.Name;
+	inputFormat : DataFIO.InputFormat;
+	real        : REAL;
+    BEGIN (* GetVariables *)
+
+	LOOP
+	    SimpleFIO.PromptedRead1( '[String,mVariable to get: ][NL]', name );
+	    IF name[ 0 ] = 0C THEN
+		EXIT;
+	    END;
+	    SimpleFIO.PromptedRead1( '[String,mInput format (Real): ][NL]', 
+				     inputFormat );
+	    IF inputFormat[ 0 ] = 0C THEN
+		inputFormat := '[Real]';
+	    END;
+
+	    DataFIO.Get( file, name, inputFormat, real );
+	    SimpleFIO.Write1( "Value = [Sci,p5][NL]", real );
+	END; (* LOOP *)
+
+    END GetVariables;
+
+
+PROCEDURE PutVariables( file : DataFIO.Object );
+    VAR
+	name         : DataFIO.Name;
+	inputFormat  : DataFIO.InputFormat;
+	outputFormat : DataFIO.InputFormat;
+	real         : REAL;
+    BEGIN (* PutVariables *)
+
+	LOOP
+	    SimpleFIO.PromptedRead1( '[String,mVariable to put: ][NL]', name );
+	    IF name[ 0 ] = 0C THEN
+		EXIT;
+	    END;
+	    SimpleFIO.PromptedRead1( '[String,mInput format (Real): ][NL]', 
+				      inputFormat );
+	    IF inputFormat[ 0 ] = 0C THEN
+		inputFormat := '[Real]';
+	    END;
+	    SimpleFIO.PromptedRead1( '[String,mOutput format (Sci`,p5): ][NL]',
+				      outputFormat );
+	    IF outputFormat[ 0 ] = 0C THEN
+		outputFormat := '[Sci,p5]';
+	    END;
+
+	    SimpleFIO.PromptedRead1( inputFormat, real );
+	    SimpleIO.ReadLn;	(* Have to clear end of line from format *)
+
+	    DataFIO.Put( file, name, inputFormat, outputFormat, real );
+	END; (* LOOP *)
+
+    END PutVariables;
+
+
+PROCEDURE AppendVariables( file : DataFIO.Object );
+    VAR
+	name         : DataFIO.Name;
+	inputFormat  : DataFIO.InputFormat;
+	outputFormat : DataFIO.InputFormat;
+	comment      : DataFIO.InputFormat;
+	real         : REAL;
+    BEGIN (* AppendVariables *)
+
+	LOOP
+	    SimpleFIO.PromptedRead1( '[String,mVariable to append: ][NL]', name );
+	    IF name[ 0 ] = 0C THEN
+		EXIT;
+	    END;
+	    SimpleFIO.PromptedRead1( '[String,mInput format (Real): ][NL]', 
+				      inputFormat );
+	    IF inputFormat[ 0 ] = 0C THEN
+		inputFormat := '[Real]';
+	    END;
+	    SimpleFIO.PromptedRead1( '[String,mOutput format (Sci`,p5): ][NL]',
+				      outputFormat );
+	    IF outputFormat[ 0 ] = 0C THEN
+		outputFormat := '[Sci,p5]';
+	    END;
+
+	    SimpleFIO.PromptedRead1( '[String,mEnter a comment: ][NL]',
+				      comment );
+
+	    SimpleFIO.PromptedRead1( inputFormat, real );
+	    SimpleIO.ReadLn;	(* Have to clear end of line from format *)
+
+	    DataFIO.Append( file, name, inputFormat, outputFormat, real,
+			    comment );
+	END; (* LOOP *)
+
+    END AppendVariables;
+
+
+PROCEDURE Save( file : DataFIO.Object );
+    VAR
+	ch       : CHAR;
+	ok       : BOOLEAN;
+	card     : CARDINAL;
+	specific : IOVersions.Number;
+	mode     : DataFIO.SaveVersionModes;
+    BEGIN (* Save *)
+
+	LOOP
+	    SimpleFIO.PromptedRead1( '[Bool,yy,nn,mSave? ][NL]', ok );
+	    IF NOT ok THEN
+		EXIT;
+	    END;
+	    specific := DataFIO.DONTCARE;
+	    LOOP
+		SimpleFIO.PromptedRead1( 
+		   '[Char,mN(oVersion  C)ycle  S)pecific: ][NL]', ch );
+		CASE ch OF
+		    'N', 'n':
+			mode := DataFIO.noVersion;
+			EXIT;
+		    |
+		    'C', 'c':
+			mode := DataFIO.nextVersionInCycle;
+			EXIT;
+		    |
+		    'S', 's':
+			SimpleFIO.PromptedRead1( 
+			   '[Card,mEnter a version number: ][NL]', card );
+			specific := card;
+			mode := DataFIO.specificVersion;
+			EXIT;
+		    ELSE
+			(* didn't make it *)
+		END;
+	    END;
+	    DataFIO.Save( file, mode, specific );
+	END; (* LOOP *)
+
+    END Save;
+
+
+PROCEDURE WriteLogFile( file : DataFIO.Object );
+    VAR
+	writeLogFile : BOOLEAN;
+    BEGIN (* WriteLogFile *)
+
+	SimpleFIO.PromptedRead1( '[Bool,yy,nn,mCopy to log file? ][NL]', 
+				 writeLogFile );
+	IF writeLogFile THEN
+	    DataFIO.WriteToTextFile( file, DataFIO.GetLogFile( file ) );
+	END;
+
+    END WriteLogFile;
+
+VAR
+    file : DataFIO.Object;
+BEGIN (* tDataFIO *)
+
+    LOOP
+	IF NOT OpenFile( file ) THEN
+	    EXIT;
+	END;
+
+	GetVariables( file );
+
+	PutVariables( file );
+
+	AppendVariables( file );
+
+	GetVariables( file );
+
+	Save( file );
+
+	PutVariables( file );
+
+	WriteLogFile( file );
+
+	DataFIO.Close( file );
+
+    END; (* LOOP *)
+	
+END tDataFIO.

@@ -1,0 +1,104 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE UnixAsynchIO;
+(*
+ * Supports asynchronous events on Unix file handles.  The signals
+ * SIGIO and SIGURG are caught via Interrupts and select is called
+ * to determine the nature of the events.
+ *
+ * Tasks NOTE:
+ *    This module registers for the TaskNotices.GetExitRequest.
+ *    Upon receipt of this notice, all waiting tasks are readied and
+ *    future calls will return FALSE.
+ *
+ * BUGS?
+ *    There may be a problem with Unix domain sockets and write events.
+ *    The behavior has been reported to be erradic, but not proven to
+ *    be so.
+ *)
+EXPORT QUALIFIED
+    Object,	Event,	    Events,	Create,
+    Destroy,	Wait,	    SetInvalid, IsValid;
+
+TYPE
+    Object;	(* Handle to access events *)
+    
+    Event = (
+	read,	    (* Accept read events *)
+	write,	    (* Accept write events *)
+	exception   (* Accept exception events *)
+    );
+    Events = SET OF Event;
+
+PROCEDURE Create(
+    VAR asynch : Object;    (* OUT: Only valid, if return is TRUE *)
+	handle : CARDINAL;  (* Open file; will be put in non-blocking mode *)
+	expect : Events	    (* What events can be waited for? *)
+    )	       : BOOLEAN;   (* FALSE => is a plain file (can't be asynch) *)
+    (*
+     * Allocates an asynchronous event object for the handle and
+     * events specified.   Before setting up the handle, it tests to make
+     * sure that "handle" can receive asynchronous events.  Plain files
+     * are not event driven.  Upon succesful return, the handle is owned
+     * by the Unix process (i.e. its process group is set) AND is set
+     * for non-blocking I/O (i.e. calls to read/write will fail
+     * with EWOULDBLOCK).
+     *)
+    
+PROCEDURE Destroy(
+    VAR asynch : Object
+    );
+    (*
+     * Deallocate asynch and ready the blocked task.  Any pending
+     * Wait calls will return failure.  Note: the file handle is
+     * is left in non-blocking mode, because it is assumed that the
+     * caller will be closing it shortly.
+     *)
+
+PROCEDURE Wait(
+        asynch : Object;   (* May be in any state *)
+    VAR which  : Events	   (* IN: What for what?  OUT: New events. *)
+    )	       : BOOLEAN;  (* FALSE => task readied w/o pending event *)
+    (*
+     * Waits for the specified events to occur.  If an event
+     * occurs, the call returns true and "which" contains the
+     * events which were detected.  Note that events are detected
+     * asynchronously, thus it may be possible for this routine to
+     * return events which have already been processed.  This call
+     * assumes a single task is waiting.  Concurrency control must
+     * therefore be handled by the importer.
+     *
+     * If you ready a task waiting on an event, this routine will return
+     * false.  If you destroy the object, this routine will return false
+     * and all subsequent calls will return false immediately.
+     *)
+
+PROCEDURE SetInvalid(
+    VAR asynch : Object     (* Set to an invalid state *)
+    );
+
+PROCEDURE IsValid(
+    asynch : Object	(* May be in any state *)
+    )      : BOOLEAN;	(* TRUE => valid object *)
+     
+END UnixAsynchIO.

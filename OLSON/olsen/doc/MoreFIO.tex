@@ -1,0 +1,431 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%                   All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Doing More With FormatIO}
+\label{FIOChapter}\label{FormatIOChapter}
+
+\xquote{Cecil Adams}{The Straight Dope}{
+    I do not deal in trivia, as that term is usually understood.
+    The difference between what I do and what the triviamongers peddle
+    is that I tell people things they actually want and need to 
+    know as opposed
+    to gobs of useless rubbish.  In fact, I think it's safe to say that no
+    person today can hope to achieve basic life competence without
+    consulting my work on a regular basis.
+}
+
+
+Extensibility is one of the most useful features of 
+the \module{FormatIO} family.  In this chapter, we
+introduce \newterm{format registration}, the method by which
+one extends \module{FormatIO}.  The reader should
+already be familiar with the material in chapters \ref{IntroIOChapter}
+and \ref{IOErrorsChapter}.
+
+\section{Creating Format Commands -- \module{FIOBase}}
+
+{\em
+CAVEAT: The internals of \module{FormatIO} have proven to be inefficient.
+Someday the structure may be entirely revamped.  Please don't complain
+that \module{FormatIO} is too slow and requires too much stack space ---
+we know!
+}
+
+A format command is decomposed into a \newterm{format name} and
+\newterm{format modifiers}.  \module{FormatIO} keeps a table of
+names and procedures.  The procedures are registered with the
+module \module{FIOBase} via the following two procedures:
+
+\begin{verbatim}
+    PROCEDURE RegisterWrite(
+        name           : CommandName;
+        writeProc      : WriteProc;
+        importerObject : SysTypes.ANYPTR;
+        expectedSize   : SysTypes.Card
+        );
+    PROCEDURE RegisterRead(
+        name           : CommandName;
+        readProc       : ReadProc;
+        importerObject : SysTypes.ANYPTR;
+        expectedSize   : SysTypes.Card
+        );
+\end{verbatim}
+
+A \codeterm{CommandName} is a string of a fixed width to guarantee
+that the registered formats do not exceed a specified length.
+The \codeterm{read\-Proc} and \codeterm{write\-Proc} are the procedures
+to be called when \code{name} is found in a format command.
+The \code{importer\-Object} is passed to the procedure unmodified.
+The \codeterm{expected\-Size} size is one of:
+\begin{itemize}
+\item
+    The \codeterm{SYSTEM.\-TSIZE} of the format argument 
+    supported by the command.
+\item
+    \codeterm{FIOBase.\-no\-Size\-Check} -- meaning the type is
+    variable size (e.g. \code{String}).
+\item
+    \codeterm{FIOBase.\-no\-Para\-meter} -- meaning the command
+    name does not accept format arguments (e.g. \code{NL})
+\end{itemize} 
+
+\codeterm{read\-Proc} and \codeterm{write\-Proc} accept a host
+of parameters which are best explained by a simple example.
+We will extend the example of a token reader 
+in section~\ref{TokenReader1}.  The new format name ``\code{Token}''
+will be registered for both reading and writing (although this
+is not required, i.e. reading and writing are completely independent).
+We define a token (for the sake of this example) to be of a
+maximum length (as opposed to \module{FIOString} which supports
+any string).
+
+\section{\code{Write}}
+
+Writing is simpler than reading (as usual).  The following procedure
+supports the write of a token which is treated identically as a string
+except that \code{Write} supports the new modifiers ``\code{cl}''
+and ``\code{cu}'' which stand for to lower and to upper, respectively.
+\begin{verbatim}
+PROCEDURE Write(
+    DONTCARE : SysTypes.ANYPTR;   (* importerObject *)
+    outFile  : TextIO.Object;     (* file to write to *)
+    format   : ARRAY OF CHAR;     (* modifiers *)
+    dataAdr  : SysTypes.SAUPTR;   (* points to a token *)
+    length   : SysTypes.Card      (* should be TSIZE( Token ) *)
+    )        : TextIO.States;     (* "ok" => value written ok *)
+    VAR
+        tok       : POINTER TO String;
+        modifiers : FIOBase.ModifierValues;
+        modStr    : ARRAY [ 0 .. 0 ] OF CHAR;   (* for 'l' or 'u' *)
+        toLower   : BOOLEAN;
+        toUpper   : BOOLEAN;
+        error     : BOOLEAN;
+    BEGIN (* Write *)
+
+        tok := dataAdr;         (* Coerce to our format *)
+
+        (* establish defaults *)
+        toLower := FALSE;
+        toUpper := FALSE;
+        WITH modifiers DO
+            width         := 0;
+            fillChar      := ' ';
+            justification := Strings.justifyLeft;
+        END;
+
+        (* scan for default modifiers *)
+        IF NOT FIOBase.ScanModifiers( format, FIOBase.writeModifierSet,
+            outFile, modifiers, format ) THEN
+            RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+        END;
+
+        (*
+         * Parse modifiers specific to this format.
+         *)
+        error := FALSE;
+        WHILE format[ 0 ] # 0C DO
+            (* Must be 'c' and followed by a single letter *)
+            error := ( FIOBase.GetSpecifier( format ) # 'c' ) OR
+                     NOT FIOBase.GetString( format, modStr );
+            IF NOT error THEN
+                (* Allow 'u' or 'l', but not both.
+                   Note: caller may have multiple 'cl' or 'cu' params *)
+                IF modStr[ 0 ] = 'u' THEN
+                    error := toLower;   (* Can't have toLower *)
+                    toUpper := TRUE;
+                    Chars.StringToUpper( tok^ );
+                ELSIF modStr[ 0 ] = 'l' THEN
+                    error := toUpper;   (* Can't have toUpper *)
+                    toLower := TRUE;
+                    Chars.StringToLower( tok^ );
+                ELSE
+                    error := TRUE;      (* Not one of 'l' or 'u' *)
+                END;
+            END;                     
+            IF error THEN
+                (* Something wrong with the format, tell the caller *)
+                RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+            END;
+        END;
+       
+        WITH modifiers DO
+            (* If "width" is non-zero, take care to
+               indicate an error if the string is longer than width *)
+            RETURN StringIO.WriteJustifiedField(
+                outFile, tok^, justification, width, fillChar );
+        END; (* WITH *)
+
+    END Write;
+\end{verbatim}
+
+There are three sections: establishing defaults,
+scanning modifiers, and writing the token.  The defaults vary with the
+format name.  Typically, numeric formats are right justified and
+strings formats (like \code{Token}) are left justified.  The
+procedure \proc{FIOBase.\-Scan\-Modifiers} extracts the standard
+modifiers (`\codeterm{f}',
+`\codeterm{j}', `\codeterm{m}', and `\codeterm{w}') from
+\code{format} and sets the values in \codeterm{modifiers} accordingly.
+After \proc{Scan\-Modifiers}, \code{Write} looks for its modifiers
+which are specified by the letter `\code{c}'.  A
+\newterm{specifier}\index{format specifier} 
+used in this context means the first letter of a \term{format modifier}.
+
+The final call to \proc{StringIO.\-Write\-Just\-ified\-Field} causes
+the string to be output.  This procedure was chosen because it does
+not truncate the token if ``\codeterm{width}'' is less than its length.
+In the event of failure, stars (\code{*}) will be output for the
+width of the string.  If width is \code{0}, the token will be output
+``as is'', i.e. as if \code{width} were equal to the length of the token.
+
+\finepoints{
+    The \term{specifier} must be followed by one or more characters.
+    If it is not, then \proc{FIOBase.\-Get\-String} will return \code{FALSE}
+    indicating the bad parameter.  This restriction is imposed by
+    \proc{Scan\-Modifiers} and the use of \proc{Get\-Specifier}.  If
+    single character modifiers (i.e. specifiers without further
+    qualification) are required, use \proc{Get\-String} or
+    \proc{FIOBase.\-Get\-Card} exclusively.  For example, the
+    \codeterm{NL} format accepts the number of new-lines to output
+    and no other arguments.  The number can be
+    a single digit (e.g. \code{[NL,3]}).
+
+    If a modifier error is encountered, the format procedure must
+    return \codeterm{IOErrors.\-bad\-Para\-meter}.
+}
+
+        
+\subsection{Registering \code{Write}}
+\label{RegisterWrite}
+\index{\code{FIOBase.\-Register\-Write}}
+\index{\code{Register\-Write}}
+The procedure is registered with \module{FIOBase} as follows:
+\begin{verbatim}
+FIOBase.RegisterWrite( 'Token', Write, FIOBase.DONTCARE,
+                       SYSTEM.TSIZE( String ) );
+\end{verbatim}
+The name ``\code{Token}'' is associated with \code{Write} which
+accepts a fixed size type (specified by the \code{TSIZE} expression).
+\code{Write} does not require an \codeterm{importer\-Object}, therefore
+we use \codeterm{FIOBase.\-DONT\-CARE}.
+
+\finepoint{
+    The \codeterm{importer\-Object} may not seem necessary for
+    most applications.   However, it is conceivable that someone
+    would want to create a dynamic format command creator, 
+    to support any enumerated types for example.  Another (less elegant)
+    example can be found in the module \module{FIOString}.
+}
+
+\subsection{Using \code{Write}}
+
+Once \code{Write} has been registered under the name ``\code{Token}'',
+the programmer may use it like any other write format.  Here are some
+sample usages.
+\begin{verbatim}
+    VAR
+        tok : String;
+    ...
+    tok := "MyFirstToken";
+    SimpleFIO.Write1( "Here it is! [Token][NL]", tok );
+    SimpleFIO.Write1( "One more time! [Token,cl][NL]", tok );
+\end{verbatim}
+will produce
+\begin{verbatim}
+    Here it is! MyFirstToken
+    One more time! myfirsttoken
+\end{verbatim}
+
+\finepoint{
+    \code{[Token]} only accepts an argument of size
+    \code{String}; therefore, we could not pass the
+    string \code{"MyFirstToken"} directly.  This serves the
+    purposes of our example, but would be impractical in real
+    life.  The registration of \code{Write} could have easily
+    been made with \codeterm{FIOBase.\-no\-Size\-Check}, but
+    this would require the use of \proc{Write\-Justi\-fied\-Adr}
+    and hence more complicated code.
+}    
+
+
+\section{\code{Read}}
+
+There are two parts to the implementation of a \module{FormatIO} read procedure:
+format handling and reading from a text file.  Reading tokens from
+a text file is covered in section~\ref{TokenReader1}.  To simplify
+the example, we use the procedure \code{Read\-Token} already
+implemented.\footnote{
+     Actually, many of the \module{FormatIO} type reads are implemented
+     using another modules read procedure.}
+The format handling is the subject of this section.   A simple
+\code{Read} procedure is implemented below.
+
+\begin{verbatim}
+PROCEDURE Read(
+    DONTCARE   : SysTypes.ANYPTR;   (* importerObject *)
+    inFile     : TextIO.Object;     (* file to read from *)
+    format     : ARRAY OF CHAR;     (* modifiers *)
+    dataAdr    : SysTypes.SAUPTR;   (* points to a token *)
+    length     : SysTypes.Card;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    CONST
+        prompt    = "Enter a token (alphabet characters only): ";
+    VAR
+        tok       : POINTER TO String;
+        modifiers : FIOBase.ModifierValues;
+        error     : BOOLEAN;
+        state     : TextIO.States;
+    BEGIN (* Read *)
+
+        tok := dataAdr;
+
+        (* We don't have any modifiers except the prompt *)
+        IF prompting THEN
+            (* scan for default modifiers *)
+            modifiers.messageOutput := FALSE;   
+            IF NOT FIOBase.ScanModifiers( format, FIOBase.readModifierSet,
+                                          promptFile, modifiers, format ) THEN
+                RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+            END;
+        END;
+
+        (* No special modifiers? *)
+        IF format[ 0 ] # 0C THEN
+            RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+        END;
+
+        (* 
+         * we have the parameters: repeat the read until a valid value
+         * is read.  Note that a message may have been put out.  If one
+         * hasn't, then we must put a prompt the first time around.
+         *)
+        LOOP  
+            IF prompting AND NOT modifiers.messageOutput THEN
+                error := ( StringIO.Write( promptFile, prompt ) # TextIO.ok )
+                     OR  ( TextIO.Flush( promptFile ) # TextIO.ok );
+
+                IF error THEN
+                    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+                END;
+            END;
+
+            (* Procedure which does the TextIO work *)
+            state := ReadToken( inFile, tok^ );
+
+            IF state = TextIO.ok THEN
+                RETURN state;
+            END;
+
+            IF NOT prompting THEN
+                IF state = TextIO.endOfLine THEN
+                    (* End of line is not a valid token. *)
+                    RETURN TextIO.SetError( inFile, IOErrors.badData );
+                END;
+                RETURN state;
+            END;
+
+            (* Standard set of checks and then issue a "try again" *)
+            state := FIOBase.PromptForReread( promptFile, inFile );
+            IF state # TextIO.ok THEN
+                RETURN state;   (* Error during prompting *)
+            END;
+
+            (* Force a re-prompt at the top. *)
+            modifiers.messageOutput := FALSE;
+        END; (* LOOP *)
+
+    END Read;   
+\end{verbatim}
+
+The only default modifier for reading is the message (\code{m}) and
+\code{Read} does not support any special modifiers.  Therefore,
+\code{Read} does not have a format scanning loop as does 
+its complement, \code{Write}.  The procedure \proc{Scan\-Modi\-fiers}
+extracts the specifier `\codeterm{m}' and the message from
+\code{format}.
+\proc{FIOBase.\-Scan\-Modi\-fiers} then {\em outputs} the message to
+the \codeterm{prompt\-File}.  Upon return from
+\proc{Scan\-Modi\-fiers}, the message is gone.  The supplied
+prompt is therefore written only once.  If the caller did not supply a
+prompt (in this case, \code{format} would be empty), the value
+\codeterm{modi\-fiers.\-mes\-sage\-Out\-put} is \code{FALSE}
+and it is the responsibility of \code{Read} to output the initial prompt.
+Hence, the structure of the prompting loop is the same for
+most \module{FormatIO} read procedures.
+
+After the format scanning and prompting (if necessary),
+the procedure \code{Read\-Token} is called to get the token from the user.
+If \code{Read\-Token} returns \code{TextIO.\-ok}, \code{Read} succeeds
+and returns the value to the caller.   If the read fails and
+\code{prompting} is \code{FALSE}, \code{Read} returns failure.
+
+\finepoint{
+    \module{FormatIO} reads are structured, which means \code{Read} must
+    fail with bad data if \codeterm{end\-Of\-Line} is returned by
+    \code{Read\-Token}.  Therefore, \code{Read} puts the file in
+    an error state indicating the bad data in the file.  The view
+    from the caller's side is explained in section~\ref{ReadingWithSimpleFIO}.
+}
+
+If \code{prompting} is \code{TRUE}, the procedure \code{Read} must
+allow the user to try to input the data correctly.  The \codeterm{in\-File}
+may be in any one of the three failure states and different actions
+are required depending upon the states as follows:
+\begin{description}
+\item[\codeterm{end\-Of\-Line}] ---\index{\code{TextIO.\-end\-Of\-Line}}
+    The user has input a blank line.  The \code{end\-Of\-Line} condition
+    must be cleared and the user re-prompted.
+\item[\codeterm{end\-Of\-File}] ---\index{\code{TextIO.\-end\-Of\-File}}
+    The user has indicated that there is
+    no more data and \code{Read} must return failure.
+\item[\codeterm{error}] ---
+    If the error is \codeterm{IOErrors.\-bad\-Data}, the error must be
+    cleared and the user re-prompted.  All other errors result in
+    failure (as \codeterm{TextIO.\-error}) being returned to the caller.
+\end{description}
+
+The procedure \proc{FIOBase.\-Prompt\-For\-Reread} implements this
+protocol.  If \proc{Prompt\-For\-Reread} returns \codeterm{TextIO.\-ok},
+the \module{FormatIO} read procedure must reissue a prompt (in this
+case ``\code{Enter a token (alphabet characters only): }'') and call
+\code{Read\-Token} one more time.  
+
+\finepoint{
+    You can build read procedures which do not prompt.  If the
+    value of \codeterm{prompt} is \code{TRUE}, the \code{inFile}
+    should be set to \codeterm{IOErrors.\-illegal\-Op} as opposed
+    to \codeterm{bad\-Para\-meter}.
+}
+
+\subsection{Registering \code{Read}}
+\index{\proc{Register\-Read}}
+The procedure is registered with \module{FIOBase} as follows:
+\begin{verbatim}
+    FIOBase.RegisterRead( 'Token', Read, FIOBase.DONTCARE,
+                          SYSTEM.TSIZE( String ) );
+\end{verbatim}
+The parameters to \proc{FIOBase.\-Reg\-ister\-Read} are semantically
+equivalent to those of \proc{FIOBase.\-Reg\-ister\-Write} (discussed
+in section~\ref{RegisterWrite}).

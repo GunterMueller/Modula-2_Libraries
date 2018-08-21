@@ -1,0 +1,15 @@
+(*
+ * This is a DEVIANCE test for the preprocessor.
+ *
+ * If there are no @ signs, then the source has already been
+ * preprocessed!
+ *)
+
+   " This string should be open
+
+@IF FALSE THEN@ELSIF TRUE THEN -- This one should be open as well
+
+@IF TRUE THEN	-- This IF should be open
+
+(* 
+ * This comment should be open

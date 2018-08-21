@@ -1,0 +1,518 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TasksPRIVATE;
+(*
+ * Systems on which this module will run: 
+ *       LogitechM2 AND MsDosOS AND IbmPcArch
+ * 
+ * To read this module, you should have the implementation Tasks by your
+ * side.  This module and Tasks are completely intertwined.
+ *
+ * Data structures used by Tasks, TaskInfo, and Interrupts.  The variables 
+ * in this module are initialized by Tasks via Intialize, because of the 
+ * circular import between this module and Tasks.  The modules DosMonitor
+ * and ProgErr sit below Tasks in the import chain, but have procedure
+ * installation entry points for functions which require higher level
+ * management.  The initialization order of the critical modules is
+ * listed below (top is last to initialize):
+ *
+ *	     [Higher level tasking primitives and facilities]
+ *           TaskInfo		(sets TasksPRIVATE.callOnBirth/Death)
+ *	     Interrupts
+ *           Notices		(ProgErr.Install, SafeStorage.InstallOutOfMem)
+ *           Objects
+ *           Tasks 		(ProgErr.Install, DosMonitor.Enter/Exit)
+ *           TasksPRIVATE       (initialized by Tasks explicitly)
+ *           TaskConsts
+ *           SafeStorage
+ *           ProgErr
+ *           ProgErrOutput
+ *           DosMonitor
+ * 
+ * Stack allocation/deallocation is managed by this module, since
+ * both interrupt and task stacks have the same structure.  A stack
+ * and task object are allocated in the same memory area for efficiency.
+ * Interrupts allocates a stack independently, since there is only one
+ * interrupt stack.
+ *
+ * IMPORTANT:
+ * We make stringent attempts to not depend on the task and stack being
+ * in the same data block.  None of the code outside of this module makes
+ * this assumption.  This makes it easy to upgrade and port the system.
+ *
+ * preemptionLevel:
+ * Each thread has its own value of preemptionLevel (this includes interrupts).
+ * The procedures Disallow/AllowPreemption modify the value for the "running"
+ * task.  If this value becomes allowPreemption, then (and only then) can 
+ * this task be switched for another.  Suspend overrides this rule by 
+ * allowing the running task to voluntarily give up the processor to 
+ * another task.  Obviously, the task which is relinquishing the processor 
+ * must be careful not to leave shared data structures in a half modified state.
+ * For performance and code simplicity reasons, the preemptionLevel is 
+ * treated as a register which is saved and restored during context switches.
+ *
+ * checkWord:
+ * This is a static value in all threads that determines the thread's type.
+ * Tasks uses this to determine if the caller is an interrupt handler trying
+ * to do something only a task can do (e.g. Suspend).
+ *
+ * lowestSP:
+ * Always valid and is set by the run-time system (if the rts so desires)
+ * when it does a stack check.  Upon termination, the destroyer knows the
+ * amount of stack space utilized by the particular task.  This is useful
+ * for determining optimal memory allocation for tasks.  See the module
+ * TasksDebug.
+ *
+ * otherNext:
+ * This is a rather funny field, because it is used by so many different
+ * pieces.  The basic rule is that it is used only when a task is going
+ * to be suspended for an absolute event.  What this means is that the
+ * field is never used for two purposes at once.  Specifically, the uses
+ * are in Tasks.Create, when a task dies, and in Enter/Exit (below).  
+ * In Tasks.Create, the parent task sets its link field to the process of
+ * the child and then the task suspends itself until the child is finished
+ * with callOnBirth.  On death, the task puts itself on the deathQueue 
+ * and suspends itself forever.  The Enter routine is absolute in
+ * that a task is not released from the wait queue until it is specifically
+ * the owner of the lock.  Note this field must be modified in a
+ * non-preemptable section.
+ *
+ * Context switching:
+ * We save the current stack pointer and base in intStackTop when
+ * the task is switched.   This allows us to save the correct context of the
+ * calling task no matter where it is (e.g. inside DOS and on a possibly
+ * different stack).  This makes the switchCode inside Tasks simpler and
+ * inside Interrupts it becomes a little more complicated.
+ *
+ * Interrupts:
+ * There is a bug in the BIOS which requires to ``protect'' keyboard
+ * interrupts inside the module interrupts.  It turns out that the keyboard
+ * interrupt handler leaves the 8259 in a bad state when it causes the
+ * ctrl-break interrupt.  To fix this problem, we protect ctrl-break
+ * interrupts inside the module Interrupts and cause termination in
+ * the deathTask (instead of starting yet another miscellaneous task).
+ * The two modules communicate through the variables breakReceived and
+ * deathTask.  In order to smooth termination, we have a procedure called
+ * restoreInterrupts which is set by Interrupts so that all interrupts are
+ * restored at the request of the Task system.
+ *
+ * Logitech's PROCESSes:
+ * We have structured the software to work with Logitech 3.0.  See the
+ * declarations of the Object and StackBase.
+ *)
+IMPORT
+    @IF LogitechM2V2 THEN
+	System,
+    @ELSE
+	RTSMain,
+    @END
+    SYSTEM,
+    SysTypes,
+    TaskConsts,
+    Tasks;
+
+EXPORT QUALIFIED
+    Initialize,	        
+    Register16,		Object,	
+    invalidBP,		bytesPerParagraph,
+    IntStackTopRec,	IntStackTop,
+    StackBasePtr, 	StackBaseRec,		StackBase, 		
+    States,		
+    Priorities,		InfoGroups,
+    ObjectRec,		
+    allocRoot,		mainTask,
+    Enter,		Exit,
+    TaskEnvelope,	taskEnvelopeAdr,
+    Allocate,		Deallocate,	        Iterator,
+    Traverse,
+    IsValid,		Assert,
+    readyQueue,		running,
+    preemptionLevel,	allowPreemption, 	firstLevelDisallow, 
+    callOnBirth,	callOnDeath,		deathTask,
+    breakReceived,	restoreInterrupts,
+    AdjustStack,
+    suspendNotAllowed,	systemPanicked,
+    SwitchRunning,	DefaultPanicHandler,	ExitSystem,
+    RebootSystem;
+
+
+PROCEDURE Initialize(
+    taskEpilogue : PROC	    (* Called when main task dies *)
+    );
+    (*
+     * Because of circular import issues, this procedure must be called
+     * by Tasks.  The value taskEpilogueAdr is needed to create the
+     * "main" task around the currently executing thread.
+     *)
+
+CONST
+    (* Some PC implementation things which are useful to know *)
+    invalidBP    = 0;	(* identifies the last stack frame for traces 
+			   This value must be the same as used by the RTS. *)
+    bytesPerParagraph = 16;    (* Min addressable unit of a seg reg *)
+
+
+TYPE
+    Register16 = SysTypes.CARDINAL16;	(* 16-bit CPU registers on 8088 *)
+    Object     = POINTER TO ObjectRec;
+	(* 
+	 * Same as Tasks.Object.  Note that Objects always have normalized
+	 * addresses, so we can do simpler tests for equality.
+	 *)
+
+
+    (*
+     * The stack after an interrupt and register save has been performed.
+     * Both interrupts and tasks have the same stacktop when then are
+     * interrupted, but interrupts start from an empty stack every time
+     * whereas tasks always start from a stack that looks like this.
+     * Look at the code in SwitchRunning, because it is pretty messy.
+     * It assumes that savedIP, savedCS, and savedFlags are low down on
+     * the stack (in high memory).  Interrupts and Tasks assume that 
+     * savedPreemptionLevel is the last thing saved.
+     * 
+     * This stack is layed out just like a Logitech stack (see RTSMain)
+     * for all of the parts except ES which we put in Logitech's dummy
+     * location and put our preemptionLevel on the top.
+     *)
+    (*$A-*)	(* Must be packed *)
+    IntStackTopRec = RECORD
+	savedPreemptionLevel : Register16;  (* MUST BE TOP OF STACK *)
+	savedDS      	     : Register16;
+	savedDI	     	     : Register16;
+	savedSI	     	     : Register16;
+	savedBP	     	     : Register16;
+	savedES      	     : Register16;  (* Logitech 3.0's "dummy" *)
+	savedBX	     	     : Register16;
+	savedDX	     	     : Register16;
+	savedCX	     	     : Register16;
+	savedAX      	     : Register16;  (* DON'T MOVE (see Tasks)! *)
+	savedIP	     	     : Register16;  (* Normal INT stack *)
+	savedCS	     	     : Register16;
+	savedFlags   	     : Register16;
+    END; (* IntStackTopRec *)
+    (*$A=*)
+
+    IntStackTop    = RECORD
+	CASE @IF NOT M2V2 THEN : @END BOOLEAN OF
+	    TRUE:
+		ptr : POINTER TO IntStackTopRec; (* access pushed registers *)
+	    |
+	    FALSE:
+		adr : SYSTEM.ADDRESS;		(* change segment & offset *)
+	END;
+    END; (* IntStackTop *)
+
+
+TYPE
+    (* 
+     * The stack base is structured like a Logitech process so that we
+     * can use their debuggers.  Interrupts uses the same stack base.
+     *)
+    StackBasePtr = POINTER TO StackBaseRec;
+
+TYPE
+    (*$A-*)
+    StackBaseRec = RECORD
+	@IF LogitechM2V2 THEN
+	    (*
+	     * The RTS expects lowestSP to be the first thing on the stack.
+	     *)
+	    lowestSP    : Register16;    (* MUST BE HERE FOR RTS*)
+	    intStackTop : IntStackTop;   (* Save area for SS:SP *)
+	@ELSE
+	    (* 
+	     * Must match Logitech's ProcessDescriptor byte for byte.
+	     * Warning: We only use "intStackTop" field directly.
+	     *)
+	    intStackTop : IntStackTop;   (* our SS:SP save area [topStack] *)
+	    unused      : ARRAY [ 0 .. 6 ] OF Register16;
+	    magic       : Register16;    (* Magic # needed for logitech *)
+	    lowestSP    : Register16;    (* Most stack used [bottomStack] *)
+	@END
+	(* The rest are unused fields *)
+    END;
+    (*$A=*)
+
+    StackBase = RECORD
+	CASE @IF NOT M2V2 THEN : @END CARDINAL OF
+	    0:
+		ptr : StackBasePtr;    (* For our use *)
+	    |
+	    1:
+		adr : SYSTEM.ADDRESS;	(* to play address games *)
+	    @IF NOT LogitechM2V2 THEN
+		(* For debugging under Logitech 3.0 ... *)
+		|
+		2:
+		    logitech : RTSMain.Process;
+		|
+		3:
+		    modula2  : SYSTEM.PROCESS;
+	    @END
+	END;
+    END;
+
+
+(* 
+ * Following section describes the normal tasking information.
+ * The readyQueue is the list of tasks which are not suspended.
+ *)
+TYPE
+    States    = ( readyOrRunning,	(* in the readyQueue *)
+		  suspended );		(* just hanging out  *)
+
+    Priorities = [ TaskConsts.minPriority - 1 .. TaskConsts.maxPriority + 1 ];
+	(* 
+	 * The -1 is for the idle task and the +1 is for high priority exit.
+	 * The death task runs at maxPriority.  See Tasks implementation for
+	 * more details.
+	 *)
+    InfoGroups = [ 0 .. TaskConsts.maxInfoGroups - 1 ];
+
+TYPE
+    ObjectRec = RECORD
+	(* Stuff managed by this module *)
+	stackBase   : StackBase;    (* MUST BE HERE *)
+	@IF LogitechM2V2 AND Debug THEN
+	    (* For debugging under Logitech 2.0 ... *)
+	    logitech : System.ProcessDescriptor;  (* MUST BE HERE *)
+        @END
+	stackSize   : SysTypes.Card;  (* number of usable stack bytes *)
+	magic	    : SysTypes.Card;  (* used to assert object        *)
+	allocSize   : SysTypes.Card;  (* actual # bytes allocated     *)
+	allocAdr    : SysTypes.SAUPTR;(* unnormalised pointer         *)
+	nextAlloc   : Object;         (* list of all tasks            *)
+
+	(* Stuff managed by Tasks *)
+	state       : States; 	    (* current state of task        *)
+	priority    : Priorities;   (* ordering of readyQueue       *)
+	nextReady   : Object;       (* linkage for readyQueue       *)
+	otherNext   : Object;	    (* used during birth, death, and
+		 		       for mutex TasksPRIVATE.Enter/Exit.*)
+	info        : ARRAY InfoGroups OF SysTypes.ANYPTR;
+				    (* initially NIL; modified by TaskInfo  *)
+	name        : TaskConsts.Name;(* passed to Tasks.Create     *)
+    END; (* ObjectRec *)
+
+
+VAR    
+    allocRoot : Object ;	(* List of all *allocated* tasks    *)
+    mainTask  : Object ;	      (* Only task which is not allocated.
+				 Will be set to NIL when task dies. *)       
+
+(*
+ * The following two mutual exclusion procedures are provided for protection
+ * of the allocRoot and nextAlloc field.  If you merely traversing the list,
+ * then you can do this in a non-preemptable section.  If you call Allocate
+ * or Deallocate (below), then these calls must be surrounded by Enter/Exit
+ * calls.  The Enter/Exit calls may be nested.
+ * 
+ * NOTE: These routines can only be called from a task.
+ *)
+PROCEDURE Enter;
+    (*
+     * Enter critical section with use of objectMgr.  Note that the entry
+     * queue is not necessarily on a first come first served basis.
+     *)
+
+PROCEDURE Exit;
+    (*
+     * Exit critical section with use of objectMgr. 
+     *)
+
+
+
+TYPE
+    TaskEnvelope = PROCEDURE(       (* Here for documentation only *)
+        Tasks.Object,   (* parent *)
+        Tasks.Proc,     (* thread *)
+        SysTypes.ANYPTR (* importerObject *)
+    );
+VAR
+    taskEnvelopeAdr : SYSTEM.ADDRESS;  (* Must be type TaskEnvelope and
+					  must be initialized before
+					  allocate is called. *)
+
+PROCEDURE Allocate(
+        stack          : TaskConsts.StackSizes; (* Size to be allocated *)
+        thread         : Tasks.Proc;            (* thread passed to Create *)
+        importerObject : SysTypes.ANYPTR;       (* passed to Create *)
+    VAR task           : Object                 (* OUT: partially initialized *)
+    );
+    (*
+     * Allocates a task object and sets: magic, stackBase (and 
+     * its values) and stackSize. 
+     * intStackTop is set up so that Ready will start the TaskEnvelope.
+     * The caller must fill in: name, state, priority, nextReady, info,
+     * and otherNext.
+     *
+     * The task object which is returned is always normalized.  This
+     * makes the job of Interrupts easier.
+     *
+     * NOTE: Must be called from within Enter/Exit section.
+     *)
+
+
+PROCEDURE Deallocate(
+    VAR task : Object	 (* IN: valid task; OUT: invalid task *)
+    );
+    (*
+     * Frees the memory associated with the specified task object.
+     * The "nextAlloc" list is managed and the first task is managed
+     * properly.  
+     *
+     * NOTE: Must be called from within Enter/Exit section.
+     *)
+
+TYPE
+    Iterator = PROCEDURE(
+	SysTypes.ANYPTR,  (* importerObject passed unmodified *)
+	Object		  (* task in list *)
+    );
+    
+PROCEDURE Traverse(
+    callWithTasks  : Iterator;	     (* will be called for each task in list*)
+    importerObject : SysTypes.ANYPTR (* passed to callWithTasks unmodified *)
+    );
+    (*
+     * Calls the Iterator for each task in the list of living tasks
+     * (including mainTask if it is alive).  This procedure is only
+     * needed for TaskDebug and TaskInfo.
+     *
+     * NOTE: Must be called from w/in code protected by Enter/Exit.
+     *)
+
+(* The following two procedures must be called from a Disallowed section *)
+PROCEDURE IsValid( 
+    task : Object      (* may be in any state *)
+    )    : BOOLEAN;    (* TRUE => "task" is a valid Object at time of call. *)
+
+PROCEDURE Assert(
+    task : Object      (* must be valid or caller will be terminated. *)
+    );
+
+
+(*
+ * The following three variables must only be accessed and modified in
+ * a interrupts disabled section.
+ *)
+VAR
+    readyQueue      : Object;
+	(*
+	 * The list of tasks which are ready to run (including running).
+	 * This list is *always* ordered in terms of priority and is
+	 * only modified by the Tasks module.  Tasks are inserted ahead
+	 * of another only if the new task is strictly greater in priority.
+	 *)
+    running         : Object;
+	(*
+	 * Normally is the same as readyQueue, but may not be the same in
+	 * the readyQueue (if preemptionLevel is greater than zero).  Note
+	 * that this variable should not be modified by any module except
+	 * Tasks.  The running task can be in an intermediate state between
+	 * suspended and running (since the running task actually must 
+	 * perform the switch to another task after it is suspended).
+	 *)
+    
+    preemptionLevel : Register16;  (* Save on stack, thus like a register *)
+	(* 
+	 * Indicates whether the current thread is preemptable or not.
+	 * In interrupt handlers, this is always firstLevelDisallow.
+	 *)
+CONST
+    allowPreemption    = 0;
+    firstLevelDisallow = 1;
+	(* 
+	 * Some general values useful testing preemptability and for
+	 * initializing the fields.
+	 *)
+
+
+(* 
+ * The following section is the link between Tasks, TaskInfo, and TaskNotices.
+ * When a task is created, the procedure "callOnBirth" is called before
+ * the Tasks.Create procedure returns.  When a task dies normally,
+ * "callOnDeath" is called.  These procedures are set to null by this
+ * module, initially.  TaskInfo fills them in during its initialization.
+ * Note that this initialization occurs *after* Tasks.  See TaskInfo
+ * for more information.  Note also that these procedures assume that
+ * "running" is the task to be modified.
+ *)
+VAR
+    callOnBirth  : PROC;	(* called upon creation *)
+    callOnDeath  : PROC;	(* called during death  *)
+
+(*
+ * The following code is used by Interrupts and Tasks to handle
+ * ctrl-break and manage termination properly.  The deathTask and 
+ * breakReceived are initialized by Tasks and used by Interrupts.  
+ * The deathTask polls breakReceived variable when it is awoken
+ * to allow clean termination.
+ *)
+VAR
+    deathTask         : Object;  (* The last task to die *)
+    breakReceived     : BOOLEAN; (* Interrupts detected a user interrupt *)
+    
+    restoreInterrupts : PROC;	(* Called before all other term code *)
+
+PROCEDURE AdjustStack(
+    VAR adr : SysTypes.SAUPTR	(* address to be set to adjusted *)
+    )       : SysTypes.Card;	(* Number of bytes lost to adjustment *)
+    (*
+     * All stacks must be adjusted in our world to 0.
+     *)
+    
+VAR
+    suspendNotAllowed : BOOLEAN;
+
+    systemPanicked    : BOOLEAN;
+    
+(*
+ * Procedures needed by Tasks for portability concerns.
+ *)
+PROCEDURE SwitchRunning;
+    (*
+     * Changes running to the readyQueue (head), first saving the 
+     * current context in the old running task.  The old running pointer
+     * is not saved.
+     *
+     * ASSUMES:
+     *    - Interrupts are disabled and the flags were pushed
+     * 	    on the stack before the call.
+     *    - This procedure must be call far.  This is fixed in the
+     *      initialization code of this module.
+     *	  - preemptionLevel is at a lower point in the stack than
+     * 	    the local variables and temp space allocated by the compiler.
+     *	  - running is the save area.
+     *)
+
+PROCEDURE DefaultPanicHandler(
+    msg : ARRAY OF CHAR	    (* Msg to be output *)
+    );
+
+PROCEDURE ExitSystem;
+
+PROCEDURE RebootSystem;
+
+END TasksPRIVATE.

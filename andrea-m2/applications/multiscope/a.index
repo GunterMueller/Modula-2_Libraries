@@ -1,0 +1,20 @@
+DEFECT
+     This is a crystal defect simulation, see the code for the reference.
+     Its nice and visual.  The simple version runs fairly fast on a 386/16,
+     but really looks nice on a 486/50.
+
+     The big version (defect-x.mod) Which is what i hoped to use my
+     PackMatrix module with to be able to deal with DOS memory limitations
+     doesn't seem to work. Watch out, if you try to run it it just hangs the computer,
+     another DOS memory problem.
+
+GOLYGON
+     This code finds and draws golygons (multi-sided polygons). See the
+     code for references.  The program doesn't stop, you must BREAK to
+     make it stop. But then it leaves your machine in graphics mode, so you
+     might have to reboot.
+        Running this on a fast computer is too fast, you don't get to see the
+     diagrams. Try something like a 386/16.
+
+SYMMETRY
+     This code draws symmetric chaos diagrams. See the code for references.

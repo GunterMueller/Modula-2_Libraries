@@ -1,0 +1,79 @@
+M2PParser.sym: M2PScanner.sym ../../gen/bin/NameLists.sym 
+M2PParser.o: ../../gen/bin/GenConsts.sym M2PParser.sym M2PScanner.sym  \
+             ../../gen/bin/NameLists.sym ../../gen/bin/Strings.sym  \
+             ../../gen/bin/SysTypes.sym 
+M2PScanner.sym: ../../gen/bin/GenConsts.sym ../../gen/bin/SysTypes.sym  \
+                ../../io/bin/TextIO.sym 
+M2PScanner.o: ../../gen/bin/CardConvert.sym ../../gen/bin/Chars.sym  \
+              ../../gen/bin/GenConsts.sym ../../io/bin/IOConsts.sym  \
+              M2PScanner.sym ../../gen/bin/NameLists.sym  \
+              ../../gen/bin/ProgErrOutput.sym ../../gen/bin/SafeStorage.sym  \
+              ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+              ../../io/bin/TextIO.sym 
+M2Parser.sym: M2Scanner.sym ../../gen/bin/NameLists.sym 
+M2Parser.o: ../../gen/bin/Intrinsics.sym M2Parser.sym M2Scanner.sym  \
+            ../../gen/bin/NameLists.sym ../../gen/bin/ProgErrOutput.sym  \
+            ../../gen/bin/Strings.sym 
+M2Scanner.sym: 
+M2Scanner.o: ../../gen/bin/CardConvert.sym ../../io/bin/IOErrors.sym  \
+             ../../gen/bin/Intrinsics.sym M2Scanner.sym  \
+             ../../gen/bin/ProgErrOutput.sym ../../gen/bin/SafeStorage.sym  \
+             ../../io/bin/StringIO.sym ../../gen/bin/Strings.sym  \
+             ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+MakeIO.sym: 
+MakeIO.o: ../../gen/bin/ASCII.sym ../../io/bin/DirIO.sym  \
+          ../../io/bin/IOErrors.sym MakeIO.sym ../../gen/bin/SafeStorage.sym  \
+          ../../io/bin/StringIO.sym ../../gen/bin/Strings.sym  \
+          ../../io/bin/TextIO.sym 
+MakeParameters.sym: ../../gen/bin/NameLists.sym 
+MakeParameters.o: MakeParameters.sym ../../gen/bin/NameLists.sym  \
+                  ../../gen/bin/ProgArgs.sym ../../gen/bin/ProgErr.sym  \
+                  ../../gen/bin/ProgErrOutput.sym 
+m2depend.o: ../../gen/bin/Chars.sym ../../io/bin/DirIO.sym  \
+            ../../io/bin/IOConsts.sym ../../io/bin/IOErrors.sym  \
+            ../../io/bin/IONames.sym ../../gen/bin/Intrinsics.sym  \
+            M2Parser.sym MakeIO.sym MakeParameters.sym  \
+            ../../gen/bin/NameLists.sym ../../gen/bin/ProgErr.sym  \
+            ../../gen/bin/ProgErrOutput.sym ../../gen/bin/SafeStorage.sym  \
+            ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym 
+m2depend: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../../io/bin/CatBinaryIO.o  \
+          ../../gen/bin/Chars.o ../../io/bin/ConfBinaryIO.o  \
+          ../../io/bin/DirIO.o ../../gen/bin/GenConsts.o  \
+          ../../io/bin/IOConsts.o ../../io/bin/IOErrors.o  \
+          ../../io/bin/IONames.o ../../gen/bin/IntConvert.o  \
+          ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o M2Parser.o  \
+          M2Scanner.o MakeIO.o MakeParameters.o ../../gen/bin/ModInit.o  \
+          ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+          ../../gen/bin/Objects.o ../../gen/bin/ProgArgs.o  \
+          ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+          ../../gen/bin/SafeStorage.o ../../io/bin/StringIO.o  \
+          ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+          ../../io/bin/TextIO.o ../../io/bin/TextIOPRIVATE.o  \
+          ../../io/bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+          ../../io/bin/UnixIOErrors.o ../../io/bin/UnixIONames.o m2depend.o 
+m2pp.o: ../../io/bin/DirIO.sym ../../io/bin/IOConsts.sym  \
+        ../../io/bin/IOErrors.sym ../../io/bin/IOSearchPaths.sym  \
+        M2PParser.sym M2PScanner.sym ../../gen/bin/NameLists.sym  \
+        ../../gen/bin/ProgArgs.sym ../../gen/bin/ProgErr.sym  \
+        ../../gen/bin/ProgErrOutput.sym ../../io/bin/StringIO.sym  \
+        ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+        ../../io/bin/TextIO.sym 
+m2pp: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+      ../../gen/bin/CardConvert.o ../../io/bin/CatBinaryIO.o  \
+      ../../gen/bin/Chars.o ../../io/bin/ConfBinaryIO.o ../../io/bin/DirIO.o  \
+      ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+      ../../io/bin/IOErrors.o ../../io/bin/IONames.o  \
+      ../../io/bin/IOSearchPaths.o ../../gen/bin/IntConvert.o  \
+      ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o M2PParser.o  \
+      M2PScanner.o ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+      ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+      ../../gen/bin/ProgArgs.o ../../gen/bin/ProgEnviron.o  \
+      ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+      ../../gen/bin/SafeStorage.o ../../io/bin/StringIO.o  \
+      ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+      ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+      ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+      ../../io/bin/UnixIONames.o m2pp.o 
+${M2Programs}: 
+	${StandardM2link}

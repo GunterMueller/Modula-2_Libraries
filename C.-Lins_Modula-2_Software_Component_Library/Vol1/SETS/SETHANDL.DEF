@@ -1,0 +1,34 @@
+(*
+This module provides a simple exception handler for the
+various Set abstractions. Given an error code, it reports
+the exception to standard output in the following format:
+### Error "<error text>" raised in Routine "<routine name>" in Module <module #>
+
+The system beep is made before issuing the message and a WriteLn
+follows the message display.
+
+The module does NOT made use of Macintosh resources (it should).
+*)
+
+DEFINITION MODULE SetHandlers;
+(*==============================================================
+    Version  : 1.00  02 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Set Exception Handlers Utility
+
+    REVISION HISTORY
+    v1.00  02 May 1989  C. Lins:
+        Initial implementation
+
+    (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM SetEnum IMPORT
+	(*--type*) Exceptions, Operations;
+
+
+PROCEDURE WriteHandler (    theModule  : CARDINAL   (*--in   *);
+                            theRoutine : Operations (*--in   *);
+                            theError   : Exceptions (*--in   *));
+
+END SetHandlers.

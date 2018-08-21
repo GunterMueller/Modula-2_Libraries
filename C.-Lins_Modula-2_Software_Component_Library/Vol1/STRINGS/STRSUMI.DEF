@@ -1,0 +1,139 @@
+DEFINITION MODULE StrSUMI; 
+(*============================================================
+    Version  : 1.00  21 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2 Compiler
+    Component: Monolithic Structure - String
+	Sequential Unbounded Managed Iterator
+
+    REVISION HISTORY
+    v1.00  18 May 1989  C. Lins:
+	Initial re-implementation from StringSUUI module.
+
+    c 1989 Charles A. Lins.
+============================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, ChangeProc,
+	LoopAccessProc, LoopChangeProc;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+FROM StringEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  String;
+TYPE  Position   = [ 1 .. 8100 ];
+CONST NullString = VAL(String, NIL);
+
+
+    (*-----------------------*)
+
+CONST ModuleID = 11;
+
+PROCEDURE StringError ()	: Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+	: HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+	toHandler : HandlerProc (*-- in    *));
+
+
+    (*-----------------------*)
+
+PROCEDURE Create    (    theDataType: TypeID     (*-- in    *)) 
+									: String     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Clear     (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Assign    (    theString  : String     (*-- in    *);
+	VAR toString   : String     (*-- inout *));
+
+PROCEDURE Prepend   (    theString  : String     (*-- in    *);
+	VAR toString   : String     (*-- inout *));
+
+PROCEDURE Append    (    theString  : String     (*-- in    *);
+	VAR toString   : String     (*-- inout *));
+
+PROCEDURE Insert    (    theString  : String     (*-- in    *);
+	VAR toString   : String     (*-- inout *);
+	theIndex   : Position   (*-- in    *));
+
+PROCEDURE Delete    (VAR theString  : String     (*-- inout *);
+	fromIndex  : Position   (*-- in    *);
+	toIndex    : Position   (*-- in    *));
+
+PROCEDURE Replace   (VAR theString  : String     (*-- inout *);
+	theIndex   : Position   (*-- in    *);
+	withString : String     (*-- in    *));
+
+PROCEDURE SetItem   (VAR theString  : String     (*-- inout *);
+	theIndex   : Position   (*-- in    *);
+	theItem    : Item       (*-- in    *));
+
+PROCEDURE Construct (VAR theString   : String	(*-- inout *);
+												 theDataType : TypeID				 (*-- in    *);
+	theSubstring: ARRAY OF Item (*-- in    *));
+
+
+    (*-----------------------*)
+
+PROCEDURE IsDefined  (    theString  : String      (*-- in    *))
+	: BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEmpty    (    theString  : String      (*-- in    *))
+	: BOOLEAN     (*-- out   *);
+
+PROCEDURE LengthOf   (    theString  : String      (*-- in    *))
+	: CARDINAL    (*-- out   *);
+
+PROCEDURE TypeOf     (    theString  : String      (*-- in    *))
+	: TypeID      (*-- out   *);
+
+PROCEDURE Compare    (    left       : String      (*-- in    *);
+	right      : String      (*-- in    *))
+	: Relation    (*-- out   *);
+
+PROCEDURE IsEqual    (    left       : String      (*-- in    *);
+	right      : String      (*-- in    *))
+	: BOOLEAN     (*-- out   *);
+
+PROCEDURE ItemOf     (    theString  : String      (*-- in    *);
+	theIndex   : Position    (*-- in    *))
+	: Item	(*-- out   *);
+
+PROCEDURE SliceOf    (    theString  : String	(*-- in    *);
+	fromIndex  : Position      (*-- in    *);
+	toIndex    : Position      (*-- in    *);
+	VAR theSlice   : ARRAY OF Item (*-- out   *));
+
+PROCEDURE SubstringOf(    theString  : String	(*-- in    *);
+	VAR toSubstring: ARRAY OF Item (*-- out   *));
+
+
+    (*-----------------------*)
+
+PROCEDURE LoopOver   (    theString : String	(*-- in    *);
+	theProcess: LoopAccessProc (*-- in    *));
+
+PROCEDURE LoopChange (    theString : String	(*-- in    *);
+	theProcess: LoopChangeProc (*-- in    *));
+
+PROCEDURE Traverse   (    theString : String	(*-- in    *);
+	theProcess: AccessProc     (*-- in    *));
+
+PROCEDURE TravChange (    theString : String	(*-- in    *);
+	theProcess: ChangeProc     (*-- in    *));
+
+END StrSUMI.

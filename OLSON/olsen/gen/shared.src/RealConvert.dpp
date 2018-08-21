@@ -1,0 +1,203 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE RealConvert;
+(*
+ * Provides translations between human and machine readable forms of
+ * real numbers. The conversions are always performed in base 10.
+ *
+ * The following rules apply to ToFloatingString, ToScientificString,
+ * and ToEngineeringString:
+ *
+ * Rule 1  "totalWidth" is the maximum length of the converted string.
+ *         If this number is greater than HIGH( result ) + 1, then the
+ *         caller is terminated. If this value is 0, then the maximum
+ *         is taken to be HIGH( result ) + 1 and the actual number
+ *         will be represented in as few characters as possible.
+ *
+ * Rule 2  "fractionWidth" is the number of characters to the right
+ *         of the decimal point but before the exponent and its digits.
+ *         The decimal point is always displayed.
+ *
+ * Rule 3  "exponentWidth" is the number of characters (including sign
+ *         if necessary) to the right of the "E" character in the result.
+ *         If this number is 0, only the significant digits of the
+ *         exponent are written (occupying as few characters as possible).
+ *
+ * Rule 4  "totalWidth" must be greater than ( exponentWidth +
+ *         fractionWidth + Other ) where Other is defined as follows:
+ *             Floating    - 1 (for the decimal point),
+ *             Scientific  - 2 (for the decimal point and "E"),
+ *             Engineering - 2 (for the decimal point and "E").
+ *
+ * Rule 5  Blank (' ') filling will occur, if the number of significant
+ *         digits requested (fraction & exponent) and required (digits
+ *         to the left) are less than the totalWidth. The number will
+ *         be right justified.
+ *
+ * Rule 6  A best fit will be attempted. If the mantissa cannot be 
+ *         represented in the totalWidth, then the result will be all
+ *         star ('*') characters. If the exponentWidth is non-zero and
+ *         the number can be represented, then the exponent field will
+ *         contain exponentWidth '*' characters. If the exponentWidth
+ *         is zero and there is no room for 'E*', then the entire result
+ *         will contain '*' characters. In all of these cases, FALSE
+ *         will be returned.
+ *
+ * Rule 7  Invalid numbers (NaN according to IEEE standard, for example) 
+ *         will result in failure and the entire result will be filled
+ *         with '*' characters. FALSE will be returned to show failure.
+ *
+ * Rounding:
+ *    Rounding is implementation defined. This includes the management
+ *    of "imprecise digits" (significant digits beyond the precision
+ *    of the number). Typically, imprecise digits are ignored in
+ *    FromString and printed as '0' in the ToXXXString routines.
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    DONTCARE,            FromString,           FromString64,
+    ToFloatingString,    ToScientificString,   ToEngineeringString,
+    ToDigitsAndExp,      StringRound;
+
+VAR
+    DONTCARE : BOOLEAN;
+    (*
+     * Garbage can, don't use for other purposes.
+     *)
+
+PROCEDURE FromString(
+        toConvert : ARRAY OF CHAR;  (* Human readable representation *)
+    VAR result    : SysTypes.Real   (* Machine readable form *)
+    )             : BOOLEAN;        (* TRUE => Success *)
+
+PROCEDURE FromString64( (* PROVIDED FOR BACKWARD COMPATIBILITY *) 
+        toConvert : ARRAY OF CHAR;   (* Human readable representation *)
+    VAR result    : SysTypes.REAL64  (* Machine readable form *)
+    )             : BOOLEAN;         (* TRUE => Success *)
+    (*
+     * Attempt to translate the number from human readable form to 
+     * machine readable form. The syntax of the conversion is:
+     * 
+     *     real ::= { white-space } 
+     *              [ "-" | "+" ] digit { digit } [ "." ]  { digit }
+     *              [ ( "E" | "e" ) [ "-" | "+" ] digit { digit } ]
+     *
+     * where the non-terminal <digit> is defined by Chars.IsDigit
+     * in base digits in the base 10. 
+     *
+     * On conversion, the entire toConvert string is parsed. If it does
+     * not conform to the specified syntax (above) or if the converted
+     * real is larger (or smaller) than what will fit in the specified
+     * machine representation, the conversion will fail and result is
+     * invalid.
+     *)
+
+PROCEDURE ToFloatingString(
+        toConvert     : SysTypes.Real;    (* Machine readable form *)
+        totalWidth    : SysTypes.Card;    (* Maximum allowable field size *)
+        fractionWidth : SysTypes.Card;    (* Characters right of point *)
+    VAR result        : ARRAY OF CHAR     (* Human readable form *)
+    )                 : BOOLEAN;          (* TRUE => Success *)
+    (*
+     * Translate the number from machine readable form to floating point
+     * notation as follows:
+     *
+     *     real ::= { ' ' } [ "-" ] digit { digit } "." { digit }
+     *
+     * where digit is defined by Chars.FromDigit
+     * (conversion is always to base 10).
+     *)
+                                          
+PROCEDURE ToScientificString(
+        toConvert     : SysTypes.Real;    (* Machine readable form *)
+        totalWidth    : SysTypes.Card;    (* Maximum allowable field size *)
+        fractionWidth : SysTypes.Card;    (* Characters right of point *)
+        exponentWidth : SysTypes.Card;    (* Characters right of 'E' *)
+    VAR result        : ARRAY OF CHAR     (* Human readable form *)
+    )                 : BOOLEAN;          (* TRUE => Success *)
+    (*
+     * Translate the number from machine readable form to scientific
+     * notation as follows:
+     *
+     *     real ::= { ' ' } [ "-" ] digit "."  { digit } 
+     *              "E" [ "-" ] digit { digit }
+     *
+     * where digit is defined by Chars.FromDigit
+     * (conversion is always to base 10).
+     *)
+                                        
+PROCEDURE ToEngineeringString(
+        toConvert     : SysTypes.Real;    (* Machine readable form *)
+        totalWidth    : SysTypes.Card;    (* Maximum allowable field size *)
+        fractionWidth : SysTypes.Card;    (* Characters right of point *)
+        exponentWidth : SysTypes.Card;    (* Characters right of 'E' *)
+    VAR result        : ARRAY OF CHAR     (* Human readable form *)
+    )                 : BOOLEAN;          (* TRUE => Success *)
+    (*
+     * Translate the number from machine readable form to engineering 
+     * notation as follows:
+     *
+     *    real ::= { ' ' } [ "-" ] digit { digit } "."  { digit } 
+     *               "E" [ "-" ] digit { digit }
+     *
+     * where digit is defined by Chars.FromDigit
+     * (conversion is always to base 10).
+     *
+     * Engineering notation is designed for easy conversion between
+     * unit systems which are spaced 10^3 values apart. For example,
+     * one might be interested in the number of millimeters, meters,
+     * and kilometers. Thus the exponent is always an integral
+     * multiple of 3.
+     *)
+
+PROCEDURE ToDigitsAndExp(
+        toConvert            : SysTypes.Real;  (* Machine readable form *)
+        numSignificantDigits : SysTypes.Card;  (* Number of significant *)
+    VAR rawMantissa          : ARRAY OF CHAR;  (* String holding signifi. *)
+    VAR exponent             : SysTypes.Int    (* Exponent *)
+    );
+    (* 
+     * Translates a real number from its machine readable form
+     * to its string integer representation:
+     *     1) A string containing the required number of significant digits.
+     *     2) An Int containing the exponent.
+     *
+     * The caller will be terminated if:
+     *     HIGH( rawMantissa ) + 1 < numSignificantDigits
+     *) 
+
+PROCEDURE StringRound(
+        numSignificantDigits : SysTypes.Card;  (* Required precision *)
+    VAR rawMantissa          : ARRAY OF CHAR;  (* Mantissa of rounded number *)
+    VAR exponent             : SysTypes.Int    (* Exponent of *)
+    );
+    (*
+     * Performs a rounding to the closest operating on the string
+     * integer representation of a real number, i.e. without
+     * affecting its machine readable form.
+     *)
+
+END RealConvert.
+

@@ -1,0 +1,417 @@
+(*
+5.1 Bounded Binary Search Tree Interface
+
+This module provides the interface to operations on the binary search
+tree abstract data type. The particular form provided herein is bounded,
+i.e., each tree is constrained to a given maximum number of nodes when
+a tree is created.
+
+Other attributes of this particular component form are:
+
+Sequential:     can only be used in a non-tasking environment;
+Managed:        space for items ð the data components of a tree ð is returned
+                        to the system when a node is destroyed; and
+Iterator:       looping facilities are provided over tree objects.
+
+Each node of a tree is assumed to consist of two data elements ð a key
+field and a data field. Keys are used to structure the tree, while the
+data field simply represents information associated with a key but is
+not a part of it. While this separation may be less efficient in operation,
+it does lead to a cleaner interface.
+
+Keys are assumed to have the following operations available:
+        * a routine that assigns key values;
+        * a routine that compares key values returning the ordering
+          relation between them (i.e., less, equal, or greater); and
+        * optionally, a routine that disposes of key values that have been
+          allocated on the heap.
+
+Data values are assumed to the the following operations:
+        * a routine that assigns data values; and
+        * optionally, a routine that disposes of data values stored on the
+          heap.
+
+In both cases, keys and data values, along with the above operations, are
+identified by a TypeID that is unique for a given data type. This data type
+may be a standard Modula-2 type or one formed by the programmer using data
+type forming operations (e.g., RECORDs).
+
+The subsections are divided as follows:
+        * 5.1.1 Type Declarations
+        * 5.1.2 Exception Handling
+        * 5.1.3 Tree Constructors
+        * 5.1.4 Tree Selectors
+        * 5.1.5 Passive Iterators
+        * 5.1.6 Active Iterators
+*)
+
+DEFINITION MODULE TreSBMI;
+(*==============================================================
+    Version  : V2.01  08 December 1989.
+    Compiler : JPI TopSpeed Modula-2
+    Component: Monolithic Structures - Tree (Opaque version)
+               Sequential Bounded Managed Iterator
+
+    REVISION HISTORY
+    v1.01  18 Mar 1988  C. Lins
+          Initial implementation for TML Modula-2.
+    v1.02  01 Oct 1988  C. Lins
+          Updated and improved comments.
+    v1.03  29 Jan 1989  C. Lins
+          Added aliases for generic Items as Keys and Data to enhance
+          readability.
+    v1.04  06 Feb 1989  C. Lins
+          Added use of InsertProc instead of FoundProc in Insert.
+    v1.05  09 Feb 1989  C. Lins
+          Removed VAR from Clear, Insert, & Remove (the tree itself
+          does not change).
+    v1.06  18 Apr 1989  C. Lins
+          Changed module id.
+    v2.00  08 Oct 1989  C. Lins
+          Created generic pc version
+    v2.01  08 Dec 1989  I.S.C. Houston.
+          Adapted to JPI Compiler:
+          Used type transfer functions instead of VAL.
+          Used shortened library module names for DOS and OS/2.
+
+        (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM TreeTypes IMPORT
+    (*--Type*) Exceptions, Key, Data,
+                           AccessProc, InsertProc, FoundProc, NotFoundProc;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+
+    (*-----------------------*)
+
+(*
+5.1.1   Type Declarations
+
+Each instance of the Binary Tree abstract data type is represented by
+the type, Tree, using Modula-2's opaque type definition facility. The
+undefined tree is represented by a Tree constant of NIL. Since a bounded
+tree is limited in the maximum number of component nodes the type TreeSize
+is used to the range of legal values for this size constraint. Due to
+compiler constraints, our specific implementation technique, and reasons
+of portability to other Modula-2 compilers we are limited to a maximum
+of 2350 nodes in any given bounded tree.
+*)
+
+TYPE  Tree;
+VAR   NullTree : Tree;
+TYPE  TreeSize = [1..2350];
+
+        (*-----------------------*)
+
+
+(*
+5.1.2 Exceptions
+
+ModuleID        uniquely identifies this module interface. This allows
+                        exception handlers to know the module raising an exception.
+
+TreeError       returns the most recent exception condition or the constant
+                        noerr if an exception has not been raised.
+
+GetHandler      retrieves the current exception handler for the given
+                        exception enumeration constant.
+
+SetHandler      allows client modules to assign an exception handling
+                        routine for specific exceptions. In this way the client may
+                        override the default exception handling mechanism.
+*)
+
+CONST ModuleID = 4;
+
+PROCEDURE TreeError  ()              : Exceptions  (*--out  *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*--in   *);
+                          theHandler : HandlerProc (*--in   *));
+
+        (*-----------------------*)
+
+
+(*
+5.1.3 Constructors
+
+Constructor operations update or change the state of a tree object. In
+this section we briefly describe each tree operation and its effect on
+a tree object. Exception conditions raised by these routines have been
+previously discussed in 3.3, Binary Search Tree Operations.
+
+Create  attempts to form a new, empty binary tree object having the given
+                key and data type identifiers and the specified maximum number of
+                nodes.
+
+MakeTree does the same as Create, except that it also attempts to add
+                the given key and data items as the root of the new tree.
+
+Destroy attempts to demolish an existing tree object, clearing the tree
+                of all its contents and making the tree ðundefinedð.
+
+Clear   empties an existing tree of its contents returning the tree to
+                an empty state.
+
+Assign  attempts to duplicate (e.g., make a copy) of an existing tree.
+                The target tree, where the copy is stored, is cleared of its
+                contents, if any, before the assignment commences.
+
+Insert  attempts to add a node having the given key and data values
+                to the given tree. If a node already exists in the tree with
+                the given key the found procedure parameter is invoked and the
+                new element is not added to the tree.
+
+Remove  searches the given tree for the node containing the specified key
+                value and removing this node from the tree. If a node does not
+                exist in the tree with the given key the notFound procedure
+                parameter is invoked.
+*)
+
+PROCEDURE Create    (    keyType  : TypeID       (*--in   *);
+                                                 dataType : TypeID       (*--in   *);
+                                                 theSize  : TreeSize     (*--in   *))
+                                  : Tree         (*--out  *);
+
+PROCEDURE MakeTree  (    keyType  : TypeID       (*--in   *);
+                                                 dataType : TypeID       (*--in   *);
+                                                 theSize  : TreeSize     (*--in   *);
+                         theKey   : Key          (*--in   *);
+                                                 theData  : Data         (*--in   *))
+                                  : Tree         (*--out  *);
+
+PROCEDURE Destroy   (VAR theTree  : Tree         (*--inout*));
+
+PROCEDURE Clear     (    theTree  : Tree         (*--inout*));
+
+PROCEDURE Assign    (    theTree  : Tree         (*--in   *);
+                     VAR toTree   : Tree         (*--inout*));
+
+PROCEDURE Insert    (    theTree  : Tree         (*--inout*);
+                         theKey   : Key          (*--in   *);
+                         theData  : Data         (*--in   *);
+                                                 found    : InsertProc   (*--in   *));
+
+PROCEDURE Remove    (    theTree  : Tree         (*--inout*);
+                         theKey   : Key          (*--in   *);
+                                                 notFound : NotFoundProc (*--in   *));
+
+        (*-----------------------*)
+
+
+(*
+5.1.4 Selectors
+
+Selector operations allow a client module to examine the state of a tree
+without changing that state.
+
+IsDefined       verifies whether theTree has been created and is still an
+                        active object. For our purposes, a tree object is considered
+                        defined if it is not equal to the NullTree.
+
+IsEmpty         returns true if the given tree does not contain any nodes, and
+                        false otherwise.
+
+SizeOf          returns the current maximum size of the given tree.
+
+IsEqual         returns true if and only if the two trees have the same key and
+                        data item types, contain the same items, and have the same
+                        relationships between each item.
+
+KeyTypeOf       simpy returns the data type ID of the keys associated with this tree.
+
+DataTypeOf      returns the data item type ID of the given tree.
+
+ExtentOf        returns a count indicating the total number of nodes in the tree.
+
+IsPresent       searches the given tree for the item with the given key value.
+                        If the item is found the found procedure parameter is called,
+                        otherwise the notFound procedure parameter is called.
+*)
+
+PROCEDURE IsDefined  (    theTree  : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE IsEmpty    (    theTree  : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE IsEqual    (    left     : Tree         (*--in   *);
+                          right    : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE SizeOf     (    theTree  : Tree         (*--in   *))
+                                   : CARDINAL     (*--out  *);
+
+PROCEDURE ExtentOf   (    theTree  : Tree         (*--in   *))
+                                   : CARDINAL     (*--out  *);
+
+PROCEDURE KeyTypeOf  (    theTree  : Tree         (*--in   *))
+                                   : TypeID       (*--out  *);
+
+PROCEDURE DataTypeOf (    theTree  : Tree         (*--in   *))
+                                   : TypeID       (*--out  *);
+
+PROCEDURE IsPresent  (    theTree  : Tree         (*--in   *);
+                          theKey   : Key          (*--in   *);
+                                                  found    : FoundProc    (*--in   *);
+                                                  notFound : NotFoundProc (*--in   *));
+
+        (*-----------------------*)
+
+
+(*
+5.1.5 Passive Iterators
+
+Three passive iterators are provided each implementing one of the standard
+tree traversal algorithms. Passive iterators allow the client module
+to traverse the tree as through it were a single, monolithic data structure.
+*)
+
+PROCEDURE Preorder  (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+PROCEDURE Inorder   (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+PROCEDURE Postorder (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+        (*-----------------------*)
+
+
+(*
+5.1.6 Active Iterators
+
+While passive iterators are most useful for tree objects, there may
+be situations when the client module requires more control over the
+iteration process (e.g., when printing the internal binary tree
+representation). In this case, it is necessary to use an active
+iteration mechanism, where the internal structure of a tree is made
+visible to the client in a controlled manner that ensures the safety
+of the abstraction.
+
+In the form presented here, the internal structure is made visible
+through the transparent type NodePtr, representing a subtree node of a tree.
+An empty subtree is modelled by the constant NullNode.
+
+The reader should note that none of the active iterator operations
+raise exceptions.
+
+NodePtr         is a type used to represent and individual node of the tree.
+
+NullNode        is a constant representing an empty subtree.
+
+RootOf          returns a reference to the root node of the given tree. If
+                        the tree is empty then the NullNode is returned.
+
+LeftOf          returns the node that is the left subtree from the given
+                        node. If the given node has no left subtree then the NullNode
+                        is returned.
+
+RightOf         returns the node that is the right subtree from the given
+                        node. If the given node has no right subtree then the NullNode
+                        is returned.
+
+IsNull          returns true is the given node is equal to the NullNode and
+                        false otherwise.
+
+KeyOf           returns the key value associated with the given node. If the
+                        node is empty (i.e., equal to the NullNode) the NullItem is
+                        returned instead.
+
+DataOf          returns the data value associated with the given node. If the
+                        node is empty (i.e., equal to the NullNode) the NullItem is
+                        returned instead.
+*)
+
+TYPE  NodePtr  = CARDINAL;
+CONST NullNode = 0;
+
+PROCEDURE RootOf  (    theTree : Tree    (*--in   *))
+                                                           : NodePtr (*--out  *);
+
+PROCEDURE LeftOf  (    theTree : Tree    (*--in   *);
+                                           theNode : NodePtr (*--in   *))
+                                                           : NodePtr (*--out  *);
+
+PROCEDURE RightOf (    theTree : Tree    (*--in   *);
+                                           theNode : NodePtr (*--in   *))
+                                                           : NodePtr (*--out  *);
+
+PROCEDURE IsNull  (    theNode : NodePtr (*--in   *))
+                                                           : BOOLEAN (*--out  *);
+
+PROCEDURE KeyOf   (    theTree : Tree    (*--in   *);
+                                           theNode : NodePtr (*--in   *))
+                                                           : Key     (*--out  *);
+
+PROCEDURE DataOf  (    theTree : Tree    (*--in   *);
+                                           theNode : NodePtr (*--in   *))
+                                                           : Data    (*--out  *);
+
+END TreSBMI.
+
+(*
+
+                                Algorithmic     Code
+Operation Name  Complexity      Size
+                                (bytes)
+TreeError               O(1)             18             Exception Handling Routines
+GetHandler              O(1)             34
+SetHandler              O(1)             30
+
+Create                  O(1)            112             Constructors
+Destroy                 O(1)             36
+MakeTree                O(1)             96
+Clear                   O(n)            246
+Assign                  O(m+n)          632
+Insert                  O(log2 n)       322
+Remove                  O(log2 n)       686
+
+IsDefined               O(1)             28             Selectors
+IsEmpty                 O(1)             66
+IsEqual                 O(Min(m,n))     420
+ExtentOf                O(n)            154
+SizeOf                  O(1)             58
+KeyTypeOf               O(1)             56
+DataTypeOf              O(1)             58
+IsPresent               O(log2 n)       228
+
+Inorder                 O(n)            152             Passive Iterators
+Preorder                O(n)            152
+Postorder               O(n)            152
+
+RootOf                  O(1)             42             Active Iterators
+LeftOf                  O(1)             64
+RightOf                 O(1)             64
+IsNull                  O(1)             28
+KeyOf                   O(1)             66
+DataOf                  O(1)             66
+
+RaiseErrIn              O(1)             50             Local Routines
+InitFreeList    O(s)             98
+GetNode                 O(1)             72
+FreeNode                O(1)             42
+NewNode                 O(1)             86
+Initialization  O(1)             84
+
+Grand Total                                4498
+
+Table 5.1 Bounded Binary Search Tree Operations Summary
+
+1       With debugging labels turned on (the -gx option of the
+        TML compiler) the code sizes are slightly greater than
+        the figures given above.
+*)
+

@@ -1,0 +1,598 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tMonitor;
+
+    (* Test language definition: 
+     *                   
+     *      S     --> S Enter Delay Task | S Exit Delay Task | 
+     *                S KillMonitor | S KillTask |  S Sleep | NULL
+     *      Sleep --> Delay Task | NULL 
+     *       
+     *      Enter      = E = <name>   | NULL
+     *      Exit       = X = <name>   | NULL
+     *      Task       = t = <name>   | NULL
+     *      Delay      = d = <amount> | NULL
+     *      KillTask   = p = <name>   | NULL 
+     *      KillMonitor= k = <name>   | NULL
+     *)
+
+
+IMPORT 
+     Tasks,
+     TaskMonitors,
+     TaskTime, 
+     TaskConsts,
+     TaskDebug,
+     TaskNotices,
+     Intrinsics, 
+     Objects, 
+     SYSTEM,     
+     ProgArgs,     
+     ProgErr,    
+     ProgErrOutput, 
+     NameLists,
+     Strings, 
+     Notices; 
+
+
+CONST
+    mainPriority    =   TaskConsts.defaultPriority;
+    taskPriority    =   TaskConsts.defaultPriority + 1; 
+     
+    (* Priority philosophie: Main > task1 = ... taskN *)
+
+TYPE 
+    State  =  (neutral,operating,wakeUpMain);
+              (* used for synchronisation between main and all tasks *)
+  
+
+TYPE 
+    Operation=(
+	       none,      (* do nothing *)
+               enter,     (* enter a monitor *)
+	       timedEnter,(* try to enter a monitor for a certain time *)
+               exit,      (* exit a monitor *)
+	       timedExit, (* sleep inside a monitor before exiting *)
+	       sleep,     (* send task to sleep *)
+               die        (* exit main loop in Thread and die *) 
+	      );
+
+TYPE 
+    TaskInfoRec  =  RECORD 
+                        taskObj  :  Tasks.Object;     (* per task object name *)
+                        state       :  State;         (* current task state *)
+                    END; (* RECORD *)
+    
+    TaskInfo = POINTER TO TaskInfoRec;
+
+TYPE
+    MonitorObj= TaskMonitors.Object;
+
+TYPE 
+    (* contains all information needed for current active task *) 
+    MailboxRec  =   RECORD 
+			taskInfo       :  TaskInfo;   
+	                delayTime      :  CARDINAL;
+	                whichMonitor   :  MonitorObj;
+	                whichOperation :  Operation;
+	            END; (* RECORD *)
+
+
+VAR
+    mailbox           :   MailboxRec; 
+    main              :   Tasks.Object;  
+    manager           :   Objects.Manager;
+    
+    (* Lists used for scheduling each task *)
+    taskList          :   NameLists.Object; 
+    monitorList       :   NameLists.Object;   
+    
+    (* Flag variables *)
+
+    taskID            :   ProgArgs.String;
+    monitorID         :   ProgArgs.String;
+    delayTime         :   CARDINAL;
+    report            :   BOOLEAN;
+
+
+    (* taskList: key --> task identification number 
+     *           importerObject --> points to a record containing 1. state
+     *                                                            2. Objectname
+     *
+     * monitorList: key --> String, name of monitor
+     *              importerObject --> TaskMonitors.Object 
+     *)
+
+PROCEDURE MsgOutput(comment  : ARRAY OF CHAR);
+    (*
+     * <USES>
+     *    ProgErrOutput
+     *
+     * <INPUT>
+     *    comment   :  Message to be printed out
+     *)
+ 
+    VAR
+	caller   :  TaskConsts.Name;
+
+
+    BEGIN
+        Tasks.GetName(Tasks.GetCurrent(),caller);
+	ProgErrOutput.WriteString("<");
+	ProgErrOutput.WriteString(caller);
+	ProgErrOutput.WriteString("> ");
+	ProgErrOutput.WriteString(comment);
+	ProgErrOutput.WriteLn;
+	ProgErrOutput.WriteLn;
+    END MsgOutput;
+
+
+PROCEDURE PrintAll(comment : ARRAY OF CHAR);
+    (* Is also an output procedure but indicates the current states of all 
+     * task inside the test.
+     *
+     * <USES> 
+     *    MsgOutput
+     *    TaskDebug.PrintAll
+     * 
+     * <INPUT>
+     *    comment : message to be printed out together with the state table
+     *)
+    
+    BEGIN
+        MsgOutput(comment);
+	TaskDebug.PrintAll;
+	ProgErrOutput.WriteLn;
+    END PrintAll;
+
+
+PROCEDURE ClearMailbox;
+    (* Clears delayTime and whichOperation in the mailbox. 
+     * 
+     * This procedure is called at the very beginning of the program 
+     * to initialize the mailbox. Every time when there is a task switch
+     * there is another call.
+     * 
+     *)
+
+    BEGIN
+	WITH mailbox DO
+	    delayTime:=0;
+	    whichOperation:=none;
+        END; (* WITH *)
+    END ClearMailbox;
+
+
+PROCEDURE ReadMail(VAR actionBox  :  MailboxRec);
+    (* Is used by the task: reads all information used for running one
+     * operation. CRITICAL SECTION
+     * 
+     * <OUTPUT>
+     *    actionBox  :  Copy of the mailbox
+     *)
+
+     BEGIN
+	 actionBox:=mailbox; 
+     END ReadMail;
+
+
+PROCEDURE WriteMail( taskInfo : TaskInfo );
+    (* Is only used by main through TaskHandler and KillHandler.
+     * MUST BE IN CRITICAL SECTION
+     *
+     * Puts currently used refernce to the per task information
+     * to the mailbox.
+     * Depending on the state of a task causes a "ready" on
+     * a task or waits till task is ready for reading mailbox:
+     * SYNCHRONISATIONS POINT
+     *
+     * <INPUT>
+     *    taskInfo  : Reference to per task information (global)  
+     *)
+
+     BEGIN
+         mailbox.taskInfo:=taskInfo;	
+	 WITH mailbox DO 
+	    IF taskInfo^.state = operating THEN
+		taskInfo^.state := wakeUpMain;
+		Tasks.Suspend;
+	    END;
+	    (* Tell the task to read its mail *)
+	    Tasks.Ready( taskInfo^.taskObj );
+	 END;
+     END WriteMail;
+
+
+PROCEDURE Initialize;
+    (* Initializes all objects, variables, lists, etc. used for the 
+     * test.
+     *
+     * <USES>
+     *    ClearMailbox
+     *
+     *)
+BEGIN
+    main:=Tasks.GetCurrent();
+    Objects.CreateManager(manager,SYSTEM.TSIZE(TaskInfoRec),"perTaskRecord");
+    ClearMailbox;
+    NameLists.Create(taskList,NameLists.queue,NameLists.caseSensitive);
+    NameLists.Create(monitorList,NameLists.queue,NameLists.caseSensitive);
+END Initialize;
+
+
+PROCEDURE Thread(taskInfoAdr  :  SYSTEM.ADDRESS);
+    (* Can be instantiated by a task. Depending on the
+     * case there is a handling of task specific operations.
+     * A task remains into this procedure till there is an explicit
+     * call to die and leave its thread.
+     *)
+VAR 
+    actionBox    :   MailboxRec;
+    IGNOREBool   :   BOOLEAN;
+    taskInfo     :   TaskInfo;
+
+
+BEGIN
+    taskInfo := taskInfoAdr;
+    IF report THEN
+	MsgOutput("Newly created task goes into its thread"); 
+    END; (* IF *) 
+    
+    Tasks.DisallowPreemption; 
+	LOOP
+	    taskInfo^.state := neutral;
+	    Tasks.Suspend;
+	    taskInfo^.state := operating;
+	    
+	    IF report THEN
+		MsgOutput("Begin of operation"); 
+	    END; (* IF *) 
+	    
+	    ReadMail(actionBox);
+	    CASE actionBox.whichOperation OF
+	    
+		sleep:      TaskTime.Sleep(actionBox.delayTime);
+	    
+		  |
+	    
+		timedEnter: IGNOREBool:=TaskMonitors.TimedEnter(
+			       actionBox.whichMonitor, actionBox.delayTime);
+
+		  |        
+
+		timedExit:  TaskTime.Sleep(actionBox.delayTime);
+			    TaskMonitors.Exit(actionBox.whichMonitor);
+
+		  |
+
+		enter:      TaskMonitors.Enter(actionBox.whichMonitor);
+
+		  |
+
+		exit:       TaskMonitors.Exit(actionBox.whichMonitor);
+
+		  |
+		
+		none:       IF report THEN
+				MsgOutput("task has no special activation"); 
+                            END; (* IF *)
+		  |
+		
+		die:        EXIT;
+	    END; (* CASE *)
+	    
+	    IF taskInfo^.state = wakeUpMain THEN
+		Tasks.Ready(main);
+	    END; (* IF *)
+            IF report THEN
+		PrintAll("Operation done");	
+            END; (* IF *)	
+	
+	END; (* LOOP *)
+        IF report THEN
+	    PrintAll("Task dies");	
+        END; (* IF *) 
+    Tasks.AllowPreemption;
+
+    Objects.Deallocate( manager,taskInfo);
+END Thread;
+
+
+
+(* ---------------------------- Input HANDLERS --------------------------- *)
+
+(* STATE DIAGRAM:
+ *
+ *  for mailbox.whichOperation, used during: /t .../t
+ *                                     /t .../p
+ *                                     /p .../t
+ *                                     /p .../p
+ *
+ *  state   none   enter    timedEnter   exit    timedExit   sleep     die
+ *  \\\\    ----------------------------------------------------------------   
+ *  flag       
+ *   E      enter  ERR      ERR          ERR     ERR         ERR        - 
+ *   X      exit   ERR      ERR          ERR     ERR         ERR        - 
+ *   d      sleep  timedEn  ERR          timedEx ERR         ERR        - 
+ *   k      none   ERR      ERR          ERR     ERR         ERR        - 
+ *   p      die    ERR      ERR          ERR     ERR         ERR        - 
+ *   t      none   none     none         none    none        none       - 
+ *
+ *)  
+
+
+
+
+PROCEDURE TaskHandler(flagName     :  ProgArgs.String;
+                      DONTCARE     :  SYSTEM.ADDRESS;
+		      taskID       :  ProgArgs.String)
+				   :  BOOLEAN;
+    (* Activating procedure: Fires off a task.
+     *
+     * <USES> 
+     *    WriteMail
+     *)
+
+ 
+VAR
+    taskInfo :   TaskInfo;
+
+  
+BEGIN
+    Tasks.DisallowPreemption;
+	(* Save the name of the task for next operation *)
+	(* If task doesn't exist, then must create *)
+	IF NOT NameLists.Find(taskList,taskID,taskInfo) THEN
+            Objects.Allocate(manager,taskInfo);
+	    NameLists.Insert(taskList,taskID,taskInfo); 
+	    WITH taskInfo^ DO
+                state:=neutral;
+		(* Create the task after global data is initialized *)
+		Tasks.Create(taskObj,taskID,Thread,taskInfo,
+			     taskPriority,TaskConsts.GetDefaultStackSize());
+	    END; (* WITH *)
+	END; (* IF *) 
+	(* Save taskInfo in global location and ready task. *)
+	WriteMail( taskInfo );
+    Tasks.AllowPreemption;
+    (* Allow the task to read the mail box *)
+    Tasks.DisallowPreemption;
+	ClearMailbox;
+    Tasks.AllowPreemption;
+
+    RETURN TRUE;
+END TaskHandler;
+
+
+PROCEDURE KillTaskHandler(flagName     :  ProgArgs.String;
+                          DONTCARE     :  SYSTEM.ADDRESS;
+		          taskName     :  ProgArgs.String)
+                                       :  BOOLEAN;
+    
+    (* Activating procedure: Fires off a task.
+     *
+     * <USES> 
+     *    WriteMail
+     *)
+
+    VAR
+        taskInfo      :  TaskInfo;
+
+    BEGIN
+	Tasks.DisallowPreemption;
+	CASE mailbox.whichOperation OF
+	    none: IF NameLists.Find(taskList,taskName,taskInfo) THEN
+		      (* Delete immediately after Find *)
+	              NameLists.DeleteCurrent(taskList);	      
+		      mailbox.whichOperation := die;
+		      WriteMail(taskInfo);
+		  ELSE (* no such task *)
+	              ProgErr.Terminate("tried to destroy a nonexisting task");
+	          END; (* IF *)
+        ELSE
+	    ProgErr.Terminate("wrong flag set");
+        END; (* CASE *)
+	Tasks.AllowPreemption;
+	    (* Allow the task to run *)
+	Tasks.DisallowPreemption;
+	    ClearMailbox;
+	Tasks.AllowPreemption;
+	RETURN TRUE;
+    END KillTaskHandler;
+
+
+PROCEDURE KillMonitorHandler(flagName     :  ProgArgs.String;
+                             DONTCARE     :  SYSTEM.ADDRESS;
+		             monName      :  ProgArgs.String)
+                                          :  BOOLEAN;
+    (* This is rather a "mechanical" procedure. The only thing done
+     * here is to search the monitorList for monitorID and if existent
+     * killing this monitor. Notice that there is no activation of a task.
+     *)
+
+    VAR
+	monitorAdr   :  SYSTEM.ADDRESS;
+
+    BEGIN
+	CASE mailbox.whichOperation OF
+	    none: IF NameLists.Find(monitorList,monName,monitorAdr) THEN
+                      NameLists.DeleteCurrent(monitorList); 
+	              IF report THEN
+			  MsgOutput("Monitor destroyed"); 
+		      END; (* IF *) 
+		  ELSE 
+	              ProgErr.Terminate("this monitor doesn't exist")
+                  END; (* IF *)
+        ELSE
+	    ProgErr.Terminate("wrong flag set");
+        END; (* CASE *)
+        RETURN TRUE; 
+    END KillMonitorHandler;
+
+
+PROCEDURE DelayHandler(flagName     :  ProgArgs.String;
+                       DONTCARE     :  SYSTEM.ADDRESS;
+		       delayTime    :  CARDINAL)
+                                    :  BOOLEAN;
+    
+    (* Passive procedure: Only sets delay time for a further delayed 
+     *                    operation.
+     *)
+    
+    BEGIN
+        CASE mailbox.whichOperation OF
+	    none:    mailbox.whichOperation:=sleep; 
+	     
+	     |
+
+            enter:   mailbox.whichOperation:=timedEnter;
+
+             |
+
+            exit:   mailbox.whichOperation:=timedExit;
+
+        ELSE
+            ProgErr.Terminate("wrong flag set");
+        END; (* CASE *)
+        mailbox.delayTime:=delayTime; 
+	RETURN TRUE; 
+    END DelayHandler;
+
+
+
+PROCEDURE EnterExitHandler(flagName     :  ProgArgs.String;
+                           DONTCARE     :  SYSTEM.ADDRESS;
+		           monitorID    :  ProgArgs.String)
+                                        :  BOOLEAN;
+    
+    (* Passive Procedure: Used for both, setting of a monitor
+     *                    exit or monitor enter.
+     *)
+    
+    VAR
+	monitorAdr    :  SYSTEM.ADDRESS;
+	monitorObj    :  TaskMonitors.Object;
+
+    BEGIN
+	IF NOT NameLists.Find(monitorList,monitorID,monitorAdr) THEN
+	    TaskMonitors.Create(monitorObj,monitorID);
+	    monitorAdr := SYSTEM.ADDRESS(monitorObj);
+	    NameLists.Insert(monitorList,monitorID, monitorAdr);
+        END; (* IF *)
+
+	CASE mailbox.whichOperation OF
+            none: 
+		 IF Strings.Compare(flagName, "E") = Intrinsics.equal THEN
+		    mailbox.whichOperation:=enter;
+		 ELSE
+		    mailbox.whichOperation:=exit;
+		 END;
+
+                 mailbox.whichMonitor:=TaskMonitors.Object(monitorAdr);
+		
+        ELSE
+	    ProgErr.Terminate("enter/exit called twice or at the wrong place");
+	END; (* CASE *)    
+        RETURN TRUE; 
+    END EnterExitHandler;
+
+
+
+(* ---------------------------- Flag PARSER ---------------------------- *) 
+
+
+PROCEDURE CommandLine;
+    (* Assumptions: - the same flag can be used several times in
+     *                the same command line
+     *
+     *              - the order of the flag setting in the command
+     *                line doesn't matter  
+     *)
+    BEGIN
+	        taskID:="";
+		monitorID:="";
+		delayTime:=0;
+		report:=FALSE;
+		
+		ProgArgs.RegisterStringHandler("t",
+					      TaskHandler,
+                                              SYSTEM.ADR(taskID));
+		ProgArgs.RegisterStringHandler("X",
+					       EnterExitHandler,
+					       SYSTEM.ADR(monitorID));
+                ProgArgs.RegisterStringHandler("E",
+					       EnterExitHandler,
+					       SYSTEM.ADR(monitorID));
+                ProgArgs.RegisterStringHandler("p",
+				       	       KillTaskHandler,
+					       SYSTEM.ADR(taskID));
+                ProgArgs.RegisterStringHandler("k",
+				       	       KillMonitorHandler,
+					       SYSTEM.ADR(monitorID));
+	        ProgArgs.RegisterCardHandler("d",
+					     DelayHandler,
+					     SYSTEM.ADR(delayTime));
+	        				    
+	        ProgArgs.RegisterBoolHandler("r",
+					     ProgArgs.DefaultBoolHandler,
+					     SYSTEM.ADR(report));
+	        
+		
+		(* Parse the user input (flags) *)
+                IF NOT ProgArgs.Parse(ProgArgs.stopOnFirstError) THEN
+		     ProgErr.Terminate("wrong usage of flag shell");
+                END; (* IF *)
+	    END CommandLine;
+
+PROCEDURE Terminate;
+    
+    (* Is responsible for a clean shutdown of all tasks. 
+     *)
+    
+    VAR
+	DONTCARE : BOOLEAN;
+	taskID   : ProgArgs.String;
+	taskInfo : TaskInfo;
+    
+    BEGIN
+	IF report THEN
+	    MsgOutput("Begin of system termination"); 
+	END; (* IF *) 
+	    
+	LOOP
+	    NameLists.MakeFirstNext( taskList );
+	    IF NOT NameLists.Next( taskList, taskID, taskInfo ) THEN
+		EXIT;
+	    END;
+	    DONTCARE := KillTaskHandler( "",ProgArgs.DONTCARE,taskID );
+	END;
+	Notices.Call(TaskNotices.GetExitRequest(),Notices.DONTCARE);
+    END Terminate;
+(* ----------------------------- MAIN ---------------------------------- *)
+
+BEGIN
+    Initialize;
+    CommandLine;
+    Terminate;
+    PrintAll("END OF TEST");
+END tMonitor.

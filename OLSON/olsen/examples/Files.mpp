@@ -1,0 +1,475 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE Files;
+(*
+ * Sorry about for formatting, but this was taking directly from
+ * the chapter: Files.
+ *)
+IMPORT
+    BinaryIO,
+    Chars,
+    DirIO,
+    IOErrors,
+    ProgErr,
+    ProgErrOutput,
+    StringBinaryIO,
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+@IF M2V2 OR LogitechM2 THEN
+    FROM SYSTEM IMPORT SIZE;
+@END
+
+PROCEDURE BinWrite;
+    VAR
+	someRec : RECORD 
+	    x : SysTypes.Card;
+	END;
+	num : SysTypes.Card;
+	file : BinaryIO.Object;
+    BEGIN (* BinWrite *)
+	someRec.x := 6A6BH;
+	file := BinaryIO.GetOutput();	(* not great, but it'll work! *)
+
+	IF BinaryIO.WriteBytes( file, SYSTEM.ADR( someRec ),
+				SIZE( someRec ), num ) # BinaryIO.ok 
+	  THEN ProgErr.Terminate( "Couldn't write data" );
+	END;
+	IF BinaryIO.WriteBlock( file, someRec ) # BinaryIO.ok THEN
+	    ProgErr.Terminate( "Couldn't write data" );
+	END;
+
+    END BinWrite;
+
+PROCEDURE TextWrite;
+    VAR
+	file : TextIO.Object;
+	string : ARRAY [ 0 .. 10 ] OF CHAR;
+    BEGIN (* TextWrite *)
+	file := TextIO.GetOutput();
+	string := "text hello";
+	IF TextIO.WriteChars( file, SYSTEM.ADR( string ),
+			      Strings.Length( string ) ) # TextIO.ok 
+	  THEN ProgErr.Terminate( "Couldn't write string" );
+	END;
+    END TextWrite;
+
+PROCEDURE ReadBlock( 
+    name : ARRAY OF CHAR 
+    );
+    PROCEDURE Process( 
+	card : SysTypes.Card 
+	); 
+	END Process;
+    VAR
+	file : BinaryIO.Object;
+	card : SysTypes.Card;
+    BEGIN (* ReadBlock *)
+	IOErrors.DONTCARE := BinaryIO.Open( file, name, BinaryIO.readOnly, 
+					    '' );
+	LOOP
+	    CASE BinaryIO.ReadBlock( file, card ) OF
+		BinaryIO.ok:
+		    Process( card );
+		|
+		BinaryIO.endOfFile:
+		    EXIT;
+		(* BinaryIO.error: cause case label error *)
+	    END;
+	END; (* LOOP *)
+	IOErrors.DONTCARE := BinaryIO.Close( file );
+    END ReadBlock;
+
+PROCEDURE FileError; BEGIN HALT; END FileError;
+
+PROCEDURE BinCopy(
+    inName : ARRAY OF CHAR;
+    outName : ARRAY OF CHAR
+    );
+    VAR
+	in  : BinaryIO.Object;
+	out : BinaryIO.Object;
+    CONST
+	bufSize = 32;
+    VAR
+	buffer : ARRAY [ 0 .. bufSize - 1 ] OF SysTypes.SAU;
+	buf    : SysTypes.SAUPTR;
+	numRead : SysTypes.Card;
+	DONTCARE : SysTypes.Card;
+    BEGIN (* BinCopy *)
+	buf := SYSTEM.ADR( buffer );
+	IOErrors.DONTCARE := BinaryIO.Open( in, inName, BinaryIO.readOnly, 
+					    '' );
+	IOErrors.DONTCARE := DirIO.CreateEntry( outName, DirIO.createBinaryFile,
+					   DirIO.overwritePath );
+	IOErrors.DONTCARE := BinaryIO.Open( out, outName, 
+					    BinaryIO.appendOnly, '' );
+	LOOP
+	    CASE BinaryIO.ReadBytes( in, buf, bufSize, numRead ) OF
+	    BinaryIO.ok:
+		IF BinaryIO.WriteBytes( out, buf, numRead, DONTCARE )
+		    # BinaryIO.ok THEN
+		    FileError;      (* Terminate and print a nice message *)
+		END;
+	    |
+	    BinaryIO.endOfFile:
+		EXIT;
+	    (* BinaryIO.error: cause case label error *)
+	    END;
+	END; (* LOOP *)
+	IOErrors.DONTCARE := BinaryIO.Close( in );
+	IOErrors.DONTCARE := BinaryIO.Close( out );
+    END BinCopy;
+
+PROCEDURE TextCopy1(
+    inName : ARRAY OF CHAR;
+    outName : ARRAY OF CHAR
+    );
+    VAR
+	in  : TextIO.Object;
+	out : TextIO.Object;
+	ch  : CHAR;
+    BEGIN (* TextCopy1 *)
+	IOErrors.DONTCARE := TextIO.Open( in, inName, TextIO.readOnly, '' );
+	IOErrors.DONTCARE := DirIO.CreateEntry( outName, DirIO.createBinaryFile,
+					   DirIO.overwritePath );
+	IOErrors.DONTCARE := TextIO.Open( out, outName, 
+					  TextIO.appendOnly, '');
+	LOOP
+	    CASE TextIO.Read( in, ch ) OF
+	    TextIO.ok:
+		IF TextIO.Write( out, ch ) # TextIO.ok THEN
+		    FileError;      (* Terminate and print a nice message *)
+		END;
+	    |
+	    TextIO.endOfLine:
+		IF TextIO.WriteLn( out ) # TextIO.ok THEN
+		    FileError;      (* Terminate and print a nice message *)
+		END;
+	    |
+	    TextIO.endOfFile:
+		EXIT;
+	    (* TextIO.error: cause case label error *)
+	    END;
+	END; (* LOOP *)
+	IOErrors.DONTCARE := TextIO.Close( in );
+	IOErrors.DONTCARE := TextIO.Close( out );
+    END TextCopy1;
+
+PROCEDURE TextCopy2(
+    inName : ARRAY OF CHAR;
+    outName : ARRAY OF CHAR
+    );
+    VAR
+	in  : TextIO.Object;
+	out : TextIO.Object;
+    CONST
+	maxChars = 32;
+    VAR
+	chars  : ARRAY [ 0 .. maxChars - 1 ] OF CHAR;
+	charBuf : SYSTEM.ADDRESS;
+	numRead  : SysTypes.Card;
+	state    : TextIO.States;
+    BEGIN (* TextCopy2 *)
+	charBuf := SYSTEM.ADR( chars );
+	IOErrors.DONTCARE := TextIO.Open( in, inName, TextIO.readOnly, '' );
+	IOErrors.DONTCARE := DirIO.CreateEntry( outName, DirIO.createBinaryFile,
+					   DirIO.overwritePath );
+	IOErrors.DONTCARE := TextIO.Open( out, outName, 
+					  TextIO.appendOnly, '');
+	LOOP
+	    state := TextIO.ReadChars( in, charBuf, maxChars, numRead );
+	    IF ( numRead # 0 ) AND
+	      ( TextIO.WriteChars( out, charBuf, numRead ) # TextIO.ok ) THEN
+		FileError;
+	    END;
+	    
+	    CASE state OF
+	    TextIO.ok:
+	    |
+	    TextIO.endOfLine:
+		IF TextIO.WriteLn( out ) # TextIO.ok THEN
+		    FileError;      (* Terminate and print a nice message *)
+		END;
+	    |
+	    TextIO.endOfFile:
+		EXIT;
+	    (* TextIO.error: cause case label error *)
+	    END;
+	END; (* LOOP *)
+	IOErrors.DONTCARE := TextIO.Close( in );
+	IOErrors.DONTCARE := TextIO.Close( out );
+    END TextCopy2;
+
+
+PROCEDURE ReadToken1(
+	file : TextIO.Object;	 (* Must be readable *)
+    VAR tok  : ARRAY OF CHAR	 (* Sequence of alphas *)
+    )	     : TextIO.States;	 (* ok => tok is valid *)
+    VAR
+	i       : SysTypes.Card; (* Index into "tok" *)
+	ch      : CHAR;		 (* Last character read *)
+	badData : BOOLEAN;	 (* Error? *)
+	state   : TextIO.States; (* Return of last Read *)
+    BEGIN (* ReadToken1 *)
+
+	i := 0;
+	badData := FALSE;
+	LOOP
+	    state := TextIO.Read( file, ch );
+	    CASE state OF
+	    TextIO.ok:
+		IF ( i = 0 ) AND Chars.IsWhiteSpace( ch ) THEN
+		    (* Just ignore, we haven't read anything *)
+		ELSIF NOT Chars.IsAlpha( ch ) THEN
+		    badData := badData OR ( i = 0 );
+		    EXIT;
+		ELSIF i > HIGH( tok ) THEN   (* token is too long *)
+		    badData := TRUE;
+		    (* Consume the rest of the token *)
+		ELSE
+		    (* Assign the character and increment pointer *)
+		    tok[ i ] := ch;
+		    INC( i );
+		END;
+	    |
+	    TextIO.endOfFile,
+	    TextIO.endOfLine:
+		IF i = 0 THEN
+		    RETURN state; (* nothing read, don't undo. *)
+		END;
+		EXIT;	(* Success and undo so state is "ok" *)
+	    |
+	    TextIO.error:
+		RETURN state;	(* Do not undo *)
+	    END; (* CASE *)
+	END; (* LOOP *)
+
+	(* Put back terminating condition *)
+	IF TextIO.UndoRead( file ) = TextIO.error THEN
+	    RETURN TextIO.error;
+	END;
+	IF badData THEN
+	    RETURN TextIO.SetError( file, IOErrors.badData );
+	END;
+
+	(* Null-terminate? *)
+	IF i <= HIGH( tok ) THEN
+	    tok[ i ] := 0C;
+	END;
+
+	RETURN TextIO.ok;
+
+    END ReadToken1;
+
+TYPE
+    MaxTokenRange = [ 0 .. SysTypes.maxArrayIndexCHAR ];
+    TokenPtr	  = POINTER TO ARRAY MaxTokenRange OF CHAR;
+    ScanInfo = RECORD
+	index   : MaxTokenRange;
+	high    : MaxTokenRange;
+	tokPtr  : TokenPtr;
+	badData : BOOLEAN;
+    END;
+    ScanInfoPtr = POINTER TO ScanInfo;
+
+PROCEDURE TokenScanner(
+    infoAdr : SysTypes.ANYPTR;
+    char    : CHAR
+    )	    : BOOLEAN;
+    VAR
+	info : ScanInfoPtr;
+    BEGIN (* TokenScanner *)
+
+	info := infoAdr;
+	WITH info^ DO
+	    IF NOT Chars.IsAlpha( char ) THEN
+		badData := badData OR ( index = 0 );
+		RETURN FALSE;	(* Always put character back *)
+
+	    ELSIF index > high THEN	(* token is too long *)
+		badData := TRUE;
+		(* Consume the rest of the token *)
+
+	    ELSE
+		(* Assign the character and increment pointer *)
+		tokPtr^[ index ] := char;
+		INC( index );
+	    END;
+	END; (* WITH *)
+	RETURN TRUE;	(* keep going *)
+	
+    END TokenScanner;
+
+    
+PROCEDURE ReadToken2(
+	file : TextIO.Object;	 (* Must be readable *)
+    VAR tok  : ARRAY OF CHAR	 (* Sequence of alphas *)
+    )	     : TextIO.States;	 (* ok => tok is valid *)
+    VAR
+	infoRec : ScanInfo;
+	state   : TextIO.States;
+    BEGIN (* ReadToken2 *)
+    
+	WITH infoRec DO
+	    (* Set up for the scan *)
+	    index   := 0;
+	    high    := HIGH( tok );
+	    tokPtr  := SYSTEM.ADR( tok );
+	    badData := FALSE;
+
+	    state := TextIO.Scan( file, TokenScanner, 
+				  SYSTEM.ADR( infoRec ),
+				  TextIO.skipLeadingWhiteSpace );
+	    IF state # TextIO.ok THEN
+		RETURN state;	(* Failure was result of error *)
+		
+	    ELSIF badData THEN
+		RETURN TextIO.SetError( file, IOErrors.badData );
+	    
+	    (* Null terminate? *)
+	    ELSIF index <= HIGH( tok ) THEN
+		tok[ index ] := 0C;
+	    END;
+	END; (* WITH *)
+	RETURN TextIO.ok;
+
+    END ReadToken2;
+
+TYPE
+    ReadTokenProc = PROCEDURE(
+	TextIO.Object,
+	VAR ARRAY OF CHAR
+    ) : TextIO.States;
+
+PROCEDURE TestReadToken(
+    rt : ReadTokenProc
+    );
+    VAR
+	tok : ARRAY [ 0 .. 7 ] OF CHAR;
+	extra : ARRAY [ 0 .. 100 ] OF CHAR;
+    BEGIN (* TestReadToken *)
+
+	ProgErrOutput.WriteLn;
+	ProgErrOutput.WriteString( "Reading tokens, 'q' quits:" );
+	ProgErrOutput.WriteLn;
+
+	LOOP
+	    CASE rt( TextIO.GetInput(), tok ) OF
+	    TextIO.ok:
+		ProgErrOutput.WriteString( "Token is: " );
+		ProgErrOutput.WriteString( tok );
+		ProgErrOutput.WriteLn;
+		IF tok[ 0 ] = 'q' THEN
+		    EXIT;
+		END;
+	    |
+	    TextIO.endOfLine:
+		ProgErrOutput.WriteString( "<eol>" );
+		ProgErrOutput.WriteLn;
+	    |
+	    TextIO.endOfFile:
+		ProgErrOutput.WriteString( "<eof>" );
+		ProgErrOutput.WriteLn;
+		EXIT;
+	    |
+	    TextIO.error:
+		TextIO.PrintErrorMessage( TextIO.GetInput(), '' );
+		TextIO.DONTCARE := 
+			TextIO.SetError( TextIO.GetInput(), IOErrors.ok );
+		TextIO.DONTCARE := StringIO.Read( TextIO.GetInput(), extra );
+		ProgErrOutput.WriteString( "Extra is: " );
+		ProgErrOutput.WriteString( extra );
+		ProgErrOutput.WriteLn;
+	    END;
+	END;
+
+    END TestReadToken;
+
+PROCEDURE String1;
+    VAR
+	options : BinaryIO.Options;
+	file    : BinaryIO.Object;
+    BEGIN (* String1 *)
+	BinaryIO.MakeOptions( StringBinaryIO.className, '', options );
+	IOErrors.DONTCARE := BinaryIO.Open( file, '', BinaryIO.readWrite,
+					    options );
+	IOErrors.DONTCARE := BinaryIO.Close( file );
+    END String1;
+
+PROCEDURE String2;
+    VAR
+	options : ARRAY [ 0 .. StringBinaryIO.maxOptionsLength
+			     + BinaryIO.maxOptionsLength
+			     + TextIO.maxOptionsLength ] OF CHAR;
+	file    : TextIO.Object;
+    BEGIN (* String2 *)
+	StringBinaryIO.MakeOptions( StringBinaryIO.minBlockSize, options );
+	BinaryIO.MakeOptions( StringBinaryIO.className, options, options );
+	TextIO.MakeOptions( TextIO.doNotBuffer, options, options );
+	IOErrors.DONTCARE := TextIO.Open( file, '', TextIO.appendOnly,
+					  options );
+	IOErrors.DONTCARE := TextIO.Close( file );
+
+    END String2;
+
+BEGIN (* Files *)
+
+    ProgErrOutput.WriteLn;
+    ProgErrOutput.WriteString( "Writes" );
+    ProgErrOutput.WriteLn;
+    BinWrite;
+    TextWrite;
+
+    ProgErrOutput.WriteLn;
+    ProgErrOutput.WriteString( "ReadBlock (bin2)" );
+    ProgErrOutput.WriteLn;
+    ReadBlock( "bin1" );
+
+    ProgErrOutput.WriteLn;
+    ProgErrOutput.WriteString( "BinCopy (bin2, bin2,out) " );
+    ProgErrOutput.WriteLn;
+    BinCopy( "bin2", "bin2.out" );
+
+    ProgErrOutput.WriteLn;
+    ProgErrOutput.WriteString( "TextCopy1 (text1, text1.out)" );
+    ProgErrOutput.WriteLn;
+    TextCopy1( "text1", "text1.out" );
+
+    ProgErrOutput.WriteLn;
+    ProgErrOutput.WriteString( "TextCopy2 (text2, text2.out)" );
+    ProgErrOutput.WriteLn;
+    TextCopy2( "text2", "text2.out" );
+
+    TestReadToken( ReadToken1 );
+
+    TestReadToken( ReadToken2 );
+
+    String1;
+
+    String2;
+
+END Files.

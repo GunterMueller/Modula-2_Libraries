@@ -1,0 +1,27 @@
+DEFINITION FOR C MODULE UnixCtypes;
+(* 
+ * This is only straight Unix C types. Anything from
+ * /sys/types.h is in the module UnixCsys_types.def.
+ *)
+
+TYPE
+    short  = [ -8000H .. 7FFFH ];
+    long   = INTEGER;
+
+    (*
+     * The following declarations make it easy to declare C routines
+     * which return strings and to declare global variables which are
+     * strings or tables of strings. The type caddr_t is not quite
+     * right for this type of declaration, since it requires coercion
+     * into one of the below.
+     *
+     * WARNING:
+     *     These types are C-like arrays, thus they allow you to tromp
+     *     all over memory if you feel like it. If you mishandle them,
+     *     your programs will act just like misbehaving C programs.
+     *     Caveat emptor.
+     *)
+    p_char  = POINTER TO ARRAY [ 0 .. 0FFFFFFFDH ] OF CHAR;
+    pp_char = POINTER TO ARRAY [ 0 .. 03FFFFFFEH ] OF p_char;
+
+END UnixCtypes.

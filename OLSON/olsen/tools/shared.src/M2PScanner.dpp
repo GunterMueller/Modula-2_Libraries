@@ -1,0 +1,202 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE M2PScanner;
+(* 
+ * 1.) The exported object.
+ * ------------------------
+ * The exported object is thought as a pair of files ( input and output )
+ * with associated attributes:
+ *
+ *     1.) The output attribute.
+ *     -------------------------     
+ *     Beside the lexical analysis, the scanner controls the output stream 
+ *     which is realised through two modes: "outputOff" where every character 
+ *     is omitted and "outputOn" where every character is written.
+ *     Characters belonginng to legal tokens are always omitted regardless 
+ *     of the mode in which the output stream currently is ( with the exception 
+ *     of the end-of-file token ).
+ *     The end-of-line character is always written.
+ *      
+ *     2.) The expression attribute.
+ *     -----------------------------
+ *     Some tokens are context specific: then, and, or, not, true, false
+ *     may be part of modula-2 or of the preprocessor syntax. For this
+ *     reason, two modes may be set: "expressionOff" in which the scanner 
+ *     doesn't recognize the context specific tokens and "expressionOn" 
+ *     in which all tokens are recognized ( as it is assumed that a 
+ *     preprocessor expression is currently being scanned ).  
+ *
+ *     3.) The comments attribute.
+ *     ---------------------------
+ *     Comments may be striped or written according to the modes
+ *     "stripOn" and "stripOff".
+ *
+ * The comments attribute may only be set at initialisation - time, while the
+ * two others may also be set at run - time. 
+ *
+ * 2.) The services provided by the module. 
+ * ----------------------------------------
+ * The procedures may be classified in four groups: initialisation and
+ * termination including "Open" and "Close", token recognising consisting
+ * only of "NextToken", the group performing general services 
+ * ( "GetIdentifier", "GetLineNumber", "SetOutputMode" and"SetExpressionMode" )
+ * and finally the error display ( "DisplayErrorMessage" ). This last one
+ * has nothing to do with the scanning itself but it allows to an importer
+ * module not to duplicate this code.
+ *
+ * NOTE:
+ * Every procedure except "Close" terminates when the passed object is invalid.
+ *)
+
+IMPORT
+    GenConsts,
+    TextIO,
+    SysTypes;    
+
+EXPORT QUALIFIED
+    Object,        Tokens,              OutputModes,       ExpressionModes,
+    CommentModes,  NextToken,           GetLineNumber,     GetIdentifier,   
+    SetOutputMode, GetOutputMode,       SetExpressionMode, Open,           
+    Close,         DisplayErrorMessage;
+
+TYPE 
+    Object;
+    Tokens = ( 
+       if, then, elsif, else, end, 
+       identifier,
+       rightParen, leftParen,
+       or, and, not, true, false,
+       badToken, endOfFile
+    );
+    OutputModes = ( (* the output attribute: *) 
+	outputOn,   (* the scanner writes to the output *)
+	outputOff   (* the scanner doesn't write to the output *) 
+    );
+    ExpressionModes = ( (* the expression attribute: *) 
+	expressionOn,   (* the scanner recognizes all lexical categories *) 
+	expressionOff   (* the scanner recognizes a restricted set of
+		           lexical categories: if, elsif, else, end, 
+		           endOfFile *)  
+    );
+    CommentModes = (  (* the comments attribute: *) 
+	stripOn,      (* the scanner doesn't output the commented out
+		         sections regardless of the output state *)
+	stripOff      (* the output conforms only to the output state *) 
+    );
+
+PROCEDURE Open( 
+    VAR scannedObject: Object;         (* returns a valid and initialised 
+					  object *)
+	inputFile,                   
+	outputFile:    TextIO.Object;  (* both must be open and ok *) 
+	comments:      CommentModes    (* strip or not *)
+    );        
+    (*
+     * Validates a new object and sets per default the mode "expressionOff" 
+     * and the state "outputOn".
+     * Terminates on invalid or not opened TextIO - objects.
+     *)
+
+PROCEDURE Close(
+        scannedObject: Object   (* may be in any state *)
+    ):                 BOOLEAN; (* TRUE:
+				       everything ok
+				   FALSE:
+				       an IO - error happened
+                                 *)
+    (*
+     * Closes the underying files ( prints an error message if necessary ) 
+     * and sets the object invalid. Nothing happens in the case of an 
+     * invalid object.
+     *)
+
+PROCEDURE NextToken( 
+	scannedObject: Object;  (* must be valid *) 
+    VAR token:         Tokens   (* the current token *) 
+    ):                 BOOLEAN; (* TRUE:
+				       no error or a "harmless error"
+                                   FALSE:
+				       "fatal" error or end-of-file
+                                 *)
+    (*
+     * NextToken prints out an error message if necessary and
+     * returns a boolean value according to the following error
+     * philosophy: an error considered as " harmless" is one that
+     * allows further parsing ( e.g an open string literal ) in 
+     * opposition to a "fatal" error ( e.g an open comment ). 
+     *)
+
+PROCEDURE GetIdentifier( 
+        scannedObject: Object;               (* must be valid *)
+    VAR identifier:    GenConsts.Identifier  (* the name associated with
+					        the token *)
+    ):                 BOOLEAN;              (* TRUE:
+						    the value of the current
+						    token is "identifier"
+						FALSE:
+						    the value of the current
+						    token isn't "identifier"
+                                              *)
+    (*
+     * GetIdentifier allows the access to an identifier name, which is
+     * only valid if the current token has the value "identifier".
+     *)
+
+PROCEDURE GetLineNumber( 
+	scannedObject: Object    (* must be valid *) 
+    ):                 SysTypes.Card; (* the current line number *) 
+    (*
+     * Used for syntax error treatement.
+     *)
+
+PROCEDURE SetOutputMode( 
+	scannedObject: Object;    (* must be valid *)
+	outputMode:    OutputModes        
+    );
+    (* 
+     * Used for semantic decision ( output or not ). 
+     *)
+
+PROCEDURE GetOutputMode( 
+	scannedObject: Object       (* must be valid *)
+    ):                 OutputModes;
+
+PROCEDURE SetExpressionMode( 
+	scannedObject:  Object;        (* must be valid *)
+	expressionMode: ExpressionModes        
+    );
+    (*
+     * As stated above, the need for this procedure results
+     * from context specificity.
+     *)
+
+PROCEDURE DisplayErrorMessage(
+        scannedObject: Object;
+	lineNumber:    SysTypes.Card;
+	message:       ARRAY OF CHAR
+    );
+    (*
+     * A purely printing procedure, no detecting.
+     *)
+
+END M2PScanner.

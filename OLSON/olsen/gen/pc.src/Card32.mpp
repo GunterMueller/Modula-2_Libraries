@@ -1,0 +1,513 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Card32;
+(* 
+ * IBM PC Implementation for Logitech Compiler.
+ *
+ * Hopefully this module will go away when Logitech implements a real
+ * 32 bit cardinal world. All of the routines are straightforward.
+ *)
+IMPORT 
+   I8086,		
+   Intrinsics,
+   ProgErr,
+   SYSTEM,
+   SysTypes;
+
+CONST
+    @IF Assert THEN
+	rangeError = 'Card32: range error.';
+    @END (* Assert *)
+    divideByZeroError = 'Card32: divide by zero.';
+
+
+PROCEDURE Compare(
+    left  : SysTypes.CARDINAL32;
+    right : SysTypes.CARDINAL32
+    )     : Intrinsics.CompareResults;
+    BEGIN (* Compare *)
+
+	IF left.PRIVATE.hi16Bits < right.PRIVATE.hi16Bits THEN 
+	    RETURN Intrinsics.less;
+	ELSIF left.PRIVATE.hi16Bits > right.PRIVATE.hi16Bits THEN 
+	    RETURN Intrinsics.greater;
+	ELSIF left.PRIVATE.lo16Bits < right.PRIVATE.lo16Bits THEN 
+	    RETURN Intrinsics.less;
+	ELSIF left.PRIVATE.lo16Bits > right.PRIVATE.lo16Bits THEN 
+	    RETURN Intrinsics.greater;
+	END;
+
+	RETURN Intrinsics.equal;
+    END Compare;
+
+
+PROCEDURE Add(
+        addend : SysTypes.CARDINAL32;
+	augend : SysTypes.CARDINAL32;
+    VAR sum    : SysTypes.CARDINAL32
+    );
+    VAR
+	tmp : SysTypes.CARDINAL16;
+    BEGIN (* Add *)
+
+	(* Set up addend *)
+	SYSTEM.SETREG( SYSTEM.AX, addend.PRIVATE.lo16Bits );
+	SYSTEM.SETREG( SYSTEM.CX, addend.PRIVATE.hi16Bits );
+	(* Set up augend *)
+	SYSTEM.SETREG( SYSTEM.BX, augend.PRIVATE.lo16Bits );
+	SYSTEM.SETREG( SYSTEM.DX, augend.PRIVATE.hi16Bits );
+	(* Perform both adds and account for carry *)
+	SYSTEM.CODE( I8086.Add, SYSTEM.AX + I8086.FromBX,
+		     I8086.Adc, SYSTEM.CX + I8086.FromDX );
+	(* Get the result *)
+	SYSTEM.GETREG( SYSTEM.AX, sum.PRIVATE.lo16Bits );
+	SYSTEM.GETREG( SYSTEM.CX, sum.PRIVATE.hi16Bits );
+
+
+	@IF Assert THEN
+	    (* Check for overflow *)
+	    SYSTEM.CODE( I8086.Sbb, SYSTEM.AX + I8086.FromAX );
+	    SYSTEM.GETREG( SYSTEM.AX, tmp );
+	    IF tmp # 0 THEN
+		ProgErr.Terminate( rangeError );
+	    END;
+	@END (* Assert *)
+
+    END Add;
+
+
+PROCEDURE LINC16(
+    VAR addend : SysTypes.CARDINAL32;
+        augend : SysTypes.CARDINAL16
+    );
+    (*
+     * This is a pretty cheesey implementation and probably
+     * should be made faster....
+     *)
+    VAR
+	augend32 : SysTypes.CARDINAL32; 
+    BEGIN (* LINC16 *)
+	WITH augend32.PRIVATE DO
+	    lo16Bits := augend;
+	    hi16Bits := 0;
+	END;
+	Add( addend, augend32, addend );
+    END LINC16;
+
+
+PROCEDURE Subtract(
+        minuend    : SysTypes.CARDINAL32;
+	subtrahend : SysTypes.CARDINAL32;
+    VAR difference : SysTypes.CARDINAL32
+    );
+    VAR
+	tmp : SysTypes.CARDINAL16;
+    BEGIN (* Subtract *)
+
+	(* Set up the minuend *)
+	SYSTEM.SETREG( SYSTEM.AX, minuend.PRIVATE.lo16Bits );
+	SYSTEM.SETREG( SYSTEM.CX, minuend.PRIVATE.hi16Bits );
+	(* Set up the subtrahend *)
+	SYSTEM.SETREG( SYSTEM.BX, subtrahend.PRIVATE.lo16Bits );
+	SYSTEM.SETREG( SYSTEM.DX, subtrahend.PRIVATE.hi16Bits );
+	(* Perform the subtractions accounting for carry. *)
+	SYSTEM.CODE( I8086.Sub, SYSTEM.AX + I8086.FromBX,
+		     I8086.Sbb, SYSTEM.CX + I8086.FromDX );
+	(* Get the result *)
+	SYSTEM.GETREG( SYSTEM.AX, difference.PRIVATE.lo16Bits );
+	SYSTEM.GETREG( SYSTEM.CX, difference.PRIVATE.hi16Bits );
+
+	@IF Assert THEN
+	    (* Check for underflow *)
+	    SYSTEM.CODE( I8086.Sbb, SYSTEM.AX + I8086.FromAX );
+	    SYSTEM.GETREG( SYSTEM.AX, tmp );
+	    IF (tmp # 0) THEN
+		ProgErr.Terminate( rangeError );
+	    END;
+	@END (* Assert *)
+
+    END Subtract;
+
+
+PROCEDURE LDEC16(
+    VAR minuend    : SysTypes.CARDINAL32;
+        subtrahend : SysTypes.CARDINAL16
+    );
+    (*
+     * This is a pretty cheesey implementation and probably should
+     * be made faster....
+     *)
+    VAR
+	subtrahend32 : SysTypes.CARDINAL32; 
+    BEGIN (* LDEC16 *)
+
+	WITH subtrahend32.PRIVATE DO
+	    lo16Bits := subtrahend;
+	    hi16Bits := 0;
+	END;
+	Subtract( minuend, subtrahend32, minuend );
+
+    END LDEC16;
+
+
+PROCEDURE Multiply(
+        multiplicand : SysTypes.CARDINAL32;
+	multiplier   : SysTypes.CARDINAL32;
+    VAR product      : SysTypes.CARDINAL32
+    );
+    (*
+     * Polynomial multiplication as follows:
+     *    product = ( aX + b ) ( cX + d ) = acX^2 + ( bc + ad )X + bd.
+     * where ( aX + b ) is the multiplicand and ( cX + d ) is the multiplier.
+     * However, this is a 64 bit result.  The important bits are:
+     *    product.lo16Bits := bd.lo16Bits;
+     *    product.hi16Bits := bd.hi16Bits + bc.lo16Bits + ad.lo16Bits;
+     * Any of the other bits don't affect the result, but they do
+     * affect the range checking.
+     *)
+    VAR
+	ac       : SysTypes.CARDINAL32;
+	bc       : SysTypes.CARDINAL32;
+	ad       : SysTypes.CARDINAL32;
+	bd       : SysTypes.CARDINAL32;
+	bcPlusad : SysTypes.CARDINAL32;
+	tmp      : SysTypes.CARDINAL32;
+    BEGIN (* Multiply *)
+
+	(* Establish the base products *)
+        Multiply16x16( multiplicand.PRIVATE.lo16Bits, (* b *)
+		       multiplier.PRIVATE.lo16Bits,   (* d *)
+		       bd );
+        Multiply16x16( multiplicand.PRIVATE.lo16Bits, (* b *)
+		       multiplier.PRIVATE.hi16Bits,   (* c *)
+		       bc );
+        Multiply16x16( multiplicand.PRIVATE.hi16Bits, (* a *)
+		       multiplier.PRIVATE.lo16Bits,   (* d *)
+		       ad );
+        Multiply16x16( multiplicand.PRIVATE.hi16Bits, (* a *)
+		       multiplier.PRIVATE.hi16Bits,   (* c *)
+		       ac );
+	(* Add up bd.hi + bc.lo + ad.lo *)
+	WITH tmp.PRIVATE DO
+	    lo16Bits := bd.PRIVATE.hi16Bits;
+	    hi16Bits := 0;
+	END;
+	LINC16( tmp, bc.PRIVATE.lo16Bits );
+	LINC16( tmp, ad.PRIVATE.lo16Bits );
+
+	(* Now assign the product *)
+	WITH product.PRIVATE DO
+	    lo16Bits := bd.PRIVATE.lo16Bits;
+	    hi16Bits := tmp.PRIVATE.lo16Bits;
+	END;
+
+
+	@IF Assert THEN
+	    (* 
+	     * Check for overflow which occurs when anything that was not 
+	     * assigned is non-zero.
+	     *)
+	    IF   ( tmp.PRIVATE.hi16Bits # 0 )
+	      OR ( ad.PRIVATE.hi16Bits # 0 )
+	      OR ( bc.PRIVATE.hi16Bits # 0 )
+	      OR ( ac.PRIVATE.lo16Bits # 0 )
+	      OR ( ac.PRIVATE.hi16Bits # 0 ) THEN
+		ProgErr.Terminate( rangeError );
+	    END;
+	@END (* Assert *)
+
+    END Multiply;
+
+
+PROCEDURE Multiply16x16(
+        multiplicand : SysTypes.CARDINAL16;
+	multiplier   : SysTypes.CARDINAL16;
+    VAR product      : SysTypes.CARDINAL32
+    );
+    BEGIN (* Multiply16x16 *)
+
+	WITH product.PRIVATE DO
+	    (* Set up the 32 bit operands *)
+	    SYSTEM.SETREG( SYSTEM.AX, multiplicand );
+	    SYSTEM.SETREG( SYSTEM.BX, multiplier );
+	    (* Perform the multiply into a 32 bit result *)
+	    SYSTEM.CODE( I8086.Mul, I8086.Mul2 + SYSTEM.BX );
+	    (* Get the 32 bit result *)
+	    SYSTEM.GETREG( SYSTEM.AX, lo16Bits );
+	    SYSTEM.GETREG( SYSTEM.DX, hi16Bits );
+	END;
+
+    END Multiply16x16;
+
+
+PROCEDURE SetBit(
+        bitToSet : SysTypes.CARDINAL16;
+    VAR num      : SysTypes.CARDINAL32
+    );
+    VAR
+	bitset : SysTypes.BITSET16;
+    BEGIN (* SetBit *)
+
+	WITH num.PRIVATE DO
+	    IF bitToSet >= 16 THEN
+		DEC( bitToSet, 16 );
+		bitset := SysTypes.BITSET16( hi16Bits );
+		INCL( bitset, bitToSet );
+		hi16Bits :=SysTypes.CARDINAL16( bitset );
+	    ELSE
+		bitset := SysTypes.BITSET16( lo16Bits );
+		INCL( bitset, bitToSet );
+		lo16Bits :=SysTypes.CARDINAL16( bitset );
+	    END;
+	END; (* WITH *)
+
+    END SetBit;
+
+
+PROCEDURE DivideAndMod(
+        dividend  : SysTypes.CARDINAL32;
+        divisor   : SysTypes.CARDINAL32;
+    VAR quotient  : SysTypes.CARDINAL32;
+    VAR remainder : SysTypes.CARDINAL32
+    );
+    (* 
+     * Division is always gnarly.  It might make more sense to
+     * go to floating point, but then that would bring in another slew
+     * of problems.  The algorithm is basically good, but, of course, it
+     * could use more hardware support (like doing 16 bit operations first).
+     * I wasn't sure how to integrate the 16 bit ops.  This algorithm is
+     * at worst 32 iterations which isn't terrible, but it isn't great.....
+     *
+     * TODO:
+     *    The Compares could be made inline.
+     *    The Multiply by two could be made into a shift.
+     *)
+    VAR
+	shiftedDivisor : SysTypes.CARDINAL32;
+	quotientBit    : SysTypes.CARDINAL16;
+    BEGIN (* DivideAndMod *)
+
+	(* 
+	 * Always have to check for divide by zero, 
+	 * even if assertion checking off.  There isn't much else one can do.
+	 *)
+	WITH divisor.PRIVATE DO
+	    IF ( hi16Bits = 0 ) AND ( lo16Bits = 0 ) THEN
+		ProgErr.Terminate( divideByZeroError );
+	    END;
+	END;
+
+	(* Defaults *)
+	quotient       := zero;
+	remainder      := zero;
+
+	(* Shortcut to avoid funny loop cases *)
+	WITH dividend.PRIVATE DO
+	    IF Compare( dividend, divisor ) # Intrinsics.greater THEN
+		IF Compare( dividend, divisor ) = Intrinsics.equal THEN
+		    quotient  := one;
+		ELSE
+		    remainder := dividend;
+		END;
+		RETURN;
+	    END;
+	END;
+
+	(* 
+	 * Coming into this loop, we know that the dividend is strictly
+	 * greater than the divisor.  This was determined by the special case.
+	 * Shift the divisor until it becomes greater than or equal to the 
+	 * dividend.  If they are equal, then return the even divide amount.
+	 * Note the funny boundary condition of 8000H.
+	 *)
+	shiftedDivisor := divisor;
+	quotientBit    := 0;
+	LOOP 
+	    IF shiftedDivisor.PRIVATE.hi16Bits >= 8000H THEN
+		(* 
+		 * This is a weird case, because the dividend is still
+		 * greater than the shiftedDivisor, but we can't surpass
+		 * it without overflowing.  It states that divisor divides 
+		 * into the dividend, but we must do this before entering
+		 * the divide iteration loop below.
+		 *)
+		SetBit( quotientBit, quotient );
+		Subtract( dividend, shiftedDivisor, dividend );
+		EXIT;
+	    END;
+	    (* This should be replaced by a shift left... *)
+	    Multiply( shiftedDivisor, two, shiftedDivisor );
+	    INC( quotientBit );
+	    IF Compare( shiftedDivisor, dividend ) # Intrinsics.less THEN
+		IF Compare( shiftedDivisor, dividend ) = Intrinsics.equal THEN
+		    SetBit( quotientBit, quotient );
+		    (* Nice even divide, remainder is already 0 *)	
+		    RETURN;
+		END;
+		EXIT;
+	    END; (* IF *)
+	END; (* LOOP *)
+
+	(*
+	 * This is the iterative part of the division.  Basically, it
+	 * unwinds the shifting operation above.  The idea is the same.
+	 * For each iteration if the dividend is greater than the divisor,
+	 * then set the bit and subtract the shiftedDivisor.  Each iteration,
+	 * unshifts the divisor until we have returned it back to its original
+	 * value (quotientBit is zero at that point).  If at any point the
+	 * quotient is equal to the shiftedDivisor, then the divide was even
+	 * and we return with a zero remainder.
+	 *)
+	WHILE quotientBit > 0 DO
+	    DEC( quotientBit );
+	    WITH shiftedDivisor.PRIVATE DO
+		(* Shift to the right *)
+		lo16Bits := lo16Bits DIV 2 + hi16Bits MOD 2 * 8000H;
+		hi16Bits := hi16Bits DIV 2;
+	    END;
+	    IF Compare( shiftedDivisor, dividend ) # Intrinsics.greater THEN
+		SetBit( quotientBit, quotient );
+		IF Compare( shiftedDivisor, dividend ) = Intrinsics.equal THEN
+		    (* Even divide *)
+		    RETURN;
+		END;
+		Subtract( dividend, shiftedDivisor, dividend );
+	    END;
+	END; (* WHILE *)
+
+	(* Uneven divide *)
+	remainder := dividend; 
+
+    END DivideAndMod;
+
+
+PROCEDURE Divide(
+        dividend : SysTypes.CARDINAL32;
+        divisor  : SysTypes.CARDINAL32;
+    VAR quotient : SysTypes.CARDINAL32
+    );
+    VAR
+	DONTCARE : SysTypes.CARDINAL32;
+    BEGIN (* Divide *)
+
+	DivideAndMod( dividend, divisor, quotient, DONTCARE );
+
+    END Divide;
+
+
+PROCEDURE Mod(
+        dividend  : SysTypes.CARDINAL32;
+        divisor   : SysTypes.CARDINAL32;
+    VAR remainder : SysTypes.CARDINAL32
+    );
+    VAR
+	DONTCARE : SysTypes.CARDINAL32;
+    BEGIN (* Mod *)
+
+	DivideAndMod( dividend, divisor, DONTCARE, remainder );
+
+    END Mod;
+
+
+PROCEDURE ToCard16(
+        card32     : SysTypes.CARDINAL32;
+    VAR low16Bits  : SysTypes.CARDINAL16;
+    VAR high16Bits : SysTypes.CARDINAL16
+    );
+    BEGIN (* ToCard16 *)
+	WITH card32.PRIVATE DO
+	    low16Bits   := lo16Bits;
+	    high16Bits := hi16Bits;
+	END;
+    END ToCard16;
+
+PROCEDURE FromCard16(
+        low16Bits  : SysTypes.CARDINAL16;
+        high16Bits : SysTypes.CARDINAL16;
+    VAR card32     : SysTypes.CARDINAL32
+    );
+    BEGIN (* FromCard16 *)
+	WITH card32.PRIVATE DO
+	    lo16Bits := low16Bits;
+	    hi16Bits := high16Bits;
+	END;
+    END FromCard16;
+
+                   
+PROCEDURE Zero(
+    VAR card32 : SysTypes.CARDINAL32
+    );
+    BEGIN (* Zero *)
+	card32 := zero;
+    END Zero;
+
+
+PROCEDURE One(
+    VAR card32 : SysTypes.CARDINAL32
+    );
+    BEGIN (* One *)
+	card32 := one;
+    END One;
+
+
+PROCEDURE Two(
+    VAR card32 : SysTypes.CARDINAL32
+    );
+    BEGIN (* Two *)
+	card32 := two;
+    END Two;
+
+    
+PROCEDURE MAXCARDINAL16(
+    VAR card32 : SysTypes.CARDINAL32
+    );
+    BEGIN (* MAXCARDINAL16 *)
+	card32 := maxCard16;
+    END MAXCARDINAL16;
+
+
+VAR
+    zero      : SysTypes.CARDINAL32;
+    one       : SysTypes.CARDINAL32;
+    two       : SysTypes.CARDINAL32;
+    maxCard16 : SysTypes.CARDINAL32;
+BEGIN (* Card32 *)
+
+    WITH zero.PRIVATE DO
+       hi16Bits := 0; 
+       lo16Bits := 0;
+    END;
+    WITH one.PRIVATE DO
+       hi16Bits := 0; 
+       lo16Bits := 1;
+    END;
+    WITH two.PRIVATE DO
+       hi16Bits := 0; 
+       lo16Bits := 2;
+    END;
+    WITH maxCard16.PRIVATE DO
+       hi16Bits := 0;
+       lo16Bits := SysTypes.MAXCARDINAL16;
+    END;
+
+END Card32.

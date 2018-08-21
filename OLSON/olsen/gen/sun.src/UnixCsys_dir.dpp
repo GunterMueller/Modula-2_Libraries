@@ -1,0 +1,110 @@
+DEFINITION FOR C MODULE UnixCsys_dir;
+(* 
+ * See the file:
+ *     /usr/include/sys/dir.h and its related commands.
+ *
+ * See the man pages:
+ *     directory(3), mkdir(2), rmdir(2), chdir(2), getwd(2),
+ *     rename(2), unlink(2), link(2), symlink(2).
+ *)
+IMPORT 
+    UnixCsys_types,
+    UnixCtypes;
+
+CONST 
+    MAXNAMLEN = 255;
+
+TYPE
+    struct_direct = RECORD
+	CASE : BOOLEAN OF
+
+	    TRUE:
+                d_fileno : UnixCsys_types.u_long;  
+	    |
+	    FALSE:
+                d_ino    : UnixCsys_types.u_long;  
+	END;
+	d_reclen  : UnixCsys_types.u_short;  
+	d_namelen : UnixCsys_types.u_short;  
+	d_name    : ARRAY [ 0 .. MAXNAMLEN ] OF CHAR;
+    END; 
+    direct = POINTER TO struct_direct;
+
+TYPE
+    struct__dirdesc = RECORD 
+	dd_fd	 : INTEGER;
+        dd_loc   : UnixCtypes.long;
+        dd_size  : UnixCtypes.long;
+        dd_bbase : UnixCtypes.long;
+        dd_entno : UnixCtypes.long;
+        dd_bsize : UnixCtypes.long;
+        dd_buf   : UnixCtypes.p_char;
+    END;
+    _dirdesc = POINTER TO struct__dirdesc;
+    DIR      = _dirdesc;
+
+CONST
+    NULL = 0;	
+
+PROCEDURE opendir(
+    filename : ARRAY OF CHAR
+    )        : DIR;
+
+PROCEDURE readdir(
+    dirp : DIR
+    )    : direct;
+
+PROCEDURE telldir(
+   dirp : DIR 
+   )    : UnixCtypes.long;
+
+PROCEDURE seekdir(
+    dirp : DIR;
+    loc  : UnixCtypes.long
+    );
+
+PROCEDURE rewinddir(
+    dirp : DIR 
+    );
+
+PROCEDURE closedir(
+    dirp : DIR
+    );
+
+PROCEDURE mkdir(
+    path : ARRAY OF CHAR;
+    mode : INTEGER
+    )    : INTEGER;
+
+PROCEDURE rmdir(
+    path : ARRAY OF CHAR
+    )    : INTEGER;
+
+PROCEDURE chdir(
+    path : ARRAY OF CHAR
+    )    : INTEGER;
+
+PROCEDURE getwd(
+    VAR pathname : ARRAY OF CHAR
+    )            : UnixCtypes.p_char;
+
+PROCEDURE rename(
+   from : ARRAY OF CHAR;
+   to   : ARRAY OF CHAR 
+   )    : INTEGER;
+
+PROCEDURE unlink(
+    path : ARRAY OF CHAR
+    )    : INTEGER;
+
+PROCEDURE link(
+    name1 : ARRAY OF CHAR;
+    name2 : ARRAY OF CHAR
+    )     : INTEGER;
+
+PROCEDURE symlink(
+    name1 : ARRAY OF CHAR;
+    name2 : ARRAY OF CHAR
+    )     : INTEGER;
+
+END UnixCsys_dir.

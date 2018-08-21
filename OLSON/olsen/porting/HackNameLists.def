@@ -1,0 +1,61 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE HackNameLists;
+(*
+ * THIS MODULE CONTAINS AS MUCH IMPLEMENTATION AS NECESSARY TO SUPPORT
+ * THE PROGRAM hackm2pp.   IT SHOULD NOT BE USED FOR ANYTHING ELSE.
+ *)
+IMPORT
+    SysTypes;
+EXPORT QUALIFIED
+    Object, 	    Orderings,      FindCases,         Create,
+    DONTCARE,	    Insert, 	    Find;
+
+TYPE
+    Object;
+TYPE
+    Orderings = ( forwardSorted, reverseSorted, queue, stack );
+    FindCases = ( caseSensitive, caseInsensitive, allLowerCase, allUpperCase );
+
+PROCEDURE Create(
+    VAR list          : Object;
+        howToTraverse : Orderings;
+        howToFind     : FindCases
+    );
+
+VAR
+    DONTCARE : SysTypes.ANYPTR;
+
+PROCEDURE Insert(
+    list           : Object;
+    name           : ARRAY OF CHAR;
+    importerObject : SysTypes.ANYPTR
+    );
+
+PROCEDURE Find(
+        list           : Object;       
+        name           : ARRAY OF CHAR;
+    VAR importerObject : SysTypes.ANYPTR
+    )                  : BOOLEAN;     
+
+END HackNameLists.

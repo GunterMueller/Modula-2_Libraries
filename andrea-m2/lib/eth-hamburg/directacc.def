@@ -1,0 +1,78 @@
+DEFINITION MODULE DirectAccessFiles;
+
+(* Use direct access files *)
+(* This method uses the FORTRAN style of file open write|read close *)
+
+(* J. Andrea, Aug/8/91 - revitalized *)
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+FROM SYSTEM IMPORT BYTE;
+
+EXPORT QUALIFIED DirectFile,   DirFileDone, DirFileStatus,
+                 DirectCreate, DirectOpen,  DirectClose,
+                 DirectWrite,  DirectRead;
+
+TYPE
+    DirectFile = CARDINAL; (* export *)
+
+VAR
+   DirFileDone    :BOOLEAN;  (* export *)
+
+   PROCEDURE DirectCreate( VAR file :DirectFile;
+                           name     :ARRAY OF CHAR;
+                           maxrec   :CARDINAL );
+   (*
+     Create a direct access file of the given filename 'name',
+     the maximum possible number of records for the file must also
+        be specified as 'maxrec',
+     the file handle is returned in 'file' which must be of type DirectFile.
+     The file created will have a record length of 512 bytes.
+     DirFileDone is set to FALSE if the file cannot be created.
+
+     A successful create operation leaves the file in an "open" state.
+   *)
+
+   PROCEDURE DirectOpen( VAR file :DirectFile;
+                         name     :ARRAY OF CHAR );
+   (*
+     Open a direct access file for reading and writing, random record access.
+     If the file cannot be accessed, or is not suitable for random access then
+     DirFileDone is returned as FALSE.
+   *)
+
+   PROCEDURE DirectClose( file :DirectFile );
+   (*
+     Close a currently open file.
+   *)
+
+   PROCEDURE DirectWrite( file          :DirectFile;
+                          record_number :CARDINAL;
+                          record        :ARRAY OF BYTE;
+                          n_bytes       :CARDINAL );
+   (*
+     Write a record into a direct access file at any record within
+     the limits specified during file creation.
+     Specify the record number in the file in 'record_number',
+     give any object for output as 'record', and
+     also specify the number of bytes of the output object in 'n_bytes'.
+   *)
+
+   PROCEDURE DirectRead( file          :DirectFile;
+                         record_number :CARDINAL;
+                         VAR record    :ARRAY OF BYTE;
+                         n_bytes       :CARDINAL );
+   (*
+     Read a record from a direct access file at any record within
+     the limits specified during file creation.
+     Specify the record number in the file in 'record_number',
+     specify any object to receive the data as 'record', and
+     also specify the number of bytes to read in 'n_bytes'.
+   *)
+
+   PROCEDURE DirFileStatus;
+   (*
+     Print information about the last accessed file on standard output.
+   *)
+
+END DirectAccessFiles.

@@ -1,0 +1,31 @@
+DEFINITION MODULE BitsetFunctions;
+
+(* logical operations on BITSETS *)
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED 
+       Or, Nor, Xor, And, Nand, Xand, Not, ShiftLeft, ShiftRight;
+
+   PROCEDURE Or( a, b :BITSET ) :BITSET;
+
+   PROCEDURE Nor( a, b :BITSET ) :BITSET;
+
+   PROCEDURE Xor( a, b :BITSET ) :BITSET;
+
+   PROCEDURE And( a, b :BITSET ) :BITSET;
+
+   PROCEDURE Nand( a, b :BITSET ) :BITSET;
+
+   PROCEDURE Xand( a, b :BITSET ) :BITSET;
+   (* set difference *)
+
+   PROCEDURE Not( a :BITSET ) :BITSET;
+ 
+   PROCEDURE ShiftLeft( a :BITSET; n :CARDINAL ) :BITSET;
+   (* perform a circular shift left, n times *)
+
+   PROCEDURE ShiftRight( a :BITSET; n :CARDINAL ) :BITSET;
+   (* perform a circular shift right, n times *)
+
+END BitsetFunctions.

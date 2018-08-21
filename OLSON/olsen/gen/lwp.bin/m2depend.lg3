@@ -1,0 +1,55 @@
+dosmonit.sym: ..\bin\systypes.sym 
+dosmonit.obj: ..\bin\dos.sym dosmonit.sym 
+interrup.sym: ..\bin\systypes.sym 
+interrup.obj: ..\bin\dos.sym ..\bin\i8086.sym interrup.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progerr.sym ..\bin\safestor.sym  \
+              ..\bin\systypes.sym taskcons.sym tasks.sym taskspri.sym 
+notices.obj: ..\bin\notices.sym ..\bin\objects.sym ..\bin\progerr.sym  \
+             ..\bin\progerro.sym ..\bin\safestor.sym ..\bin\systypes.sym  \
+             tasks.sym 
+objects.obj: ..\bin\cardconv.sym ..\bin\genconst.sym ..\bin\objects.sym  \
+             ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\safestor.sym  \
+             ..\bin\strings.sym ..\bin\systypes.sym tasks.sym 
+randomnu.obj: ..\bin\dos.sym dosmonit.sym ..\bin\progerr.sym  \
+              ..\bin\randomnu.sym ..\bin\systypes.sym taskmoni.sym 
+safestor.obj: ..\bin\progerr.sym ..\bin\safestor.sym ..\bin\systypes.sym 
+taskcons.sym: ..\bin\genconst.sym 
+taskcons.obj: taskcons.sym 
+taskdebu.sym: 
+taskdebu.obj: ..\bin\dos.sym interrup.sym ..\bin\notices.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\systypes.sym  \
+              taskcons.sym taskdebu.sym taskinfo.sym tasknoti.sym tasks.sym  \
+              taskspri.sym 
+taskinfo.sym: ..\bin\systypes.sym tasks.sym 
+taskinfo.obj: ..\bin\cardconv.sym ..\bin\progerr.sym ..\bin\progerro.sym  \
+              ..\bin\systypes.sym taskcons.sym taskinfo.sym tasks.sym  \
+              taskspri.sym 
+taskmess.sym: ..\bin\systypes.sym tasktime.sym tasks.sym 
+taskmess.obj: ..\bin\bytes.sym ..\bin\objects.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\systypes.sym taskcons.sym  \
+              taskinfo.sym taskmess.sym tasktime.sym tasks.sym 
+taskmoni.sym: tasktime.sym 
+taskmoni.obj: ..\bin\cardconv.sym ..\bin\notices.sym ..\bin\objects.sym  \
+              ..\bin\progerr.sym ..\bin\progerro.sym ..\bin\strings.sym  \
+              ..\bin\systypes.sym taskcons.sym taskinfo.sym taskmoni.sym  \
+              tasktime.sym tasks.sym 
+tasknoti.sym: ..\bin\notices.sym 
+tasknoti.obj: ..\bin\notices.sym ..\bin\systypes.sym taskinfo.sym  \
+              tasknoti.sym tasks.sym taskspri.sym 
+tasks.sym: ..\bin\systypes.sym taskcons.sym 
+tasks.obj: ..\bin\cardconv.sym ..\bin\i8086.sym ..\bin\progerr.sym  \
+           ..\bin\progerro.sym ..\bin\strings.sym ..\bin\systypes.sym  \
+           taskcons.sym tasks.sym taskspri.sym 
+tasksema.sym: ..\bin\systypes.sym tasktime.sym 
+tasksema.obj: ..\bin\notices.sym ..\bin\objects.sym ..\bin\progerr.sym  \
+              ..\bin\progerro.sym ..\bin\strings.sym ..\bin\systypes.sym  \
+              taskcons.sym taskinfo.sym tasksema.sym tasktime.sym tasks.sym 
+taskspri.sym: ..\bin\objects.sym ..\bin\systypes.sym taskcons.sym tasks.sym 
+taskspri.obj: ..\bin\dos.sym dosmonit.sym ..\bin\i8086.sym ..\bin\progerr.sym  \
+              ..\bin\safestor.sym ..\bin\systypes.sym taskcons.sym tasks.sym  \
+              taskspri.sym 
+tasktime.sym: ..\bin\systypes.sym tasks.sym 
+tasktime.obj: ..\bin\cardconv.sym ..\bin\dos.sym dosmonit.sym  \
+              ..\bin\i8086.sym interrup.sym ..\bin\notices.sym  \
+              ..\bin\objects.sym ..\bin\progerro.sym ..\bin\systypes.sym  \
+              taskcons.sym taskinfo.sym tasktime.sym tasks.sym 

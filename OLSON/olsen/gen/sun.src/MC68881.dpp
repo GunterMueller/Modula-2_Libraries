@@ -1,0 +1,118 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION FOR C MODULE MC68881;
+(*
+ * Provides access to 68881 control register.  Specifically,
+ * trap enabling, rounding precision, and rounding mode.
+ *)
+TYPE
+    FloatingPointControlRegisterBits = (	(* FPCR *)
+	notUsed1,
+	notUsed2,
+	notUsed3,
+	notUsed4,
+	roundingModeBit0,	(* See constants below for next 4 bits *)
+	roundingModeBit1,		
+	roundingPrecisionBit0,
+	roundingPrecisionBit1,
+	trapInexactDecimalInput,	(* INEX1 *)
+	trapInexactOperation,		(* INEX2 *)
+	trapDivideByZero,		(* DZ *)
+	trapUnderflow,			(* UNFL *)
+	trapOverflow,			(* OVFL *)
+	trapOperandError,		(* OPERR *)
+	trapSignallingNAN,		(* SNAN *)
+	trapBranchSetOnUnordered	(* BSUN *)
+    );
+    FPCR = SET OF FloatingPointControlRegisterBits;
+
+CONST
+    (* Rounding modes which you may set *)
+    roundToNearest = FPCR { };
+    roundTowardsZero = FPCR { roundingModeBit0 };
+    roundTowardsMinusInfinity = FPCR { roundingModeBit1 };
+    roundTowardsPlusInfinity = FPCR { roundingModeBit0, roundingModeBit1 };
+    roundingModeMask = FPCR { roundingModeBit0, roundingModeBit1 };
+
+    roundingPrecisionExtended = FPCR { };
+    roundingPrecisionSingle = FPCR { roundingPrecisionBit0 };
+    roundingPrecisionDouble = FPCR { roundingPrecisionBit1 };
+    (* Last mode is reserved. *) 
+    roundingPrecisionMask = FPCR { roundingPrecisionBit0, 
+				   roundingPrecisionBit1 };
+
+PROCEDURE Get68881ControlRegister(
+    ) : FPCR; (* Current value of floating point control register *)
+    (*
+     * This procedure returns the current state of the Floating
+     * Point Control Register (FPRC).  There are several parts
+     * to this value: roundingMode, roundingPrecision, and
+     * the exceptions which are trapped.  The following exception
+     * will return TRUE, if trapXXX is enabled:
+     * 	  trapXXX IN Get68881ControlRegister().
+     *
+     * If roundXXX is the current rounding mode, the following expression
+     * will return true:
+     * 	  Get68881ControlRegister() * roundingModeMask = roundXXX
+     *)
+
+CONST
+    normalTraps = FPCR {
+	trapDivideByZero,
+	trapOverflow,
+	(* trapUnderflow,	We take this out, because it is mathematically
+				complete (at least for now). *)
+	trapOperandError,
+	trapSignallingNAN
+    };
+
+    normalRounding = roundToNearest + roundingPrecisionExtended;
+
+    normalFPCR = normalTraps + normalRounding;
+
+PROCEDURE Set68881ControlRegister(
+    newValue : FPCR   (* Your favorite floating position *)
+    )        : FPCR;  (* Previous floating control register value *)
+    (*
+     * This procedure may be used to change one of the values
+     * in the floating point control register.  If you would like
+     * to enable a trap (why would anyone want to do that??),
+     * you must INCL it in newValue.  For example, to enable
+     * underflow and overflow exceptions, use the following:
+     * 	  oldValue + FPCR { trapOverflow, trapUnderflow }
+     * To disable a trap, type:
+     * 	  oldValue - FPCR { trapInexactDecimalInput }
+     * To change the rounding mode, you must do the following:
+     * 	  oldValue - roundingModeMask + roundingToXXX
+     * The same method should be used for rounding precision.
+     * 
+     * On the Sun by default, there are no traps enabled (yippeee).
+     * Rounding mode is roundingToNearest and precision is
+     * roundPrecisionExtended.  This is not entirely optimal for
+     * safe software development, so you may want to include in
+     * your program the following:
+     * 	    oldValue := Set688881ControlRegister( normalFPCR );
+     * The values in the normalFPCR should catch most errors.
+     *)
+
+END MC68881.

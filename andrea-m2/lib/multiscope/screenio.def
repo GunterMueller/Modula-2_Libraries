@@ -1,0 +1,60 @@
+DEFINITION MODULE ScreenIO;
+
+(* Do screen io, row/column locations, and color on DOS *)
+(* V1.0, J. Andrea, Jun.3/93 *)
+
+EXPORT QUALIFIED screen_rows, screen_cols,
+                 PutString, Clear, ClearEOL,
+                 Goto, GotoRelative,
+                 Red, Green, Blue, Yellow, Magenta, Cyan, White, Normal,
+                 Bold,
+                 Bell,
+                 ReadKey;
+
+CONST
+  screen_rows = 25;
+  screen_cols = 80;
+
+PROCEDURE PutString( string :ARRAY OF CHAR; row, col :CARDINAL );
+
+PROCEDURE Clear;      (* clear the whole screen *)
+PROCEDURE ClearEOL;   (* clear the remainder of the line *)
+
+PROCEDURE Goto( row, col :CARDINAL );  (* set the cursor position *)
+PROCEDURE GotoRelative( direction :CHAR );  (* move one of '<', '>', '^', 'v' *)
+
+PROCEDURE Red; (* set the current color to red, and stays till turned off *)
+PROCEDURE Green;
+PROCEDURE Blue;
+PROCEDURE Yellow;
+PROCEDURE Magenta;
+PROCEDURE Cyan;
+PROCEDURE White;
+PROCEDURE Normal;  (* return color to normal *)
+
+PROCEDURE Bold;
+
+PROCEDURE Bell;  (* ring the bell *)
+
+
+PROCEDURE ReadKey( VAR ch :CHAR;
+                   VAR shift, control, alt, function, arrow, special :BOOLEAN );
+(*
+Return several items about the key that was just pressed.
+An ordinary lower case letter, number, or ascii char is returned with
+  'ch' set to the required value, and all the booleans as false.
+A shifted ascii char, such as "R" is returned with 'shift' as true, and
+  'ch' as "r". And the same for control and alt keys.
+Since even functions keys can have multiple functions (i.e. ALT F1) then
+ the booleans can be returned true in any combination.
+The arrow keys are retuned with 'arrow' as true, and 'ch' as one of ">", "<",
+  "^" or "v" as depictions of the directions.
+The special keys may be returned as "i" for insert, "h" for home,
+  "^" for page up, "v" for page down, "d" for delete, "e" for end
+  and "5" for keypad 5.
+And one note about the function keys. Since the 10..12 characters of f10..f12
+  can't be displayed with one character, then the ascii characters
+  following "9" are used. F10 = ":", F11 = ";", F12 = "<".
+*)
+
+END ScreenIO.

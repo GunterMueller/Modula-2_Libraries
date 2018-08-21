@@ -1,0 +1,207 @@
+Modula-2 Software Component Library Source Code Volume 4 ˘ReadMe file
+
+Version 1.0b1		Tuesday, September 18, 1999 6:25:40 PM
+
+These disks contain the source code for the Modula-2 Software Component
+Library, Volume 4, covering Hash Tables, Maps and Sorting abstractions. These
+versions have been written for and compiled with Bob Campbell's MPW
+Modula-2 compiler (version 1.4a1) for the Macintosh (formerly TML Modula-2).
+
+
+<<<<<<<<<<<<<<<<<<<<  PREREQUISITES  >>>>>>>>>>>>>>>>>>>>
+
+You must have the following software and documentation:
+
+˘ MPW 3.1 (recommended)
+˘ Bob Campbell's Modula-2 compiler
+˘ The Modula-2 Software Component Library, Volume 1 (the source code)
+˘ The Modula-2 Software Component Library, Volume 1 (the book)
+˘ The Modula-2 Software Component Library, Volume 4 (the book)
+˘ A hard disk is recommended.
+
+Basic knowledge of using MPW (editing, running tools, etc.) is assumed, as
+is knowledge of the Macintosh.
+
+
+<<<<<<<<<<<<<<<<<<<<  INSTALLATION  >>>>>>>>>>>>>>>>>>>>
+
+1.	Copy the ˘Install script to the MPW "{ShellDirectory}" folder.
+2.	Launch the MPW shell.
+3.	In your Worksheet type the following line and then press the <enter> key
+	(or alternatively, select the line and press <enter>):
+
+	"{ShellDirectory}˘InstallVol4"
+
+	This script will automatically load all the source code from the
+	disks and then rebuild all of the libraries.
+4.	You are ready to go!
+
+Alternatively, you may wish to selectively transfer the components
+of interest onto your system. Of course, you must then modify the
+build scripts and make files accordingly.
+
+
+<<<<<<<<<<<<<<<<<<<<  MODULES NOT IN THE BOOK  >>>>>>>>>>>>>>>>>>>>
+
+Numerous 'unmanaged' component modules are provided that were not
+covered in the book. These modules never deallocate the actual data
+items and use simple assignment as provided by the Modula-2 language
+to copy items from one structure to another. Thus, they are suitable
+for the basic data types such as INTEGER, CHAR, etc. Type coercion
+is still required, however.
+
+
+<<<<<<<<<<<<<<<<<<<<  BUG FIXES  >>>>>>>>>>>>>>>>>>>>
+
+The routine SetTableSize (pg 219) declared a local variable called "err". This
+should be "index".
+
+<<<<<<<<<<<<<<<<<<<<  CONVERSION To Other Modula-2 Compilers  >>>>>>>>>>>>>>>>>>>>
+
+This section discusses some of the problems you may encounter when attempting
+to compile these modules using other Modula-2 compilers, especially for those
+residing on a different hardware platform.
+
+˘   Conversion of file formats:
+The Macintosh terminates a line with a carriage return, while the PC uses a
+carriage return/line feed combination, and the Amiga uses line feeds. Included
+on this disk is an MPW tool for converting text files between the different
+file formats. In addition, special Macintosh symbols (such as, Û and =) are
+converted to their standard ASCII equivalents.
+
+˘   General Conversion Notes
+The TML Modula-2 compiler is based on a compiler from ETH ZÅrich. There are
+a few differences between the compiler's implementation and the syntax
+given by Wirth in Programming in Modula-2. The three most important changes are:
+1. use of VAL for all type transfer operations;
+2. standard operations such as SIZE and HIGH returning INTEGER values instead
+   of CARDINALs; and
+3. Deallocate has only a single parameter, the dynamic memeory pointer being
+   released, as the memory management system remembers how much space was
+   originally allocated and automatically releases the proper amount.
+
+The specific places where these differences in syntax may cause compile-time
+errors are:
+
+˘ CONST Null. = VAL(., NIL);
+  As used in defining a null abstract data type object. Replace the use of
+  VAL with the 'old style' type transfer function.
+  CONST Null. = .(NIL);
+
+˘ There are places in expressions where HIGH or SIZE is coerced into an INTEGER,
+  e.g., VAL(INTEGER, HIGH(somearray)). Remove the use of VAL.
+
+˘ Calls to Deallocate may have to have a specific size parameter added. For
+  unbounded components, the following statement suffices to fix the problem:
+  	Deallocate(somePointer, SIZE(somePointer^));
+  For bounded components, the problem cannot be fixed as easily since the modules
+  initially allocated a variable amount of space that does not match the type
+  declarations. This shows up in the Destroy operation. The solution is to copy
+  the constant declarations from the Create operation and use the same calculation
+  for the amount of space to be deallocated. Of course, one must use the "size"
+  variable of the abstract data type.
+  
+  An example of the modified Destroy operation using the StackSBMI module follows.
+  
+  PROCEDURE Destroy (VAR theStack : Stack);
+  CONST minStackSize = SIZE(BoundedStack) - SIZE(ItemsArray);
+  BEGIN
+    Clear(theStack);
+	IF (stackError = noerr) THEN
+	  Deallocate(theStack, minStackSize + SIZE(Item) * theStack^.size);
+	  theStack := NullStack;
+	END;
+  END Destroy;
+
+
+˘ Specifics for JPI's TopSpeed Modula-2
+
+The above general comments hold for JPI's TopSpeed Modula-2 compiler. In
+addition, the NoAssignProc, NoCompareProc, and NoDisposeProc procedure
+variable constants should be changed to reference the predefined procedure
+constant, NULLPROC, instead of using the type transfer of NIL.
+
+˘ Specifics for FST Modula-2
+
+The FST compiler does not like the use of type transfer functions in declarations,
+e.g., CONST NullStack = VAL(Stack, NIL) causes the compiler to crash. Use the
+variable idea presented above to workaround this problem.
+
+˘ Specifics for Logitech's Modula-2
+
+The Logitech compiler treats REALs as equivalent to LONGREALs. Thus, a REAL doesn't
+fit into an ADDRESS. This means that REALs cannot be type cast into a generic Item.
+There are two possible solutions:
+	1. use the address of the real numbers and store the actual values in some other
+	   non-generic data structure such as an array;
+	2. allocate the reals on the heap.
+
+In both cases, you'll need to use the TypeManager to create a new data type and provide
+the appropriate assignment, comparison, and (optionally) disposal routines.
+
+˘ Specifics for Stony Brook's Modula-2 (courtesy of Lee Cole of Boulder, CO)
+
+1. Does not allow equality test between procedure variables.
+   Solution: Coerce to ADDRESS.
+
+2. Opaque types must be pointers. ADDRESS isn't allowed.
+   Solution: Change Item to a POINTER TO BYTE (or WORD)
+
+3. In CharUtil module from Volume 1, the Offset calculation cannot use type coercion.
+   Solution: Change the calculation of "LowercaseOffset" to
+             ORD(MIN(LowercaseCharacter)) - ORD(MIN(UppercaseCharacter))
+
+4. In CharUtil module from Volume 1, ValueOf and IndexOf won't compile as the compiler
+   does not like routines that may not return a value. (Hummm. This should also occur
+   with ImageOf.) If you want to be real robust, treat this as an exception and
+   return some special value indicating failure.
+
+
+<<<<<<<<<<<<<<<<<<<<  OTHER INFORMATION  >>>>>>>>>>>>>>>>>>>>
+
+˘	All of the MPW scripts have been written and tested using MPW 3.0 and 3.1.
+	I have not tried them under earlier versions. Let me know if there
+	are problems using these with MPW 2.0.
+
+˘	The sources all compile using the latest version of Bob Campbell's
+	compiler. I don't think I've used any features special to this
+	version, but once again I haven't tried to compile anything using
+	an earlier release.
+
+˘	Handles vs. Pointers
+	As you already know from the book, I use pointers to the various
+	bounded data structures instead of handles. This makes the software
+	more compatible with other hardware platforms. It should be a trivial
+	exercise to change the declarations and dereferencing operations as
+	necessary. I have not implemented such a change, but may provide
+	a version that does so in the future.
+
+˘	MacSystem Module
+	At some point in the future the name of this module will be changed
+	to something more general, e.g., SCLSystem. (The PC versions use this name.)
+
+
+<<<<<<<<<<<<<<<<<<<<  PROBLEMS, BUGS, COMPLAINTS?  >>>>>>>>>>>>>>>>>>>>
+
+I am REALLY interested in knowing of any problems you encounter in using
+this library. I've tested the modules quite extensively and I don't believe
+there are any errors lurking in the code. There's still no quarantee that
+a bug hasn't slipped through. Please report any errors you find so I can
+get them fixed. I'll supply a free update to the first person reporting
+a given error.
+
+Report errors, comments, and suggestions for improving the library to:
+
+Chuck Lins
+Apple Computer, Inc.
+20525 Mariani Ave.
+M/S 37-BD
+Cupertino, CA  95014
+
+
+Applelink: LINS
+e-mail:    lins@apple.com (preferred)
+
+
+Just because I work at Apple doesn't mean that the book or software is in any
+way, shape, or form associated with Apple Computer, Inc.

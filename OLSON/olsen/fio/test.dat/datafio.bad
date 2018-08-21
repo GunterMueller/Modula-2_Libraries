@@ -1,0 +1,3 @@
+; This test file for tDataIO has a syntax error.
+[Real] Should_expect_equals_sign      1.324	; syntax error
+; More stuff that won't be printed.

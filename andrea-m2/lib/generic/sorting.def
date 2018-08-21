@@ -1,0 +1,83 @@
+DEFINITION MODULE Sorting;
+
+(* some sorting routines, BSort's are bubble sorts, QSort's are quicksorts *)
+(* J. Andrea, Dec.16/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED CardBSort, RealBSort,
+                 CardQSort, CardQSortIndex, RealQSortIndex,
+                 TopoSort;
+
+(*
+ The bubble sorts used here are based upon the procedure
+ BUBSORT, by L. Slack and J. Andrea, Dec 1981,
+ a theoretically perfect bubble sort.
+ The quicksorts used here are nonrecursive, based upon
+ NonRecursiveQuickSort,
+ "Algorithms and Data Structures"
+ by    Niklaus Wirth, Prentice-Hall Inc., 1986
+ The TopoSort is based on an algorithm given in
+ "Algorithms and Data Structures"
+ by    Niklaus Wirth, Prentice-Hall Inc., 1986
+*)
+
+(*
+ Some routines return an index into the array, this means that the
+ array itself is unchanged and to get access to the array in sorted
+ order you must use the index. This means that it is easy to get the
+ array in 1) original order 2) ascending order and 3) descending order.
+ The index array must be at least as large as the array to be sorted.
+ To use this array, do something like this:
+       sort-procedure( array, n, index );
+       -output in original order-
+       for i = 1 to n
+          print array[i]
+       end
+       -output in ascending order-
+       for i = 1 to n
+          print array[index[i]+1]
+       end
+       -output in descending order-
+       i = n
+       for j = 1 to n
+          print array[index[i]+1]
+          i = i - 1
+       end
+ Remember that the index array will be returned with first element offset
+ of zero, since its treated like an open array.
+*)
+(*
+ The Topological sort routine requires input of two pairs of indices
+ as the 'x' and 'y', where element of index x is less than element of index y,
+ or element of index x comes before element of index y.
+ The returned 'solution' is the ordering of elements based upon the pairs
+ given in x and y, and the number of items in the solution is given in
+ 'n_solution'. 'error' is returned as true if the sorting cannot be performed,
+ 'solution' is returned as false if the indices cannot be ordered.
+*)
+(*
+ Because of the compiler's limit of 65536 bytes in open arrays,
+ these routines can only be used for arrays with 16384 or fewer elements.
+ Otherwise the sorting procedures should be included inline with programs.
+*)
+
+
+      PROCEDURE CardBSort( VAR a :ARRAY OF CARDINAL; array_len :CARDINAL );
+
+      PROCEDURE RealBSort( VAR x :ARRAY OF REAL; array_len :CARDINAL );
+
+      PROCEDURE CardQSort( VAR a :ARRAY OF CARDINAL; array_len :CARDINAL );
+
+      PROCEDURE CardQSortIndex( a :ARRAY OF CARDINAL; array_len :CARDINAL;
+                                VAR index :ARRAY OF CARDINAL );
+
+      PROCEDURE RealQSortIndex( a :ARRAY OF REAL; array_len :CARDINAL;
+                                VAR index :ARRAY OF CARDINAL );
+
+
+      PROCEDURE TopoSort( x, y :ARRAY OF CARDINAL; n_pairs :CARDINAL;
+                VAR solution :ARRAY OF CARDINAL; VAR n_solution :CARDINAL;
+                VAR error, sorted :BOOLEAN );
+
+END Sorting.

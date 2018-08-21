@@ -1,0 +1,85 @@
+ConfFIO.sym: 
+ConfFIO.o: ConfFIO.sym FIOBool.sym FIOCard.sym FIOInt.sym FIOReal.sym  \
+           FIOString.sym ../../gen/bin/ModInit.sym 
+ConvertFIO.sym: ../../gen/bin/SysTypes.sym 
+ConvertFIO.o: ../../io/bin/BinaryIO.sym ConvertFIO.sym FormatIO.sym  \
+              ../../io/bin/IOErrors.sym ../../io/bin/StringBinaryIO.sym  \
+              ../../io/bin/StringIO.sym ../../gen/bin/SysTypes.sym  \
+              ../../io/bin/TextIO.sym 
+DataFIO.sym: ../../gen/bin/GenConsts.sym ../../io/bin/IOConsts.sym  \
+             ../../io/bin/IOVersions.sym ../../gen/bin/SysTypes.sym  \
+             ../../io/bin/TextIO.sym 
+DataFIO.o: ../../io/bin/BinaryIO.sym ../../gen/bin/Chars.sym DataFIO.sym  \
+           ../../io/bin/DirIO.sym FIOBase.sym FormatIO.sym  \
+           ../../gen/bin/GenConsts.sym ../../io/bin/IOConsts.sym  \
+           ../../io/bin/IOErrors.sym ../../io/bin/IONames.sym  \
+           ../../io/bin/IOVersions.sym ../../gen/bin/IntConvert.sym  \
+           ../../gen/bin/Intrinsics.sym ../../gen/bin/NameLists.sym  \
+           ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+           ../../io/bin/StringBinaryIO.sym ../../io/bin/StringIO.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+           ../../io/bin/TextIO.sym 
+ErrorFIO.sym: ../../gen/bin/SysTypes.sym 
+ErrorFIO.o: ErrorFIO.sym FormatIO.sym ../../io/bin/IOErrors.sym  \
+            ../../gen/bin/ProgErr.sym ../../gen/bin/SysTypes.sym  \
+            ../../io/bin/TextIO.sym ../../io/bin/TextIOPRIVATE.sym 
+FIOBase.sym: ../../gen/bin/Chars.sym ../../gen/bin/GenConsts.sym  \
+             ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+             ../../io/bin/TextIO.sym 
+FIOBase.o: ../../gen/bin/CardConvert.sym ../../gen/bin/Chars.sym FIOBase.sym  \
+           FIOPRIVATE.sym FormatIO.sym ../../io/bin/IOErrors.sym  \
+           ../../gen/bin/Intrinsics.sym ../../gen/bin/ModInit.sym  \
+           ../../gen/bin/NameLists.sym ../../gen/bin/Objects.sym  \
+           ../../gen/bin/ProgErr.sym ../../gen/bin/ProgErrOutput.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+           ../../io/bin/TextIO.sym 
+FIOBool.sym: 
+FIOBool.o: ../../gen/bin/Chars.sym FIOBase.sym FIOBool.sym FormatIO.sym  \
+           ../../gen/bin/GenConsts.sym ../../io/bin/IOErrors.sym  \
+           ../../gen/bin/Intrinsics.sym ../../gen/bin/ModInit.sym  \
+           ../../io/bin/StringIO.sym ../../gen/bin/Strings.sym  \
+           ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+FIOCard.sym: 
+FIOCard.o: ../../gen/bin/CardConvert.sym ../../io/bin/CardIO.sym FIOBase.sym  \
+           FIOCard.sym ../../io/bin/IOErrors.sym ../../gen/bin/ModInit.sym  \
+           ../../io/bin/StringIO.sym ../../gen/bin/Strings.sym  \
+           ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+FIOInt.sym: 
+FIOInt.o: FIOBase.sym FIOInt.sym FormatIO.sym ../../io/bin/IOErrors.sym  \
+          ../../gen/bin/IntConvert.sym ../../io/bin/IntIO.sym  \
+          ../../gen/bin/ModInit.sym ../../io/bin/StringIO.sym  \
+          ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+          ../../io/bin/TextIO.sym 
+FIOPRIVATE.sym: FIOBase.sym ../../gen/bin/NameLists.sym  \
+                ../../gen/bin/Objects.sym ../../gen/bin/SysTypes.sym  \
+                ../../io/bin/TextIO.sym 
+FIOPRIVATE.o: ConfFIO.sym FIOBase.sym FIOPRIVATE.sym FormatIO.sym  \
+              ../../io/bin/IOErrors.sym ../../gen/bin/Intrinsics.sym  \
+              ../../gen/bin/ModInit.sym ../../gen/bin/NameLists.sym  \
+              ../../gen/bin/Objects.sym ../../gen/bin/ProgErr.sym  \
+              ../../gen/bin/ProgErrOutput.sym ../../io/bin/StringIO.sym  \
+              ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+              ../../io/bin/TextIO.sym 
+FIOReal.sym: 
+FIOReal.o: FIOBase.sym FIOReal.sym FormatIO.sym ../../io/bin/IOErrors.sym  \
+           ../../gen/bin/ModInit.sym ../../gen/bin/RealConvert.sym  \
+           ../../io/bin/RealIO.sym ../../io/bin/StringIO.sym  \
+           ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+           ../../io/bin/TextIO.sym 
+FIOScreen.sym: 
+FIOScreen.o: FIOBase.sym FIOScreen.sym ../../io/bin/IOErrors.sym  \
+             ../../io/bin/ScreenIO.sym ../../gen/bin/SysTypes.sym  \
+             ../../io/bin/TextIO.sym 
+FIOString.sym: 
+FIOString.o: FIOBase.sym FIOString.sym ../../io/bin/IOErrors.sym  \
+             ../../gen/bin/ModInit.sym ../../gen/bin/ProgErr.sym  \
+             ../../io/bin/StringIO.sym ../../gen/bin/Strings.sym  \
+             ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+FormatIO.sym: ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+FormatIO.o: FIOBase.sym FIOPRIVATE.sym FormatIO.sym ../../io/bin/IOErrors.sym  \
+            ../../gen/bin/ModInit.sym ../../io/bin/StringIO.sym  \
+            ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym 
+SimpleFIO.sym: ../../gen/bin/SysTypes.sym 
+SimpleFIO.o: FormatIO.sym ../../io/bin/IOErrors.sym ../../gen/bin/ProgErr.sym  \
+             SimpleFIO.sym ../../gen/bin/SysTypes.sym ../../io/bin/TextIO.sym  \
+             ../../io/bin/TextIOPRIVATE.sym 

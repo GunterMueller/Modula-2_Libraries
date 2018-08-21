@@ -1,0 +1,102 @@
+! This is an EDT startup file with special key templates for Modula-2,
+! it defined some keys, then enters screen mode.
+!
+! V2.0, J. Andrea, Nov.16/92 - documentation added, some fixups
+! V1.0, J. Andrea, Oct.25/88
+!
+! The defined keys are: (the $ shows where the cursor is left)
+!
+!  TAB = insert 6 spaces
+!  ^A  = go to the beginning of the next line
+!  ^E  = go to end of line
+!  ^B  = go to beginning of line
+!  ^F  = forward one word
+!  ^R  = reverse position of current character with next
+!  PF2 = set advance mode, disable keypad help key
+!  GOLD PF2 = set advance mode, disable keypad help key
+!  GOLD A = insert "ARRAY "
+!  GOLD B = insert "BEGIN
+!                      $
+!                   END"
+!  GOLD C = insert " :CARDINAL;"
+!  GOLD D = insert "DO
+!                      $"
+!  GOLD E = insert "END;"
+!  GOLF F = insert "FOR $ :=  TO  DO
+!                   END;"
+!  GOLD G = insert "IMPLEMENTATION MODULE $
+!                   BEGIN
+!                   END ."
+!  GOLD H = insert "HIGH($)"
+!  GOLD I = insert "IF $ THEN
+!                   END;"
+!  GOLD J = insert "DEFINITION MODULE $
+!                   EXPORT QUALIFIED
+!                   END ."
+!  GOLD K = insert "CHAR($)"
+!  GOLD L = insert "LEN($)"
+!  GOLD M = insert "MODULE $
+!                   BEGIN
+!                   END ."
+!  GOLD N = insert "NIL"
+!  GOLD O = insert "ORD($)"
+!  GOLD P = insert "(* ---------------------------------------- *)
+!                   PROCEDURE $
+!                   BEGIN
+!                   END ;'
+!  GOLD Q = insert "EXPORT QUALIFIED
+!                       $"
+!  GOLD R = insert "REPEAT
+!                   UNTIL $;"
+!  GOLD S = insert "SET "
+!  GOLD T = insert " := TRUE;"
+!  GOLD U = insert "UNTIL $"
+!  GOLD V = insert "VAR
+!                     $"
+!  GOLD W = insert "WHILE $ DO
+!                   END;"
+!  GOLD X = insert " TRUE"
+!  GOLD Y = insert " FALSE"
+!  GOLD Z = insert " :BOOLEAN;"
+!  GOLD = = insert " := "
+!  GOLD ` = insert " := "
+!  GOLD ! = insert "FROM InOut IMPORT WriteString, WriteLn;"
+!
+def key control i as 'I      ^Z.'
+def key control a as 'L.'
+def key control b as 'L-V.'
+def key control e as 'EL.'
+def key control f as 'ADVW.'
+def key control r as 'D+C+CUNDC.'
+def key 10 as 'ADV.'
+def key gold 10 as 'ADV.'
+def key gold a as 'iARRAY ^Z.'
+def key gold b as 'iBEGIN^Z^M^MiEND^Z-Vi   ^Z.'
+def key gold c as 'i :CARDINAL;^Z^M.'
+def key gold d as 'i DO^Z^Mi   ^Z.'
+def key gold e as 'iEND;^Z.'
+def key gold f as 'iFOR  :=  TO  DO^Z^MiEND;^Z^M-V-VEL11(-C).'
+def key gold g as 'iIMPLEMENTATION MODULE ^Z^MiBEGIN^Z^MiEND .^Z-V-VEL.'
+def key gold h as 'iHIGH()^Z-C.'
+def key gold i as 'iIF  THEN^Z^MiEND;^Z^M-V-VEL5(-C).'
+def key gold j as 'iDEFINITION MODULE ^Z^M^MiEXPORT QUALIFIED ^Z^M^MiEND .^Z4(-V)EL.'
+def key gold k as 'iCHAR()^Z-C.'
+def key gold l as 'iLEN()^Z-C.'
+def key gold m as 'iMODULE ^Z^MiBEGIN^Z^MiEND .^Z-V-VEL.'
+def key gold n as 'iNIL^Z.'
+def key gold o as 'iORD()^Z-C.'
+def key gold p as 'i(*^Z60(i-^Z)i*)^Z^MiPROCEDURE ^Z^MiBEGIN^Z^MiEND^Z-V-VEL.'
+def key gold q as 'iEXPORT QUALIFIED ^Z^Mi   ^Z.'
+def key gold r as 'iREPEAT^Z^MiUNTIL ;^Z-C.'
+def key gold s as 'iSET ^Z.'
+def key gold t as 'i := TRUE;^Z^M.'
+def key gold u as 'iUNTIL ^Z.'
+def key gold v as 'iVAR^Z^Mi  ^Z.'
+def key gold w as 'iWHILE  DO^Z^MiEND;^Z^M-V-VEL3(-C).'
+def key gold x as 'iTRUE^Z.'
+def key gold y as 'iFALSE^Z.'
+def key gold z as 'i :BOOLEAN;^Z^M.'
+def key gold "=" as 'i := ^Z.'
+def key gold "`" as 'i := ^Z.'
+def key gold "!" as 'iFROM InOut IMPORT WriteString, WriteLn;^Z^M.'
+set mode change

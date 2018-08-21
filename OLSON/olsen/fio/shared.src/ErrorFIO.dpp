@@ -1,0 +1,92 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ErrorFIO;
+(* 
+ * Simple interface to FormatIO which outputs messages
+ * to TextIO.GetErrorOutput( ) in an simple way.
+ *
+ * If there is an error during output, the file error is reset.
+ * If the error can't be reset, the caller will be terminated.
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    Write,  Write1,  Write2,  Write3,  Write4;
+
+    (*
+     * The "format" string is scanned for text literals and
+     * for format commands (enclosed in square brackets).
+     *
+     * The following occurs in the sequence in which the objects
+     * are encountered in the format string:  
+     *
+     *     Text literals are written to the file immediately and directly.  
+     *
+     *     Format commands are scanned for a leading name (such as "Card")
+     *     and the name is looked up in a case sensitive manner in an
+     *     internal dictionary of registered write names. If the name is
+     *     found and the size in the dictionary is non-zero, the size of
+     *     the corresponding argument is compared with the size expected
+     *     by the procedure variable associated with the name. If the
+     *     sizes match (or the dictionary size is zero) the remaining
+     *     elements of the format command are stripped out ("f0,w2") and
+     *     the procedure variable is called to perform the write operation.
+     *     If the dictionary size is zero, the procedure variable is
+     *     responsible for argument size checking.
+     *
+     *     Ill-formed format commands ("[,fred]"), format commands with
+     *     proper syntax but unrecognized names, or valid format commands
+     *     with arguments of an wrong size will cause unexpected output.
+     *)
+PROCEDURE Write(
+    format : ARRAY OF CHAR
+    );
+
+PROCEDURE Write1(
+    format : ARRAY OF CHAR;        (* Control output, supply literals *)
+    arg1   : ARRAY OF SysTypes.ANY (* To be formated and written *)
+    );
+
+PROCEDURE Write2(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY
+    );
+
+PROCEDURE Write3(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY
+    );
+
+PROCEDURE Write4(
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY;
+    arg4   : ARRAY OF SysTypes.ANY
+    );
+
+END ErrorFIO.

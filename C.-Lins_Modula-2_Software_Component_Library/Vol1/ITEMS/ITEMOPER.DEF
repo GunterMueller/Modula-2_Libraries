@@ -1,0 +1,75 @@
+DEFINITION MODULE ItemOperations;
+(*==============================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Structure Utility - Generic Item Operations
+
+    INTRODUCTION
+    This module provides predefined routines for the standard data
+    types, (CHAR, INTEGER, etc.), compatible with the procedure types
+    exported by the “Items” module.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved.
+==============================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+
+(*--
+  --  Predefined Assignment Routine for the Standard Data Types
+  --  as Generic Items.
+--*)
+
+PROCEDURE AssignItem   (    source : Item     (*-- in	 *))
+				   : Item     (*-- out	 *);
+
+
+(*--
+  --  Predefined Equality Comparison Routine for the Standard
+  --  Data Types as Generic Items.
+--*)
+
+PROCEDURE EqualItems   (    left   : Item     (*-- in	 *);
+			    right  : Item     (*-- in	 *))
+				   : BOOLEAN  (*-- out	 *);
+
+
+(*--
+  --  Predefined Comparison Routines for the Standard Data Types
+  --  as Generic Items.
+--*)
+
+PROCEDURE CharCompare	   (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+PROCEDURE IntegerCompare   (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+PROCEDURE CardinalCompare  (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+PROCEDURE LongIntCompare   (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+PROCEDURE LongCardCompare  (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+PROCEDURE RealCompare	   (	left : Item	(*-- in    *);
+				right: Item	(*-- in    *))
+				     : Relation (*-- out   *);
+
+END ItemOperations.

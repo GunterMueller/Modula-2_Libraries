@@ -1,0 +1,191 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE CatBinaryIO;
+(*
+ * RJN - Comment this!
+ *)
+IMPORT
+    BinaryIO,
+    ConfBinaryIO,
+    Intrinsics,
+    IOErrors,
+    ModInit,
+    NameLists,
+    Objects,
+    ProgErr,
+    ProgErrOutput,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+CONST
+     moduleName = 'CatBinaryIO';
+
+VAR
+     classes  	      : NameLists.Object;
+     defaultClassName : BinaryIO.ClassName;
+
+PROCEDURE DefaultOpen(
+          VAR file    : Object;
+    (*IN*)VAR path    : ARRAY OF CHAR;
+    (*IN*)VAR options : ARRAY OF CHAR
+    )                 : IOErrors.Errors;
+    BEGIN (* DefaultOpen *)
+	
+	ProgErr.Terminate( 'BinaryIO: default "class" not registered.' );
+
+    END DefaultOpen;
+
+
+PROCEDURE Register(
+    className : ARRAY OF CHAR;
+    open      : Open
+    );
+    VAR
+	tmp      : BinaryIO.ClassName;
+	DONTCARE : SysTypes.Card;
+    BEGIN (* Register *)
+
+	(* 
+	 * We have to make sure we are intialized because of circular
+	 * import with all the classes, ConfBinaryIO, and BinaryIO!
+	 *)
+	IF NOT ModInit.Get( moduleName ) THEN
+	      Initialize;
+	END;
+
+	(* Have to truncate to ClassName length *)
+	Strings.Assign( className, tmp );
+
+	@IF Assert THEN
+	    IF NameLists.Find( classes, tmp, NameLists.DONTCARE ) THEN
+	        ProgErrOutput.WriteString( tmp );
+	        ProgErr.Terminate( ": BinaryIO class already exists." );
+	    END;
+	    IF Strings.Position( tmp, Strings.BOS, Strings.EOS, ' ', DONTCARE )
+	      THEN
+	        ProgErrOutput.WriteString( tmp );
+	        ProgErr.Terminate( 
+		   ": BinaryIO class names may not contain spaces." );
+	    END;
+	@END (* Assert *)
+
+	(* Is this the default class? *)
+	IF Strings.Compare( tmp, defaultClassName ) = Intrinsics.equal
+	  THEN
+	    defaultOpen := open;
+	END;
+
+	NameLists.Insert( classes, tmp, SysTypes.ANYPTR( open ) );
+    END Register;
+
+
+PROCEDURE Deregister(
+    className : ARRAY OF CHAR
+    );
+    VAR
+	tmp : BinaryIO.ClassName;
+    BEGIN (* DeRegister *)
+
+	(* Have to truncate to ClassName length *)
+	Strings.Assign( className, tmp ); (* Truncate! *)
+
+	IF NOT NameLists.Find( classes, tmp, NameLists.DONTCARE ) THEN
+	    RETURN;
+	END;
+
+	IF Strings.Compare( tmp, defaultClassName ) = Intrinsics.equal
+	  THEN
+	    defaultOpen := DefaultOpen;	(* No default class! *)
+	END;
+
+	NameLists.DeleteCurrent( classes );
+    END Deregister;
+
+
+PROCEDURE FindClass(
+        className : BinaryIO.ClassName;
+    VAR open      : Open
+    )             : BOOLEAN;
+    VAR
+	openPtr : POINTER TO SysTypes.ANYPTR;
+    BEGIN (* FindClass *)
+	
+	(* Have to *hack* the return of SysTypes.ANYPTR into procedure! *)
+	openPtr := SYSTEM.ADR( open );
+
+	RETURN NameLists.Find( classes, className, openPtr^ );
+    END FindClass;
+
+
+PROCEDURE IsValid(
+    file       : Object;
+    fileAccess : ModeSet
+    )          : BOOLEAN;
+    VAR
+	DONTCARE : BinaryIO.States;
+    BEGIN (* IsValid *)
+
+	Objects.Assert( objectMgr, file );
+
+	IF file^.state = BinaryIO.error THEN
+	    BinaryIO.PrintErrorMessage( BinaryIO.Object( file ), '' );
+	    ProgErr.Terminate( 
+		'BinaryIO: attempt to operate on a file in error state.' );
+	END;
+
+	(* Check access privileges. *)
+	IF file^.openMode IN fileAccess THEN
+	    RETURN TRUE;
+	END;
+
+	DONTCARE := BinaryIO.SetError( BinaryIO.Object( file ), 
+				       IOErrors.noAccess );
+	RETURN FALSE;
+    END IsValid;
+
+
+PROCEDURE Initialize;
+    (*
+     * Module initialization section.  Note where this is called.
+     *)
+    BEGIN (* Initialize *)
+	(*  
+	 * Get the default class name, but defaultOpen isn't
+	 * initialized until it is registered.  We have to 
+	 * initialize it with something to catch the call, though.
+	 *)
+	defaultOpen := DefaultOpen;
+	ConfBinaryIO.GetDefaultClassName( defaultClassName );
+
+	NameLists.Create( classes, NameLists.forwardSorted, 
+			  NameLists.caseSensitive );
+
+	Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), 
+			       'BinaryIO' );
+
+	(* Mark the module as being initialized *)
+	ModInit.Set( moduleName );
+    END Initialize;
+
+END CatBinaryIO.

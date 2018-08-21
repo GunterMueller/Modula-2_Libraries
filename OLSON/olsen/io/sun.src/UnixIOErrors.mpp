@@ -1,0 +1,112 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE UnixIOErrors;
+
+IMPORT 
+    IOErrors,
+    SysTypes,
+    UnixCerrno;
+
+VAR
+    toIOError : ARRAY [ 0 .. UnixCerrno.maxErrno ] OF IOErrors.Errors;
+
+PROCEDURE ToIOError(
+    errno : SysTypes.Int
+    )     : IOErrors.Errors;
+    BEGIN (* ToIOError *)
+	(* 
+	 * We have to protect ourselves from changing versions of the 
+	 * system.  sys_nerr doesn't help us, because it is dynamic and
+	 * our table is static.
+	 *)
+	IF ( 0 <= errno ) AND ( errno <= UnixCerrno.maxErrno ) THEN
+	    RETURN toIOError[ errno ];
+	END;
+
+	RETURN IOErrors.otherError;
+    END ToIOError;
+
+   
+PROCEDURE ErrnoToIOError(
+    ) : IOErrors.Errors;
+    BEGIN (* ErrnoToIOError *)
+	(* 
+	 * We have to protect ourselves from changing versions of the 
+	 * system.  sys_nerr doesn't help us, because it is dynamic and
+	 * our table is static.
+	 *)
+	IF ( 0 <= UnixCerrno.errno ) AND 
+	   ( UnixCerrno.errno <= UnixCerrno.maxErrno ) THEN
+	    RETURN toIOError[ UnixCerrno.errno ];
+	END;
+
+	RETURN IOErrors.otherError;
+    END ErrnoToIOError;
+   
+
+PROCEDURE InitializeTable;
+    VAR
+        i : CARDINAL;
+    BEGIN (* InitializeTable *)
+
+        (* Set up the table with the ones we don't know *)
+        FOR i := 0 TO UnixCerrno.maxErrno DO
+            toIOError[ i ] := IOErrors.otherError;
+        END;
+
+	(* Here are the ones we do know! *)
+	toIOError[ UnixCerrno.Eok            ] := IOErrors.ok;
+	toIOError[ UnixCerrno.EPERM          ] := IOErrors.noAccess;
+	toIOError[ UnixCerrno.ENOENT         ] := IOErrors.notFound;
+	toIOError[ UnixCerrno.ESRCH          ] := IOErrors.notFound;
+	toIOError[ UnixCerrno.ENXIO          ] := IOErrors.notFound;
+	toIOError[ UnixCerrno.E2BIG          ] := IOErrors.illegalName;
+	toIOError[ UnixCerrno.EBADF          ] := IOErrors.notOpen;
+	toIOError[ UnixCerrno.EACCES         ] := IOErrors.noAccess;
+	toIOError[ UnixCerrno.EEXIST         ] := IOErrors.alreadyExists;
+	toIOError[ UnixCerrno.ENODEV         ] := IOErrors.notFound;
+	toIOError[ UnixCerrno.EFBIG          ] := IOErrors.noMoreRoom;
+	toIOError[ UnixCerrno.ENOSPC         ] := IOErrors.noMoreRoom;
+	toIOError[ UnixCerrno.ESPIPE         ] := IOErrors.illegalOp;
+	toIOError[ UnixCerrno.EROFS          ] := IOErrors.noAccess;
+	toIOError[ UnixCerrno.ENOTSOCK       ] := IOErrors.illegalOp;
+	toIOError[ UnixCerrno.EOPNOTSUPP     ] := IOErrors.illegalOp;
+	toIOError[ UnixCerrno.EADDRINUSE     ] := IOErrors.alreadyExists;
+	toIOError[ UnixCerrno.ENOBUFS        ] := IOErrors.noMoreRoom;
+	toIOError[ UnixCerrno.EISCONN        ] := IOErrors.alreadyExists;
+	toIOError[ UnixCerrno.ENOTCONN       ] := IOErrors.notOpen;
+	toIOError[ UnixCerrno.ECONNREFUSED   ] := IOErrors.noAccess;
+	toIOError[ UnixCerrno.ELOOP          ] := IOErrors.illegalName;
+	toIOError[ UnixCerrno.ENAMETOOLONG   ] := IOErrors.illegalName;
+	toIOError[ UnixCerrno.EDQUOT         ] := IOErrors.noMoreRoom;
+	toIOError[ UnixCerrno.EREMOTE        ] := IOErrors.illegalName;
+
+    END InitializeTable;
+
+
+BEGIN (* UnixIOErrors *)
+
+    InitializeTable;
+
+END UnixIOErrors.
+

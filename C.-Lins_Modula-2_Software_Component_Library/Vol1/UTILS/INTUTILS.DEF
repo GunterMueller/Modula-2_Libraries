@@ -1,0 +1,41 @@
+DEFINITION MODULE IntUtils;
+(*==========================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Primitive Utility - Integer Utilities
+
+    Revision History
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved. 
+==========================================================*)
+
+PROCEDURE Min	(    left  : LONGINT  (*--in   *);
+		     right : LONGINT  (*--in   *))
+			   : LONGINT  (*--out  *);
+
+PROCEDURE Max	(    left  : LONGINT  (*--in   *);
+		     right : LONGINT  (*--in   *))
+			   : LONGINT  (*--out  *);
+
+PROCEDURE RoundUp   (	 theNumber  : LONGINT (*--in   *);
+			 theModulus : INTEGER (*--in   *))
+				    : LONGINT (*--out  *);
+
+
+PROCEDURE MinOf (    theNumbers : ARRAY OF INTEGER (*--in   *))
+				: INTEGER	   (*--out  *);
+
+PROCEDURE MaxOf (    theNumbers : ARRAY OF INTEGER (*--in   *))
+				: INTEGER	   (*--out  *);
+
+
+PROCEDURE MinOfLong (	 theNumbers : ARRAY OF LONGINT (*--in	*))
+				    : LONGINT	       (*--out	*);
+
+PROCEDURE MaxOfLong (	 theNumbers : ARRAY OF LONGINT (*--in	*))
+				    : LONGINT	       (*--out	*);
+
+END IntUtils.

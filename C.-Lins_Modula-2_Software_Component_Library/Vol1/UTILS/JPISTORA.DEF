@@ -1,0 +1,38 @@
+DEFINITION MODULE JPIStorage; 
+(*====================================================================
+    Version  : 1.0	Sat, Mar 4, 1989	C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tool - JPI Storage Management Utility for M2SCL
+
+    INTRODUCTION
+    This module provides facilities for allocation and deallocation of
+	dynamic memory.  The routines are compatible with the JPI Storage
+	module. Allocate differs from ALLOCATE in returning NIL
+	if unsuccessful instead of HALTing. Deallocate does nothing if
+	the given pointer is NIL, otherwise NIL is returned.
+
+    REVISION HISTORY
+    v1.00  04 Mar 1989  C. Lins:
+        Initial implementation.
+
+    UNDESIRED EVENTS and EXCEPTIONS
+    * Overflow - Memory allocation failure, insufficient memory.
+
+    INTERFACE DESIGN ISSUES
+    * Interface compatibility with the module Storage.
+====================================================================*)
+
+FROM SYSTEM IMPORT
+    (*--Type*) ADDRESS;
+
+
+    (*-----------------------*)
+    (*     CONSTRUCTORS      *)
+
+PROCEDURE Allocate   (VAR thePointer : ADDRESS  (*--out  *);
+                          theSize    : CARDINAL (*--in   *));
+
+PROCEDURE Deallocate (VAR thePointer : ADDRESS  (*--inout*);
+                          theSize    : CARDINAL (*--in   *));
+
+END JPIStorage.

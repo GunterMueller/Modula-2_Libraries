@@ -1,0 +1,162 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE GenTestIO;
+
+(*
+ * Provides a very simple model of IO for reading and writing
+ * modula-2 strings to and from files.  It also has a WriteLn
+ * for outputing a line separator.  The BOOLEAN return results
+ * indicate end of file and failure.  There is no distinction.
+ * There is an open for reading (Open) and a open for rewrite (Create).
+ * No other file types are supported (e.g. append only)
+ *)
+
+EXPORT QUALIFIED
+    File,	  Open,		   Create,	     Close,		
+    Read, 	  Write,	   WriteLn,          GetInput,
+    GetOutput,    GetErrOutput,    IsInteractive,    Modes;
+
+TYPE
+    File;		
+    Modes = ( readOnly, writeOnly, readWrite );
+
+PROCEDURE Open( VAR file: File; flags: Modes; name: ARRAY OF CHAR )
+	      : BOOLEAN;
+
+    (*
+     * Tries to open the named file for reading.  If it does not
+     * exist, it fails.  
+     *
+     * INPUT:
+     *    name     = name of the file to be opened.
+     *    flags    = mode of the file to be opened. 
+     *
+     * OUTPUT:
+     *    file     = valid file variable, if <result> is TRUE.
+     *    <result> = TRUE, if the file was successfully opened.
+     *		     FALSE, if no file was found or another error.
+     *)
+                 
+PROCEDURE Create( VAR file: File; name: ARRAY OF CHAR ): BOOLEAN;
+
+    (*
+     * Tries to create the named file for writing.  If the file
+     * already exists, the old file is overwritten.
+     *
+     * INPUT:
+     *    name     = name of the file to be created.
+     *
+     * OUTPUT:
+     *    file     = valid file variable, if <result> is TRUE.
+     *    <result> = TRUE, if the file was successfully created.
+     *		     FALSE, if for some reason the file couldn't be opened.
+     *)
+
+PROCEDURE Close( VAR file: File ): BOOLEAN;
+
+    (*
+     * Close the the specified file.
+     *
+     * INPUT:
+     *    file     = valid file handle.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the close was successful.
+     *		     FALSE, some type of media error occurred.
+     *)
+                 
+PROCEDURE Read( file: File; VAR string: ARRAY OF CHAR ): BOOLEAN;
+
+    (*
+     * Read a string from the file.  A blank string indicates
+     * a blank line.  A line separator will terminate the string or
+     * if the string fills up before hitting end of line.
+     * 
+     * INPUT:
+     *    file     = valid file handle.
+     *
+     * OUTPUT:
+     *    string   = value to be read from the file.
+     *    <result> = TRUE, if the operation was successful.
+     * 		     FALSE, if an EOF was reached. 
+
+     *    If an error occurs when reading, the caller will be terminated 
+     *)
+
+PROCEDURE Write( file: File; string: ARRAY OF CHAR ): BOOLEAN;
+
+    (*
+     * Write the string to the file.  No character interpretation is done.
+     * 
+     * INPUT:
+     *    file     = valid file handle.
+     *    string   = value to be written to the file.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the operation was successful.
+     * 		     FALSE, failed because of an unopened file, or...
+     *)
+
+PROCEDURE WriteLn( file: File ): BOOLEAN;
+
+    (*
+     * Write a single line separator to the file.
+     * 
+     * INPUT:
+     *    file     = valid file handle.
+     *
+     * OUTPUT:
+     *    <result> = TRUE, if the operation was successful.
+     * 		     FALSE, failed because of an unopened file, or...
+     *)
+
+PROCEDURE GetInput(): File; 
+
+    (*
+     * OUTPUT:
+     *    <RETURN>, = Standard input file.
+     *)
+
+PROCEDURE GetOutput(): File;
+
+    (*
+     * OUTPUT:
+     *    <RETURN>, = Standard output file.
+     *)
+
+PROCEDURE GetErrOutput(): File;
+
+    (*
+     * OUTPUT:
+     *    <RETURN>, = Standard error file.
+     *)
+
+PROCEDURE IsInteractive( file: File ): BOOLEAN;
+
+    (*
+     * OUTPUT:
+     *    <RETURN>, = TRUE, if the file is "interactive".
+     *                FALSE, if the file is not "interactive".
+     *)
+
+END GenTestIO.

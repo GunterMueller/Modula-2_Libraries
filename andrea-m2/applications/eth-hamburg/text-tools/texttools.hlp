@@ -1,0 +1,92 @@
+1 Overview
+ There are several programs available for text processing and are
+ described here.
+
+ These programs do not (yet) have a command line interface so input
+ of filenames, etc. is explicitly prompted.
+
+ The commands to run these programs correspond to the names of the
+ programs.
+
+ These programs may be used for numeric data as well as normal text.
+ For instance using COUNTWORDS to count reserved words in a program
+ is a measure of program complexity.
+ KWIC takes any string, not just words. And other cases a word is
+ simply any string delimited by spaces or punctuation.
+2 Sources
+ The source programs are on-line and available for users to examine
+ and perhaps copy and modify to suit their own purposes.
+
+ They are in STFXSOFT:[TEXTTOOLS.SOURCES]
+
+ One possible change is to modify COUNT_WORDS to be case sensitive
+ for use as a programming language tool.
+1 Kwic
+ Keyword-in-context.
+ Find the input string in a text file and show the line on which
+ it occurred in the output file, with the line number.
+
+ The line consists of a number of characters before and after the
+ specified string, and an attempt is made to always center the
+ specified string in the output line.
+
+ The input string is converted to uppercase and the search is performed
+ on uppercase only
+2 How
+ The line buffer is implemented with the use of a circular linked list
+ with a pointer to the start, and a pointer to the position at which
+ the string search is being performed
+2 Size
+ The size of the output string is determined by the user, from 1 character
+ to 130 characters long.
+
+ A choice of 38 characters will fill an 80 character line, and 64
+ characters will fill a 132 character line.
+
+1 Words
+ Input a file of characters and break the file into a single list
+ of sorted words to be output to another file
+
+ Words have no punctuation, and case is ignored
+2 Example
+ Running WORDS on this help file shows 79 input words, and 34 unique
+ words are output.
+
+ The output file of unique words contains:
+
+ 36 81 A AND ANOTHER ARE BE BREAK CASE CHARACTERS CONTAINS EXAMPLE
+ FILE HAVE HELP IGNORED INPUT INTO IS LIST NO OF ON OUTPUT PUNCTUATION
+ RUNNING SHOWS SINGLE SORTED THE THIS TO UNIQUE WORDS
+1 CountWords
+ Input a file of characters and break the file into a single list
+ of sorted words to be output to another file.
+ It also keeps track of the number of times that each word occurs
+ and displays the final count for each word.
+
+ Words have no punctuation, and case is ignored.
+2 MinMax
+ There is an option to ignore words that occur too frequently,
+ or too rarely in the text.
+
+ To include all words, give zeros for both questions.
+
+ To exclude any word with only one occurance then give a two as
+ the minimum count.
+
+ To find the maximum, make a guess at the expected maximum and
+ run the program. If some words still occur too many times then
+ run the programs again with a lower maximum.
+2 Example
+ Running CountWords on the first section of this help file, ignoring
+ any words used only once would show 53 words in the input file,
+ and 9 unique words output as:
+
+     2 A
+     3 AND
+     2 EACH
+     3 FILE
+     4 OF
+     3 THE
+     2 TO
+     2 WORD
+     2 WORDS

@@ -1,0 +1,362 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TextIOPRIVATE;
+
+IMPORT 
+    ASCII,
+    BinaryIO,
+    IOErrors,
+    Objects,
+    ProgErrOutput,
+    ProgErr,
+    Notices,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+@IF Tasks THEN
+    IMPORT
+	IOMonitors,
+	TaskMonitors;
+@END (* Tasks *)
+
+PROCEDURE IsValid(
+    file       : Object;
+    fileAccess : ModeSet
+    )          : BOOLEAN;
+    VAR
+	DONTCARE : TextIO.States;
+    BEGIN (* IsValid *)
+
+	Objects.Assert( objectMgr, file );
+
+	WITH file^ DO 
+	    IF state = TextIO.error THEN
+		TextIO.PrintErrorMessage( TextIO.Object( file ), '' );
+		ProgErr.Terminate( 
+		    'TextIO: attempt to operate on a file in error state.' );
+	    END;
+
+	    (* Check access privileges. *)
+	    IF NOT ( openMode IN fileAccess ) THEN
+		DONTCARE := TextIO.SetError( TextIO.Object( file ), 
+					     IOErrors.noAccess );
+		RETURN FALSE;
+	    END;
+
+	    (* Can't do anything that requires "access" in a Scan *)
+	    IF inScan THEN
+		DONTCARE := TextIO.SetError( TextIO.Object( file ), 
+					     IOErrors.illegalOp );
+		RETURN FALSE;
+	    END;
+	END; (* WITH *)
+
+	RETURN TRUE;	
+
+    END IsValid;
+
+
+PROCEDURE ReadBuffer(
+    file : Object
+    )    : TextIO.States;
+    BEGIN (* ReadBuffer *)
+
+	WITH file^ DO
+	    WITH buffer^ DO
+		CASE BinaryIO.ReadBytes( binaryFile, SYSTEM.ADR( data ), 
+					 HIGH( data ) + 1, length ) OF
+		    BinaryIO.ok:   (* keep on truckin' *)
+		    |
+		    BinaryIO.endOfFile:
+			state := TextIO.endOfFile;
+			RETURN state;
+		    |
+		    BinaryIO.error: 
+			RETURN TextIO.SetError( TextIO.Object( file ), 
+				       BinaryIO.GetError( binaryFile ) );
+		END; (* CASE *)
+
+		@IF Assert THEN
+		    IF length = 0 THEN
+			(* should have been trapped by BinaryIO as endOfFile *)
+			ProgErr.Terminate( 
+		'TextIO: unexpected return from BinaryIO.ReadBytes.' );
+		    END;
+		@END (* Assert *)
+
+		readIndex := 0;	(* on reads this matters *)
+
+	    END; (* WITH buffer *)
+	END; (* WITH file *)
+
+	RETURN TextIO.ok;
+    END ReadBuffer;
+
+
+PROCEDURE WriteBuffer(
+    file : Object
+    )    : TextIO.States;
+    VAR
+	bytesWritten : SysTypes.Card;
+    BEGIN
+
+	WITH file^ DO
+	    WITH buffer^ DO
+		IF BinaryIO.WriteBytes( binaryFile, SYSTEM.ADR( data ), 
+					  length, bytesWritten ) = BinaryIO.error
+		  THEN
+		    RETURN TextIO.SetError( TextIO.Object( file ), 
+					    BinaryIO.GetError( binaryFile ) );
+		END; 
+
+		length := 0; (* mark the buffer as empty *)
+
+	    END; (* WITH buffer *)
+	END; (* WITH file *)
+
+	RETURN TextIO.ok;
+    END WriteBuffer;
+
+(* 
+ * The two following are used by ProgErrOutput to print error messages 
+ * If they can't print a message, then they must call the lower level
+ * output routines.  Note that error output files are never buffered.
+ * This assumes that the binary file isn't screwed up.  We could do
+ * a BinaryIO.GetError, but if the guy is screwing around with the
+ * binaryFile of a text file, it is his problem.
+ *)
+VAR
+    oldErrorWriteString : ProgErrOutput.WriteStringProc;
+    oldErrorWriteLn     : PROC;
+
+@IF Tasks THEN
+    VAR
+	errorOutputMonitor : TaskMonitors.Object;
+@END
+PROCEDURE ErrorWriteString(
+    (*IN*)VAR toWrite : ARRAY OF CHAR
+    );
+    (* 
+     * Assumes error output routines are not buffered.
+     * Makes absolute best attempt to get the data out to 
+     * a valid file which is not in an error state.
+     *)
+    VAR
+	DONTCARE : SysTypes.Card;
+	result   : BOOLEAN;
+    BEGIN (* ErrorWriteString *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( errorOutputMonitor );
+	@END (* Tasks *)
+
+	(* not Assert section, because we want to make sure it goes out! *)
+	result := Objects.IsValid( objectMgr, errorOutput ) AND
+		  ( errorOutput^.state = TextIO.ok ) AND
+		  ( BinaryIO.WriteBytes( errorOutput^.binaryFile, 
+					 SYSTEM.ADR( toWrite ), 
+					 Strings.Length( toWrite ), 
+					 DONTCARE ) # BinaryIO.error );
+	@IF Tasks THEN
+	    TaskMonitors.Exit( errorOutputMonitor );
+	@END (* Tasks *)
+
+	IF NOT result THEN
+	    (* Get it out! *)
+	    oldErrorWriteString( toWrite );
+	END;
+    END ErrorWriteString;
+
+
+PROCEDURE ErrorWriteLn;
+    (* 
+     * Assumes error output routines are not buffered.
+     * Makes absolute best attempt to get the data out to 
+     * a valid file which is not in an error state.
+     *)
+    VAR
+	DONTCARE : SysTypes.Card;
+	result   : BOOLEAN;
+    BEGIN (* ErrorWriteLn *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( errorOutputMonitor );
+	@END (* Tasks *)
+
+	(* not Assert section, because we want to make sure it goes out! *)
+	result := Objects.IsValid( objectMgr, errorOutput ) AND
+		  ( errorOutput^.state = TextIO.ok ) AND
+		  ( BinaryIO.WriteBytes( errorOutput^.binaryFile, 
+					 SYSTEM.ADR( eolString ), 
+					 HIGH( eolString ) + 1,
+					 DONTCARE ) # BinaryIO.error );
+	@IF Tasks THEN
+	    TaskMonitors.Exit( errorOutputMonitor );
+	@END (* Tasks *)
+
+	IF NOT result THEN
+	    (* Get it out! *)
+	    oldErrorWriteLn;
+	END;
+    END ErrorWriteLn;
+
+
+PROCEDURE TerminationHandler(
+    terminationType : SysTypes.ANYPTR
+    );
+    (* 
+     * We always flush the files independent of the terminationType,
+     * but we only deallocate objects during normal termination.
+     *)
+    VAR
+	DONTCARE1 : TextIO.States;
+	DONTCARE2 : ProgErrOutput.WriteStringProc;
+	DONTCARE3 : PROC;
+
+    BEGIN (* TerminationHandler *)
+
+	(* Reset to the old error output handlers. *)
+	ProgErrOutput.Install( oldErrorWriteString, oldErrorWriteLn,
+			       DONTCARE2, DONTCARE3 );
+
+	(* 
+	 * Input file doesn't get flushed 
+	 * Error Output file is always flushed.
+	 * Output file needs flushing (possibly).
+	 *)
+	IF Objects.IsValid( objectMgr, output ) AND 
+	   output^.writesBuffered AND ( output^.state # TextIO.error ) THEN
+	    DONTCARE1 := WriteBuffer( output );
+	END;
+
+    END TerminationHandler;
+
+
+PROCEDURE OpenDefault(
+    VAR file         : Object;
+	inBinaryFile : BinaryIO.Object;
+	inMode       : TextIO.Modes
+    );
+    BEGIN (* OpenDefault *)
+
+	IF BinaryIO.GetError( inBinaryFile ) = IOErrors.notOpen THEN
+	    file := NIL;  (* Binary isn't open, thus ours is also not *)
+	    RETURN;
+	END;
+
+	Objects.Allocate( objectMgr, file );
+
+	WITH file^ DO
+	    binaryFile       := inBinaryFile;
+	    binarySupplied   := TRUE;	(* Don't close binary file *)
+	    openMode         := inMode;
+	    state            := TextIO.ok;
+	    errorState       := IOErrors.ok;
+	    stateBeforeError := TextIO.ok;
+	    inScan           := FALSE;
+	    undo.state       := undoIllegal;
+	    undo.fileState   := TextIO.ok;
+	    undo.char	     := 0C;
+	    isInteractive    := BinaryIO.IsInteractive( binaryFile );
+	    (* Only do not buffer on stderr *)
+	    haveBufferOption := FALSE;
+	    IF isInteractive AND ( openMode = TextIO.appendOnly ) THEN
+		bufferOption := TextIO.doNotBuffer;
+		buffer	     := NIL;
+	    ELSE
+		bufferOption := TextIO.doBuffering;
+		Objects.Allocate( bufferMgr, buffer );
+		buffer^.length    := 0;
+		buffer^.readIndex := 0;
+	    END;
+	    writesBuffered   := ( openMode = TextIO.appendOnly ) AND 
+				( bufferOption = TextIO.doBuffering );
+	    lineNumber       := 1;
+	END;
+
+    END OpenDefault;
+
+
+PROCEDURE Initialize;
+
+    BEGIN (* Initialize *)
+
+	binStateToTextState[ BinaryIO.ok ]        := TextIO.ok;
+	binStateToTextState[ BinaryIO.endOfFile ] := TextIO.endOfFile;
+	binStateToTextState[ BinaryIO.error ]     := TextIO.error;
+
+	@IF MsDosOS THEN
+	    eolString[ 0 ] := ASCII.cr;
+	    eolString[ 1 ] := ASCII.lf;
+	@END (* MsDosOS *)
+	@IF SunOS THEN
+	    eolString[ 0 ] := ASCII.lf;
+	@END (* SunOS *)
+
+	Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ), 'TextIO' );
+	Objects.CreateManager( bufferMgr, SYSTEM.TSIZE( BufferRec ), 
+			       'TextIO.buffer' );
+
+	@IF Tasks THEN
+	    errorOutputMonitor := IOMonitors.GetErrorOutput();
+	@END (* Tasks *)
+
+	(* 
+	 * Do error output first as optimization on Objects allocation,
+	 * since we may deallocate the buffer
+	 *)
+	OpenDefault( errorOutput, BinaryIO.GetErrorOutput(), 
+		     TextIO.appendOnly );
+	(* If the error output is open, then set to non-buffered *)
+	IF errorOutput # NIL THEN
+	    WITH errorOutput^ DO
+		writesBuffered := FALSE;
+		(* always make non-buffering to save memory *)
+		IF bufferOption = TextIO.doBuffering THEN
+		    bufferOption := TextIO.doNotBuffer;
+		    Objects.Deallocate( bufferMgr, buffer );
+		END;
+	    END; (* WITH *)
+	END;
+
+	OpenDefault( input, BinaryIO.GetInput(), TextIO.readOnly );
+	OpenDefault( output, BinaryIO.GetOutput(), TextIO.appendOnly );
+
+	(* We always install, since the guy can set errorOutput later *)
+	ProgErrOutput.Install( ErrorWriteString, ErrorWriteLn,
+			       oldErrorWriteString, oldErrorWriteLn );
+
+	Notices.Register( Notices.GetTerminationNotice(), TerminationHandler );
+
+    END Initialize;
+
+
+BEGIN (* TextIOPRIVATE *)
+
+    Initialize;
+
+END TextIOPRIVATE.
+
+

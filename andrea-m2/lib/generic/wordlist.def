@@ -1,0 +1,52 @@
+DEFINITION MODULE WordList;
+
+(* Jaa, Sep.3/92 *)
+(* Build a list of words and make the list quickly and easily searchable *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED  List,
+                  Create, Destroy,
+                  Input, Add, Remove,
+                  In, Get,
+                  Print,
+                  Size;
+
+
+TYPE
+  List;  (* opaque type *)
+
+
+PROCEDURE Create( VAR a_list :List );
+(* initialize a list, this MUST be done *)
+
+PROCEDURE Destroy( VAR a_list :List );
+(* get rid of a list *)
+
+
+PROCEDURE Input( input_file :ARRAY OF CHAR; a_list :List;
+                    VAR done :BOOLEAN );
+(* Give the name of the input file of words to create the list,
+   return done as false if the file can't be opened *)
+
+PROCEDURE Add( word :ARRAY OF CHAR; a_list :List );
+(* add another word to the list *)
+
+PROCEDURE Remove( word :ARRAY OF CHAR; a_list :List );
+(* if the word exists in the list, remove it *)
+
+
+PROCEDURE In( word :ARRAY OF CHAR; a_list :List ) :BOOLEAN;
+(* does this word exist in the list *)
+
+PROCEDURE Get( VAR word :ARRAY OF CHAR; n :CARDINAL; a_list :List );
+(* return the n'th word in the list *)
+
+
+PROCEDURE Print( output_file :ARRAY OF CHAR; a_list :List );
+(* output the whole list into the specified file *)
+
+
+PROCEDURE Size( a_list :List ) :CARDINAL;
+(* return the number of words in the list *)
+
+END WordList.

@@ -1,0 +1,92 @@
+DEFINITION MODULE TreeTypes;
+(*=============================================================
+    Version  : V2.01  08 December 1989.
+    Compiler : JPI TopSpeed Modula-2
+    Component: Tree Structure Utility - Standard Types
+
+    THE ABSTRACTION
+    This module provides centralized definitions of the operations
+    and exceptions for all tree modules.
+
+    REVISION HISTORY
+    v1.01  18 Mar 1988  C. Lins:
+        Initial TML Modula-2 implementation
+    v1.02  03 Oct 1988  C. Lins:
+        Added operations for multiway trees.
+    v1.03  06 Feb 1989   C. Lins:
+        Added InsertProc procedure type for use as the FoundProc
+        in an Insert operation (the new data item is needed as
+        well as the old data).
+    v1.04  18 Apr 1989   C. Lins:
+        Added component id constant.
+    v2.01  08 Dec 1989  I.S.C. Houston.
+          Adapted to JPI Compiler:
+          Used type transfer functions instead of VAL.
+          Used shortened library module names for DOS and OS/2.
+
+=============================================================*)
+
+FROM Items IMPORT
+        (*--type*) Item;
+
+
+CONST ComponentID = 256 * 9;
+
+
+    (*---------------------------------*)
+    (*--       TREE OPERATIONS       --*)
+
+TYPE  Operations = (
+                    (*-- Module Initialization *)
+                    modinit,
+
+                    (*-- Constructors *)
+                    create, destroy, clear, assign, maketree,
+                                        insert, remove, setitem,
+
+                    (*-- Selectors *)
+                    isdefined, isempty, isequal, sizeof, typeof,
+                    extentof, ispresent, itemof, childrenof, childof,
+
+                    (*-- Iterators *)
+                    preorder, inorder, postorder, iterate,
+
+                    (*-- Guarded Concurrent Operations *)
+                    seize, release
+                   );
+
+TYPE  Constructors = Operations [ create    .. setitem   ];
+TYPE  Selectors    = Operations [ isdefined .. childof   ];
+TYPE  Iterators    = Operations [ preorder  .. iterate   ];
+TYPE  GuardedOps   = Operations [ seize     .. release   ];
+
+
+    (*---------------------------------*)
+    (*--       TREE EXCEPTIONS       --*)
+
+TYPE  Exceptions = (noerr,      (*-- Nothing went wrong. *)
+                    initfailed, (*-- Initialization failure. *)
+                    overflow,   (*-- Tree cannot grow big enough
+                                  -- for the requested operation.*)
+                    treeisnull, (*-- Tree is empty *)
+                    typeerror,  (*-- Type mismatch between trees *)
+                    undefined   (*-- Tree has not been Created, or
+                                  -- the tree has been Destroyed.*)
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+
+    (*---------------------------------*)
+    (*--    TREE PROCEDURE TYPES     --*)
+
+TYPE  Key  = Item;
+TYPE  Data = Item;
+
+TYPE  AccessProc   = PROCEDURE (Key, VAR Data);
+TYPE  InsertProc   = PROCEDURE (Key, VAR Data, Data);
+TYPE  FoundProc    = PROCEDURE (Key, VAR Data);
+TYPE  NotFoundProc = PROCEDURE (Key);
+
+END TreeTypes.
+

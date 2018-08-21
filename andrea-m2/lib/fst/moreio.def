@@ -1,0 +1,8 @@
+DEFINITION MODULE MoreIO;
+
+(* John Andrea, Mar.27/92 *)
+(* This code may NOT be sold, it may be freely used and distributed *)
+
+PROCEDURE ReadString( VAR string :ARRAY OF CHAR );
+
+END MoreIO.

@@ -1,0 +1,155 @@
+(*
+11.3 Bounded Map Interface
+*)
+
+DEFINITION MODULE MapSBUI;
+(*====================================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Monolithic Structures - Map (Opaque version)
+               Sequential Bounded Unmanaged Iterator
+
+    INTRODUCTION
+    This module provides operations for the bounded map abstract
+   data type.
+
+    REVISION HISTORY
+    v1.00  21 Aug 1989  C. Lins
+      Initial implementation.
+       8/26/89     CL      Add SizeOf selector.
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+=====================================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM MapTypes IMPORT
+    (*--Type*) Exceptions;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+
+    (*-----------------------*)
+
+(*
+11.3.1 Type Declarations
+*)
+
+TYPE  Domain = Item;
+TYPE  Range  = Item;
+
+TYPE  Map;
+VAR   NullMap : Map;
+
+TYPE  MapSize = [1..4094];
+
+
+(*
+11.3.2 Exceptions
+*)
+
+CONST ModuleID = 9;
+
+PROCEDURE MapError   ()              : Exceptions  (*--out  *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*--in   *);
+                          theHandler : HandlerProc (*--in   *));
+
+
+(*
+11.3.3 Constructors
+*)
+
+PROCEDURE Create  (    theDomain : TypeID  (*--in   *);
+                       theRange  : TypeID  (*--in   *);
+                       theSize   : MapSize (*--in   *))
+                                 : Map     (*--out  *);
+
+PROCEDURE Destroy (VAR theMap    : Map     (*--inout*));
+
+PROCEDURE Clear   (    theMap    : Map     (*--inout*));
+
+PROCEDURE Assign  (    theMap    : Map     (*--in   *);
+                   VAR toMap     : Map     (*--inout *));
+
+PROCEDURE Bind    (    theMap    : Map     (*--inout*);
+                       theItemIn : Domain  (*--in   *);
+                       toItemIn  : Range   (*--in   *));
+
+PROCEDURE Unbind  (    theMap    : Map     (*--inout*);
+                       theItemIn : Domain  (*--in   *));
+
+
+(*
+11.3.4 Selectors
+*)
+
+PROCEDURE IsDefined (    theMap    : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE IsEmpty   (    theMap    : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE IsEqual   (    left      : Map        (*--in   *);
+                         right     : Map        (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE SizeOf    (    theMap    : Map        (*-- in    *))
+                                   : CARDINAL   (*-- out   *);
+
+PROCEDURE ExtentOf  (    theMap    : Map        (*--in   *))
+                                   : CARDINAL   (*--out  *);
+
+PROCEDURE DomainOf  (    theMap    : Map        (*--in   *))
+                                   : TypeID     (*--out  *);
+
+PROCEDURE RangeOf   (    theMap    : Map        (*--in   *))
+                                   : TypeID     (*--out  *);
+
+PROCEDURE IsBound   (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *))
+                                   : BOOLEAN    (*--out  *);
+
+PROCEDURE BoundTo   (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *))
+                                   : Range      (*--out  *);
+
+PROCEDURE IsBoundTo (    theMap    : Map        (*--in   *);
+                         theItem   : Domain     (*--in   *);
+                     VAR toItem    : Range      (*--out  *))
+                                   : BOOLEAN    (*--out  *);
+
+
+(*
+11.3.5 Iterators
+*)
+
+TYPE  LoopAccessProc = PROCEDURE (Domain, Range) : BOOLEAN;
+TYPE  LoopChangeProc = PROCEDURE (Domain, VAR Range) : BOOLEAN;
+
+PROCEDURE LoopOver   (    theMap    : Map            (*--in   *);
+                          theProcess: LoopAccessProc (*--in   *));
+
+PROCEDURE LoopChange (    theMap    : Map            (*--in   *);
+                          theProcess: LoopChangeProc (*--in   *));
+
+
+TYPE  AccessProc = PROCEDURE (Domain, Range);
+TYPE  ChangeProc = PROCEDURE (Domain, VAR Range);
+
+PROCEDURE Traverse   (    theMap    : Map            (*--in   *);
+                          theProcess: AccessProc     (*--in   *));
+
+PROCEDURE TravChange (    theMap    : Map            (*--in   *);
+                          theProcess: ChangeProc     (*--in   *));
+
+END MapSBUI.

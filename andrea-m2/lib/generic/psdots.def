@@ -1,0 +1,28 @@
+DEFINITION MODULE PSDots;
+
+(* Put some dots on a PostScript page *)
+(* J. Andrea, Nov.13/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+   BeginPS, EndPS, GetDimensions, Dot, Title;
+
+PROCEDURE BeginPS( filename :ARRAY OF CHAR );
+(* define the output file to hold the graphics commands *)
+
+PROCEDURE EndPS;
+(* close the current output file *)
+
+PROCEDURE GetDimensions( VAR x, y :CARDINAL );
+(* return the maximum possible dimensions of the display *)
+
+PROCEDURE Dot( x, y :CARDINAL );
+(* draw a dot at the location *)
+(* columns are in the x direction, rows are in the y direction *)
+(* columns are in the width direction, rows are in the height direction *)
+
+PROCEDURE Title( string :ARRAY OF CHAR );
+(* put up a title *)
+(* this procedure is optional *)
+
+END PSDots.

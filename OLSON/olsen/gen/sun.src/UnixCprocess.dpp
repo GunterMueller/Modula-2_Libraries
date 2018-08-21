@@ -1,0 +1,117 @@
+DEFINITION FOR C MODULE UnixCprocess;
+(* 
+ * See the file:
+ *     /usr/include/sys/wait.h, /usr/include/sys/time.h, 
+ *     /usr/include/sys/resource.h
+ *
+ * See the man pages:
+ *     fork(2), vfork(2), getpid(2), getpgrp(2), wait(2),
+ *     system(3), execve(2), execl(3), pipe(2)
+ *)
+IMPORT
+    UnixCsys_types,
+    UnixCsys_resource,
+    UnixCtypes;
+
+TYPE
+    union_wait = RECORD
+        CASE : INTEGER OF
+	    1: 
+	        w_status : INTEGER;		
+	    |
+	    2:
+	        w_Fill1    : UnixCsys_types.u_short;  
+	        w_retcode  : UnixCsys_types.u_char;   
+	        w_TermCore : UnixCsys_types.u_char;   
+	        
+
+	    |
+	    3:
+	        w_Fill2   : UnixCsys_types.u_short;  
+	        w_stopsig : UnixCsys_types.u_char;   
+	        w_stopval : UnixCsys_types.u_char;   
+        END;
+    END;
+    Wait = POINTER TO union_wait;
+
+CONST
+    WSTOPPED = 0177;  
+
+CONST
+    WNOHANG 	= 1;	
+    WUNTRACED 	= 2;	
+
+PROCEDURE fork(
+    ) : INTEGER;
+
+PROCEDURE vfork(
+    ) : INTEGER;
+
+PROCEDURE getpid(
+    ) : INTEGER;
+
+PROCEDURE getppid(
+    ) : INTEGER;
+
+PROCEDURE setpgrp(
+    pid  : INTEGER;
+    pgrp : INTEGER
+    )    : INTEGER;
+
+PROCEDURE getpgrp(
+    pid : INTEGER
+    )   : INTEGER;
+
+PROCEDURE wait(
+    status : Wait
+    )      : INTEGER;
+
+PROCEDURE wait3(
+    status  : Wait;
+    options : INTEGER;
+    rusage  : UnixCsys_resource.rusage
+    )       : INTEGER;
+
+PROCEDURE system(
+    string : ARRAY OF CHAR
+    )      : INTEGER;
+
+PROCEDURE execve(
+    name : ARRAY OF CHAR;
+    argv : UnixCtypes.pp_char;
+    envp : UnixCtypes.pp_char
+    )    : INTEGER;
+
+PROCEDURE execl(
+    name : ARRAY OF CHAR;
+    ..     
+    )    : INTEGER;
+
+PROCEDURE execv(
+    name : ARRAY OF CHAR;
+    argv : UnixCtypes.pp_char
+    )    : INTEGER;
+
+PROCEDURE execle(
+    name : ARRAY OF CHAR;
+    ..     
+    )    : INTEGER;
+
+PROCEDURE execlp(
+    name : ARRAY OF CHAR;
+    ..     
+    )    : INTEGER;
+
+PROCEDURE execvp(
+    name : ARRAY OF CHAR;
+    argv : UnixCtypes.pp_char
+    )    : INTEGER;
+
+TYPE
+    Fildes = ARRAY [ 0 .. 1 ] OF INTEGER;
+
+PROCEDURE pipe(
+    VAR fildes : Fildes
+    )          : INTEGER;
+
+END UnixCprocess.

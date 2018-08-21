@@ -1,0 +1,11 @@
+FEIGENBAUM_PLOT.MOD
+    This program will make a plot of the chaos of population bifurcations.
+    The output file is CHAOS.PS
+
+NUMBER_PUZZLE.MOD
+    This program shows how to use recursion to solve a number puzzle.
+    See the contents of the source file for a description of the puzzle.
+
+UN_STREAM.MOD
+    This program will convert a VMS STREAM_LF file into a standard text
+    file and break very long lines into shorter lines.

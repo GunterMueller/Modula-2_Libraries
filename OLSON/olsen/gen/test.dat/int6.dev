@@ -1,0 +1,8 @@
+$ The required width is greater than the static length of the
+$ string
+$
+#test1
+1000
+normal
+1000
+80

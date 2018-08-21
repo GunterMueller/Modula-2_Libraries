@@ -1,0 +1,72 @@
+DEFINITION MODULE MoreMath;
+
+(* misc. extra math functions *)
+(* more functions added, J. Andrea, Aug.13/91 *)
+(* J. Andrea, 1985 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED   IModulus, CardPower, RealPower, IntPower, entier,
+                   MinReal, MaxReal, MinCard, MaxCard, MinInt, MaxInt,
+                   SizeCard, SizeInt, CalcPi, Log10, Log2;
+
+
+    PROCEDURE IModulus( a, b :INTEGER ) :INTEGER;
+    (* return the integer modulus of two numbers
+       handles a negative 'a' value (unlike the languages built in MOD) *)
+
+
+    PROCEDURE CardPower( base, exponent :CARDINAL ) :CARDINAL;
+    (* raise a cardinal to a cardinal power *)
+
+    PROCEDURE RealPower( base :REAL; exponent :CARDINAL ) :REAL;
+    (* raise a real to a cardinal power *)
+
+    PROCEDURE IntPower( base, exponent :INTEGER ) :INTEGER;
+    (* raise an integer to an integer power *)
+
+
+    PROCEDURE entier( a :REAL ) :INTEGER;
+    (* returns an INTEGER; as per definition in Seafarer's Guide pp. 36 *)
+
+
+    PROCEDURE MinReal( a, b :REAL ) :REAL;
+    (* return the smaller of 'a' and 'b' *)
+
+    PROCEDURE MaxReal( a, b :REAL ) :REAL;
+    (* return the larger of 'a' and 'b' *)
+
+
+    PROCEDURE MinCard( a, b :CARDINAL ) :CARDINAL;
+    (* return the smaller of 'a' and 'b' *)
+
+    PROCEDURE MaxCard( a, b :CARDINAL ) :CARDINAL;
+    (* return the larger of 'a' and 'b' *)
+
+
+    PROCEDURE MinInt( a, b :INTEGER ) :INTEGER;
+    (* return the smaller of 'a' and 'b' *)
+
+    PROCEDURE MaxInt( a, b :INTEGER ) :INTEGER;
+    (* return the larger of 'a' and 'b' *)
+
+
+    PROCEDURE SizeCard( a :CARDINAL ) :CARDINAL;
+    (* return the number of digits in 'a' *)
+
+    PROCEDURE SizeInt( a :INTEGER ) :CARDINAL;
+    (* return the number of digits in 'a', including a minus sign *)
+
+
+    PROCEDURE CalcPi() :REAL;
+    (* Return the value of Pi at maximum precision.
+       From a method by  J. Borwein and P. Borwein,
+       see:  "Ramanujan and Pi", Scientific American, Feb. 1988 *)
+
+
+    PROCEDURE Log10( x :REAL ) :REAL;
+    (* Return log base 10 of x *)
+    
+    PROCEDURE Log2( x :REAL ) :REAL;
+    (* Return log base 2 of x *)
+
+END MoreMath.

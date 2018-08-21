@@ -1,0 +1,21 @@
+%FOREIGN DEFINITION MODULE SystemConstants;
+
+(* VAX/VMS specific system constants *)
+(* J. Andrea, 1985*)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED
+                 WORDLENGTH, BYTELENGTH, MININT, MAXINT, MINCARD, MAXCARD;
+
+CONST
+
+   WORDLENGTH = 32;
+   BYTELENGTH =  8;
+
+   MININT     = -2147483647;
+
+   MAXINT     = +2147483647;
+   MINCARD    =           0;
+   MAXCARD    =  4294967295;
+
+END SystemConstants.

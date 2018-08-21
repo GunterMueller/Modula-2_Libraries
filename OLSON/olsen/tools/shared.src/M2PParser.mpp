@@ -1,0 +1,597 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE M2PParser;
+(*
+ * 1.) Parsing
+ * -----------
+ * This implementation is of recursive descent type, the current procedure
+ * being responsible for supplying the next token before exiting. In fact,
+ * the parser consists of two logical ( and functional ) entities:  
+ *
+ *   1.1) The statement parser.
+ *   --------------------------
+ *   The procedures belonging here are responsible for the syntactic treatement
+ *   of the if - statement, the else - clause and the elsif - clause. Their 
+ *   semantic action is turning the output on or off, according to the  truth 
+ *   value evaluated by the expression parser and the recursion level ( the 
+ *   statements may be casted and when the output was turned off at a higher 
+ *   level, it can't be turned on at the current one ). The recursion level is 
+ *   not expicitly used for this purporse. Instead, a BOOLEAN value holding the
+ *   current state of the output is passed to the lower level( s ).
+ *
+ *   1.2) The expression parser.
+ *   --------------------------
+ *   The procedures belonging here are responsible for the syntactical
+ *   treatement of the or - factor, the and - factor and the not - factor 
+ *   ( see the grammar in the definition module ). Their semantic action is,
+ *   as stated above, the evaluation of an expression.
+ *
+ * As mutual recursion occurs only inside each type of parsing ( an expression 
+ * parsing procedure never calls a statement parsing one ), the two parsers are
+ * also functional entities. The communication occurs through a BOOLEAN value. 
+ * 
+ * 2.) Error treatement.
+ * ---------------------
+ * The error treatement is realised through requesting tokens until a member
+ * of the set of possible following tokens is found. This set may include  
+ * more than the following tokens given by the grammar ( because it might 
+ * precisely be one those wich is failing ) and is for this reason determined 
+ * by assumption.
+ * 
+ * NOTE:
+ * All procedures return a BOOLEAN value for the eventuallity of a scanner
+ * failure ( remember: when the scanner returns FALSE, it's all over ) or
+ * for an irrecoverable error. 
+ *)
+
+IMPORT
+    (* For portability reasons, keep the list of modules to a minimum. *)
+    GenConsts, 
+    M2PScanner, 
+    NameLists,
+    Strings,
+    SysTypes; 
+
+TYPE
+    ErrorMessage = GenConsts.Line;
+    TokenExpectation = ( tokenExpected, tokenUnexpected );
+
+PROCEDURE PrintErrorMessage(
+        toParse:          M2PScanner.Object;
+        tokenExpectation: TokenExpectation;
+	token:            M2PScanner.Tokens
+    );
+    (*
+     * Produces an error message and prints it.
+     *)
+    VAR
+	errorMessage: ErrorMessage;
+
+    BEGIN(* PrintErrorMessage *)
+	IF token # M2PScanner.badToken THEN
+	    IF tokenExpectation = tokenExpected THEN
+		Strings.Assign( "expected ", errorMessage );
+	    ELSE
+		Strings.Assign( "unexpected ", errorMessage );
+	    END;
+	    CASE token OF
+		M2PScanner.if:
+		    Strings.Concat( errorMessage, "IF", errorMessage ); 
+		|
+		M2PScanner.then:
+		    Strings.Concat( errorMessage, "THEN", errorMessage ); 
+		|
+		M2PScanner.elsif:
+		    Strings.Concat( errorMessage, "ELSIF", errorMessage ); 
+		|
+		M2PScanner.else:
+		    Strings.Concat( errorMessage, "ELSE", errorMessage ); 
+		|
+		M2PScanner.end:
+		    Strings.Concat( errorMessage, "END", errorMessage ); 
+		|
+		M2PScanner.identifier:
+		    Strings.Concat( errorMessage, "IDENTIFIER", errorMessage ); 
+		|
+		M2PScanner.rightParen:
+		    Strings.Concat( errorMessage, '")"', errorMessage ); 
+		|
+		M2PScanner.leftParen:
+		    Strings.Concat( errorMessage, '"("', errorMessage ); 
+		|
+		M2PScanner.or:
+		    Strings.Concat( errorMessage, "OR", errorMessage ); 
+		|
+		M2PScanner.and:
+		    Strings.Concat( errorMessage, "AND", errorMessage ); 
+		|
+		M2PScanner.not:
+		    Strings.Concat( errorMessage, "NOT", errorMessage ); 
+		|
+		M2PScanner.true:
+		    Strings.Concat( errorMessage, "TRUE", errorMessage ); 
+		|
+		M2PScanner.false:
+		    Strings.Concat( errorMessage, "FALSE", errorMessage ); 
+		|
+		M2PScanner.endOfFile:
+		    Strings.Concat( errorMessage, "end of file", errorMessage );
+	    END;    
+	    M2PScanner.DisplayErrorMessage( toParse, 
+			M2PScanner.GetLineNumber( toParse ), errorMessage );
+        END;
+
+    END PrintErrorMessage;
+    (* -------------------------------------------------------------- *)
+
+TYPE
+    TokenSet = SET OF M2PScanner.Tokens;
+
+PROCEDURE ErrorTreatment(
+    (* recovery: *)
+    VAR currentToken:     M2PScanner.Tokens;
+        toParse:          M2PScanner.Object;
+	probableTokens:   TokenSet;
+    (* message: *)
+        tokenExpectation: TokenExpectation;
+	token:            M2PScanner.Tokens
+    ):                    BOOLEAN;
+    (*
+     * Prints an error message and looks for the next suitable token.
+     *)
+    BEGIN(* ErrorTreatment *)
+	PrintErrorMessage( toParse, tokenExpectation, token );
+	WHILE NOT ( currentToken IN probableTokens ) DO
+	    IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		RETURN FALSE;
+            END;
+        END;
+	RETURN TRUE;
+
+    END ErrorTreatment;
+    (* -------------------------------------------------------------- *)
+
+PROCEDURE SetOutput( 
+	toParse:  M2PScanner.Object;
+	outputOn: BOOLEAN
+    );
+    (*
+     * Transforms a boolean result of an expression in a scanner mode
+     * and sets it. 
+     *)
+    VAR
+	outputMode: M2PScanner.OutputModes;
+
+    BEGIN(* SetOutput *)
+	IF outputOn THEN
+	    outputMode:= M2PScanner.outputOn; 
+	ELSE
+	    outputMode:= M2PScanner.outputOff; 
+	END;
+	M2PScanner.SetOutputMode( toParse, outputMode );
+
+    END SetOutput;
+    (* -------------------------------------------------------------- *)
+
+(* statement parsing: *)
+
+CONST
+    allContextFreeTokens= TokenSet{ M2PScanner.if, M2PScanner.elsif, 
+				     M2PScanner.else, M2PScanner.end, 
+				     M2PScanner.endOfFile };
+    topLevel = 0;
+    openIfMessage = 'open IF - statement';
+
+PROCEDURE IfStatement(
+    VAR currentToken:   M2PScanner.Tokens;
+    VAR level:          SysTypes.Card; (* error treatement only *) 
+	globalOutputOn: BOOLEAN;  (* the current output state *)
+	toParse:        M2PScanner.Object;
+	symbolTable:    NameLists.Object
+    ):                  BOOLEAN; 
+    (*
+     * The error treatment is based on the assumption that if and END is 
+     * forgotten or misspelled at a recursion level lower than the top one,
+     * the next context - free token may belong to the upper recursion level 
+     * ( ELSIF, ELSE, END ) or to the same level ( IF ), but all four are 
+     * legal, which is not the case at top level, where only an IF is legal.
+     * This leads to the following behaviour:
+     *
+     * 1.) TopLevel.
+     * -------------
+     *     The procedure returns to the caller ( i.e Parse ) without managing 
+     *     the error, otherwise it would cause double error messages and other 
+     *     neat things of the kind. The error is then managed at the highest
+     *     level.
+     * 2.)Lower levels.
+     * ----------------
+     *     A token belonging to the "context free" class ( see the scanner
+     *     definition ) is requested. When this token turns to be IF, the 
+     *     recursion level is kept, otherwise the procedure returns to the 
+     *     caller. 
+     *)
+     
+    VAR
+	expResult: BOOLEAN;    (* adequately set by Expression *)
+	outputState: BOOLEAN;
+	lineNumber: SysTypes.Card; (* for the case of an open statement *)
+
+    BEGIN(* IfStatement *)
+	INC( level );
+	lineNumber:= M2PScanner.GetLineNumber( toParse );
+	WHILE currentToken = M2PScanner.if DO
+	    IF NOT Expression( currentToken, globalOutputOn, 
+			       toParse, symbolTable, expResult ) 
+            THEN 
+		RETURN FALSE; 
+	    END;  (* IF NOT Expression *) 
+	    IF NOT IfStatement( currentToken, level, 
+				globalOutputOn AND expResult, 
+				toParse, symbolTable ) 
+	    THEN 
+		RETURN FALSE; 
+	    END; 
+	    IF NOT ElsifClause( currentToken, level,
+				globalOutputOn AND NOT expResult, 
+				toParse, symbolTable, expResult )
+	    THEN 
+		RETURN FALSE; 
+	    END; 
+	    IF NOT ElseClause( currentToken, level, 
+			       globalOutputOn AND NOT expResult,
+			       toParse, symbolTable ) 
+	    THEN 
+		RETURN FALSE; 
+	    END; 
+	    SetOutput( toParse, globalOutputOn ); 
+	    IF currentToken # M2PScanner.end THEN 
+		IF currentToken = M2PScanner.endOfFile THEN 
+		    M2PScanner.DisplayErrorMessage( toParse, lineNumber, 
+						    openIfMessage );
+                    RETURN TRUE;
+		END; 
+		DEC( level ); 
+		IF level = topLevel THEN 
+		    RETURN TRUE; 
+		ELSE
+		    IF NOT ErrorTreatment( currentToken, toParse, 
+					   allContextFreeTokens, 
+					   tokenUnexpected, currentToken ) 
+                    THEN
+                        RETURN FALSE;
+		    END;
+		    IF currentToken # M2PScanner.if THEN
+			RETURN TRUE;
+                    END;
+                END;
+	    ELSE 
+		IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN 
+		    RETURN FALSE; 
+		END; 
+            END;
+	END;  (* WHILE *) 
+	DEC( level );
+	RETURN TRUE; 
+	
+    END IfStatement; 
+    (* -------------------------------------------------------------- *) 
+   
+CONST
+    ifEndEofTokens = TokenSet{ M2PScanner.if, M2PScanner.end, 
+			       M2PScanner.endOfFile };
+
+PROCEDURE ElseClause( 
+    VAR currentToken:   M2PScanner.Tokens; 
+    VAR level:          SysTypes.Card; (* only passed through *) 
+	outputOn:       BOOLEAN; 
+	toParse:        M2PScanner.Object; 
+	symbolTable:    NameLists.Object
+    ):                  BOOLEAN;
+    (*
+     * ElseClause includes a tricky but necessary section for error treatement.
+     *)
+     BEGIN(* ElseClause *) 
+	 IF currentToken = M2PScanner.else THEN 
+	     SetOutput( toParse, outputOn ); 
+	     IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN 
+		 RETURN FALSE 
+	     END; 
+	     (* The following section "helps" to satisfy the assumptions  
+	      * met for the error treatment in IfStatement, otherwise
+	      * IfStatement would return to the caller and miss the
+	      * token at which it might keep parsing. 
+	      * Example: IF TRUE THEN ELSE ELSE END
+	      *)
+	     IF NOT ( currentToken IN ifEndEofTokens ) AND 
+	            ( level = topLevel + 1 ) (* not yet decremented *) 
+	     THEN
+		IF NOT ErrorTreatment( currentToken, toParse, 
+				       ifEndEofTokens, 
+				       tokenUnexpected, currentToken ) 
+		THEN
+		   RETURN FALSE
+		END;
+	     END;  (* otherwise managed by IfStatement *)
+	     IF NOT IfStatement( currentToken, level, outputOn, toParse,
+	 	                 symbolTable )
+	     THEN
+		 RETURN FALSE;
+	     END;
+        END;
+	RETURN TRUE; 
+
+    END ElseClause;
+    (* -------------------------------------------------------------- *)
+
+CONST
+    outputTurnedOn = TRUE;
+    outputTurnedOff = FALSE;
+
+PROCEDURE ElsifClause(
+    VAR currentToken:     M2PScanner.Tokens;
+    VAR level:            SysTypes.Card; (* only passed through *) 
+        globalOutputOn:   BOOLEAN;
+	toParse:          M2PScanner.Object;
+	symbolTable:      NameLists.Object;
+    VAR ifResult:         BOOLEAN
+    ):                    BOOLEAN;
+
+    VAR
+        expResult: BOOLEAN;
+
+    BEGIN(* ElsifClause *)
+	WHILE currentToken = M2PScanner.elsif DO 
+	    IF NOT Expression( currentToken, globalOutputOn,
+			       toParse, symbolTable, expResult ) 
+	    THEN 
+		RETURN FALSE; 
+	    END;  (* IF Expression *) 
+	    IF NOT IfStatement( currentToken, level, 
+				globalOutputOn AND expResult, toParse,
+			        symbolTable )
+	    THEN
+		RETURN FALSE;
+	    END;
+	    (* Turn off global output and change result? *)
+	    IF globalOutputOn AND expResult THEN
+		ifResult := TRUE;
+		globalOutputOn := FALSE;
+		SetOutput( toParse, FALSE );
+	    END;
+        END;
+	RETURN TRUE; 
+
+    END ElsifClause;
+    (* -------------------------------------------------------------- *)
+
+(* expression parsing: *)
+
+PROCEDURE Expression(
+    VAR currentToken:   M2PScanner.Tokens;
+	globalOutputOn: BOOLEAN;
+	toParse:        M2PScanner.Object;
+	symbolTable:    NameLists.Object;
+    VAR result:         BOOLEAN
+    ):                  BOOLEAN;
+    (*
+     * A buffer - procedure between the statement parser and the
+     * expression parser.
+     * The assumption met for error treatment is fairly simple:
+     * a missing or misspelled THEN may be followed by any
+     * context free token.
+     *)
+    BEGIN(* Expression *)
+	M2PScanner.SetExpressionMode( toParse, M2PScanner.expressionOn );
+	IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+	    RETURN FALSE;
+	END;
+	IF NOT OrFactor( currentToken, toParse, symbolTable, result )
+	THEN
+	    RETURN FALSE;
+	END;
+        M2PScanner.SetExpressionMode( toParse, M2PScanner.expressionOff ); 
+	IF currentToken # M2PScanner.then THEN
+	    RETURN ErrorTreatment( currentToken, toParse, 
+				   allContextFreeTokens, 
+				   tokenExpected, M2PScanner.then ); 
+	END; 
+	SetOutput( toParse, globalOutputOn AND result );
+	IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN 
+	    RETURN FALSE; 
+	END; 
+	RETURN TRUE;
+    
+    END Expression; 
+    (* -------------------------------------------------------------- *) 
+   
+(* expression parsing: *)
+
+PROCEDURE OrFactor(
+    VAR currentToken:     M2PScanner.Tokens;
+	toParse:          M2PScanner.Object;
+	symbolTable:      NameLists.Object;
+    VAR expressionResult: BOOLEAN
+    ):                    BOOLEAN;
+
+    VAR
+	andResult: BOOLEAN;
+
+    BEGIN(* OrFactor *)
+	IF NOT AndFactor( currentToken, toParse, 
+		          symbolTable, expressionResult )
+	THEN
+	    RETURN FALSE;
+	END;
+	WHILE currentToken = M2PScanner.or DO
+	    IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		RETURN FALSE
+	    END;
+	    IF NOT AndFactor( currentToken, toParse,
+			      symbolTable, andResult )
+	    THEN
+		RETURN FALSE;
+	    END;
+	    expressionResult:= expressionResult OR andResult; 
+	END;
+	RETURN TRUE; 
+
+    END OrFactor;
+    (* -------------------------------------------------------------- *)
+
+PROCEDURE AndFactor(
+    VAR currentToken:     M2PScanner.Tokens;
+	toParse:          M2PScanner.Object;
+	symbolTable:      NameLists.Object;
+    VAR andResult:        BOOLEAN
+    ):                    BOOLEAN;
+    VAR
+	notResult: BOOLEAN;
+
+    BEGIN(* AndFactor *)
+	IF NOT NotFactor( currentToken, toParse, symbolTable, andResult ) THEN
+	    RETURN FALSE;
+	END;
+	WHILE currentToken = M2PScanner.and DO
+	    IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		RETURN FALSE
+	    END;
+	    IF NOT NotFactor( currentToken, toParse, symbolTable, notResult )
+	    THEN
+		RETURN FALSE;
+	    END;
+	    andResult:= andResult AND notResult; 
+	END;
+	RETURN TRUE;
+
+    END AndFactor;
+    (* -------------------------------------------------------------- *)
+
+CONST
+    expressionTokens= TokenSet{ M2PScanner.rightParen, M2PScanner.then };
+
+PROCEDURE NotFactor(
+    VAR currentToken:     M2PScanner.Tokens;
+	toParse:          M2PScanner.Object;
+	symbolTable:      NameLists.Object;
+    VAR notResult:        BOOLEAN
+    ):                    BOOLEAN;
+    VAR
+	name:             GenConsts.Identifier;
+		
+    BEGIN(* NotFactor *)
+        CASE currentToken OF
+	    M2PScanner.identifier:
+		IF NOT M2PScanner.GetIdentifier( toParse, name ) THEN
+		    RETURN FALSE;
+                END;
+		notResult:= NameLists.Find( symbolTable, name,
+					    NameLists.DONTCARE );
+                (* fall through to NextToken *)
+	    |
+	    M2PScanner.leftParen:
+		IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		    RETURN FALSE;
+                END;
+		IF NOT OrFactor( currentToken, toParse,
+			         symbolTable, notResult )
+		THEN
+		    RETURN FALSE;
+                END;
+		IF currentToken # M2PScanner.rightParen THEN
+		    RETURN ErrorTreatment( currentToken, toParse,
+					   expressionTokens + 
+					     allContextFreeTokens,
+                                           tokenExpected,
+					   M2PScanner.rightParen );
+		END;
+                (* fall through to NextToken *)
+	    |
+	    M2PScanner.not:
+		IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		    RETURN FALSE;
+                END;
+		IF NOT NotFactor( currentToken, toParse,
+			          symbolTable, notResult )
+		THEN
+		    RETURN FALSE;
+		END;
+		notResult:= NOT notResult;
+		RETURN TRUE;  (* otherwise one token too far *)
+	    |
+	    M2PScanner.true:
+		notResult:= TRUE;
+                (* fall through to NextToken *)
+	    |
+	    M2PScanner.false:
+		notResult:= FALSE;
+                (* fall through to NextToken *)
+        ELSE
+	    notResult:= FALSE;  (* arbitrary choice *)
+	    RETURN ErrorTreatment( currentToken, toParse,
+				   expressionTokens + allContextFreeTokens,
+				   tokenUnexpected,
+				   currentToken );
+		(* otherwise one token too far *)
+        END;	
+	RETURN M2PScanner.NextToken( toParse, currentToken );
+
+    END NotFactor;
+    (* -------------------------------------------------------------- *)
+
+PROCEDURE Parse(
+        toParse:     M2PScanner.Object;
+	symbolTable: NameLists.Object
+    ):               BOOLEAN;
+    (*
+     * The procedure IfStatement exits only on error or on endoffile.
+     * Therefore, any token is suitable for further parsing, only a printing
+     * of the error message being necessary.
+     *)
+    VAR
+	currentToken: M2PScanner.Tokens;
+        level:        SysTypes.Card;	
+
+    BEGIN(* Parse *)
+	level:= topLevel;
+	LOOP  
+	    IF NOT M2PScanner.NextToken( toParse, currentToken ) THEN
+		RETURN FALSE;
+	    END;
+	    IF NOT IfStatement( currentToken, level, 
+			      outputTurnedOn, toParse, 
+			      symbolTable ) 
+            THEN
+		RETURN FALSE;
+            END;
+	    IF currentToken = M2PScanner.endOfFile THEN
+		RETURN TRUE;
+            END;
+	    PrintErrorMessage( toParse, tokenUnexpected, currentToken ); 
+	END;  (* LOOP *)
+ 
+    END Parse;
+    (* -------------------------------------------------------------- *)
+
+BEGIN (* M2PParser *)
+
+END M2PParser.

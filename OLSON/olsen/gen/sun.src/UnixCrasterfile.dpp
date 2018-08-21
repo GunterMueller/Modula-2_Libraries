@@ -1,0 +1,33 @@
+DEFINITION FOR C MODULE UnixCrasterfile;
+(*
+ * See the following include file:
+ *     /usr/include/rasterfile.h
+ * See the following man page:
+ *     rasterfile(5)
+ *)
+TYPE
+    struct_rasterfile = RECORD
+	ras_magic  	: INTEGER;	
+	ras_width  	: INTEGER;	
+	ras_height  	: INTEGER;	
+	ras_depth  	: INTEGER;	
+	ras_length  	: INTEGER;	
+	ras_type  	: INTEGER;	
+	ras_maptype  	: INTEGER;	
+	ras_maplength  	: INTEGER;	
+    END;
+
+CONST
+    RAS_MAGIC		= 59a66a95H;
+
+    RT_OLD		= 0;	   
+    RT_STANDARD		= 1;	   
+    RT_BYTE_ENCODED	= 2;	   
+    RT_EXPERIMENTAL 	= 0ffffH;  
+
+    RMT_RAW		= 2;
+
+    RMT_NONE		= 0;	   
+    RMT_EQUAL_RGB	= 1;	   
+
+END UnixCrasterfile.

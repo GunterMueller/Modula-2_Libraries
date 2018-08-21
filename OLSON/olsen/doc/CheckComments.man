@@ -1,0 +1,57 @@
+.TH CHECKCOMMENTS 1L  "8 April 1988"
+.de LS
+.in +.5i
+.nf
+.na
+.sp
+..
+.       \" LE - listing end
+.de LE
+.sp
+.in -.5i
+.fi
+.ad
+..
+.SH NAME
+CheckComments \- check for matching comments in program source.
+.SH SYNOPSIS
+CheckComments \fIfile1\fP .. \fIfileN\fP
+.SH DESCRIPTION
+.IX  CheckComments ""  "\fLCheckComments\fP \(em check matching comments
+.IX  files  "CheckComments command"
+Verifies that the program source files specified do not have any 
+unmatching comment delimiters.  The programming language is determined
+from the files' suffices.  \fICheckComments\fP will output messages
+are useful when C or Modula-2 compilers will not.  For example,
+you might get a message from \fIcc(1)\fP like:
+.LS
+x.c: 362: Unexpected EOF in comment
+.LE
+For the same file \fICheckComments\fP will produce the message:
+.LS
+"x.c", line 8: unmatched open
+.LE
+\fICheckComments\fP may also produce the following messages:
+.LS
+"x.c", line 5: open within comment (previous open on line 1)
+"x.mod", line 3: unmatched close
+.LE
+.SH "SEE ALSO"
+cc(1), m2c(1), awk(1)
+.SH FILES
+.TP 1.25i
+\fI*\FP.mpp
+Modula-2 source files
+.TP 1.25i
+\fI*\FP.dpp
+.TP 1.25i
+\fI*\FP.mod
+.TP 1.25i
+\fI*\FP.def
+.TP 1.25i
+\fI*\FP.c
+C source files
+.TP 1.25i
+\fI*\FP.h
+.SH BUGS
+Doesn't deal with preprocessor control or quotes.

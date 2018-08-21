@@ -1,0 +1,467 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE m2pp;
+(*
+ * Simple program module front end to M2PParser and M2PScanner.
+ * Gets the arguments and then processes them as specified.
+ * Also accepts variables defined by the environment.
+ *)
+IMPORT
+    ProgArgs,		NameLists,	TextIO,		StringIO,
+    ProgErrOutput,	IOConsts,	IOErrors,		
+    DirIO,		Strings,	SYSTEM,		ProgErr,
+    M2PScanner,         M2PParser,      IOSearchPaths,  SysTypes;
+
+CONST
+    moduleName   = "m2pp";
+
+CONST
+    defineFlag   = 'D';
+    undefineFlag = 'U';
+    myEnvironment = "M2ppVars";
+    mySeparator = IOSearchPaths.pathSeparator;
+
+@IF SunOS THEN
+	writableFlag = 'w';
+    VAR
+	isOutputWritable : BOOLEAN;	(* Defaults to FALSE *)
+@END (* SunOS *)
+
+VAR
+    inputPath       : IOConsts.Path;
+    outputPath      : IOConsts.Path;
+    inputSpecified  : BOOLEAN;
+    outputSpecified : BOOLEAN;
+
+PROCEDURE Process( 
+    VAR input:        TextIO.Object;
+    VAR output:       TextIO.Object;
+        commentStrip: BOOLEAN;
+    VAR variables:    NameLists.Object 
+    ):                BOOLEAN;
+
+    VAR
+	result    : BOOLEAN;
+	@IF SunOS THEN
+	    entryInfo: DirIO.EntryInfo;  (* Used to "chmod" file at end *)
+	@END  (* SunOS *)
+	processedObject: M2PScanner.Object;
+	commentMode:     M2PScanner.CommentModes;
+
+    BEGIN (* Process *)
+        IF commentStrip THEN
+	    commentMode:= M2PScanner.stripOn;
+        ELSE
+	    commentMode:= M2PScanner.stripOff;
+	END;
+
+        M2PScanner.Open( processedObject, input, output, commentMode );
+
+	result := M2PParser.Parse( processedObject, variables );
+ 
+	result := M2PScanner.Close( processedObject ) AND result;
+
+	(* We do this, because this is the dual of GetArguments *)
+	NameLists.Destroy( variables );
+
+	IF TextIO.Close( input ) # IOErrors.ok THEN
+	    (* Some part of the close failed *)
+	    IF NOT result THEN
+		result := FALSE;
+		WriteError( inputPath, closeError );
+	    END;
+	END;
+
+	IF TextIO.Close( output ) = IOErrors.ok THEN
+	    IF NOT outputSpecified THEN
+		RETURN result;
+	    END;
+
+	    @IF NOT SunOS THEN
+		RETURN result;
+
+	    @ELSE (* SunOS *)
+		IF isOutputWritable THEN
+		    RETURN result;
+		END;
+
+		(* Set the mode of the file to read-only *)
+		IF DirIO.GetEntryInfo( outputPath, entryInfo ) = IOErrors.ok
+		  THEN
+		    entryInfo.accessSet := entryInfo.accessSet - 
+			DirIO.AccessSet { DirIO.ownerWrite, 
+					  DirIO.groupWrite,
+					  DirIO.otherWrite };
+		    IF DirIO.SetEntryInfo( outputPath, entryInfo ) = IOErrors.ok
+		      THEN RETURN result;	(* close went ok *)
+		    END;
+		END;
+
+	    @END (* SunOS *)
+	END; (* IF TextIO *)
+		      
+	(* Some part of the close failed *)
+	IF NOT result THEN
+	    result := FALSE;
+	    WriteError( outputPath, closeError );
+	END;
+
+	RETURN result;
+
+    END Process;
+
+
+(*
+ * Program argument parsing
+ *)
+
+
+PROCEDURE GetArguments( 
+    VAR input:        TextIO.Object;
+    VAR output:       TextIO.Object;
+    VAR commentStrip: BOOLEAN;
+    VAR variables:    NameLists.Object 
+    ):                BOOLEAN;
+    (*
+     * Set up to receive the arguments and then scan the
+     * argument list with ProgArgs.  If the scan was successful,
+     * then try to open the files, create the output, etc.
+     *
+     * The procedure complex, because we do file creations,
+     * opens, and allocations.  The structure is such that the 
+     * code within the LOOP is the normal stuff and the LOOP
+     * is only used for forward exits.  The code after the
+     * loop is to clean-up in case of errors.  If everything
+     * was successful, then the procedure returns from inside
+     * loop.  Otherwise it goes through the error code after the
+     * loop and returns false.
+     *)
+    VAR
+	errorString : IOErrors.String; 
+	ioError     : IOErrors.Errors;
+	DONTCARE1   : IOErrors.Errors;
+	DONTCARE2   : BOOLEAN; 
+	procState   : ( variablesCreated,  (* NameList must be destroyed  *)
+			inputOpened, 	   (* input file must be closed   *)
+			outputCreated,	   (* output file must be deleted *)
+			outputOpened );	   (* success 			  *)
+        
+    BEGIN (* GetArguments *)
+	LOOP  (* Used for forward exits only *)
+	    ioError := IOErrors.ok;	(* Used in error display at end. *)
+
+	    (*
+	     * Set up to receive the variables list.
+	     *)
+	    NameLists.Create( variables, NameLists.forwardSorted, 
+			      NameLists.caseSensitive );
+	    procState := variablesCreated;
+	    DONTCARE2:= IOSearchPaths.GetFromEnviron( myEnvironment, 
+					  mySeparator, variables );
+	    ProgArgs.RegisterStringHandler( defineFlag, DefineVariable,
+					SysTypes.ANYPTR( variables ) );
+	    ProgArgs.RegisterStringHandler( undefineFlag, UndefineVariable,
+					SysTypes.ANYPTR( variables ) );
+
+	    (* 
+	     * Set up for possible reception of input/output names.
+	     *)
+	    inputSpecified  := FALSE;
+	    outputSpecified := FALSE;
+	    ProgArgs.RegisterUnflaggedHandler( GetFiles, ProgArgs.DONTCARE );
+
+	    @IF SunOS THEN
+		(* Set up to receive the boolean flag *)
+		isOutputWritable := FALSE;
+		ProgArgs.RegisterBoolHandler( writableFlag, 
+				      ProgArgs.DefaultBoolHandler,
+				      SYSTEM.ADR( isOutputWritable ) );
+	    @END (* SunOS *)
+
+	    (*
+	     * Set up for possible reception of comment stripping mode 
+	     *) 
+	    commentStrip:= FALSE;
+	    ProgArgs.RegisterBoolHandler( "Strip", ProgArgs.DefaultBoolHandler,
+					  SYSTEM.ADR( commentStrip ) );
+
+	    (* Try to parse the command line arguments *)
+	    IF NOT ProgArgs.Parse( ProgArgs.continueAfterErrors ) THEN
+	    	EXIT;
+	    END;
+
+	    (* 
+	     * Try to open the input using the default if necessary.
+	     *)
+	    IF NOT inputSpecified THEN
+	        input:= TextIO.GetInput();
+            ELSE
+		ioError:= TextIO.Open( input, inputPath, TextIO.readOnly, "" );
+		IF ioError # IOErrors.ok THEN
+		    EXIT;
+		END;
+	    END;
+
+	    procState := inputOpened;
+
+	    (* 
+	     * Use the default or try to create the output file.
+	     *)
+	    IF NOT outputSpecified THEN
+		output := TextIO.GetOutput();
+	    ELSE
+		ioError := DirIO.CreateEntry( outputPath, 
+					      DirIO.createTextFile,
+					      DirIO.overwritePath );
+		IF ioError # IOErrors.ok THEN
+		    EXIT;
+		END;
+		procState := outputCreated;
+		ioError := TextIO.Open( output, outputPath, 
+					TextIO.appendOnly, '' );
+		IF ioError # IOErrors.ok THEN
+		    EXIT;
+		END;
+	    END; (* IF *)
+
+	    (* We have succeeded! *)
+	    (* procState := outputOpened;   -- Not important to set *)
+	    RETURN TRUE;
+
+	END; (* LOOP for forward exits only *)
+
+	(*
+	 * Something went wrong.  Clean up.
+	 *)
+	IF procState >= outputCreated THEN
+	    DONTCARE1 := DirIO.DeleteEntry( outputPath );
+	    inputPath := outputPath;	(* See error output below... *)
+	END;
+	IF procState >= inputOpened THEN
+	    DONTCARE1 := TextIO.Close( input );
+	    inputPath := outputPath;	(* See error output below... *)
+	END;
+	IF procState >= variablesCreated THEN
+	    NameLists.Destroy( variables );
+	END;
+
+	(* Output an error message (if one hasn't been already output) *)
+	IF ioError # IOErrors.ok THEN
+	    IOErrors.ToString( ioError, errorString );
+	    WriteError( inputPath, errorString );
+	END;
+
+	RETURN FALSE;
+
+    END GetArguments;
+
+
+PROCEDURE DefineVariable( 
+       DONTCARE  : ProgArgs.String;
+       variables : SysTypes.ANYPTR;
+       variable  : ProgArgs.String 
+       ): BOOLEAN; 
+    (*
+     * First check to see if the variable is legal and then
+     * insert it into the variables list.  Returns false if
+     * the variable isn't legit.  
+     * 
+     * NOTE:
+     *   we ignore variables which are truncated to unique length.
+     *)
+    BEGIN (* DefineVariable *)
+
+	(* We don't care about multiple defines (it is the user's problem) *)
+	IF NOT NameLists.Find( NameLists.Object( variables ), variable, 
+			       NameLists.DONTCARE ) THEN
+	    NameLists.Insert( NameLists.Object( variables ), variable, 
+			      NameLists.DONTCARE );
+	END;
+	
+	RETURN TRUE;
+
+    END DefineVariable;
+
+
+PROCEDURE UndefineVariable(
+       DONTCARE  : ProgArgs.String;
+       variables : SysTypes.ANYPTR;
+       variable  : ProgArgs.String 
+       ): BOOLEAN; 
+    (*
+     * First check to see if the variable is legal and then
+     * delete it from the variables list.  Returns false if
+     * the variable isn't legit.  
+     * 
+     * NOTE:
+     *   we ignore variables which are truncated to unique length.
+     *)
+    BEGIN (* UndefineVariable *)
+
+	(* We don't care about multiple undefines (it is the user's problem) *)
+	IF NameLists.Find( NameLists.Object( variables ), variable, 
+			       NameLists.DONTCARE ) THEN
+	    NameLists.DeleteCurrent( NameLists.Object( variables ) );
+	END;
+	
+	RETURN TRUE;
+
+    END UndefineVariable;
+
+
+PROCEDURE GetFiles( 
+	DONTCARE1 : ProgArgs.String;
+	DONTCARE2 : SysTypes.ANYPTR;
+	argument  : ProgArgs.String 
+        ): BOOLEAN;
+    (* 
+     * The usage is '[ input [ output ] ]', so we have
+     * to check if an input was supplied, then an output, else
+     * there are too many files specified.
+     *)
+    BEGIN (* GetFiles *)
+
+	IF NOT inputSpecified THEN
+	    Strings.Assign( argument, inputPath );
+	    inputSpecified := TRUE;
+
+	ELSIF NOT outputSpecified THEN
+	    Strings.Assign( argument, outputPath );
+	    outputSpecified := TRUE;
+
+	ELSE
+	    WriteError( argument, tooManyFiles );
+	    RETURN FALSE;
+	END;
+
+	RETURN TRUE;
+
+    END GetFiles;
+
+
+(*
+ * Errors handling.
+ *)
+CONST
+    (* Error messages *)
+    closeError      = "unable to close.";
+    tooManyFiles    = "too many file arguments.";
+    illegalVariable = "illegal variable.";
+
+PROCEDURE WriteError( 
+	name    : ARRAY OF CHAR;
+	message : ARRAY OF CHAR 
+	);
+    (*
+     * My idea of pretty output!
+     *)
+    BEGIN (* WriteError *)
+
+	ProgErrOutput.WriteString( moduleName );
+	ProgErrOutput.WriteString( ": " );
+	IF name[ 0 ] # 0C THEN
+	    ProgErrOutput.WriteString( name );
+	    ProgErrOutput.WriteString( ": " );
+	END;
+	ProgErrOutput.WriteString( message );
+	ProgErrOutput.WriteLn;
+	    
+    END WriteError;
+
+
+PROCEDURE WriteOutputError( 
+	output : TextIO.Object 
+	);
+    (*
+     * Front end to WriteError for the output file.  This
+     * should be in TextIO!
+     *)
+    BEGIN (* WriteOutputError *)
+
+	TextIO.PrintErrorMessage( output, '' );
+	
+    END WriteOutputError;
+
+
+PROCEDURE WriteUsage;
+    (*
+     * Not very complicated is it...
+     *)
+    BEGIN (* WriteUsage *)
+	
+	ProgErrOutput.WriteString( 'Usage: ' );
+	ProgErrOutput.WriteString( moduleName );
+	ProgErrOutput.WriteString( ' [ input-file [ output-file ] ]' );
+	ProgErrOutput.WriteLn;
+
+	ProgErrOutput.WriteString( 'Options:' );
+	ProgErrOutput.WriteLn;
+
+	ProgErrOutput.WriteString( '    [' );
+	ProgErrOutput.WriteString( defineFlag );
+	ProgErrOutput.WriteString( 
+		'] is followed by a string which defines a true variable.' );
+	ProgErrOutput.WriteLn;
+
+	ProgErrOutput.WriteString( '    [' );
+	ProgErrOutput.WriteString( undefineFlag );
+	ProgErrOutput.WriteString( 
+		'] is followed by a string which undefines a true variable.' );
+	ProgErrOutput.WriteLn;
+
+	@IF SunOS THEN
+	    ProgErrOutput.WriteString( '    [' );
+	    ProgErrOutput.WriteString( writableFlag );
+	    ProgErrOutput.WriteString( '] makes the output file writable.' );
+	    ProgErrOutput.WriteLn;
+	@END (* SunOS *)
+
+	ProgErrOutput.WriteString( 
+	   'Note that defines/undefines are processed from right to left.' );
+	ProgErrOutput.WriteLn;
+
+    END WriteUsage;
+
+
+VAR
+    variables:    NameLists.Object;
+    input:        TextIO.Object;
+    output:       TextIO.Object;
+    commentStrip: BOOLEAN;
+
+BEGIN (* m2pp *)
+
+    @IF NOT Debug THEN
+	ProgErr.SetMemorySaveMode( ProgErr.doNotSaveMemoryOnTermination );
+    @END (* Debug *)
+
+    IF NOT GetArguments( input, output, commentStrip, variables ) THEN
+	WriteUsage;
+	ProgErr.Terminate( '' ); (* Indicate error & don't print anything *)
+    END;
+
+    IF NOT Process( input, output, commentStrip, variables ) THEN
+	ProgErr.Terminate( '' ); (* Indicate error & don't print anything *)
+    END;
+
+END m2pp.

@@ -1,0 +1,4 @@
+M2Defs= iomonito.def 
+M2Imps= dirio.mod dosbinar.mod iomonito.mod ionames.mod keyboard.mod  \
+        simpleio.mod textio.mod textiopr.mod 
+M2Mods= 

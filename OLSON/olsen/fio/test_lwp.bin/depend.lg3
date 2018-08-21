@@ -1,0 +1,26 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+fiotest.mod: ..\test.src\fiotest.mpp 
+	${StandardM2pp}
+tbool.mod: ..\test.src\tbool.mpp 
+	${StandardM2pp}
+tdatafio.mod: ..\test.src\tdatafio.mpp 
+	${StandardM2pp}
+tfioscre.mod: ..\test.src\tfioscre.mpp 
+	${StandardM2pp}
+tintcard.mod: ..\test.src\tintcard.mpp 
+	${StandardM2pp}
+tisvalid.mod: ..\test.src\tisvalid.mpp 
+	${StandardM2pp}
+treal.mod: ..\test.src\treal.mpp 
+	${StandardM2pp}
+tsimplef.mod: ..\test.src\tsimplef.mpp 
+	${StandardM2pp}
+tstring.mod: ..\test.src\tstring.mpp 
+	${StandardM2pp}

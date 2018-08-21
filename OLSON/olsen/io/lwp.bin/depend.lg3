@@ -1,0 +1,26 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+iomonito.def: ..\lwp.src\iomonito.dpp 
+	${StandardM2pp}
+dirio.mod: ..\pc.src\dirio.mpp 
+	${StandardM2pp}
+dosbinar.mod: ..\pc.src\dosbinar.mpp 
+	${StandardM2pp}
+ionames.mod: ..\pc.src\ionames.mpp 
+	${StandardM2pp}
+keyboard.mod: ..\pc.src\keyboard.mpp 
+	${StandardM2pp}
+iomonito.mod: ..\lwp.src\iomonito.mpp 
+	${StandardM2pp}
+simpleio.mod: ..\shared.src\simpleio.mpp 
+	${StandardM2pp}
+textio.mod: ..\shared.src\textio.mpp 
+	${StandardM2pp}
+textiopr.mod: ..\shared.src\textiopr.mpp 
+	${StandardM2pp}

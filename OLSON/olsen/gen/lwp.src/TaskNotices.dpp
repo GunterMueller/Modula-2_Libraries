@@ -1,0 +1,97 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskNotices;
+(*
+ * The following are methods of inter-module communication about tasks.
+ *)
+IMPORT 
+    Notices;
+
+EXPORT QUALIFIED
+    GetBirth,  GetDeath,  GetExitRequest,  WasExitRequested;
+
+    (*
+     * The module TaskInfo should be used for services which require
+     * per task information. The following two Notices are used to
+     * indicate task births and deaths without having to register
+     * with TaskInfo.Create.
+     *)
+PROCEDURE GetBirth(
+    ) : Notices.Object;  (* Notice to be called on task creation *)
+    (*
+     * This notice is called by newly created tasks.
+     *
+     * Initialized to "firstRegisterFirstCalled".
+     *
+     * The "Notices.Call.importerObject" is set to the task object
+     * for the task being born.
+     *)
+
+PROCEDURE GetDeath(
+    ) : Notices.Object;  (* Notice to be called on task death *)
+    (*
+     * This notice is called by tasks that have exited off their
+     * main control thread (i. e. they are terminating normally).
+     *
+     * Initialized to "firstRegisterLastCalled".
+     *
+     * The "Notices.Call.importerObject" is set to the task object
+     * of the dying task.
+     *)
+
+    (*
+     * There are two ways to exit the tasking system normally.
+     * The cleanest method is for all the tasks to exit and then the
+     * system exits. The other method is to call Tasks.ExitSystem which
+     * immediately and abruptly exits the system, that is, no other
+     * task ever again gets a chance to run. In order to avoid problems,
+     * the GetExitRequest Notice is provided. If a particular task
+     * would like to exit, it just calls this notice. All registrants
+     * of this communicate with the tasks they know about and request
+     * that they terminate. Upon return of this notice, the calling
+     * task should exit and the entire system should exit once all
+     * the tasks in the system exit.
+     *
+     * There are several rules for using this GetExitRequest. First,
+     * it is not integrated with the rest of the tasking system, thus
+     * all modules which create tasks must find ways (via global memory)
+     * to communicate with the tasks that belong to the module (or the
+     * module in some way controls some tasks).  Note that the
+     * WasExitRequested procedure can be used to indicate to the
+     * tasks that they must die.
+     *)
+PROCEDURE GetExitRequest(
+    ) : Notices.Object;  (* Exit notice to be registered or called *)
+    (*
+     * Two things happen when this notice is called:
+     *     WasExitRequested becomes true.
+     *     The calling task runs at TaskConsts.maxPriority.
+     *
+     * This notice is defined in "firstRegisteredFirstCalled" order.
+     * The "importerObject" passed to Notices is ignored.
+     *)
+
+PROCEDURE WasExitRequested(
+    ) : BOOLEAN;  (* Notices.Call was run on GetExitRequest => TRUE *)
+
+END TaskNotices.

@@ -1,0 +1,234 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE RandomNumbers;
+(*   
+ * This implementation is taken from the March 1987 Byte article "Building a
+ * Random-Number Generator", by Brian Wichmann and David Hill.
+ * Their implementation uses a combination of three traditional random
+ * number generators to produce a random number sequence that meets
+ * statistical criteria of randomness much better than a single generator.
+ *
+ * In addition, their implementation stays within the range 0..32767 so that
+ * it will work using 16-bit integer math, and thus is very portable.
+ *
+ * We use the carefully chosen multipliers and primes from the article.
+ * To quote the developers,
+ *     "In all, the project took about three months of effort, a lot for 16
+ *      lines of code, but well worth it."
+ *)
+IMPORT
+    ProgErr,
+    SYSTEM,
+    SysTypes;
+@IF SunOS THEN
+    IMPORT
+	UnixCsys_time;
+@END
+@IF MsDosOS THEN
+    IMPORT
+	DOS;
+    @IF Tasks THEN
+	IMPORT
+	    DosMonitor;
+    @END
+@END
+@IF Tasks THEN
+    IMPORT
+	TaskMonitors;
+    VAR
+	mutex : TaskMonitors.Object;
+@END
+
+VAR
+    (* Last value for the 3 generators *)
+    rnd1 : SysTypes.Int;
+    rnd2 : SysTypes.Int;
+    rnd3 : SysTypes.Int;
+
+PROCEDURE SetSeeds(
+    initialValue1 : SysTypes.Card;
+    initialValue2 : SysTypes.Card;
+    initialValue3 : SysTypes.Card
+    );
+    (*  Initialize the random generator *)
+    BEGIN (* SetSeeds *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END (* Tasks *)
+	    rnd1 := initialValue1 MOD 30001;
+	    rnd2 := initialValue2 MOD 30001;
+	    rnd3 := initialValue3 MOD 30001;
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END (* Tasks *)
+
+    END SetSeeds;
+
+PROCEDURE GetReal(
+    ) : SysTypes.Real;
+    (*  
+     * This is the random real number generator used, the one given in the
+     * article, and the utility use by the two other external
+     * routines.  We use rnd1, rnd2, and rnd3 in place of x, y, and z as
+     * given in the Byte listing.
+     *)
+    VAR
+	temp : SysTypes.Real;
+    BEGIN (* GetReal *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( mutex );
+	@END
+	    (* First generator *) 
+	    rnd1 := 171 * (rnd1 MOD 177) - 2 * (rnd1 DIV 177);
+	    IF rnd1 < 0 THEN
+		INC(rnd1, 30269);
+	    END;
+
+	    (* Second generator *)
+	    rnd2 := 172 * (rnd2 MOD 176) - 35 * (rnd2 DIV 176);
+	    IF rnd2 < 0 THEN
+		INC(rnd2, 30307);
+	    END;
+
+	    (* Third generator *)
+	    rnd3 := 170 * (rnd3 MOD 178) - 63 * (rnd3 DIV 178);
+	    IF rnd3 < 0 THEN
+		INC(rnd3, 30323);
+	    END;
+
+	    (* Combine to give random value *)
+	    temp := FLOAT(rnd1) / 30269.0 +
+		    FLOAT(rnd2) / 30307.0 +
+		    FLOAT(rnd3) / 30323.0;
+	@IF Tasks THEN
+	    TaskMonitors.Exit( mutex );
+	@END 
+
+	RETURN temp - FLOAT(TRUNC(temp));
+
+    END GetReal;
+
+
+PROCEDURE GetInt(
+    lo : SysTypes.Int;	(* Lowest possible number *)
+    hi : SysTypes.Int	(* Highest possible number; must be >= lo *)
+    )  : SysTypes.Int;	(* lo <= RETURN <= hi *)
+    VAR
+	range : SysTypes.Real;
+	card  : SysTypes.Card;
+	rand  : SysTypes.Real;
+    BEGIN (* GetInt *)
+
+	(* If the range is less than MAXInt *)
+	IF ( hi < 0 ) OR ( lo >= 0 ) THEN
+	    range := FLOAT( hi - lo );
+	    rand := GetReal() * ( range + 1.0 );
+	    RETURN VAL( SysTypes.Int, TRUNC( rand ) ) + lo;
+	END;
+
+	(* For ranges larger than MAXInt *)
+	range := FLOAT( ABS( lo ) ) + FLOAT( hi );
+	rand := GetReal() * ( range + 1.0 );
+	card := TRUNC( rand );
+	IF card <= SysTypes.MAXInt THEN
+	    RETURN VAL( SysTypes.Int, card ) + lo;
+	END;
+
+	DEC( card, SysTypes.MAXInt );
+	RETURN ( VAL( SysTypes.Int, card ) - SysTypes.MAXInt ) + lo;
+
+    END GetInt;
+
+
+PROCEDURE GetCard(
+    lo : SysTypes.Card;	(* Lowest possible number *)
+    hi : SysTypes.Card	(* Highest possible number; must be >= lo *)
+    )  : SysTypes.Card;	(* lo <= RETURN <= hi *)
+    VAR
+	range : SysTypes.Card;
+	rand  : SysTypes.Real;
+    BEGIN (* GetCard *)
+
+	range := hi - lo;
+	rand := GetReal() * ( FLOAT( range ) + 1.0 );
+	RETURN VAL( SysTypes.Card, TRUNC( rand ) ) + lo;
+
+    END GetCard;
+
+
+@IF SunOS THEN
+    PROCEDURE SetSeedsFromTime;
+	VAR
+	    time       : UnixCsys_time.struct_timeval;
+	    randomCard : SysTypes.Card;
+	BEGIN (* SetSeedsFromTime *)
+
+	    IF UnixCsys_time.gettimeofday( SYSTEM.ADR( time ), NIL ) = -1 THEN
+		HALT;
+	    END;
+
+	    (* So that we don't get overflow *)
+	    randomCard := time.tv_usec DIV 2 + time.tv_sec DIV 2;
+
+	    SetSeeds( randomCard, randomCard + 1, randomCard + 2 );
+
+	END SetSeedsFromTime;
+@END
+
+@IF MsDosOS THEN
+    PROCEDURE SetSeedsFromTime;
+
+	VAR
+	    hourMin,
+	    secHun  : SysTypes.Card;
+	    randomCard: SysTypes.Card;
+
+	BEGIN (* SetSeedsFromTime *)
+
+	    (* Get the time date from DOS *)
+	    @IF Tasks THEN
+		DosMonitor.Enter;
+	    @END 
+		SYSTEM.DOSCALL( DOS.getTime, hourMin, secHun );
+	    @IF Tasks THEN
+		DosMonitor.Exit;
+	    @END
+
+	    randomCard := secHun + hourMin;
+
+	    SetSeeds( randomCard, randomCard + 1, randomCard + 2 );
+
+	END SetSeedsFromTime;
+@END (* MsDosOS *)
+
+BEGIN (* RandomNumbers *)
+
+    @IF Tasks THEN
+	TaskMonitors.Create( mutex, "RandomNumbers" );
+    @END (* Tasks *)
+
+    SetSeedsFromTime;
+
+END RandomNumbers.

@@ -1,0 +1,90 @@
+ASCII.sym: 
+ASCII.o: ASCII.sym 
+Bytes.sym: Intrinsics.sym SysTypes.sym 
+Bytes.o: Bytes.sym Intrinsics.sym SysTypes.sym 
+CRC16.sym: SysTypes.sym 
+CRC16.o: CRC16.sym ProgErr.sym SysTypes.sym 
+CardConvert.sym: Chars.sym SysTypes.sym 
+CardConvert.o: CardConvert.sym Chars.sym ProgErr.sym Strings.sym SysTypes.sym 
+Chars.sym: SysTypes.sym 
+Chars.o: ASCII.sym Chars.sym SysTypes.sym 
+DebugFlags.sym: 
+DebugFlags.o: DebugFlags.sym GenConsts.sym NameLists.sym ProgArgs.sym  \
+              ProgErr.sym ProgErrOutput.sym Strings.sym SysTypes.sym 
+GenConsts.sym: 
+GenConsts.o: GenConsts.sym 
+IntConvert.sym: SysTypes.sym 
+IntConvert.o: CardConvert.sym Chars.sym IntConvert.sym ProgErr.sym  \
+              Strings.sym SysTypes.sym 
+Intrinsics.sym: SysTypes.sym 
+Intrinsics.o: Intrinsics.sym SysTypes.sym 
+Lists.sym: Intrinsics.sym Objects.sym SysTypes.sym 
+Lists.o: Intrinsics.sym Lists.sym NameLists.sym Objects.sym ProgErr.sym  \
+         SysTypes.sym 
+MC68881.sym: 
+ModInit.sym: 
+ModInit.o: ModInit.sym NameLists.sym 
+NameLists.sym: Lists.sym SysTypes.sym 
+NameLists.o: Chars.sym Intrinsics.sym Lists.sym NameLists.sym Objects.sym  \
+             ProgErr.sym SafeStorage.sym Strings.sym SysTypes.sym 
+Notices.sym: SysTypes.sym 
+Notices.o: Notices.sym Objects.sym ProgErr.sym ProgErrOutput.sym  \
+           SafeStorage.sym SysTypes.sym 
+Objects.sym: SysTypes.sym 
+Objects.o: CardConvert.sym GenConsts.sym Objects.sym ProgErr.sym  \
+           ProgErrOutput.sym SafeStorage.sym Strings.sym SysTypes.sym 
+ProgArgs.sym: SysTypes.sym 
+ProgArgs.o: Bytes.sym CardConvert.sym NameLists.sym Notices.sym Objects.sym  \
+            ProgArgs.sym ProgErr.sym ProgErrOutput.sym Strings.sym  \
+            SysTypes.sym UnixCtypes.sym 
+ProgEnviron.sym: NameLists.sym 
+ProgEnviron.o: Bytes.sym NameLists.sym ProgEnviron.sym SysTypes.sym  \
+               UnixCenviron.sym UnixCtypes.sym 
+ProgErr.sym: 
+ProgErr.o: GenConsts.sym ProgErr.sym ProgErrOutput.sym SysTypes.sym  \
+           UnixCerrno.sym UnixCexit.sym UnixCmath.sym UnixCprocess.sym  \
+           UnixCsignal.sym UnixCsys_dir.sym UnixCsys_types.sym UnixCtypes.sym  \
+           UnixError.sym UnixMathError.sym 
+ProgErrOutput.sym: 
+ProgErrOutput.o: ASCII.sym ProgErrOutput.sym SysTypes.sym UnixCsys_file.sym 
+QStrings.sym: SysTypes.sym 
+QStrings.o: Objects.sym ProgErr.sym QStrings.sym SafeStorage.sym Strings.sym  \
+            SysTypes.sym 
+RandomNumbers.sym: SysTypes.sym 
+RandomNumbers.o: ProgErr.sym RandomNumbers.sym SysTypes.sym UnixCsys_time.sym 
+RealConvert.sym: SysTypes.sym 
+RealConvert.o: CardConvert.sym Chars.sym ProgErr.sym RealConvert.sym  \
+               Strings.sym SysTypes.sym 
+SafeStorage.sym: SysTypes.sym 
+SafeStorage.o: ProgErr.sym SafeStorage.sym SysTypes.sym UnixCerrno.sym  \
+               UnixCmalloc.sym 
+Strings.sym: Intrinsics.sym SysTypes.sym 
+Strings.o: Intrinsics.sym ProgErr.sym Strings.sym SysTypes.sym 
+SysTypes.sym: 
+SysTypes.o: SysTypes.sym 
+UnixCenviron.sym: UnixCtypes.sym 
+UnixCerrno.sym: UnixCtypes.sym 
+UnixCexit.sym: UnixCsys_types.sym 
+UnixCfcntl.sym: UnixCtypes.sym 
+UnixChost.sym: 
+UnixCioctl.sym: 
+UnixCipc.sym: UnixCsys_types.sym UnixCtypes.sym 
+UnixCmalloc.sym: 
+UnixCmath.sym: UnixCtypes.sym 
+UnixCprocess.sym: UnixCsys_resource.sym UnixCsys_types.sym UnixCtypes.sym 
+UnixCrasterfile.sym: 
+UnixCsignal.sym: UnixCsys_types.sym 
+UnixCsys_dir.sym: UnixCsys_types.sym UnixCtypes.sym 
+UnixCsys_file.sym: UnixCsys_time.sym UnixCtypes.sym 
+UnixCsys_param.sym: SysTypes.sym 
+UnixCsys_resource.sym: UnixCsys_time.sym UnixCtypes.sym 
+UnixCsys_stat.sym: UnixCsys_time.sym UnixCsys_types.sym UnixCtypes.sym 
+UnixCsys_time.sym: UnixCtypes.sym 
+UnixCsys_types.sym: UnixCtypes.sym 
+UnixCtermcap.sym: UnixCtypes.sym 
+UnixCtty.sym: UnixCsys_types.sym UnixCtypes.sym 
+UnixCtypes.sym: 
+UnixError.sym: SysTypes.sym 
+UnixError.o: Bytes.sym GenConsts.sym IntConvert.sym ProgErrOutput.sym  \
+             Strings.sym SysTypes.sym UnixCerrno.sym UnixError.sym 
+UnixMathError.sym: UnixCmath.sym 

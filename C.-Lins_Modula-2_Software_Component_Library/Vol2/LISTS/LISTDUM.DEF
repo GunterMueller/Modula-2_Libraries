@@ -1,0 +1,147 @@
+(*
+5.1 Doubly-Linked Unbounded List Interface
+
+The interface to the doubly-linked unbounded list directly
+models the abstract list operations covered in chapter 3.  Unlike
+the components from Volume 1 the list modules do not concern
+themselves with the data type of the objects or items manipulated.
+The reasons for this are (1) the low level of the operations provided,
+and (2) implementation efficiency, which is discussed in greater
+detail in the implementation module.
+*)
+
+DEFINITION MODULE ListDUM;
+(*==========================================================
+    Version  : 1.00  18 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Polylithic Structures - List
+	Doubly-Linked Unbounded Managed
+
+    The Abstraction
+    This module provides the List ADT for generic Items.
+
+    Revision History
+    v1.00  18 May 1989  C. Lins
+      Initial implementation for TopSpeed Modula-2.
+	(C) Copyright 1989 Charles A. Lins
+==========================================================*)
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM ListEnum IMPORT
+    (*--Type*) Exceptions;
+
+    (*-----------------------*)
+
+(*
+5.1.1 Type Declarations
+
+The abstract type List is exported along with a constant representing
+the empty list.  NullList is also used to terminate a sequence of
+links.
+*)
+
+TYPE  List;
+CONST NullList = List(NIL);
+
+
+(*
+5.1.2 Exceptions
+
+The ModuleID uniquely identifies this module.  ListError returns
+the result code from the most recently invoked list operation.
+GetHandler and SetHandler allow assignment and retrieval,
+respectively, of exception handlers for specific exceptions.
+*)
+
+CONST ModuleID = 2;
+
+PROCEDURE ListError   ()	: Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+	: HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+	theHandler: HandlerProc (*-- in    *));
+
+
+(*
+5.1.3 Constructors
+
+Create simply returns the NullList and Destroy is equivalent to
+Clear.  Neither is necessary for this particular implementation
+but are included for compatability and consistency with the other
+components.  Definitions for the other constructors was given
+in Section 3.3, under Constructor Operations.
+*)
+
+PROCEDURE Create    ()	: List  (*-- out   *);
+
+PROCEDURE Destroy   (VAR theList : List (*-- inout *));
+
+PROCEDURE Clear     (VAR theList : List (*-- inout *));
+
+PROCEDURE Assign    (    theList : List (*-- in    *);
+	VAR toList  : List (*-- inout *));
+
+PROCEDURE SetItem   (    theList : List (*-- inout *);
+	theItem : Item (*-- in    *));
+
+PROCEDURE SetNext   (    theList : List (*-- inout *);
+	newNext : List (*-- in    *));
+
+PROCEDURE SetPrev   (    theList : List (*-- inout *);
+	newPrev : List (*-- in    *));
+
+PROCEDURE SetList   (    theItem : Item (*-- in    *))
+	: List (*-- out   *);
+
+PROCEDURE Insert    (    theItem : Item (*-- in    *);
+	VAR theList : List (*-- inout *));
+
+
+(*
+5.1.4 Selectors
+
+In this list module, IsEmpty serves the function of IsDefined.
+Definitions for the other selectors was given in Section 3.4,
+under Selector Operations.  All of the selectors have a complexity
+of O(1) except for IsEqual which is O(Min(m,n)) and LengthOf which
+is O(n).
+*)
+
+PROCEDURE IsEmpty   (    theList : List     (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    left    : List     (*-- in    *);
+	right   : List     (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    theList : List     (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE GetNext   (    theList : List     (*-- in    *))
+	: List     (*-- out   *);
+
+PROCEDURE GetPrev   (    theList : List     (*-- in    *))
+	: List     (*-- out   *);
+
+PROCEDURE GetItem   (    theList : List     (*-- in    *))
+	: Item     (*-- out   *);
+
+END ListDUM.
+
+(*
+
+References
+[1] G. Booch, Software Components with Ada, Structures, Tools, and Subsystems,
+    Benjamin/Cummings, Menlo Park, CA 1987.
+[2] D. Knuth, The Art of Computer Programming, Volume 1, Fundamental
+    Algorithms, Addison-Wesley, Reading, MA 1973.
+[3] R. Sincovec and R. Wiener, Data Structures Using Modula-2,
+    John Wiley & Sons, New York, NY 1986, pg. 198.
+*)

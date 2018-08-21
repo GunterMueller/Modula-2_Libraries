@@ -1,0 +1,21 @@
+DEFINITION MODULE GetCharacter;
+
+(* John Andrea, Mar.27/92 *)
+(* This code may NOT be sold, it may be freely used and distributed *)
+
+  PROCEDURE Get(VAR ch: CHAR);
+  (* return a single character, no Carriage-Return needed *)
+
+  PROCEDURE GetNoWait(VAR ch: CHAR);
+  (* return a single character, no Carriage-Return needed *)
+  (* and don't wait till a character occurs, returns null character if there
+   * is no character in the buffer *)
+
+  PROCEDURE StartGet;
+  (* Enter single character mode *)
+
+  PROCEDURE StopGet;
+  (* Exit single character mode *)
+  (* And return to "carriage-return needed for input" mode *)
+
+END GetCharacter.

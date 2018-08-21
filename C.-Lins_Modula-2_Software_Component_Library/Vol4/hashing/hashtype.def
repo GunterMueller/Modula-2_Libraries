@@ -1,0 +1,99 @@
+DEFINITION MODULE HashType; 
+(*=============================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Hash Table Structure Utility - Standard Types
+
+    THE ABSTRACTION
+    This module provides centralized definitions of the operations
+    and exceptions for all hash table modules.
+
+    REVISION HISTORY
+    v1.00  19 Apr 1989  C. Lins:
+        Initial implementation
+    v1.01  22 Apr 1989  C. Lins:
+        Added iterate to Operations enumeration.
+       Added notprime to Exceptions enumeration.
+    v1.02  18 Jun 1989  C. Lins:
+       Eliminated separate key and data items. It's now assumed
+       that they're part of a larger structure. This is more
+       in keeping with how hash tables are typically used.
+    v1.03  21 Aug 1989  C. Lins:
+       Added hashof to operations enumeration.
+    v1.04  29 Aug 1989  C. Lins:
+       Separate key and data.
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+=============================================================*)
+
+FROM Items IMPORT
+   (*--type*) Item;
+
+
+CONST ComponentID = 256 * 12;
+
+
+    (*---------------------------------*)
+    (*--    HASH TABLE OPERATIONS    --*)
+
+TYPE  Operations = (
+                    (*-- Module Initialization *)
+                    modinit,
+
+                    (*-- Constructors *)
+                    create, destroy, clear, assign,
+                    insert, remove, update,
+
+                    (*-- Selectors *)
+                    isdefined, isempty, sizeof, typeof, hashof,
+                    extentof, ispresent,
+
+                    (*-- Iterators *)
+                    loopover, traverse, iterate,
+
+                    (*-- Guarded Concurrent Operations *)
+                    seize, release
+                   );
+
+TYPE  Constructors = Operations [ create    .. update    ];
+TYPE  Selectors    = Operations [ isdefined .. ispresent ];
+TYPE  Iterators    = Operations [ loopover  .. iterate   ];
+TYPE  GuardedOps   = Operations [ seize     .. release   ];
+
+
+    (*---------------------------------*)
+    (*--    HASH TABLE EXCEPTIONS    --*)
+
+TYPE  Exceptions = (noerr,        (*-- Nothing went wrong. *)
+                    initfailed,   (*-- Initialization failure. *)
+                    duplicatekey, (*-- key exists in table *)
+                    notfound,     (*-- key not in table *)
+                    overflow,     (*-- Table cannot grow big enough
+                                    -- for the requested operation.*)
+                    undefined     (*-- Table has not been Created, or
+                                    -- the tree has been Destroyed.*)
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+
+    (*---------------------------------*)
+    (*--  HASH TABLE UTILITY TYPES   --*)
+
+TYPE  States = (empty, deleted, used);
+
+TYPE  Key  = Item;
+TYPE  Data = Item;
+
+    (*---------------------------------*)
+    (*-- HASH TABLE PROCEDURE TYPES  --*)
+
+TYPE  AccessProc   = PROCEDURE (Key, VAR Data);
+TYPE  FoundProc    = PROCEDURE (Key, VAR Data);
+TYPE  HashFunction = PROCEDURE (Key) : CARDINAL;
+TYPE  LoopProc     = PROCEDURE (Key, VAR Data) : BOOLEAN;
+TYPE  NotFoundProc = PROCEDURE (Key);
+TYPE  UpdateProc   = PROCEDURE (Key, VAR Data, Data);
+
+END HashType.

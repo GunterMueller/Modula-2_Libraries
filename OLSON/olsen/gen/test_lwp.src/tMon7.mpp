@@ -1,0 +1,324 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tMon7;
+(*
+ * With the program written here we create 2 tasks (and of course "main" 
+ * as a seperate task) and observe what happens when one of both tasks 
+ * requests for the monitor although there is already a task inside 
+ * the critical section.
+ * Note that "Main" as a seperate task is suspended till all other tasks are 
+ * finished with work.
+ *  
+ * Defintions:       tdelay:=sleeping time in milliseconds
+ *                   trequest:=maximum time to wait for the monitor 
+ * 
+ * 
+ *
+ * Main steps:
+ *
+ *          1) Create two tasks Producer and Consumer, both with the
+ *             same priority   
+ *    
+ *          2) Suspend "Main" ("Producer" will start to act)
+ *
+ *          3) Make shure that tdelay > trequest 
+ *       
+ *          4) Send "Producer"  to sleep
+ *  
+ *          5) During the sleeping phase let "Consumer" call a
+ *             timed monitor entry
+ *   
+ *          6) Be shure that this timed request leeds to a absorption
+ *             of the caller (FALSE as output result)
+ *             otherwise bug found.
+ *          
+ *          7) Ready "Main" and terminate Program
+ *      
+ *
+ *
+ *
+	   MODIFICATIONS IN PROCEDURE CONSUMER 
+ *
+ * 
+ *)
+
+
+ IMPORT  
+	Tasks,      TaskMonitors,     TaskConsts,     TaskDebug, 
+	TaskInfo,   ProgErrOutput,    ProgArgs,       ProgErr, 
+        TaskTime,   TaskNotices,      Notices,        SYSTEM; 
+
+ CONST
+        MainPrio                    = TaskConsts.defaultPriority; 
+
+
+ TYPE   
+	TaskID                      = (P,C);
+
+ VAR 
+	main, prod, cons            : Tasks.Object;
+        monitor                     : TaskMonitors.Object;
+        tdelay, trequest            : CARDINAL; 
+	
+	
+PROCEDURE ProtectCriticalData(     whoami     :TaskID; 
+				   indata     :CARDINAL; 
+                               VAR outdata    :CARDINAL;     
+                               VAR hadEntry   :BOOLEAN); 
+     
+     (* Catch or modify data inside the monitor and give it 
+      * back to the requesting task. Here we install our
+      * test monitor for preventing data of uncontroled 
+      * changes.
+      * 
+      * INPUT:
+      *	    whoami, identification tag for buffer using    
+      *     indata, given by Producer; used for overwriting
+      *	    the critical buffer
+      * 
+      * OUTPUT:
+      *     outdata, data read by any consumerx
+      *)
+
+ VAR 
+      buffer   :CARDINAL;
+
+
+ BEGIN
+    
+     ProgErrOutput.WriteString("Before PrintAll");
+     ProgErrOutput.WriteLn;
+     
+     TaskDebug.PrintAll; 
+    
+     ProgErrOutput.WriteString("just before monitor.enter cmd"); 
+     ProgErrOutput.WriteLn; 
+    
+     hadEntry:=TaskMonitors.TimedEnter(monitor,trequest);
+     IF NOT hadEntry THEN
+	    RETURN
+     END;
+       ProgErrOutput.WriteString("just before sleep");
+       ProgErrOutput.WriteLn;
+    
+       TaskTime.Sleep(tdelay);    (* Send task to sleep inside the monitor *) 
+       ProgErrOutput.WriteString("after sleep cmd");
+       ProgErrOutput.WriteLn;
+     
+       IF whoami = P THEN 
+               ProgErrOutput.WriteString("producer is feeding buffer ");
+	       ProgErrOutput.WriteLn;
+	       buffer:=indata; 
+       ELSE                       (* current task = cons *)
+	       ProgErrOutput.WriteString("consumer is eating from  buffer "); 
+	       ProgErrOutput.WriteLn; 
+	       outdata:=buffer
+       END; 
+      
+       ProgErrOutput.WriteString("inside monitor");
+       ProgErrOutput.WriteLn;
+      
+       TaskDebug.PrintAll; 
+       
+     TaskMonitors.Exit(monitor); 
+     
+     ProgErrOutput.WriteString("after having left monitor"); 
+     ProgErrOutput.WriteLn;
+     TaskDebug.PrintAll; 
+
+ END ProtectCriticalData; 
+
+
+
+
+  PROCEDURE Producer( DONTCARE : SYSTEM.ADDRESS );
+       (* TASK
+	* ----
+	* This guy simulates the delivery of new data modifying  
+	* shared data inside ProtectCriticalData. 
+        *)
+ 
+
+   VAR 
+	newdata, pdummy    : CARDINAL;
+        i                  : CARDINAL;
+        ID                 : TaskID;
+        getMonitor         : BOOLEAN;  (* here only dummy variable *)
+   
+   BEGIN
+	  ID:=P;
+          pdummy:=0;       (*  not used variable *)
+          newdata:=100;    (* why not ? *)
+         
+	  ProgErrOutput.WriteString("producer is requesting for monitor");
+	  ProgErrOutput.WriteLn; 
+
+	  ProtectCriticalData(ID,newdata,pdummy,getMonitor);
+         
+	  ProgErrOutput.WriteString("producer has left monitor"); 
+          ProgErrOutput.WriteLn;
+           
+   END Producer;
+  
+  
+  PROCEDURE Consumer( DONTCARE : SYSTEM.ADDRESS );
+       (* TASK
+	* ----
+	* This guy simulates eating from the critical section.  
+        *)
+ 
+
+   VAR 
+	backdata, cdummy   : CARDINAL;
+        i                  : CARDINAL;
+        ID                 : TaskID;
+        getMonitor         : BOOLEAN; 
+        me                 : Tasks.Object;
+
+   BEGIN
+       
+       ProgErrOutput.WriteString("consumer starts, prod sleeps");
+       ProgErrOutput.WriteLn;
+       
+       ID:=C; 
+       backdata:=0;       (* Initialize variable *)
+       cdummy:=0;         (* Not used for consuming *)
+       getMonitor:=TRUE;
+      
+       ProgErrOutput.WriteString("consumer is (timed) requesting for monitor");
+       ProgErrOutput.WriteLn; 
+     
+       ProtectCriticalData(ID,cdummy,backdata,getMonitor);
+       
+       me:=Tasks.GetCurrent();   (* HERE CODE MODIFIED ! *) 
+       Tasks.SetPriority(me,Tasks.GetPriority(me)-1); 
+       
+       IF NOT getMonitor THEN
+	    ProgErrOutput.WriteString("timed enter works");
+	    Tasks.Ready(main); (* test succeeeded *)
+       ELSE
+          ProgErrOutput.WriteString("consumer has left monitor, BUG !"); 
+          ProgErrOutput.WriteLn
+       END; 
+       Tasks.Ready(main)   (* Consumer is terminated after Producer *) 
+	
+   END Consumer;
+
+
+
+ PROCEDURE IntegrateArgs(VAR td, tr  : CARDINAL);
+
+     (* Integrates all arguments set at the time you call this module.
+      * This Procedure makes it possible that you use the testprogram
+      * just like a UNIX command : 
+      *          	    t3 [/d=# tdelay] [/r=# trequest]
+      *
+      *)
+
+ BEGIN
+     td:=1500;       (* default iterations *)
+     ProgArgs.RegisterCardHandler('d', ProgArgs.DefaultCardHandler,
+				       SYSTEM.ADR(td)); 
+     tr:=500; 
+     ProgArgs.RegisterCardHandler('r', ProgArgs.DefaultCardHandler,
+				       SYSTEM.ADR(tr));
+     IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError) THEN
+	 ProgErr.Terminate( "Usage: tTestMonitor /d=# tdelay /r=# trequest");
+     END
+ END IntegrateArgs;
+
+
+ PROCEDURE FifthExperiment;
+
+     (* Here we create two tasks (prod, cons) and try to force
+      * entry into the monitor although there is already one of
+      * of both inside
+      *
+      *
+      *) 
+
+ BEGIN
+ 
+      (* Tasks creation phase *)
+      main:=Tasks.GetCurrent();      (* Save my address *) 
+      Tasks.Create(prod,"Prod",Producer,Tasks.DONTCARE, MainPrio-1,
+                   TaskConsts.GetDefaultStackSize());
+      Tasks.Create(cons,"Cons",Consumer,Tasks.DONTCARE, MainPrio-1,
+                   TaskConsts.GetDefaultStackSize());
+      Tasks.Suspend 
+      (* Freeze "Main" at this point *) 
+ END FifthExperiment;
+ 
+ 
+ PROCEDURE InstallMonitor;
+
+     (* Initializes the monitor 
+      *
+      *)
+
+ BEGIN
+
+    TaskMonitors.Create(monitor,"tMonitor");   
+    
+    ProgErrOutput.WriteString("Creating monitor");
+    ProgErrOutput.WriteLn
+ 
+ END InstallMonitor;   
+
+
+ PROCEDURE Run;
+ 
+ BEGIN
+   
+     ProgErrOutput.WriteString("beginning fifth  experiment");
+     ProgErrOutput.WriteLn;
+    
+     FifthExperiment;
+   
+     ProgErrOutput.WriteString("terminating fifth experiment");
+     ProgErrOutput.WriteLn
+ 
+ END Run;
+
+ PROCEDURE CleanUp;
+ 
+ BEGIN
+     
+     TaskMonitors.Destroy(monitor); 
+    
+     ProgErrOutput.WriteString("Kill monitor");
+     ProgErrOutput.WriteLn;
+   
+ END CleanUp;
+
+
+
+        (*  --------  MAIN OF tn  -------- *)
+BEGIN
+    IntegrateArgs(tdelay,trequest);  (* controls user input *)
+    InstallMonitor;     
+    Run;
+    CleanUp;
+    ProgErrOutput.WriteString("Test is over");
+    Notices.Call(TaskNotices.GetExitRequest(),Notices.DONTCARE)
+END tMon7.

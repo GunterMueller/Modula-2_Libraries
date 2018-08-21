@@ -1,0 +1,381 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ProgArgs;
+(*
+ * This module supports program arguments in the flavor of the host
+ * operating system from the user's point of view.  The programmer
+ * is presented with a uniform (high-level) view of these values and 
+ * spared the details of the particular host operating system.
+ *
+ * Arguments:
+ *     A program argument is a system specific concept, but this
+ *     module attempts to coerce the system's idea into a command-line
+ *     orientation. Specifically, a program is thought of as being executed
+ *     by a command-line interpreter, where the interpreter provides zero
+ *     or more arguments. In a typical command-line scenario, these
+ *     arguments are separated by spaces:
+ *
+ *         prompt> name one two three
+ * 
+ *     If available, this module would return "name" as the program
+ *     name and then return the arguments "one", "two", and "three"
+ *     in left to right order. See the implementation description
+ *     of exactly what this means.
+ *
+ * Types:
+ *     The interface divides the command line arguments into two types: 
+ *     flagged and unflagged:
+ *
+ *     A flagged argument has a program defined name which is expected
+ *     by the program. It is, in a sense, a variable initialized by the
+ *     user and then passed to the program. Flagged arguments may be
+ *     simple BOOLEAN values (e.g. compiler directives). They may be
+ *     Card values (e.g. the number of lines per page to be used
+ *     by print program); and they may be String values (e.g. user
+ *     specified header and footer lines for a formatting program).
+ *
+ *     An unflagged argument is anything that isn't considered to be
+ *     a flag by the particular implementation. In many systems, the
+ *     arguments "one", "two", and "three" would not be considered
+ *     flagged. Usually, a flagged argument is preceded by a special
+ *     character(s) which clearly distinguishes it from unflagged ones.
+ *
+ *     The program-name is also available from this module. On some
+ *     systems, this may not be available. To alleviate this identity
+ *     crisis, we provide a method of setting the ProgramName to any
+ *     value the programmer desires. This feature can be useful for
+ *     outputting error messages.
+ *
+ * The following example has been expanded to include flags
+ * and unflagged arguments. The "-" character is chosen here as
+ * the special character for convenience. Note that flags may be
+ * represented in an entirely different manner in other implementations.
+ *
+ *     prompt> name -first 2 -header hello -rotate one two three
+ *
+ * The flag "first" is a Card flag and the user gave "2" as the value
+ * to be associated with it. The flag "header" is a String flag and "hello"
+ * is its associated value. "rotate" is a BOOLEAN flag. "one", "two", and
+ * "three" are examples of unflagged arguments.
+ *
+ * Registering:
+ *     To use this module, one registers for a set of flagged arguments
+ *     ("first", "header", and "rotate") and an unflagged handler, and
+ *     calls Parse. Parse proceeds to parse the command line from left
+ *     to right handing arguments to the registered handlers as it finds
+ *     the types of the various handlers (in a system specific fashion).
+ *     For programmer convenience, several default handlers are provided
+ *     along with this module.
+ *
+ * WARNING:
+ *     If you register a procedure with this module, it will be 
+ *     called *every* time Parse is called.  Therefore, it is important
+ *     to pass global addresses to the importerObject parameter
+ *     in the Register calls.   Someday this restriction may be lifted.
+ *     [This rule doesn't apply if you know that Parse will not be called
+ *     an arbitrary number of times and you know where all those calls are.]
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    maxStringLength,          String,                  ParseModes,
+    Parse,                    OkToPrintErrors,         DONTCARE,
+    BoolHandler,              RegisterBoolHandler,     CardHandler,
+    RegisterCardHandler,      StringHandler,           RegisterStringHandler,
+    RegisterUnflaggedHandler, RegisterBadFlagHandler,  DefaultBoolHandler,
+    DefaultCardHandler,       DefaultStringHandler,    DefaultStringListHandler,
+    GetProgramName,           SetProgramName;
+
+CONST
+    @IF MsDosOS THEN
+        maxStringLength = 128;
+        (*
+         * This value is the greatest number of characters allowed on
+         * the command line by the DOS interpreter. Program arguments
+         * could probably be longer, but no DOS program would be able
+         * to handle them.
+         *)
+    @END
+
+    @IF SunOS THEN
+        maxStringLength = 256;
+	    (*
+	     * This really isn't the correct length for the Sun. The real
+	     * length is something like 10,000 for all arguments, but most
+	     * of the shells impose a word length of 1024 (actually 1018
+	     * or so). The number of argument variables is not limited,
+	     * because of the structure of this module.  Since the size
+	     * of an IOConsts.Path is not more than 256, the above value
+	     * should be ok.
+	     *)
+    @END
+
+TYPE
+    String = ARRAY[ 0 .. maxStringLength - 1 ] OF CHAR;
+    (*
+     * All arguments are truncated to this length.
+     *)
+
+    ParseModes = (
+        stopOnFirstError,    (* Return immediately *)
+        ignoreErrors,        (* Scan all and don't print errors *)
+        continueAfterErrors  (* Finish scanning arguments *)
+    );
+
+PROCEDURE Parse(
+    mode : ParseModes  (* How to proceed upon encountering errors *)
+    )    : BOOLEAN;    (* TRUE => None of the handlers returned *)
+    (*
+     * Scans the argument command line from left to right calling
+     * registered handlers based on the type of the parsed arguments.
+     * All handlers must be registered before this routine is called.
+     *
+     * This routine may be called several times.
+     *
+     * Parsemode:
+     *     The ParseMode determines how the return values of handlers
+     *     should be treated. If the mode is "stopOnFirstError", this
+     *     routine will return immediately. The other mode is used when
+     *     the entire command line should be parsed before this routine
+     *     returns. In "ignoreErrors" mode, this routine always returns
+     *     TRUE. In the other modes, this routine will return FALSE 
+     *     if any of the handlers return FALSE.
+     *
+     * Errors:
+     *     There are two pre-registered handlers for bad flags and
+     *     unflagged arguments. These routines will output a message
+     *     to ProgErrOutput and return failure, if they are called.
+     *     These handlers may be replaced by importer supplied handlers
+     *     via RegisterBadFlagHandler and RegisterUnflaggedHandler.
+     *     These procedures take identical arguments, so that the
+     *     same procedure may be registered for those programs which
+     *     don't expect flag arguments and don't want error messages
+     *     to come out when flags are encountered.
+     *) 
+
+PROCEDURE OkToPrintErrors(
+    ) : BOOLEAN;  (* TRUE => Current ParseMode is not ignoreErrors *)
+    (*
+     * This routine may be called during Parse.
+     * Tells the caller whether it is ok to print error messages.  
+     *)
+
+CONST
+    DONTCARE = NIL;
+    (*
+     * Pass as importerObject when not needed.
+     *)
+
+TYPE
+    BoolHandler = PROCEDURE(
+        String,         (* flagName *)    
+        SysTypes.ANYPTR (* importerObject *)
+    ) : BOOLEAN;        (* TRUE => No errors encountered *)
+
+PROCEDURE RegisterBoolHandler(
+    flagName       : ARRAY OF CHAR;  (* Must not be previously registered *)
+    handler        : BoolHandler;    (* To be called for each flagName *)
+    importerObject : SysTypes.ANYPTR (* Value passed to handler *)
+    );
+    (*
+     * Registers "flagName" as type BOOLEAN.
+     *
+     * If the "flagName" is encountered in the command-line, the
+     * procedure is called with "flagName" as its first parameter
+     * and the "importerObject" as its second.
+     *
+     * Using default handler:
+     *     If DefaultBoolHandler is passed to this routine,
+     *     "importerObject" must be the address of a BOOLEAN:
+     *     that is, SYSTEM.ADR( someBool ). Note that someBool
+     *     should be initialized to FALSE before calling Parse.
+     *)
+
+TYPE
+    CardHandler = PROCEDURE(
+        String,          (* flagName *)    
+        SysTypes.ANYPTR, (* importerObject *)
+        SysTypes.Card    (* Flagged Card *)
+    ) : BOOLEAN;         (* TRUE => No errors encountered *)
+
+PROCEDURE RegisterCardHandler(
+    flagName       : ARRAY OF CHAR;  (* Must not be previously registered *)
+    handler        : CardHandler;    (* To be called for each flagName *)
+    importerObject : SysTypes.ANYPTR (* Value passed to handler *)
+    );
+    (*
+     * Registers "flagName" as type Card.
+     *
+     * If the "flagName" is encountered in the command line, the
+     * procedure is called with "flagName" as its first parameter,
+     * the "importerObject" as its second, and the associated
+     * (user supplied) Card value as its third parameter.  
+     *
+     * Using default handler:
+     *     If DefaultBoolHandler is passed to this routine,
+     *     "importerObject" must be the address of a Card:
+     *     that is, SYSTEM.ADR( someCard ). Note that someCard
+     *     should be initialized to a default value.
+     *)
+
+TYPE
+    StringHandler = PROCEDURE(
+        String,          (* flagName *)    
+        SysTypes.ANYPTR, (* importerObject *)
+        String           (* Flagged, unflagged, and bad flag *)
+    ) : BOOLEAN;         (* TRUE => No errors encountered *)
+
+PROCEDURE RegisterStringHandler(
+    flagName       : ARRAY OF CHAR;    (* Must not be previously registered *)
+    handler        : StringHandler;    (* To be called for each flagName *)
+    importerObject : SysTypes.ANYPTR   (* Value passed to handler *)
+    );
+    (*
+     * Registers "flagName" as type String.
+     *
+     * If the "flagName" is encountered in the command line, the
+     * procedure is called with "flagName" as its first parameter,
+     * the "importerObject" as its second, and the associated (user
+     * supplied) String value as its third parameter.  
+     *
+     * Using default handler:
+     *     If DefaultBoolHandler is passed to this routine,
+     *     "importerObject" must be a NameLists.Object variable
+     *     which has been coerced into an address: that is,
+     *     SysTypes.ANYPTR( someNameList). Note that someNameList
+     *     must be created before calling this procedure.
+     *)
+
+PROCEDURE RegisterUnflaggedHandler(
+    handler        : StringHandler;  (* Is called for each unflagged *)
+    importerObject : SysTypes.ANYPTR (* Value passed to handler *)
+    );
+    (*
+     * Displaces the default handler registered to pick up unflagged
+     * arguments. The handler will be called for all arguments which
+     * are not interpreted as flagged by this implementation.  
+     *
+     * This routine may only be called once per program invocation.
+     *
+     * Using default handler:
+     *     If DefaultStringHandler is passed to this routine,
+     *     "importerObject" must be a NameLists.Object variable
+     *     which has been coerced into an address: that is, 
+     *     SysTypes.ANYPTR( someNameList ). Note also that the
+     *     "flagName" passed to the handler is an empty string.
+     *)
+
+PROCEDURE RegisterBadFlagHandler(
+    handler        : StringHandler;  (* Is called for each unflagged *)
+    importerObject : SysTypes.ANYPTR (* Value passed to handler *)
+    );
+    (*
+     * Displaces the default handler registered to pick up flagged
+     * arguments for which there are no registered handlers or which
+     * are incorrectly formed (Card flag unable to convert).
+     *
+     * The first parameter to handler is the "flagName", if found,
+     * or the unknown flag. The second parameter to handler is the
+     * "importerObject". If the "flagName" is known, but its value
+     * is improperly formed, then the "flagValue" will be the third
+     * parameter.
+     *
+     * This routine may only be called once per program invocation.
+     *
+     * Using default handler:
+     *     If DefaultStringHandler is passed to this routine,
+     *     "importerObject" must be a NameLists.Object variable
+     *     which has been coerced into an address: that is, 
+     *     SysTypes.ANYPTR( someNameList ).   
+     *)
+
+    (*
+     * Default handlers.
+     *)
+PROCEDURE DefaultBoolHandler(
+    flagName : String;         (* For diagnostic output *)
+    boolPtr  : SysTypes.ANYPTR (* Must be a pointer to a BOOLEAN *)
+    )        : BOOLEAN;        (* Always TRUE *)
+    (*
+     * Assumes boolPtr is a BOOLEAN pointer and sets boolPtr^ to TRUE.
+     *)
+
+PROCEDURE DefaultCardHandler(
+    flagName  : String;          (* For diagnostic output *)
+    cardPtr   : SysTypes.ANYPTR; (* Must be a pointer to a SysTypes.Card *)
+    flagValue : SysTypes.Card    (* Value passed in the command-line *)
+    )         : BOOLEAN;         (* Always TRUE *)
+    (*
+     * Assumes cardPtr is a Card pointer and sets cardPtr^ to flagValue.
+     *)
+
+PROCEDURE DefaultStringHandler(
+    flagName  : String;          (* For diagnostic output *)
+    stringPtr : SysTypes.ANYPTR; (* Must be a pointer to a String *)
+    flagValue : String           (* Value passed in the command-line *)
+    )         : BOOLEAN;         (* Always TRUE *)
+    (*
+     * Assumes stringPtr is a String pointer and sets strPtr^ to flagValue.
+     *)
+
+PROCEDURE DefaultStringListHandler(
+    flagName  : String;          (* For diagnostic output *)
+    nameList  : SysTypes.ANYPTR; (* Must be a NameLists.Object (coerced) *)
+    flagValue : String           (* Unflagged, flagged string, or bad *)
+    )         : BOOLEAN;         (* Always TRUE *)
+    (*
+     * Assumes "nameList" is a NameLists.Object which has been coerced
+     * into a SysTypes.ANYPTR, not the address of a NameLists.Object.
+     *
+     * The flagValue is inserted into the list with NameLists.DONTCARE
+     * as NameLists.Insert "importerObject". This routine may be passed
+     * to RegisterStringFlagHandler, RegisterUnflaggedHandler, and
+     * RegisterBadFlagHandler. Note that if "flagValue" is empty,
+     * an error message will be displayed.
+     *)
+
+    (*  
+     * Program Name support.
+     *)
+PROCEDURE GetProgramName(
+    VAR name : String    (* IMPLSPEC name of program *)
+    )        : BOOLEAN;  (* TRUE => Available (or assigned) *)
+    (*
+     * Returns the name of the program.
+     *
+     * In some systems, this may not be available to the program.
+     * In this case, this procedure will return FALSE.
+     * If SetProgramName has been called, then this procedure will
+     * return the value of the last SetProgramName call.
+     *)
+
+PROCEDURE SetProgramName(
+    name : ARRAY OF CHAR  (* Set program name to this (truncated to String) *)
+    );
+    (*
+     * Set the value to be returned by GetProgramName.
+     *)
+
+END ProgArgs.
+

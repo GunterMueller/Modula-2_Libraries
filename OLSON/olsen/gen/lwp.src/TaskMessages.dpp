@@ -1,0 +1,111 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskMessages;
+(*
+ * A message transaction is a bi-directional synchronous data
+ * transfer between two cooperating tasks. This module assumes
+ * that the two tasks are sharing the same memory space.
+ * Therefore, a message transaction is more of a rendezvous
+ * than a need to pass data between the two tasks.
+ *
+ * There are two tasks involved in any message transaction: a sender
+ * and a receiver. The sender sends a request to the receiver and 
+ * awaits a reply from that receiver. The receiver awaits incoming
+ * requests from arbitrary senders, processes the incoming requests,
+ * and replies to the senders. The sender is suspended from the time
+ * Send is called till the receiver calls Reply. The receiver is only
+ * blocked if there are unreceived messages. A receiver need not reply
+ * in the order that the messages come in (replies may be held).
+ *
+ * A request buffer is supplied by the sender when it calls Send.
+ * The buffer may be of arbitrary size. The receiver must supply
+ * a request buffer when calling Receive. The receiver's buffer
+ * must be big enough to hold the entire request from its senders
+ * (it may be larger than incoming requests).
+ *
+ * A reply buffer is supplied by the sender when it calls Send.
+ * Its size isn't limited. The receiver supplies a reply buffer
+ * on the call to Reply which is copied into the sender's buffer.
+ * The receiver's buffer may be no bigger than the sender's buffer.
+ * It may be smaller.
+ *)
+IMPORT
+    SysTypes,
+    Tasks,
+    TaskTime;
+
+EXPORT QUALIFIED
+    DONTCARE,  Send,   Receive,  TimedReceive,  Reply;
+
+VAR
+    DONTCARE : SysTypes.ANY;
+    (*
+     * This variable can be used in either a request or reply
+     * part of the message when the value is not of a concern
+     * to the Sender NOR the Receiver.
+     *)
+
+PROCEDURE Send(
+        recipient : Tasks.Object;          (* Must be valid task *)
+        request   : ARRAY OF SysTypes.ANY; (* Buffer copied to recipient *)
+    VAR reply     : ARRAY OF SysTypes.ANY  (* Buffer filled by recipient *)
+    );
+    (*
+     * Send the request to the recipient and wait for the reply.
+     *
+     * The caller will be suspended until the recipient has
+     * called Reply.
+     *)
+
+PROCEDURE Receive(
+    VAR sender   : Tasks.Object;         (* Task that sent request *)
+    VAR request  : ARRAY OF SysTypes.ANY (* Large enough to hold buffer *)
+    );
+
+PROCEDURE TimedReceive(
+    VAR sender  : Tasks.Object;          (* Task that sent request *)
+    VAR request : ARRAY OF SysTypes.ANY; (* Large enough to hold buffer *)
+        timeout : TaskTime.Units         (* Max time delay before fail *)
+    )           : BOOLEAN;               (* Received => TRUE *)
+    (*
+     * Await a message from any sender.
+     *
+     * The caller is suspended if there are no unreceived messages
+     * in its queue.
+     *
+     * The TimedReceive uses TaskTime.Sleep instead of Tasks.Suspend.
+     *)
+
+PROCEDURE Reply(
+    sender : Tasks.Object;         (* Task awaiting reply from caller *)
+    reply  : ARRAY OF SysTypes.ANY (* Buffer copied to sender's buffer *)
+    );
+    (*
+     * Copy the reply into the sender's reply buffer and
+     * then ready the sender.
+     *
+     * The sender must have been awaiting a reply from the
+     * current task, or the caller will be terminated.
+     *)
+
+END TaskMessages.

@@ -1,0 +1,951 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Objects;
+(*
+ * Implements a generalized typing mechanism for all objects allocated
+ * by this module.  Each manager is assigned a dynamic "type" number
+ * and all objects allocated with the manager are assigned the "type"
+ * number in an object management area.  The pointer is then "advanced"
+ * by the size of the object management area and passed back to the caller.  
+ * When Assert or IsValid is called, the pointer is adjusted to point at
+ * the object management area.  The pointer arithmetic is simple and 
+ * seems to be portable, but obviously there can be problems with odd
+ * memory word sizes.
+ *
+ * There are problems with virtual memory implementations, since the 
+ * pointer being checked may be in outer space and a reference to the 
+ * object header may cause a memory fault.  There doesn't seem to be an 
+ * easy fix to this problem except by doing the list search solution to 
+ * validity checking.  Given that people normally use Assert (i.e. the
+ * importer wants the program to crash anyway), this doesn't seem to 
+ * be a large problem.
+ *
+ * We implement the localManager as a Manager of Manager's, but we 
+ * only use this for deallocation/allocation and list facilities. 
+ * We do Assertion checking in line (via managerCode), because it reduces
+ * the number of procedure calls by half on Assert/IsValid operations (which
+ * are the most common).  This turned out to be a critical performance
+ * optimization which doubled the speed of the whole library.
+ *
+ * We maintain our own free lists for objects associated with managers
+ * since this reduces the number of calls to SafeStorage on memory active
+ * programs.  This also reduces memory fragmentation and speeds of memory
+ * allocation (you don't have to look for a first fit, best fit, or otherwise).
+ * Obviously, this means we have to grab the out of memory call from 
+ * SafeStorage so that we can dispose of the free lists in the event of
+ * memory outage.
+ *
+ * Tasks:
+ *    The calls Dis/AllowPreemption  are used for preemption control
+ *    since Objects is needed by higher level software.
+ *)
+IMPORT 
+    CardConvert,
+    GenConsts,
+    ProgErr,
+    ProgErrOutput,
+    SafeStorage,
+    Strings,
+    SYSTEM,
+    SysTypes;
+
+@IF Tasks THEN
+    IMPORT
+        Tasks;
+@END (* Tasks *)	
+
+CONST
+    moduleName = "Objects";
+
+(* 
+ * Validity code management.
+ *)
+TYPE
+    ValidityCodes	= SysTypes.CARDINAL16;	(* Reasonable size *)
+
+CONST
+    firstValidityCode   = 1327;	  (* Can't be too large, because of overflow *)
+    lastValidityCode    = SysTypes.MAXCARDINAL16 - 1061;
+    managerValidityCode = 1301;	  (* Validity code of localManager *)
+    invalidCode         = 0;
+VAR
+    currentCode         : ValidityCodes; (* State for NextValidityCode *)
+
+PROCEDURE NextValidityCode(
+    ) : ValidityCodes;
+    (*
+     * Goes in a loop incrementing by one.  There really isn't a better
+     * algorithm, since all numbers are possible in a program.  The
+     * validity code system is a hack anyway, since it is a statistical
+     * solution as opposed to an exact (search for it in the list).
+     *)
+    BEGIN (* NextValidityCode *)
+
+	(* We need to check for overflow. *)
+	IF currentCode = lastValidityCode THEN
+	    currentCode := firstValidityCode;
+	ELSE
+	    INC( currentCode );
+	END;
+
+	RETURN currentCode;
+
+    END NextValidityCode;
+       
+
+TYPE 
+    (* 
+     * Specifies the memory management area prepended to an Object's
+     * allocation space.
+     *)
+    ObjectHeader    = POINTER TO ObjectHeaderRec;
+    ObjectHeaderRec = RECORD
+        next            : ObjectHeader;   (* more recently allocated *)
+        validityCode    : ValidityCodes;  (* "type" code for the object *)
+    END;
+
+    Manager       = POINTER TO ManagerRec;
+    ManagerRec    = RECORD
+	managerCode   : ValidityCodes; (* Validity code of the manager so that
+					  we don't have to do a lot of pointer
+					  arithmetic to verify managers. *)
+        totalSize     : SysTypes.Card; (* total SAUs we alloc for object    *)
+        validityCode  : ValidityCodes; (* "magic" for this guy's objects     *)
+        listHead      : ObjectHeader;  (* list of allocated objects in first-
+					  allocated, first-in order          *)
+	listTail      : ObjectHeader;  (* most recently allocated object     *)
+        numAllocated  : SysTypes.Card; (* current number in the "list" above *)
+	freeList      : ObjectHeader;  (* list of available objects *)
+	numFree       : SysTypes.Card; (* count of available objects *)
+        nextNext      : ObjectHeader;  (* next call to Next will return this *)
+	@IF Assert THEN
+	    madeFirstNext : BOOLEAN;   (* to verify that "nextNext" is valid *)
+	@END (* Assert *)
+        name	      : GenConsts.Identifier;
+    END;
+   
+VAR
+    localManagerRec : ManagerRec; (* Must be statically allocated      *)
+    localManager    : Manager;    (* SYSTEM.ADR( localManagerRec ) *)
+
+
+PROCEDURE CreateManager( 
+    VAR manager       : Manager;
+	sizeOfObjects : SysTypes.Card;
+	debugName     : ARRAY OF CHAR 
+    );
+    (*
+     * Allocate a new manager and initialize.  Since we do pointer 
+     * arithmetic, the calculation of "totalSize" is correct (we don't
+     * have to worry about inter-record fillers put in by the compiler).
+     *)
+    BEGIN (* CreateManager *)
+
+	Allocate( localManager, manager );
+	WITH manager^ DO
+	    managerCode   := managerValidityCode;
+	    totalSize     := sizeOfObjects + SYSTEM.TSIZE( ObjectHeaderRec );
+	    validityCode  := NextValidityCode();
+	    listHead      := NIL;
+	    listTail      := NIL;
+	    numAllocated  := 0;
+	    freeList      := NIL;
+	    numFree	  := 0;
+	    nextNext      := NIL;
+	    @IF Assert THEN
+		madeFirstNext := TRUE;
+	    @END (* Assert *)
+	    Strings.Assign( debugName, name );
+	END; (* WITH *)
+
+    END CreateManager;
+
+
+PROCEDURE DestroyManager( 
+    VAR manager : Manager 
+    );
+    (* 
+     * Make sure the manager is valid (if invalid, don't do anything).
+     * Get the lists and invalidate the manager.  Then deallocate.
+     * After this, we only have to deallocate the individual buffer
+     * records.
+     *)
+    VAR
+	temp      : ObjectHeader;
+	size      : SysTypes.Card;
+	allocated : ObjectHeader;
+	free      : ObjectHeader;
+    BEGIN (* DestroyManager *)
+
+	(* We have to check for NIL here, so we don't blow up *)
+	IF ( manager = NIL ) OR ( manager^.managerCode # managerValidityCode ) 
+	  THEN RETURN;
+	END;
+
+	@IF Tasks THEN
+	    Tasks.DisallowPreemption;	 (* critical section *)
+	@END (* Tasks *)
+
+	    (* Get/set the critical values in the critical section *)
+	    WITH manager^ DO 
+		managerCode := invalidCode;
+		size        := totalSize;
+		allocated   := listHead;
+		free        := freeList;
+	    END; (* WITH *)
+
+	    Deallocate( localManager, manager );
+
+	@IF Tasks THEN
+	    Tasks.AllowPreemption;	(* critical section *)
+	@END (* Tasks *)
+
+	(* 
+	 * Tasks:
+	 * At this point, there is no way that another caller could
+	 * have access to the listHead, because manager is invalid
+	 * and the list is NIL.  If there were concurrent access to
+	 * the manager, then the race conditions will result in a
+	 * mess anyway.  We assume that the application is orderly
+	 * during normal termination.
+	 *)
+	(* Get rid of any objects, if any. *)
+	DeallocateList( allocated, size );
+	DeallocateList( free, size );
+
+    END DestroyManager;
+    
+PROCEDURE DeallocateList( 
+    list      : ObjectHeader;
+    totalSize : SysTypes.Card 
+    );
+    (*
+     * Run through a list of Objects and free them.
+     *)
+    VAR
+	temp : ObjectHeader;
+    BEGIN (* DeallocateList *)
+
+	WHILE list # NIL DO
+	    temp := list;
+	    WITH list^ DO
+		validityCode := invalidCode;
+		list := next;	(* traverse *)
+	    END;
+	    SafeStorage.DEALLOCATE( temp, totalSize );
+	END; (* WHILE *)
+
+    END DeallocateList;
+
+
+PROCEDURE SetInvalidManager( 
+    VAR manager : Manager 
+    );
+    BEGIN (* SetInvalidManager *)
+	
+	manager := NIL;
+    
+    END SetInvalidManager;
+    
+
+PROCEDURE Allocate( 
+	manager : Manager;
+    VAR object  : SysTypes.SAUPTR 
+    );
+    (*
+     * Allocate the object and append it to the tail of the list.
+     *)
+    VAR
+	objectHeader : ObjectHeader;
+    BEGIN (* Allocate *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	WITH manager^ DO
+
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+
+		(* Do we have to allocate a fresh a new object? *)
+		IF numFree = 0 THEN
+		    (* Ok, to call in a critical section *)
+		    SafeStorage.ALLOCATE( objectHeader, totalSize );
+		ELSE
+		    objectHeader := freeList;
+		    freeList     := freeList^.next;
+		    DEC( numFree );
+		END;
+
+		(* Initialize the header *)
+		objectHeader^.validityCode := manager^.validityCode;
+		objectHeader^.next         := NIL;
+
+		INC( numAllocated );
+		(* link new object into manager's list *)
+		IF listTail = NIL THEN
+		    listHead       := objectHeader;
+		ELSE
+		    listTail^.next := objectHeader; 
+		END;
+		listTail := objectHeader;
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+	    
+
+	END; (* WITH *)
+
+	(* Return "object" so that it points after the "header" *)
+	object := SYSTEM.ADDRESS( objectHeader ) + 
+		  SYSTEM.TSIZE( ObjectHeaderRec );
+
+   END Allocate;
+
+
+PROCEDURE AllocateOK(
+        manager : Manager;        (* Must be valid *)
+    VAR object  : SysTypes.SAUPTR (* Object of type specified by the manager *)
+    )           : BOOLEAN;	  (* TRUE => allocation succesful *)
+    (*
+     * Allocate the object and append it to the tail of the list.
+     * Note that this can't be the same as Allocate, because we
+     * want the semantics of SafeStorage out of memory handling
+     * in the former.
+     *)
+    VAR
+	objectHeader : ObjectHeader;
+	result       : BOOLEAN;
+    BEGIN (* AllocateOK *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	WITH manager^ DO
+
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+
+		(* Do we have to allocate a fresh a new object? *)
+		result := numFree # 0;
+		IF NOT result THEN
+		    (* Ok, to call in a critical section *)
+		    result := SafeStorage.AllocateOK( objectHeader, totalSize );
+		ELSE
+		    objectHeader := freeList;
+		    freeList     := freeList^.next;
+		    DEC( numFree );
+		END;
+
+		IF result THEN
+		    (* Initialize the header *)
+		    objectHeader^.validityCode := manager^.validityCode;
+		    objectHeader^.next         := NIL;
+
+		    INC( numAllocated );
+		    (* link new object into manager's list *)
+		    IF listTail = NIL THEN
+			listHead       := objectHeader;
+		    ELSE
+			listTail^.next := objectHeader; 
+		    END;
+		    listTail := objectHeader;
+
+		    (* Return "object" so that it points after the "header" *)
+		    object := SYSTEM.ADDRESS( objectHeader ) + 
+			  SYSTEM.TSIZE( ObjectHeaderRec );
+
+		END;
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+
+	END; (* WITH *)
+
+	RETURN result;
+
+   END AllocateOK;
+
+
+
+PROCEDURE Deallocate(     
+	manager : Manager;
+    VAR object  : SysTypes.SAUPTR 
+    );
+    (*
+     * Eliminate the object from the manager's list and 
+     * add to the freeList.  Update manager^.nextNext, if it is the 
+     * object to be deallocated.
+     *)
+    VAR
+	objectHeader : ObjectHeader;
+	tmpHeader    : ObjectHeader;
+    BEGIN (* Deallocate *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	(* point to our header record *)
+	DEC( object, SYSTEM.TSIZE( ObjectHeaderRec ) );
+	objectHeader := ObjectHeader( object );
+	object       := NIL;
+
+	WITH manager^ DO
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+		(* 
+		 * if we will delete the nextNext object, 
+		 * move "nextNext" to the next one.
+		 *)
+		IF nextNext = objectHeader THEN
+		    nextNext := objectHeader^.next;
+		END;
+
+		(* find object in the manager's list and remove *)
+		IF listHead = objectHeader THEN
+		    listHead := listHead^.next;     (* adjust head *)
+		    IF listHead = NIL THEN
+			listTail := NIL;	    (* adjust tail *)
+		    END;
+		ELSE
+		    tmpHeader := listHead;	(* Guaranteed to be non-nil *)
+		    LOOP
+			WITH tmpHeader^ DO 
+			    IF next = objectHeader THEN
+				next := objectHeader^.next;
+				IF listTail = objectHeader THEN 
+				    listTail := tmpHeader; (* adjust tail *)
+				END;
+				EXIT;
+			    END;
+			    tmpHeader := next;	(* traverse *)
+			END;
+			IF tmpHeader = NIL THEN
+			    ObjectFault( manager );	(* Can't be invalid *)
+			END;
+		    END; (* LOOP *)
+		END; (* IF *)
+
+		DEC( numAllocated );
+
+		(* Insert in the free list and invalidate *)
+		objectHeader^.validityCode := invalidCode;
+		objectHeader^.next := freeList;
+		freeList := objectHeader;
+		INC( numFree );
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+
+	END; (* WITH *)
+
+    END Deallocate;
+
+
+PROCEDURE DeallocateAll(
+    manager : Manager
+    );
+    (*
+     * Attaches all of the objects to the head of the free list.
+     * We must traverse the entire list of allocated objects in
+     * order to invalidate the magic numbers.
+     *)
+    VAR
+	object : ObjectHeader;
+    BEGIN (* DeallocateAll *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+	
+	WITH manager^ DO
+
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+	    
+	    IF listHead # NIL THEN
+		(* Update counts and prepend allocated list in free list *)
+		INC( numFree, numAllocated );
+		numAllocated := 0;
+		listTail^.next := freeList;
+		freeList := listHead;
+		
+		(* Mark all objects as invalid *)
+		WHILE listHead # NIL DO
+		    WITH listHead^ DO
+			validityCode := invalidCode;
+			listHead := next;  (* WITH invalid *)
+		    END; (* WITH *)
+		END;
+	    END;
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+	    
+	END; (* WITH *)
+
+    END DeallocateAll;
+
+@IF Assert THEN
+    PROCEDURE ManagerFault;
+	BEGIN (* ManagerFault *)
+	    ProgErr.Terminate( 'Objects: invalid manager.' );
+	END ManagerFault;
+@END (* Assert *)
+
+PROCEDURE ObjectFault( 
+    manager : Manager 
+    );
+    BEGIN (* ObjectFault *)
+
+	ProgErrOutput.WriteString( manager^.name );
+	ProgErr.Terminate( ': invalid object.' );
+
+    END ObjectFault;
+
+
+PROCEDURE Assert( 
+    manager : Manager;
+    object  : SysTypes.SAUPTR 
+    );
+    (*
+     * Note that this procedure is not surrounded by Assert
+     * checks, because this is an exported feature and must
+     * be provided to modules which don't have Assert turned off
+     * even though this one does. 
+     *
+     * Note that we could have called "IsValid", but this procedure
+     * is so critical to the entire library that this code is worth
+     * putting in-line.
+     *)
+    VAR
+        objectHeader : ObjectHeader;
+    BEGIN (* Assert *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	(* First pass check... *)
+	IF object = NIL THEN
+	    ObjectFault( manager );
+	END;
+
+	@IF LogitechM2 THEN
+	    (* Be sure incoming value will decrement without a range error. *)
+	    IF object.OFFSET < SYSTEM.TSIZE( ObjectHeaderRec ) THEN
+		ObjectFault( manager );
+	    END;
+	@END (* LogitechM2 *)
+
+	@IF SunM2 THEN
+	    (* 
+	     * Be sure incoming value will decrement without a range error or
+	     * will not become NIL as a result.
+	     *)
+	    IF object <= SYSTEM.TSIZE( ObjectHeaderRec ) THEN
+		ObjectFault( manager );
+	    END;
+	@END (* SunM2 *)
+
+	(* Adjust the pointer passed in so that it is an ObjectHeader *)
+        objectHeader := 
+	  ObjectHeader( object - SYSTEM.TSIZE( ObjectHeaderRec ) );
+
+	IF manager^.validityCode # objectHeader^.validityCode THEN
+	    ObjectFault( manager );
+	END;
+
+   END Assert;
+
+
+PROCEDURE IsValid( 
+    manager  : Manager;
+    object   : SysTypes.SAUPTR 
+    )        : BOOLEAN;
+    (*
+     * Verify that the object is valid, but don't blow up (except
+     * if the manager is invalid!).  
+     *)
+    VAR
+        objectHeader : ObjectHeader;
+	tmpHeader    : ObjectHeader;
+	result       : BOOLEAN;
+    BEGIN (* IsValid *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	@IF LogitechM2 THEN
+	    (* Be sure incoming value will decrement without a range error. *)
+	    IF object.OFFSET < SYSTEM.TSIZE( ObjectHeaderRec ) THEN
+		RETURN FALSE;
+	    END;
+	@END (* LogitechM2 *)
+
+	@IF SunM2 THEN
+	    (* 
+	     * Be sure incoming value will decrement without a range error or
+	     * will not become NIL as a result.
+	     *)
+	    IF object <= SYSTEM.TSIZE( ObjectHeaderRec ) THEN
+		RETURN FALSE;
+	    END;
+	@END (* SunM2 *)
+
+	(* point to our header record *)
+	DEC( object, SYSTEM.TSIZE( ObjectHeaderRec ) );
+	objectHeader := ObjectHeader( object );
+
+	WITH manager^ DO
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+		
+		(* 
+		 * Check the last first as a quick optimization.
+		 *)
+		result := listTail = objectHeader;
+		tmpHeader := listHead;
+		WHILE NOT result AND ( tmpHeader # NIL ) DO
+		    result    := tmpHeader = objectHeader;
+		    tmpHeader := tmpHeader^.next;
+		END; (* WHILE *)
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+
+	END; (* WITH *)
+
+	RETURN result;
+
+    END IsValid;
+
+   
+PROCEDURE Next(     
+	manager : Manager;
+    VAR object  : SysTypes.SAUPTR 
+    ) 	        : BOOLEAN;
+    (*
+     * "nextNext" always points to the value to be returned *this*time*.
+     * If nextNext is NIL, then we return FALSE and start the list over again.
+     * Otherwise, we have to traverse to next objectHeader and adjust the
+     * nextNext header so that it is really an "object".
+     *)
+    BEGIN (* Next *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	WITH manager^ DO
+
+	    @IF Tasks THEN
+		Tasks.DisallowPreemption;	 (* critical section *)
+	    @END (* Tasks *)
+
+		object := nextNext;
+		IF nextNext = NIL THEN
+		    @IF Assert THEN
+			IF NOT madeFirstNext THEN
+			    (* Okay to call in disabled section. *)
+			    ProgErrOutput.WriteString( name );
+			    ProgErr.Terminate( ": Objects.Next fault." );
+			END;
+			madeFirstNext := FALSE;
+		    @END (* Assert *)
+		ELSE
+		    nextNext := nextNext^.next;  (* Get ready for next time *)
+		    INC( object, SYSTEM.TSIZE( ObjectHeaderRec ) ); 
+		END;
+
+	    @IF Tasks THEN
+		Tasks.AllowPreemption;	(* critical section *)
+	    @END (* Tasks *)
+
+        END; (* WITH *)
+
+	RETURN object # NIL;
+
+    END Next;
+
+
+PROCEDURE MakeFirstNext( 
+    manager : Manager 
+    );
+    BEGIN (* MakeFirstNext *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	@IF Tasks THEN
+	    Tasks.DisallowPreemption;	 (* critical section *)
+	@END (* Tasks *)
+
+	    WITH manager^ DO 
+		nextNext      := listHead;
+		@IF Assert THEN
+		    madeFirstNext := TRUE;
+		@END (* Assert *)
+	    END; (* WITH *)
+
+	@IF Tasks THEN
+	    Tasks.AllowPreemption;	(* critical section *)
+	@END (* Tasks *)
+
+    END MakeFirstNext;
+
+
+PROCEDURE NumAllocated( 
+    manager : Manager 
+    )       : SysTypes.Card;
+    BEGIN (* NumAllocated *)
+
+	@IF Assert THEN
+	    IF manager^.managerCode # managerValidityCode THEN
+		ManagerFault;
+	    END;
+	@END (* Assert *)
+
+	RETURN manager^.numAllocated;
+
+    END NumAllocated;
+
+
+PROCEDURE PrintStatus;
+    (*
+     * This probably could be removed if Debug were false, but
+     * then it really isn't that much code.  If we have an excluding
+     * compiler, then it doesn't really matter anyway....
+     * The code in this module can't import the normal I/O stuff (e.g.
+     * FormatIO), because the objects implemented by those modules are
+     * allocated by this module.  To avoid initialization headaches,
+     * we do this low level solution to output.
+     *)
+    VAR
+	tmpManager : Manager;
+	tmpName    : GenConsts.Identifier;
+	cardStr    : ARRAY [ 0 .. SysTypes.bitsPerCard DIV 3 ] OF CHAR;
+			(* DIV 3 approximates a base 2 to base 10 conversion *)
+    BEGIN (* PrintStatus *)
+
+	@IF Tasks THEN
+	    Tasks.DisallowPreemption;
+	@END (* Tasks *)
+
+	ProgErrOutput.WriteLn;	(* give an extra line for assurance *)
+	ProgErrOutput.WriteString( '        Object Allocation Statistics' );
+	ProgErrOutput.WriteLn;
+
+	tmpName := "Module";
+	Strings.Justify( tmpName, Strings.justifyLeft, 
+			 HIGH( tmpName ) + 1, ' ' );
+	ProgErrOutput.WriteString( tmpName );
+	ProgErrOutput.WriteString( ' ' );
+
+	cardStr := "Count";
+	Strings.Justify( cardStr, Strings.justifyRight, 
+			 HIGH( cardStr ) + 1, ' ' );
+	ProgErrOutput.WriteString( cardStr );
+	ProgErrOutput.WriteString( ' ' );
+
+	cardStr := "Free";
+	Strings.Justify( cardStr, Strings.justifyRight, 
+			 HIGH( cardStr ) + 1, ' ' );
+	ProgErrOutput.WriteString( cardStr );
+	ProgErrOutput.WriteString( ' ' );
+
+	cardStr := "Size";
+	Strings.Justify( cardStr, Strings.justifyRight, 
+			 HIGH( cardStr ) + 1, ' ' );
+	ProgErrOutput.WriteString( cardStr );
+	ProgErrOutput.WriteLn;
+
+	MakeFirstNext( localManager );
+	WHILE Next( localManager, tmpManager ) DO
+
+	    WITH tmpManager^ DO
+		tmpName := name;
+		Strings.Justify( tmpName, Strings.justifyLeft, 
+				 HIGH( tmpName ) + 1, ' ' );
+		ProgErrOutput.WriteString( tmpName );
+		ProgErrOutput.WriteString( ' ' );
+
+		CardConvert.DONTCARE := 
+		    CardConvert.ToString( numAllocated, 10, HIGH( cardStr ) + 1, 
+					  cardStr );
+		ProgErrOutput.WriteString( cardStr );
+		ProgErrOutput.WriteString( ' ' );
+
+		CardConvert.DONTCARE := 
+		    CardConvert.ToString( numFree, 10, HIGH( cardStr ) + 1, 
+					  cardStr );
+		ProgErrOutput.WriteString( cardStr );
+		ProgErrOutput.WriteString( ' ' );
+
+		CardConvert.DONTCARE := 
+		    CardConvert.ToString( totalSize, 10, HIGH( cardStr ) + 1, 
+					  cardStr );
+		ProgErrOutput.WriteString( cardStr );
+		ProgErrOutput.WriteLn;
+	    END; (* WITH *)
+	END; (* WHILE *)
+
+        @IF Tasks THEN
+	    Tasks.AllowPreemption;
+        @END (* Tasks *)
+
+    END PrintStatus;
+
+
+VAR
+    oldOutOfMemoryHandler : PROC;
+
+PROCEDURE OutOfMemoryHandler;
+    (*
+     * Gets called when the system runs out of memory.
+     * We must deallocate all the free lists of the objects since
+     * we really don't know how much memory is required.  We don't
+     * need recursion control (like Notices), because we aren't
+     * calling "unknown" procedures.  We do need a mutex, however.
+     *)
+    VAR
+	tmpManager : Manager;
+    BEGIN (* OutOfMemoryHandler *)
+
+	@IF Tasks THEN
+	    Tasks.DisallowPreemption;
+	@END (* Tasks *)
+
+	MakeFirstNext( localManager );
+	WHILE Next( localManager, tmpManager ) DO
+	    WITH tmpManager^ DO
+		DeallocateList( freeList, totalSize );
+		freeList := NIL;	(* no more objects *)
+		numFree  := 0;
+	    END; (* WITH *)
+	END;
+
+	oldOutOfMemoryHandler;		(* Call previous *)
+
+	@IF Tasks THEN
+	    Tasks.AllowPreemption;
+	@END (* Tasks *) 
+
+    END OutOfMemoryHandler;
+
+VAR
+    oldTerminationHandler : ProgErr.TerminationHandler;	(* for chaining *)
+
+PROCEDURE TerminationHandler( 
+    mode : ProgErr.TerminationModes 
+    );
+    (*
+     * Deregister our out of memory handler and then chain.
+     * RJN - Do we want to do deallocation of "known" memory?
+     *)
+    VAR
+	DONTCARE : PROC;
+    BEGIN (* TerminationHandler *)
+
+	IF mode = ProgErr.normalTermination THEN
+	    (* Now do own termination *)
+	    SafeStorage.InstallOutOfMemoryHandler( oldOutOfMemoryHandler,
+						   DONTCARE);
+	    (* Should we deallocate all the memory here? *)
+	END;
+
+	oldTerminationHandler( mode );	(* Chain the termination handlers *)
+
+    END TerminationHandler;
+
+
+BEGIN (* Objects *)
+
+    (* Initialize first magic number *)
+    currentCode := firstValidityCode;
+
+    (*
+     * Have to initialize the record by hand since CreateManager needs
+     * this record to do the allocation of a new manager.  Note that
+     * we use a unique magic number for the localManager.  (This is probably
+     * more superstition than real protection.)
+     *)
+    WITH localManagerRec DO
+	managerCode  := managerValidityCode;
+	totalSize    := SYSTEM.TSIZE( ObjectHeaderRec ) +
+			SYSTEM.TSIZE( ManagerRec );
+	validityCode := managerValidityCode;
+	listHead     := NIL;
+	listTail     := NIL;
+	numAllocated := 0;
+	freeList     := NIL;
+	numFree      := 0;
+	nextNext     := NIL;
+	@IF Assert THEN
+	    madeFirstNext := TRUE;
+	@END (* Assert *)
+	name         := moduleName;
+    END; (* WITH *)
+
+    (* So we can use localManager just like any other manager *)
+    localManager := SYSTEM.ADR( localManagerRec ); 
+
+    SafeStorage.InstallOutOfMemoryHandler( OutOfMemoryHandler,
+					   oldOutOfMemoryHandler );
+
+    (* Set up for termination so we can restore memory handler *)
+    ProgErr.InstallTerminationHandler( TerminationHandler,
+				       oldTerminationHandler );
+
+END Objects.

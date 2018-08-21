@@ -1,0 +1,81 @@
+DEFINITION MODULE MatrixOperations;
+
+(* Matrix operations using dynamic memory *)
+
+(* V1.1, J. Andrea, Jun.22/93 -add Duplicate *)
+(* V1.0, J. Andrea, Mar.16/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+(*
+* For those operations which return a status in the boolean 'ok',
+* the value of 'ok' should be checked before attempting to use the
+* resultant matrix.
+* If 'ok' is FALSE, then the resultant matrix will not exist.
+*)
+
+EXPORT QUALIFIED Matrix,                           (* the type *)
+                 Build, Destroy,                   (* matrix creation/deletion*)
+                 Put, Get,                         (* element access *)
+                 Size, Min, Max, Compare,          (* status *)
+                 Ident, Assign,                    (* modify all elements *)
+                 Copy, Duplicate,                  (* new copy *)
+                 Scale, Add, Multiply,             (* basic operations *)
+                 Transpose, Invert, Determinant;   (* advanced operations *)
+
+TYPE Matrix;   (* opaque *)
+
+PROCEDURE Build( VAR a :Matrix; rows, columns :CARDINAL );
+(* create a matrix of the specified size *)
+
+PROCEDURE Destroy( VAR a :Matrix );
+(* get rid for the specified matrix *)
+
+PROCEDURE Put( a :Matrix; row, col :CARDINAL; value :REAL );
+(* put the specified value into the matrix at 'row,col' *)
+
+PROCEDURE Get( a :Matrix; row, col :CARDINAL ) :REAL;
+(* return the value at 'row,col' *)
+
+PROCEDURE Size( a :Matrix; VAR rows, cols :CARDINAL );
+(* return the size of a matrix *)
+
+PROCEDURE Min( a :Matrix ) :REAL;
+(* return the minimum value in the matrix *)
+
+PROCEDURE Max( a :Matrix ) :REAL;
+(* return the maximum value in the matrix *)
+
+PROCEDURE Compare( a, b :Matrix ) :BOOLEAN;
+(* compare two matricies, return TRUE if they are the same *)
+
+PROCEDURE Ident( a :Matrix );
+(* set the matrix to the identity matrix *)
+
+PROCEDURE Assign( a :Matrix; x :REAL );
+(* set all elements in the matrix to 'x' *)
+
+PROCEDURE Copy( a, b :Matrix );
+(* copy 'a' into 'b', iff sizes are the same *)
+
+PROCEDURE Duplicate( a :Matrix; VAR b :Matrix );
+(* copy 'a' into a new 'b' *)
+
+PROCEDURE Scale( a :Matrix; scale :REAL );
+(* multiply all elements of matrix 'a' by the scalar 'scale' *)
+
+PROCEDURE Add( a, b :Matrix; VAR c :Matrix; VAR ok :BOOLEAN );
+(* add matrix 'a' to 'b', and return 'ok' as TRUE if done *)
+
+PROCEDURE Multiply( a, b :Matrix; VAR c :Matrix; VAR ok :BOOLEAN );
+(* multiply matrix 'a' by 'b', and return 'ok' as TRUE if done *)
+
+PROCEDURE Transpose( a :Matrix; VAR b :Matrix );
+(* transpose matrix 'a' into a new matrix 'b' *)
+
+PROCEDURE Invert( a :Matrix; VAR b :Matrix; VAR ok :BOOLEAN );
+(* invert matrix 'a' into a new matrix 'b', and return 'ok' as TRUE if done *)
+
+PROCEDURE Determinant( a :Matrix; VAR d :REAL; VAR ok :BOOLEAN );
+(* return the determinant of 'a' in the value 'd' *)
+
+END MatrixOperations.

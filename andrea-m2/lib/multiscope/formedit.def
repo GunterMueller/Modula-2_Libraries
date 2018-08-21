@@ -1,0 +1,46 @@
+DEFINITION MODULE FormEdit;
+
+(* Show lines on the screen for user input/editing. *)
+(* V1.0, J. Andrea, Jun.1/93 *)
+
+FROM ScreenIO IMPORT screen_rows;
+
+EXPORT QUALIFIED max_lines,
+                 SetLine, DoEditing, GetLine, ResetLine,
+                 GetMessage;
+
+CONST
+   max_lines = screen_rows - 1;
+
+PROCEDURE SetLine( line_number :CARDINAL;
+                   prompt, default      :ARRAY OF CHAR;
+                   number_of_chars :CARDINAL;
+                   VAR done :BOOLEAN );
+(* Set the item at the specified line on the screen. *)
+
+PROCEDURE DoEditing( initial_line, display_column :CARDINAL;
+                     first_edit_blank :BOOLEAN );
+(* Do the editing of the current items on the screen. *)
+(* This may be called many times, for instance: one could setup the screen
+   and call this, then remove one or more items with ResetLine, or add new
+   items and then call DoEditing again *)
+(* The 'initial_line' is the line which is set as the current edit line
+   when the editing is started (set to zero to get first one).
+   The prompt is left of the 'display_column', the value is right of
+   that column. Recommended parameters are '0,30' *)
+(* The 'first_edit_blank' option if TRUE will cause an item to be blanked
+   the very first time it is edited. The user can reset to default to get
+   an item back if it shouldn't be blank. *)
+
+PROCEDURE GetLine( line_number :CARDINAL;
+                   VAR answer :ARRAY OF CHAR;
+                   VAR done :BOOLEAN );
+(* Get the result of whatever was edited for that line on the screen. *)
+
+PROCEDURE ResetLine( line_number :CARDINAL );
+(* Turn off the given line on the screen, set line to zero to reset all. *)
+
+PROCEDURE GetMessage( VAR error :BOOLEAN; VAR message :ARRAY OF CHAR );
+(* Return the error message, if any. *)
+
+END FormEdit.

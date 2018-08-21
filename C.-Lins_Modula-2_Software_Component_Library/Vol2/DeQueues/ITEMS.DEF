@@ -1,0 +1,238 @@
+DEFINITION MODULE Items;
+(*==============================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Structure - Generic Item Types
+
+    INTRODUCTION
+    This module provides the abstract data type, Item, which has the
+    operations of Assignment (:=), (In)Equality (=,#), Comparison
+    (<,<=,=,#,>=,>), Disposal, and iterator support routines.  Actual
+    routines providing these facilities must be either imported from
+    the predefined ItemOperations module (for the standard types) or
+    be provided by the programmer.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    INTERFACE DESIGN ISSUES
+    The primary issue is to provide generic facilities.  In order to
+    represent a generic data type one must have available operations
+    equivalent to the standard operations for assignment (:=),
+    (in)equality comparison (=,#) and for ordered data types, the
+    relational operators (<,=,>).  These are the minimum operations
+    that must be available for having a functional data type.
+    The standard Modula-2 facilities for these operations on an
+    opaque type would yield semantics where one would assign and
+    compare the opaque type itself, this typically being a pointer
+    type.  Since we wish to allow non-pointer types as legitimate
+    values for an item, using the standard operators would suffice
+    for this purpose.  But we also allow wish to allow the use of
+    abstract data structures and dynamically allocated variables as
+    items. In this case the standard operators would operate on the
+    ADDRESS of or the POINTER TO the value of an item instead of the
+    value itself.  This is sufficient for (in)equality comparisons,
+    but assignment of pointer types results in sharing of the pointer,
+    not copying of the value.  Furthermore, relational comparisons of
+    < or > are meaningless since we only have the ADDRESS of the value,
+    not the value itself, and Modula-2 does not allow these operations
+    on opaque types anyway.
+
+    REFERENCES
+    [1] K. John Gough, “Writing Generic Utilities in Modula-2”,
+	Journal of Pascal, Ada, and Modula-2, Vol. 5 (3),
+	May/June 1986, pp. 53-62.
+
+    Proprietary Notices
+      Copyright (C) 1989 Charles A. Lins. All rights reserved.
+==============================================================*)
+
+FROM Relations IMPORT
+    (*--Type*) Relation, RelOp;
+
+
+(*
+    This module provides support for generic data items.  This is
+    accomplished by providing an opaque type, “Item”, representing an
+    arbitrary data type.  The advantage of this technique is in
+    allowing the creation of modules that can manipulate generic data
+    structures with a minimum of knowledge about the actual data being
+    manipulated.  Thus, a single module is needed to implement specific
+    forms of a data structure. Plus the module need only be concerned
+    with actual implementation issues regarding that structure.  For
+    example, there need be only one unbounded stack module, one bounded
+    stack module, etc.	If necessary, type-specific modules can be built
+    on top of the generic module.  Of course, there are constraints that
+    must be placed on the client module(s) to insure proper usage of a
+    generic item.  These are listed below:
+
+    1. The actual data type mapped to an Item must be compatible with
+       SYSTEM.ADDRESS.	Specifically, the relation SIZE(DataType) <=
+       SIZE(SYSTEM.ADDRESS) must be true.  If this condition is not met,
+       (e.g., a record or array structure), then the client module must
+       use a pointer to the actual data.
+
+    2. Modula-2 supports only a limited number of the standard operations
+       for opaque types.  These are assignment (:=) and the test for
+       (in)equality (=,#).  The relational operators <, <=, >, and >= are
+       not supported for opaque types.	This restriction means that when
+       a generic module requires relational operators, the client module
+       must provide this facility to the generic module.
+*)
+
+
+TYPE  Item;			 (*-- The generic data type *)
+CONST NullItem = Item(NIL); (*-- An empty value for an item *)
+
+
+(*--  CONSTRUCTORS
+
+  * AssignProc (in Item) out Item
+    Defines a generic function procedure type representing the equivalent
+    semantics as the standard Modula-2 assignment operator.  A generic module
+    must have a mechanism for assigning generic items to efficiently implement
+    the standard Assign operation.  For all of the simple data types (CHAR, INTEGER,
+    CARDINAL, etc.) the assignment operator suffices to accomplish this goal.  But
+    for dynamically created items, using := would result in copying pointers to the
+    actual data.  This is undesirable when the intended effect is to make a copy of
+    the data itself.  For this reason, this routine template is provided.
+
+  * DisposeProc (inout Item)
+    Disposal defines a generic procedure type (for which an actual procedure must be
+    provided) that will deallocate any and all dynamically allocated resources that
+    may be associated with a given instance of an Item.  Use of this routine will
+    prevent the creation of dangling pointers (a.k.a. garbage) for items created
+    using NEW or ALLOCATE when these items are released by a generic module.
+
+  * NoAssignProc
+    Defines a procedure “constant” representing the standard Modula-2
+    assignment operator, :=, which cannot be used as a procedure type
+    parameter.
+
+  * NoDisposeProc
+    Defines a procedure “constant” representing disposal of items
+    statically allocated on the stack.	This may be used for primitive
+    data items CHAR, INTEGER, etc.  It is more efficient to test for an
+    empty disposal routine rather than forcing the client to provide a
+    disposal routine that does nothing.
+--*)
+
+TYPE  AssignProc  = PROCEDURE (    Item      (*-- in	*))
+				   : Item    (*-- out	*);
+
+TYPE  DisposeProc = PROCEDURE (VAR Item      (*-- inout *));
+
+CONST NoDisposeProc = NULLPROC;
+CONST NoAssignProc  = NULLPROC;
+
+
+(*--  SELECTORS
+
+  * EqualProc  (in Item, in Item) out BOOLEAN
+    A generic function procedure type (for which an actual procedure
+    must be provided) that yields the equivalent semantics as the
+    standard Modula-2 relational operators for simple data types.
+
+  * NoEqualProc
+    Defines a procedure "constant" representing the standard Modula-2
+    equality operator, =, which cannot be used as a procedure type
+    parameter.
+
+--*)
+
+TYPE  EqualProc = PROCEDURE (	 Item	    (*-- in    *),
+				 Item	    (*-- in    *))
+				 : BOOLEAN  (*-- out   *);
+
+CONST NoEqualProc = NULLPROC;
+
+
+(*--
+  * CompareProc (in Item, in Item) out Relation
+    A generic function procedure type (for which an actual procedure
+    must be provided) that yields the equivalent semantics as the
+    standard Modula-2 comparison operator establishing the ordering
+    relationship for simple data types.  A routine of this type
+    attempts to answer the question "What is the ordering relation
+    between the first (or left) operand and the second (or right)
+    operand?"
+
+  * RelationProc (in Item, in Relation, in Item) out Boolean
+    A generic function procedure type (for which an actual procedure
+    must be provided) that yields the equivalent semantics as the
+    standard Modula-2 ordering relations used in comparisons to
+    evaluate the existence of a given ordering relationship between
+    (compatible) data types.  A routine of this type attempts to
+    answer the question "Does the ordering relation between the first
+    (or left) operand and the second (or right) operand match the
+    given relation?"
+
+  * RelOpProc (in Item ,in RelOp, in Item) out Boolean
+    Same as RelationProc above, except that the full set of relational
+    operators are allowed, e.g., <, <=, =, #, >, and >=.
+--*)
+
+TYPE  CompareProc  = PROCEDURE (    Item       (*-- in	  *),
+				    Item       (*-- in	  *))
+				    : Relation (*-- out   *);
+
+TYPE  RelationProc = PROCEDURE (    Item       (*-- in	  *),
+				    Relation   (*-- in	  *),
+				    Item       (*-- in	  *))
+				    : BOOLEAN  (*-- out   *);
+
+TYPE  RelOpProc    = PROCEDURE (    Item       (*-- in	  *),
+				    RelOp      (*-- in	  *),
+				    Item       (*-- in	  *))
+				    : BOOLEAN  (*-- out   *);
+
+
+(*--  ITERATORS
+
+  * AccessProc (in Item)
+    Defines a generic procedure type (for which an actual procedure
+    must be provided) that allows read-only access to a generic item
+    from within the standard iterator operation “Traverse”.
+
+  * ChangeProc (inout Item)
+    Defines a generic procedure type (for which an actual procedure
+    must be provided) that allows read-write access to a generic item
+    from within the standard iterator operation “TravChange”.
+
+  * LoopAccessProc (in Item) out Continue
+    Defines a generic procedure type (for which an actual procedure
+    must be provided) that allows read-only access to a generic item
+    from within the standard iterator operation “LoopOver”.  The actual
+    routine matching this declaration may control continuation of the
+    iteration through the function result “Continue”.
+      * TRUE continues the iteration
+      * FALSE terminates the iteration
+    These two results account for the renaming of the BOOLEAN function
+    result, clarifying the semantic meaning of the result.
+
+  * LoopChangeProc (inout Item) outContinue
+    Defines a generic procedure type (for which an actual procedure
+    must be provided) that allows read-write access to a generic item
+    from within the standard iterator operation “LoopChange”.  The
+    actual routine matching this declaration may control continuation
+    of the iteration through the function result “Continue”.
+      * TRUE continues the iteration
+      * FALSE terminates the iteration
+    These two results account for the renaming of the BOOLEAN function
+    result, clarifying the semantic meaning of the result.
+
+--*)
+
+
+TYPE  AccessProc     = PROCEDURE (    Item	 (*-- in    *));
+TYPE  ChangeProc     = PROCEDURE (VAR Item	 (*-- inout *));
+
+TYPE  Continue	     = BOOLEAN;
+TYPE  LoopAccessProc = PROCEDURE (    Item	 (*-- in    *))
+				      : Continue (*-- out   *);
+TYPE  LoopChangeProc = PROCEDURE (VAR Item	 (*-- inout *))
+				      : Continue (*-- out   *);
+
+END Items.
+

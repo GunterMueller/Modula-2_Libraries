@@ -1,0 +1,199 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE SimpleIO;
+(*
+ * Provides a simple (but non-robust) interface to the TextIO system.
+ *
+ * The module TextIO defines the input and output files to be used by
+ * SimpleIO's procedures. These are the default (standard) input/output
+ * files as defined by the host operating system (usually defaulted to
+ * the terminal keyboard/screen).
+ *
+ * All error states cause immediate termination of the calling program.
+ * This means that formated reads which get incorrect syntax will
+ * terminate the caller. Validation of data returned by non-numeric
+ * Read operations is performed by calling EOL and EOF. If both return
+ * FALSE, the data associated with the previous read operation is valid.
+ * The numeric read operations return FALSE in the event that the data
+ * could not be read.
+ *
+ * The semantics for all of these routines are exactly the same as those
+ * described in the modules TextIO, IntIO, CardIO, and RealIO except for
+ * the program termination (as soon as an error occurs). Some of the
+ * failing cases have been omitted from the descriptions of the routines
+ * to follow.
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    EOF,              EOL,           ReadChar,        ReadString,
+    ReadLn,           ReadInt,       ReadCard,        ReadReal,           
+    ReadReal64,       WriteChar,     WriteString,     WriteLn,         
+    WriteInt,         WriteCard,     WriteFloating,   WriteScientific, 
+    WriteEngineering;
+
+PROCEDURE EOF(
+    ) : BOOLEAN;  (* Previous failed => TRUE *)
+    (*
+     * Check if the previous read operation failed as a result
+     * of encountering the end-of-file (end of input stream).
+     *)
+
+PROCEDURE EOL(
+    ) : BOOLEAN;  (* Previous failed => TRUE *)
+    (*
+     * Check if the previous read operation failed as a result
+     * of encountering the end-of-line (end of current input line).
+     *)
+
+PROCEDURE ReadChar(
+    VAR toRead : CHAR  (* The character that was read *)
+    );
+    (*
+     * Read a character from input.
+     *)
+
+PROCEDURE ReadString(
+    VAR toRead : ARRAY OF CHAR  (* The string that was read *)
+    );
+    (*
+     * Read a string from the input.
+     *
+     * If the "str" parameter fills before all data is read from the line,
+     * a subsequent ReadString call will return the remaining data on the
+     * line. The first call to ReadString for a given line will always
+     * return a valid string and will return with EOL FALSE (even if the
+     * line is empty). The next call to ReadString which starts at the
+     * end-of-line will return invalid data and EOF TRUE.
+     *)
+
+PROCEDURE ReadInt(
+    VAR toRead : SysTypes.Int (* Integer that was read *)
+    )          : BOOLEAN;     (* TRUE => Valid integer *)
+    (*
+     * Read an integer from the input.
+     *
+     * Reads from line to line if necessary. Returns FALSE if illegal
+     * characters are encountered before a valid integer is found.
+     *) 
+
+PROCEDURE ReadCard(
+    VAR toRead : SysTypes.Card  (* Cardinal that was read *)
+    )          : BOOLEAN;       (* TRUE => Valid cardinal *)
+    (*
+     * Read a cardinal (in base 10) from the input.
+     *
+     * Reads from line to line if necessary. Returns FALSE if illegal
+     * characters are encountered before a valid cardinal is found.
+     *)
+
+PROCEDURE ReadReal(
+    VAR toRead : SysTypes.Real    (* Real that was read *)
+    )          : BOOLEAN;         (* TRUE => Valid real *)
+
+PROCEDURE ReadReal64(  (* FOR BACKWARDS COMPATIBILITY *)
+    VAR toRead : SysTypes.REAL64  (* Real that was read *)
+    )          : BOOLEAN;         (* TRUE => Valid real *)
+    (*
+     * Read a real from the input.
+     *
+     * Reads from line to line if necessary. Returns FALSE if illegal
+     * characters are encountered before a valid real is found.
+     *)
+
+PROCEDURE ReadLn(
+    );
+    (*
+     * Read characters while EOL is FALSE read characters.
+     * When EOL becomes TRUE, skip to the next line and set
+     * EOL to FALSE.
+     *)
+
+PROCEDURE WriteChar(
+    toWrite : CHAR  (* Character to be written *)
+    );
+    (*
+     * Write the character to the output.
+     *)
+
+PROCEDURE WriteString(
+    toWrite : ARRAY OF CHAR  (* String to be written *)
+    );
+    (*
+     * Write the string to the output.
+     *)
+
+PROCEDURE WriteInt(
+    toWrite : SysTypes.Int;  (* Integer to be written *)
+    width   : SysTypes.Card  (* Size of field: integer right-justified *)
+    );
+    (*
+     * Write the integer to the output.
+     *)
+
+PROCEDURE WriteCard(
+    toWrite : SysTypes.Card;  (* Cardinal to be written *)
+    width   : SysTypes.Card   (* Size of field: cardinal right-justified *)
+    );
+    (*
+     * Write the cardinal (base 10) to the output.
+     *)
+
+PROCEDURE WriteFloating(
+    toWrite       : SysTypes.Real;  (* Real to be written *)
+    totalWidth    : SysTypes.Card;  (* Size of field: real right-justified *)
+    fractionWidth : SysTypes.Card   (* Number of digits right of point *)
+    );
+    (*
+     * Write the real in floating point format to the output.
+     *)
+
+PROCEDURE WriteScientific(
+    toWrite       : SysTypes.Real;  (* Real to be written *)
+    totalWidth    : SysTypes.Card;  (* Size of field: real right-justified *)
+    fractionWidth : SysTypes.Card;  (* Number of digits right of point *)
+    exponentWidth : SysTypes.Card   (* Number of exponent digits *)
+    );
+    (*
+     * Write the real in scientific format to the output.
+     *)
+
+PROCEDURE WriteEngineering(
+    toWrite       : SysTypes.Real;  (* Real to be written *)
+    totalWidth    : SysTypes.Card;  (* Size of field: real right-justified *)
+    fractionWidth : SysTypes.Card;  (* Number of digits right of point *)
+    exponentWidth : SysTypes.Card   (* Number of exponent digits *)
+    );
+    (*
+     * Write the real in engineering format to the output.
+     *)
+
+PROCEDURE WriteLn(
+    );
+    (*
+     * Put a new line on the output.
+     *)
+
+END SimpleIO.
+

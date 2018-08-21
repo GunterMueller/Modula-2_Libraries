@@ -1,0 +1,47 @@
+DEFINITION MODULE QEnum;
+(*===========================================================
+    Version  : 1.00  03 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Tool - Queue/Deque Enumerations Utility
+
+    REVISION HISTORY
+    v1.00  03 May 1989  C. Lins:
+      Initial TopSpeed Modula-2 implementation.
+
+    (C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+CONST ComponentID      = 1280;  (*-- must be a multiple of 256 *)
+CONST DequeComponentID = 1536;  (*-- must be a multiple of 256 *)
+
+TYPE  Operations = (modinit,
+
+                    create, destroy, clear, assign,
+                    arrive, depart, leave,
+
+                    isdefined, isempty, isequal, lengthof,
+                    sizeof, typeof, frontof, rearof, endof,
+                    positionof,
+
+                    loopover, traverse,
+
+                    seize, release
+                   );
+
+TYPE  Constructors = [ create    .. leave ];
+TYPE  Selectors    = [ isdefined .. positionof ];
+TYPE  Iterators    = [ loopover  .. traverse ];
+
+
+TYPE  Exceptions = (noerr,
+                    initfailed,
+                    notfound,
+                    overflow,
+                    typeerror,
+                    underflow,
+                    undefined
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END QEnum.

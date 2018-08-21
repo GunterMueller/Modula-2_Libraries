@@ -1,0 +1,34 @@
+DEFINITION MODULE SpecialInOut;
+
+(* procedures to supplement those in InOut and RealInOut *)
+(*
+  as defined in "Programming and Problem Solving in Modula-2"
+  by S. Leestma and L. Nyhoff, MacMillian Publishing Company, 1989
+*)
+(* some slight modifications by J. Andrea, Aug.28/91 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+
+EXPORT QUALIFIED FWriteReal, ReadBoole, WriteBoole, ReadAString;
+
+
+PROCEDURE FWriteReal( real_number :REAL;
+                      field_width, decimal_places :CARDINAL );
+(* output a real number in decimal format using 'field_width' spaces
+   and rounded to 'decimal_places' *)
+
+
+PROCEDURE ReadBoole( VAR boolean_value :BOOLEAN );
+(* read the string 'TRUE' or 'FALSE' from standard input *)
+(* the value must be followed by white space or an end-of-line *)
+
+
+PROCEDURE WriteBoole( boolean_value :BOOLEAN );
+(* output 'TRUE' or 'FALSE' to standard output *)
+(* the output string will be followed by a space character *)
+
+
+PROCEDURE ReadAString( VAR string :ARRAY OF CHAR );
+(* read a whole line from standard input into 'string' *)
+
+END SpecialInOut.

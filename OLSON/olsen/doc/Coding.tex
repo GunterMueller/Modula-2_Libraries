@@ -1,0 +1,505 @@
+% Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+%
+%		    All Rights Reserved
+%
+%
+% Permission to use, copy, modify, and distribute this software and its
+% documentation for any purpose and without fee is hereby granted,
+% provided that the above copyright notice appear in all copies, and
+% that both that copyright notice and this permission notice appear in
+% supporting documentation, and that all modifications of this software
+% or its documentation not made by O&A or its agents are accompanied
+% by a prominent notice stating who made the modifications and the date
+% of the modifications.
+%
+% O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+% DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+% FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+% CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+% USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+% OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+% PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+%%%%%%%%%%%%%
+
+\chapter{Coding Style}
+
+\section{Introduction}
+
+Coding standards are prevalent throughout the industry to support
+maintainability and to ease development.  This document describes a coding
+standard which is based upon the personal opinions of the O\&A software group 
+and conforms to other industry standards.
+Most of the guidelines are oriented towards code readability.
+
+\section{Bill of Rights}
+
+\begin{enumerate}
+\item
+    Any of the following guidelines can be broken if they pass through a code
+    review without objection (not by oversight, however).
+\item
+    The placement of the vertical bar `\code{|}' separator in 
+    \code{CASE} statements are not governed by these guidelines.
+\end{enumerate}
+
+\section{Guidelines}
+\begin{enumerate}
+\item
+    Naming
+    \begin{enumerate}
+    \item
+        Variable names should pass the following criterion:
+
+        ``If a reviewer has to ask what an identifier means, 
+        it fails the comprehendability test.  The name should be changed 
+        or its declaration should contain a clearer description.''
+    \item
+        Identifiers are of mixed case where upper case letters
+        separate words.  To make code more readable, the case of the first 
+        letter of the identifier indicates its class.  
+        Modules, procedures, and types should begin with an upper case letter.
+        Variables, constants (enumeration values), and fields should begin
+        with a lower case letter.  Names of program modules are excluded 
+        from this naming convention, because they fall into another category
+        of naming conventions.
+    \item
+        When developing a family of modules, a particular 
+        sequence of characters which is unique within the family scope should
+        be chosen to identify modules from this family.  In naming globally
+        available identifiers (be they files or FormatIO types), the family
+        identifier should be part of these new identifiers.  For example,
+	the time modules all have the keyword \code{Time} in their names.
+
+    \item
+        Names should not contain redundant parts unless this
+        redundancy supports a clear meaning.  Exported identifiers should
+        be treated by this guideline when combined with the module name; i.e.
+        \code{Module.Export} does not contain duplicated parts, but the
+	name \code{Module.ModuleExport} does.
+    \item
+	The use of the keyword \code{PRIVATE} indicates limited
+	private objects, i.e. entities which cannot be defined as
+	a Modula-2 opaque type.
+	This naming convention specifies that the
+	entity exported is to be used by a restricted set of importers
+	or in a limited way.  For example, the \code{BinaryIO.Index}
+	field is declared as \code{PRIVATE} because the insides of an
+	index variable are implementation dependent but importers
+	which need to write them in files need to know its size.
+    \end{enumerate}
+\item
+    Comments:
+    \begin{enumerate}
+    \item
+        Comments are highly recommended.
+    \item
+        Header comments for implementation modules and  exported 
+	procedures should describe 
+        the {\em implementation} of these entities and not their function.   
+	The definition
+        module describes the function.  Copying the declarations from the 
+	definition modules
+        to the implementation modules as comments is not recommended, 
+	because such comments
+        are difficult to maintain and sometimes confusing.
+    \item
+        Clearly named identifiers, e.g. with few abbreviations, can 
+	be used in place of
+        commenting in certain cases.  The programmer should use ``good 
+	judgement''.
+    \item
+        Comments and code should agree.  Incorrect comments should be 
+	removed, because they are negative in value.
+    \end{enumerate}
+\item
+    Declarations:
+    \begin{enumerate}
+    \item
+        A module should be structured in the form:
+        \begin{verbatim}
+(* Proprietary or Public domain notice except for test programs. *)
+    MODULE Name;
+    (*
+     * Module header comment.
+     *)
+    CONST
+        value = 1;
+    TYPE
+        SomeType = POINTER TO CARDINAL;
+    VAR
+        global : SomeType;
+
+    PROCEDURE Foo;
+        BEGIN (* Foo *)
+        END Foo;
+
+    BEGIN (* Name *)
+        SomeProc;
+    END Name.
+        \end{verbatim}
+        In order to support one pass compilers, the standard method of
+	module layout should be declaration before first 
+	use.  
+        It is {\em ok}
+        to declare entities more closely to their first use; we do
+        not need to stick with Pascal style declaration conventions.
+
+    \item
+    Record declarations should look like the following:
+        \begin{verbatim}
+    TYPE
+        SomeRec = RECORD
+            field1    : CARDINAL;  (* keeps track of fieldNum2 *)
+            fieldNum2 : CARDINAL;  (* Solves the problems of field1 *)
+        END;
+        \end{verbatim}
+        as opposed to 
+        \begin{verbatim}
+    TYPE
+        SomeRec = RECORD
+                     field1    : CARDINAL;
+                     fieldNum2 : CARDINAL;
+        END;
+        \end{verbatim}
+    \item
+    Procedure {\em type} declarations should look like:
+        \begin{verbatim}
+    TYPE
+        SomeProc = PROCEDURE(
+            CARDINAL,       (* number of times to jump rope *)
+            SYSTEM.ADDRESS  (* where to store the result *)
+        ) : BOOLEAN         (* FALSE => Terminate upcall sequence. *)
+            (*
+             * Comment describing required semantics.
+             *)
+        \end{verbatim}
+
+    \item
+        Procedure declarations should look like record declarations:
+        \begin{verbatim}
+    PROCEDURE Foo(
+            param1 : SomeType;      (* Must be valid *)
+            param2 : SomeOtherType; (* Will be appended to param1 *)
+        VAR param3 : SomeOtherType  (* The ultimate answer *)
+        )          : ReturnType;    (* Degree of ultimacy of param3 *)
+        (*
+         * Header comment
+         *)
+        VAR
+            local1 : TheType;   (* Temporary counter *)
+            local2 : TheType;   (* Number of times to compute param3 *)
+        BEGIN (* Foo *)
+            SomeOtherProc;
+        END Foo;
+        \end{verbatim}
+        Note that the entire declaration is indented from the keyword 
+        \code{PROCEDURE}.  This allows easy searches for variables
+        declared at a particular scope level.   The parameter descriptions
+	may appear to the right of their declarations or in the header comment.
+	The header comment should appear {\em after} the procedure declaration,
+	not before.
+    \end{enumerate}
+\item
+    Formal parameters:
+    \begin{enumerate}
+    \item 
+        Related parameters should be grouped with the primary parameter
+        appearing first; modifiers (or qualifiers) appear
+	{\em after} the things
+        they modify.  Look at the module \code{Strings} for an example.
+    \item
+        If the procedure's function is like a ``well known'' infix operator,
+        the parameters should be positioned in the same order as if the
+        operator were used.  For examples, see the module \code{Card32}.
+    \item
+        Pure {\em out parameters} should appear at the end of the parameter
+        list.  If an out parameter determines the validity of the operation,
+        it should be the procedure \code{RETURN} value.  For the
+	convenience of the importer, return values should be used when
+	the procedure has a single output which will be
+	used in an expression or as a parameter.  Some examples are
+	\code{TextIO.GetOutput}, \code{DirIO.CreateEntry}, and
+	\code{Strings.Length}.
+    \item
+        If efficiency of structured parameters is required, a
+        declaration of the following form should appear:
+        \begin{verbatim}
+    PROCEDURE Something(
+        (*IN*)VAR param : SomeLargeRecord
+        );
+        \end{verbatim}
+        In this case, the caller expects the parameter to be treated as
+        if it were {\em passed by value} when in reality it has been 
+        {\em passed by reference}.  An alternative is to declare
+        a pointer type for \code{SomeLargeRecord} which puts more of the
+        {\em hack} code in the client.  {\em Note:} do not use this unless
+        you are {\em sure} that performance of parameter passing is an
+        issue.
+    \item
+        \code{ARRAY OF CHAR} should be the type of a formal parameter
+        when the actual parameter may be one of several CHAR types {\em or}
+        it can be expected that the actual parameter may be a constant.
+        Usually, \code{ARRAY OF CHAR} is the appropriate choice for input
+        parameters.  Output parameters are normally declared with a simple 
+        type.   However, if the output parameter is the result of
+        an operation which is of an undetermined size or
+        which is based upon an input of an unspecified length,
+	it should be defined as an open array.
+    
+    \item
+        Procedure types which take an {\em importer object} should
+        be declared so that the importer object is the first parameter
+        passed to the procedure variable.  This convention agrees with
+        the {\em object-oriented} module section.
+
+    \item
+        An enumeration type should be used instead of the
+        type \code{BOOLEAN} for bi-state formal parameters in exported
+	procedure declarations.  The purpose of this is to make the actual
+	parameters to said procedures more readable without the need
+	for caller-supplied supporting documentation.
+
+    \end{enumerate}
+\item
+    \code{DEFINITION} modules 
+    \begin{enumerate}
+    \item
+        The description of the module should be detailed enough so that the
+        importer does not have to read the code to figure out restrictions
+        and caveats.
+    \item
+        All declarations should be commented (except the primary object,
+        assuming that its definition is made apparent in the module header).
+    \item
+        The semantics of a procedure should be clearly defined including
+        careful descriptions of its parameters, either in a general comment
+        or by individual descriptions.
+    \item
+        Exported variables should have a limited scope of access.
+        Each time a variable is exported, the reason should be carefully 
+        examined (by two reviewers if possible).  This guideline supports the 
+	tracing of variable modifications and better control of globally 
+	available values in the light-weight
+	process environment.  Normally,
+	exported global values should be controlled by \code{SetXXX} 
+	and \code{GetXXX} procedures, because this allows the implementation of
+	mutual exclusion when necessary, without changing the definition
+	module.
+    \item
+        Preprocessor control in definition modules should be limited to
+        architecture and operating system flag.  External features
+        which change as the result of preprocessor control (e.g. \code{Tasks})
+        should appear only in the implementation modules or by in/exclusion
+        of whole modules. This allows features (such as tasks) to be included
+        or excluded by merely re-linking.
+    \item
+        Export lists should be tabular without explanations of the 
+        types of objects and what they do.  Export lists have been removed from
+        the definition of Modula-2 (they are optional).  Long descriptive export
+        lists serve only to obscure the definitions of the actual objects being
+        exported.  The lists should be in declaration or alphabetic order
+	for ease of maintenance.  Exceptionally long export
+        lists may include comments, but the usage should pass reviews.
+        {\em Note}: until version 3 compilers are more readily available, all
+        {\em potentially} portable modules should contain an 
+	\code{EXPORT} statement.  An alternative approach is to sort
+	the export list alphabetically.
+
+    \end{enumerate}
+
+\item
+    \code{IMPLEMENTATION} and program modules:
+    \begin{enumerate}
+    \item
+        The use of local modules is discouraged.  A module is a module 
+	and, since we
+        don't have generic modules (\`{a} la Ada), there is no point in a module
+        having children.  
+
+    \item
+        The \code{END} of a control statement should align with its initial line.
+
+    \item 
+        \code{BEGIN} should contain a comment stating to which module or 
+	procedure
+        it belongs.  Note that empty initialization code bodies do not need
+        a \code{BEGIN} in Modula-2.
+    \item
+        Indent by 4; tab stops should be every 8 spaces.
+
+    \item
+        Semicolons (;) should be treated as statement terminators not 
+	separators even though Modula-2 allows the omission of semicolons
+	in certain places.  This makes the code easier to rearrange.
+
+    \item 
+        Each statement (or part thereof in the case of
+        compound statements) should appear on a separate line unless it
+	is much clearer to combine them. 
+        Multiple statement lines are okay in 
+	initialization sections.
+        Declarations should follow this same guideline so that
+	each newly defined
+        identifier may contain a side description.
+
+    \item
+        Initialization statements should be presented in the order of 
+	declaration, e.g.
+	a record variable's fields.
+
+    \item 
+        If a module does type casting (not conversions), it should import
+        \code{SYSTEM}, even if it does not use anything 
+	exported by this module.  
+        This will clearly identify modules which are not portable.  
+	Type casting used in case variant records is not excepted!
+	{\em Note:} type casting should be avoided wherever possible.
+
+    \item
+        If a module outputs {\em debugging} information, it should 
+	be controlled by the preprocessor flag \code{Debug} as well 
+	as by a boolean or cardinal selectable value (see the module 
+	\code{DebugFlags}).  In the header of the module, define the
+	following:
+        \begin{verbatim}
+    @IF Debug THEN
+        VAR
+     	    debug : BOOLEAN;
+    @ELSE
+        CONST
+	    debug = FALSE;
+    @END (* Debug *)
+        \end{verbatim}
+	 To output debugging information, do the following:
+        \begin{verbatim}
+    IF debug THEN
+        SomeDebugOutput;
+    END;
+        \end{verbatim}
+	Note that SomeDebugOutput must be available even if the
+	\code{Debug} flag is off.
+    
+
+    \item
+        \code{HALT}s should not appear directly in the
+        code except in special cases.  The use of 
+	% Needed, because LaTeX chops off the last of ProgErr.Terminate.
+	\newline
+	\code{ProgErr.Terminate}
+	is recommended for the majority of program aborts.
+    \end{enumerate}
+
+\item
+    \code{IMPORT} statements:
+    \begin{enumerate}
+    \item
+        The use of qualified imports in the design of definition modules
+	and their use by importers is encouraged.
+    \item
+        Declarations should look like the following:
+        \begin{verbatim}
+    IMPORT
+        Module1,     
+        Module2,     
+        Module3,     
+        Module4,  
+        Module5;
+        \end{verbatim}
+        The Modules should be in alphabetical order for easy maintenance.
+
+    \end{enumerate}
+    
+\item
+    An ``object-oriented'' module operates on a particular type which
+    may or may not be exported by the module itself.  The following guidelines
+    apply to this class of modules:
+    \begin{enumerate}
+    \item
+        The primary opaque type, if exported by the module, should be named
+        \code{Object}.  When combined with the name of the module, this
+        usually defines clearly what the type should be. Some
+        examples are: \code{TextIO.Object}, \code{BinaryIO.Object},
+        \code{Lists.Object}, etc.  If there is no primary opaque type
+	or the name \code{Object} is confusing, a more descriptive
+        name should be chosen, e.g. \code{Time.Point}, \code{Time.Delta},
+        \code{Objects.Manager}, and \code{BinaryIO.Index}.
+    \item
+        \code{Create} {\em or} \code{Open}  
+         initializes or creates the object.
+    \item
+        \code{Destroy} {\em or} \code{Close} deallocates the object.
+    \item
+        \code{IsValid} {\em or} \code{GetState} 
+        determines (non-destructively) whether or not the object has been 
+        created.
+    \item
+        \code{SetInvalid} initializes the object to a guaranteed
+        invalid state.
+    \item
+        The object should be implemented using \code{Objects}.
+    \item
+        All exported interfaces except the initialization procedures
+        should call \code{Objects.\-Assert} or \code{Objects.IsValid}.
+    \item
+        Given that Modula-2 variables can be uninitialized when used,
+        the module should allow the destruction of an object which is already
+        invalid.  No checks on the validity of the object
+        should be made by the initialization procedures.
+    \item
+        Importers of real opaque types should make no assumptions about the
+        contents of the real opaque types except that their size is the same 
+	as a \code{SYSTEM.ADDRESS}.
+        The size of limited private types should not be assumed to be
+        the same as a \code{SYSTEM.ADDRESS}.  Using the contents of 
+	an opaque type
+        makes code immediately non-portable and the documentation
+        should clearly state the reason for doing so.
+    \item
+        The main object of the module should appear as the first
+        parameter to all the procedures in which the object type 
+        appears as the parameter.  If there are several objects, 
+        then pick one to be the main one.
+    \end{enumerate}
+
+\item
+    Some philosophy:
+    \begin{enumerate}
+    \item
+        Modules should be object oriented where possible.  This
+        is usually not the most obvious route, but it turns out to be the 
+	easiest
+        in the long term.  
+    \item
+        If a module calls anonymous procedures (i.e. upcalls),
+        it should save the state of the global variables before making the
+        upcalls.  Normally, it should be the last thing done
+        in the procedure before returning.  This avoids problems with
+        assumptions made by the importer.
+    \item
+        Global state (other than contained in objects) should be avoided.
+        Using variables which hold state across procedure calls is 
+        dangerous in Modula-2, because modules are often used for more
+        things than those for which they were originally intended.  
+    \item
+        Look around to see if has been done before.  Software is very
+        often highly reusable.  If someone has solved a similar problem,
+        chances are you can use part of it.   If nothing else, evaluate
+        the ideas contained within the other software so that the new
+        software doesn't make the same mistakes as the old.
+    \item
+        Types and constants should be defined where they
+        are first used or are primarily implemented, e.g. \code{Time} 
+	implements \code{Point} and \code{Delta}, thus they are
+	declared in \code{Time}.
+	If you {\em need} to avoid circular imports, use an \code{XXXConsts} 
+        module
+        which defines the constants 
+        and types for a particular group of modules when defining types.  
+    \item 
+        During abnormal termination, only critical resources should be
+        reset (e.g. serial ports).  This will ensure the ability of the
+        application to bring itself down gracefully.
+    \end{enumerate}
+
+\end{enumerate}
+

@@ -1,0 +1,42 @@
+KeyInput.sym: 
+KeyInput.o: ../../io/bin/IOErrors.sym KeyInput.sym ../../gen/bin/Notices.sym  \
+            ../../io/bin/ScreenIO.sym ../../io/bin/TextIO.sym 
+Maze.sym: ../../gen/lwp.bin/TaskMonitors.sym 
+Maze.o: Maze.sym ../../gen/bin/RandomNumbers.sym Screen.sym  \
+        ../../gen/bin/SysTypes.sym ../../gen/lwp.bin/TaskMonitors.sym 
+Screen.sym: 
+Screen.o: Screen.sym ../../io/bin/ScreenIO.sym ../../io/bin/StringIO.sym  \
+          ../../gen/bin/Strings.sym ../../io/bin/TextIO.sym 
+Solver.o: ../../gen/bin/CardConvert.sym ../../gen/bin/GenConsts.sym  \
+          KeyInput.sym Maze.sym ../../gen/bin/Notices.sym  \
+          ../../gen/bin/ProgErrOutput.sym Screen.sym  \
+          ../../gen/bin/Strings.sym ../../gen/bin/SysTypes.sym  \
+          ../../gen/lwp.bin/TaskConsts.sym ../../gen/lwp.bin/TaskDebug.sym  \
+          ../../gen/lwp.bin/TaskMessages.sym  \
+          ../../gen/lwp.bin/TaskMonitors.sym  \
+          ../../gen/lwp.bin/TaskNotices.sym ../../gen/lwp.bin/TaskTime.sym  \
+          ../../gen/lwp.bin/Tasks.sym 
+Solver: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+        ../../gen/bin/CardConvert.o ../../io/bin/CatBinaryIO.o  \
+        ../../gen/bin/Chars.o ../../io/bin/ConfBinaryIO.o  \
+        ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+        ../../io/bin/IOErrors.o ../../io/lwp.bin/IOMonitors.o  \
+        ../../gen/bin/IntConvert.o ../../gen/lwp.bin/Interrupts.o  \
+        ../../gen/bin/Intrinsics.o KeyInput.o ../../gen/bin/Lists.o Maze.o  \
+        ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+        ../../gen/lwp.bin/Notices.o ../../gen/lwp.bin/Objects.o  \
+        ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+        ../../gen/lwp.bin/RandomNumbers.o ../../gen/lwp.bin/SafeStorage.o  \
+        Screen.o ../../io/bin/ScreenIO.o ../../io/bin/StringIO.o  \
+        ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+        ../../gen/lwp.bin/TaskConsts.o ../../gen/lwp.bin/TaskDebug.o  \
+        ../../gen/lwp.bin/TaskInfo.o ../../gen/lwp.bin/TaskMessages.o  \
+        ../../gen/lwp.bin/TaskMonitors.o ../../gen/lwp.bin/TaskNotices.o  \
+        ../../gen/lwp.bin/TaskTime.o ../../gen/lwp.bin/Tasks.o  \
+        ../../gen/lwp.bin/TasksPRIVATE.o ../../io/lwp.bin/TextIO.o  \
+        ../../io/lwp.bin/TextIOPRIVATE.o ../../io/lwp.bin/UnixAsynchIO.o  \
+        ../../io/lwp.bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+        ../../io/bin/UnixIOErrors.o ../../io/bin/UnixIONames.o  \
+        ../../gen/lwp.bin/UnixMonitor.o Solver.o 
+${M2Programs}: 
+	${StandardM2link}

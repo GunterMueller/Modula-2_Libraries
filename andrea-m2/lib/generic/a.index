@@ -1,0 +1,200 @@
+ASCII.DEF
+(no .mod needed)
+    This contains the module ASCII.
+    A list of ASCII characters by name and value.
+
+BASE2.DEF
+BASE2.MOD
+    This contains the module Base2.
+    This module allows you to convert into and out of a base 2 number.
+    Some of this functionality is provided by the module MOD$SYSTEM:Conversions
+
+BASE3.DEF
+BASE3.MOD
+    This contains the module Base3.
+    This module allows you to convert into and out of a base 3 number.
+    Some of this functionality is provided by the module MOD$SYSTEM:Conversions
+
+BITMAPOPE.DEF
+BITMAPOPE.MOD
+    This contains the module BitmapOperations.
+    This module allows you to create a bitmap ( elements of on/off ) in
+    dynamic memory, perform operations on those elements, and output a
+    whole bitmap.
+
+BITSETFUN.DEF
+BITSETFUN.MOD
+    This contains the module BitsetFunctions.
+    This module allows you to perform logical operations on BITSETs.
+
+CARDARRAY.DEF
+CARDARRAY.MOD
+    This contains the module CardArray.
+    This module provides a method of creating a dynamic array.
+
+CMDLINE.DEF
+(the .mod is compiler specific)
+   This contains the module CmdLine.
+   Get items from this programs command line.
+
+DATEOPERA.DEF
+(the .mod is compiler specific)
+   This contains the module DateOperations.
+   This module allows you to perform operations on dates, as well as
+   calculate the day of the week, and the phase of the moon for given
+   dates.
+
+LARGENUMB.DEF
+LARGENUMB.MOD
+   This contains the module LargeNumbers.
+   This module allows the use of large floating point numbers. The procedures
+   arn't particularly speedy, but tests indicate that they do work.
+
+LARGESETS.DEF
+LARGESETS.MOD
+   This contains the module LargeSets.
+   Some implementations of Modula-2 only allow for SETs with 32 elements,
+   others with 65535 elements. This module allows for sets of numbers
+   with the number of elements limited only by available memory.
+
+LEWERTSSC.DEF
+LEWERTSSC.MOD
+   This contains the module LewertsScale.
+   This module contains a procedure for generating a nice upper and lower
+   range, given a minimum and maximum.
+   This operation is generally used for plotting calculations to find a
+   nice axis range.
+
+MATRIXOPE.DEF
+MATRIXOPE.MOD
+   This contains the module MatrixOperations.
+   This module is for performing basic matrix operations on 2 dimensional
+   arrays of Real numbers. The matricies are built using dynamic memory.
+
+MOREIO.DEF
+MOREIO.MOD
+   This contains the module MoreIO.
+   This module provides some additional input and output procedures.
+
+PACKARRAY.DEF
+PACKARRAY.MOD
+   This contains the module PackArray.
+   This module provides a way of packing small numbers into dynamic memory
+   in a way that uses the least amount of memory. It uses bit manipulation
+   on an array of BITSETs in order to contain the data bits.
+
+PACKMATRI.DEF
+PACKMATRI.MOD
+   This contains the module PackMatrix.
+   This module provides a way of packing small numbers into dynamic memory
+   in a matrix form.  This module depends upon PackArray.
+
+PSDOTS.DEF
+PSDOTS.MOD
+   This contains the module PSDots.
+   This module provides procedures for creating a file containing
+   graphics commands to put dots on a PostScript page.
+   This module is for making dots only, and is optimized for that
+   purpose. For more general graphics see PSGraphics.
+
+PSGRAPHIC.DEF
+PSGRAPHIC.MOD
+   This contains the module PSGraphics.
+   This module provides procedures for creating a file containing
+   graphics commands to be printed on a PostScript printer.
+
+QUEUES.DEF
+QUEUES.MOD
+   This contains the module Queues.
+   This module provides queue data structure procedures for Lifo, Fifo,
+   and combinations of those two queue types.
+   Objects of up to 512 bytes may be placed on a queue, and objects of
+   varying size may be queued, but care must be taken to ensure that
+   data is pop'ed in the same form as was push'ed.
+
+RANDOMLY.DEF
+(the .mod is compiler specific)
+   This contains the module Randomly.
+   This module provides procedures for generating random numbers.
+
+REALARRAY.DEF
+REALARRAY.MOD
+   This contasins the module RealArray.
+   This module provides a method of creating a dynamic array.
+
+ROMANNUME.DEF
+ROMANNUME.MOD
+   This contains the module RomanNumerals.
+   This module provides two procedures for converting into and out of
+   roman numerals.
+
+SAYNUMBER.DEF
+SAYNUMBER.MOD
+    This contains the module SayNumbers.
+    The procedures here will convert a number into a phrase which is the
+    words which humans use to say the number (English only).
+    For example 123 would be "one hundred twenty three".
+
+SETOFCHAR.DEF
+SETOFCHAR.MOD
+    This contains the module SetOfChar.
+    Some implementations of Modula-2 do not allow for SETs to be made of
+    characters because of the large range of elements. This module allows
+    sets of characters to be build and manipulated.
+
+SHUFFLE.DEF
+SHUFFLE.MOD
+   This contains the module Shuffle.
+   This module provides procedures for randomly shuffling a set of numbers.
+
+SHUFFLEFA.DEF
+SHUFFLEFA.MOD
+   This contains the module ShuffleFast.
+   This module provides procedures for randomly shuffling a set of numbers.
+   This module is one less layer of abstraction than the module Shuffle,
+   and so is potentially faster.
+   There is also a difference in the calling sequence of the routine Create.
+
+SORTING.DEF
+SORTING.MOD
+   This contains the module Sorting.
+   This module provides a few procedures for sorting arrays of CARDINAL's
+   and REAL's.
+   Documentation on using the procedures is inside the definition module,
+   be sure to read the comments about the limit on array sizes.
+
+SPECIALIN.DEF
+SPECIALIN.MOD
+   This contains the module SpecialInOut as defined in the textbook
+   "Programming and Problem Solving in Modula-2"
+   by S. Leestma and L. Nyhoff, MacMillian Publishing Company, 1989
+   This module provides special procedures for doing i/o, however more
+   robust versions of similar procedures may be found in RealInOut.
+
+STACKS.DEF
+STACKS.MOD
+   This contains the module Stacks.
+   This module provides stack data structure procedures.
+   Objects of up to 512 bytes may be placed on a stack, and objects of
+   varying size may be stacked, but care must be taken to ensure that
+   data is pop'ed in the same form as was push'ed.
+
+STRINGOPE.DEF
+STRINGOPE.MOD
+   This contains the module StringOperations.
+   This module provides procedures for manipulating character strings.
+
+VERYSCREE.DEF
+(the .mod is compiler specific)
+   This contains the module VeryScreen.
+   This module provides a very easy to use screen manipulation procedures.
+
+WORDHASH.DEF
+WORDHASH.MOD
+   This contains the module WordHash.
+   This module provides functions for parsing Modula-2 reserved words.
+ 
+WORDLIST.DEF
+(the .mod is used for student assignments, i have to keep it secret)
+   This contains the module WordList.
+   This module is for maintaining lists of words.

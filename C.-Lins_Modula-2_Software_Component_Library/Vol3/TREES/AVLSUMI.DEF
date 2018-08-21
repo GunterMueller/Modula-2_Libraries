@@ -1,0 +1,409 @@
+(*
+6.1 Height Balanced Binary Search Tree Interface
+
+This module provides operations for a variant of the binary search
+tree abstract data type known as height-balanced or AVL trees. The shape
+of these trees is restricted through a mechanism called balancing.
+In this particular case, balancing yields a height (longest path
+from root to leaf) difference between the left and right subtrees of at
+most one. Because of this characteristic, the number of nodes examined
+during a search of the tree is in practice considerably less than that
+obtained using unbalanced binary trees. Further information on AVL trees
+can be obtained from Chapter 3 and references [Gonnet, Wirth, Wiener].
+
+Each node of a tree is assumed to consist of two data elements ð a key
+field and a data field. Keys are used to structure the tree, while the
+data field simply represents information associated with a key but is
+not a part of it. While this separation may be less efficient in operation,
+it does lead to a cleaner interface.
+
+Keys are assumed to have the following operations available:
+        * a routine that assigns key values;
+        * a routine that compares key values returning the ordering
+          relation between them (i.e., less, equal, or greater); and
+        * optionally, a routine that disposes of key values that have been
+          allocated on the heap.
+
+Data values are assumed to the the following operations:
+        * a routine that assigns data values; and
+        * optionally, a routine that disposes of data values stored on the
+          heap.
+
+In both cases, keys and data values, along with the above operations, are
+identified by a TypeID that is unique for a given data type. This data type
+may be a standard Modula-2 type or one formed by the programmer using data
+type forming operations (e.g., RECORDs).
+
+The subsections are divided as follows:
+        * 6.1.1 Type Declarations
+        * 6.1.2 Exception Handling
+        * 6.1.3 Tree Constructors
+        * 6.1.4 Tree Selectors
+        * 6.1.5 Passive Iterators
+        * 6.1.6 Active Iterators
+*)
+
+DEFINITION MODULE AVLSUMI;
+(*==============================================================
+    Version  : 1.06  18 Apr 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Monolithic Structures - Tree (Opaque version)
+               Sequential Unbounded Managed Iterator
+
+    REVISION HISTORY
+    v1.01  18 May 1988  C. Lins
+      Initial implementation for TML Modula-2.
+    v1.02  01 Oct 1988  C. Lins
+      Updated and improved comments.
+    v1.03  29 Jan 1989  C. Lins
+      Added aliases for generic Items as Keys and Data to enhance
+          readability.
+    v1.04  06 Feb 1989  C. Lins
+          Added use of InsertProc instead of FoundProc in Insert.
+    v1.05  09 Feb 1989  C. Lins
+          Removed VAR from Clear, Insert, & Remove (the tree itself
+          does not change).
+    v1.06  18 Apr 1989  C. Lins
+          Changed module id.
+    v2.00  08 Oct 1989  C. Lins
+          Created generic pc version
+    v2.01  08 Dec 1989  Iain Houston.
+          Adapted to JPI Compiler:
+          Use of type transfer functions instead of VAL.
+          Use of shortened library module names.
+        (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM TreeTypes IMPORT
+    (*--Type*) Exceptions, Key, Data,
+               AccessProc, InsertProc, FoundProc, NotFoundProc;
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+
+    (*-----------------------*)
+
+(*
+6.1.1 Type Declarations
+
+Each instance of the Height-Balanced Binary Tree abstract data type is
+represented by the type, Tree, using Modula-2's opaque type definition
+facility. An undefined tree is represented by a Tree constant of NIL.
+*)
+
+TYPE  Tree;
+VAR   NullTree : Tree;
+
+
+(*
+6.1.2 Exception Handling
+
+The following types and routines are used to support the exception
+handling mechanism. This mechanism is consistent across all modules
+in this series.
+
+ModuleID        is a constant that uniquely identifies this module,
+                        in this case the number 2004. This allows exception
+                        handlers to know the module raising an exception.
+
+TreeError       returns the most recent exception condition from the last
+                tree operation or the constant noerr if an exception was
+                not raised.
+GetHandler      returns the exception handler for the given exception condition.
+
+SetHandler      allows client modules to assign an exception handling routine
+                for specific exceptions. In this way the client may override
+                he default exception handling mechanism (which does nothing).
+*)
+
+
+CONST ModuleID = 1;
+
+PROCEDURE TreeError  ()              : Exceptions  (*--out  *);
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*--in   *))
+                                     : HandlerProc (*--out  *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*--in   *);
+                          theHandler : HandlerProc (*--in   *));
+
+
+        (*-----------------------*)
+
+(*
+6.1.3   Tree Constructors
+
+Constructor operations update or change the state of a tree object. In
+this section we briefly describe each tree operation and its effect on
+a tree object. Exception conditions raised by these routines have been
+previously discussed in 3.3, Binary Search Tree Operations.
+
+Create  attempts to form a new, empty binary tree object having the given
+                key and data type identifiers.
+
+MakeTree does the same as Create, except that it also attempts to add
+         the given key and data items as the root of the new tree.
+
+Destroy attempts to demolish an existing tree object, clearing the tree
+        of all its contents and making the tree ðundefinedð.
+
+Clear   empties an existing tree of its contents returning the tree to
+        an empty state.
+
+Assign  attempts to duplicate (e.g., make a copy) of an existing tree.
+        The target tree, where the copy is stored, is cleared of its
+        contents, if any, before the assignment commences.
+
+Insert  attempts to add a node having the given key and data values
+        to the given tree. The tree is rebalanced if necessary to ensure
+        that the height-balanced property is maintained. If a node
+        already exists in the tree with the given key the found procedure
+        parameter is invoked and the new element is not added to the tree.
+
+Remove  searches the given tree for the node containing the specified key
+        value and removing this node from the tree. If a node does not
+        exist in the tree with the given key the notFound procedure
+        parameter is invoked. Following the removal of the node, the
+        tree is rebalanced, if necessary, to maintain the height-balance
+        property.
+*)
+
+PROCEDURE Create    (    keyType  : TypeID       (*--in   *);
+                         dataType : TypeID       (*--in   *))
+                                  : Tree         (*--out  *);
+
+PROCEDURE MakeTree  (    keyType  : TypeID       (*--in   *);
+                         dataType : TypeID       (*--in   *);
+                         theKey   : Key          (*--in   *);
+                         theData  : Data         (*--in   *))
+                                  : Tree         (*--out  *);
+
+PROCEDURE Destroy   (VAR theTree  : Tree         (*--inout*));
+
+PROCEDURE Clear     (    theTree  : Tree         (*--inout*));
+
+PROCEDURE Assign    (    theTree  : Tree         (*--in   *);
+                     VAR toTree   : Tree         (*--inout*));
+
+PROCEDURE Insert    (    theTree  : Tree         (*--inout*);
+                         theKey   : Key          (*--in   *);
+                         theData  : Data         (*--in   *);
+                         found    : InsertProc   (*--in   *));
+
+PROCEDURE Remove    (    theTree  : Tree         (*--inout*);
+                         theKey   : Key          (*--in   *);
+                         notFound : NotFoundProc (*--in   *));
+
+
+        (*-----------------------*)
+
+(*
+6.1.4 Selectors
+
+Selector operations allow a client module to examine the state of a tree
+without changing that state.
+
+IsDefined       verifies whether theTree has been created and is still an
+                        active object. For our purposes, a tree object is considered
+                        defined if it is not equal to the NullTree.
+
+IsEmpty         returns true if the given tree does not contain any nodes, and
+                        false otherwise.
+
+IsEqual         returns true if and only if the two trees have the same key and
+                        data item types, contain the same items, and have the same
+                        relationships between each item.
+
+KeyTypeOf       simpy returns the data type ID of the keys associated with this tree.
+
+DataTypeOf      returns the data item type ID of the given tree.
+
+ExtentOf        returns a count indicating the total number of nodes in the tree.
+
+IsPresent       searches the given tree for the item with the given key value.
+                        If the item is found the found procedure parameter is called,
+                        otherwise the notFound procedure parameter is called.
+*)
+
+PROCEDURE IsDefined  (    theTree  : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE IsEmpty    (    theTree  : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE IsEqual    (    left     : Tree         (*--in   *);
+                          right    : Tree         (*--in   *))
+                                   : BOOLEAN      (*--out  *);
+
+PROCEDURE KeyTypeOf  (    theTree  : Tree         (*--in   *))
+                                   : TypeID       (*--out  *);
+
+PROCEDURE DataTypeOf (    theTree  : Tree         (*--in   *))
+                                   : TypeID       (*--out  *);
+
+PROCEDURE ExtentOf   (    theTree  : Tree         (*--in   *))
+                                   : CARDINAL     (*--out  *);
+
+PROCEDURE IsPresent  (    theTree  : Tree         (*--in   *);
+                          theKey   : Key          (*--in   *);
+                                                  found    : FoundProc    (*--in   *);
+                                                  notFound : NotFoundProc (*--in   *));
+
+
+        (*-----------------------*)
+
+(*
+6.1.5 Passive Iterators
+
+Three passive iterators are provided each implementing one of the standard
+tree traversal algorithms. Passive iterators allow the client module
+to traverse the tree as through it were a single, monolithic data structure.
+*)
+
+PROCEDURE Preorder  (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+PROCEDURE Inorder   (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+PROCEDURE Postorder (    theTree   : Tree       (*--in   *);
+                         theProcess: AccessProc (*--in   *));
+
+        (*-----------------------*)
+
+(*
+6.1.6 Active Iterators
+
+While passive iterators are most useful for tree objects, there may
+be situations when the client module requires more control over the
+iteration process (e.g., when printing the internal binary tree
+representation). In this case, it is necessary to use an active
+iteration mechanism, where the internal structure of a tree is made
+visible to the client in a controlled manner that ensures the safety
+of the abstraction.
+
+In the form presented here, the internal structure is made visible
+through the opaque type NodePtr, representing a subtree node of a tree.
+An empty subtree is modelled by the constant NullNode. Balance represents
+the number of external nodes rooted at a given subtree. If the subtree is
+empty by convention the balance is zero.
+
+The reader should note that none of the active iterator operations
+raise exceptions.
+
+NodePtr         is a type used to represent and individual node of the tree.
+
+NullNode        is a constant representing an empty subtree.
+
+Balance         represents the difference in height between the right and
+                        left subtrees of a given subtree.
+
+RootOf          returns a reference to the root node of the given tree. If
+                        the tree is empty then the NullNode is returned.
+
+LeftOf          returns the node that is the left subtree from the given
+                        node. If the given node has no left subtree then the NullNode
+                        is returned.
+
+RightOf         returns the node that is the right subtree from the given
+                        node. If the given node has no right subtree then the NullNode
+                        is returned.
+
+IsNull          returns true is the given node is equal to the NullNode and
+                        false otherwise.
+
+KeyOf           returns the key value associated with the given node. If the
+                        node is empty (i.e., equal to the NullNode) the NullItem is
+                        returned instead.
+
+DataOf          returns the data value associated with the given node. If the
+                        node is empty (i.e., equal to the NullNode) the NullItem is
+                        returned instead.
+
+BalanceOf       returns the balance factor for the given node. If the node is
+                        null, then a balance of zero (0) is returned.
+*)
+
+TYPE  NodePtr;
+CONST NullNode = NodePtr(NIL);
+
+TYPE  Balance  = INTEGER;
+
+
+PROCEDURE RootOf    (    theTree : Tree     (*--in   *))
+                                                             : NodePtr  (*--out  *);
+
+PROCEDURE LeftOf    (    theNode : NodePtr  (*--in   *))
+                                                             : NodePtr  (*--out  *);
+
+PROCEDURE RightOf   (    theNode : NodePtr  (*--in   *))
+                                                             : NodePtr  (*--out  *);
+
+PROCEDURE IsNull    (    theNode : NodePtr  (*--in   *))
+                                                             : BOOLEAN  (*--out  *);
+
+PROCEDURE KeyOf     (    theNode : NodePtr  (*--in   *))
+                                                             : Key      (*--out  *);
+
+PROCEDURE DataOf    (    theNode : NodePtr  (*--in   *))
+                                                             : Data     (*--out  *);
+
+PROCEDURE BalanceOf (    theNode : NodePtr  (*--in   *))
+                                                             : Balance  (*--out  *);
+
+END AVLSUMI.
+
+(*
+
+                                Algorithmic     Code
+Operation Name  Complexity      Size
+                                (bytes)
+TreeError               O(1)             26             Exception Handling Routines
+GetHandler              O(1)             42
+SetHandler              O(1)             38
+
+Create                  O(1)             88             Constructors
+Destroy                 O(1)             44
+MakeTree                O(1)            146
+Clear                   O(n)            218
+Assign                  O(m+n)          514
+Insert                  O(log2 n)       672
+Remove                  O(log2 n)  1074
+
+IsDefined               O(1)             36             Selectors
+IsEmpty                 O(1)             74
+IsEqual                 O(Min(m,n))     326
+ExtentOf                O(n)            144
+KeyTypeOf               O(1)             64
+DataTypeOf              O(1)             66
+IsPresent               O(log2 n)       212
+
+Inorder                 O(n)            146             Passive Iterators
+Preeorder               O(n)            146
+Postorder               O(n)            146
+
+RootOf                  O(1)             50             Active Iterators
+LeftOf                  O(1)             50
+RightOf                 O(1)             50
+IsNull                  O(1)             36
+KeyOf                   O(1)             48
+DataOf                  O(1)             50
+BalanceOf               O(1)             50
+
+RaiseErrIn              O(1)             58             Local Routines
+NewNode                 O(1)             76
+LeftRotation    O(1)             70
+RightRotation   O(1)             70
+RLRotation              O(1)            186
+LRRotation              O(1)            186
+Initialization  O(1)             92
+
+Grand Total                                5294
+
+Table 6.1 Unbounded AVL Tree Operations Summary
+*)
+

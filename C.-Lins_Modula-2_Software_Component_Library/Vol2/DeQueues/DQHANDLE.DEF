@@ -1,0 +1,31 @@
+(*
+This module provides a simple exception handler for the
+various Deque abstractions. Given an error code, it reports
+the exception to standard output in the following format:
+### Error "<error text>" raised in Routine "<routine name>" in Module <module #>
+
+The system beep is made before issuing the message and a WriteLn
+follows the message display.
+*)
+
+DEFINITION MODULE DQHandlers; 
+(*==============================================================
+    Version  : 1.00  16 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Deque Exception Handlers Utility
+
+    REVISION HISTORY
+    v1.00  16 May 1989  C. Lins:
+	Initial implementation
+    (C) Copyright 1989 Charles A. Lins
+==============================================================*)
+
+FROM QEnum IMPORT
+	(*--type*) Exceptions, Operations;
+
+
+PROCEDURE WriteHandler (    theModule 	 : CARDINAL   (*--in   *);
+							theOperation : Operations (*--in   *);
+							theException : Exceptions (*--in   *));
+
+END DQHandlers.

@@ -1,0 +1,400 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TestSystem;
+
+IMPORT
+NameLists,     Objects,     SYSTEM,     TestIO,
+Strings,       CardConvert, GenTestIO,  ProgErr;
+
+@IF NOT NoNotices THEN
+    IMPORT
+	Notices;
+@END (* NOT NoNotices *)
+
+@IF NoProgArgs THEN 
+    IMPORT
+	GenConsts;
+@ELSE
+    IMPORT
+	ProgArgs;
+@END (* NoProgArgs *)
+
+CONST
+    Line = "---------------------------------------------------------------";
+    BlankLine = "               ";
+    MaxPromptLength = 80;
+
+TYPE
+    infoPtr = POINTER TO infoRec;
+    infoRec = RECORD
+		  Data: dataType;
+		  Proc: standardProc;
+              END;
+    numberString = ARRAY[ 0..4 ] OF CHAR;
+    promptLine = ARRAY[ 0..79 ] OF CHAR;
+    promptPtr = POINTER TO promptLine;
+
+VAR
+    Commands: NameLists.Object;
+    PromptMgr, InfoMgr: Objects.Manager;
+    PromptPtr: promptPtr; 
+    Deviant: BOOLEAN;
+    TestNr: CARDINAL;
+    Msg: TestIO.ErrMsg;
+    @IF NoProgArgs THEN
+	MainMessage,
+	ModuleName: ARRAY [ 0 .. GenConsts.maxProgArgLength -1 ] OF CHAR;
+    @ELSE
+	MainMessage, ModuleName:  ProgArgs.String;
+    @END (* NoProgArgs *)
+    NrStr: numberString; 
+    Interactive, DONTCARE: BOOLEAN;
+    
+(* Procs   *)
+(* --------------------------------------------------------------------- *)
+PROCEDURE Quit( Data: dataType; VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    END Quit;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE DisplayCommandList( PromptMgr: Objects.Manager; 
+			      PromptPtr: promptPtr );
+
+    BEGIN
+	Objects.MakeFirstNext( PromptMgr );
+	WHILE Objects.Next( PromptMgr, PromptPtr ) DO
+	   TestIO.Write( GenTestIO.GetErrOutput(), PromptPtr^ ); 
+	   TestIO.WriteLn( GenTestIO.GetErrOutput() ); 
+	END;
+
+    END DisplayCommandList;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE CreatePromptLine( PromptMgr: Objects.Manager );
+
+    BEGIN
+	Objects.Allocate( PromptMgr, PromptPtr );
+	Strings.Assign( "  ", PromptPtr^ );
+
+    END CreatePromptLine;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE AddCommand( CommandName: ARRAY OF CHAR; 
+                      Procedure: standardProc;
+		      DataWithSelector: dataType );
+
+    VAR
+	InfoPtr: infoPtr;
+
+    BEGIN
+	Objects.Allocate( InfoMgr, InfoPtr ); 
+	InfoPtr^.Data:= DataWithSelector;
+	InfoPtr^.Proc:= Procedure;
+	NameLists.Insert( Commands, CommandName, InfoPtr );
+
+	(* Building the command display: *)
+
+	IF ( MaxPromptLength - Strings.Length( PromptPtr^ ) ) <=  
+	  Strings.Length( CommandName )
+	THEN
+	    CreatePromptLine( PromptMgr );
+        ELSE
+	    IF Strings.Length( PromptPtr^ ) > 2 THEN
+		Strings.Concat( PromptPtr^, " / ", PromptPtr^ );
+            END;
+	END;
+	Strings.Concat( PromptPtr^, CommandName, PromptPtr^ );
+
+    END AddCommand;
+(* ---------------------------------------------------------------------- *)
+PROCEDURE GetCommand( VAR string: ARRAY OF CHAR ): BOOLEAN; 
+
+   (*
+    *    INPUT: 
+    *
+    *    OUTPUT: string, a command
+    *            <RETURN>, = FALSE if an end-of-file is encountered.  
+    *                        TRUE in any other case;
+    *
+    *    The read-error situation is handled by GenTestIO.
+    *
+    *)
+   
+    BEGIN 
+	IF GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN
+	   TestIO.Write( GenTestIO.GetErrOutput(), "Command" );
+	   TestIO.WriteLn( GenTestIO.GetErrOutput() );
+	   DisplayCommandList( PromptMgr, PromptPtr ); 
+	   TestIO.Write( GenTestIO.GetErrOutput(), "  --> " );
+	END; 
+	LOOP
+	    IF GenTestIO.Read( GenTestIO.GetInput(), string ) THEN
+		IF NOT GenTestIO.IsInteractive( GenTestIO.GetInput() ) THEN 
+		    IF string[ 0 ] # "$" THEN
+			TestIO.Write( GenTestIO.GetErrOutput(), 
+				      "Command: " );
+			TestIO.Write( GenTestIO.GetErrOutput(), string );
+			TestIO.WriteLn( GenTestIO.GetErrOutput() );
+			EXIT;
+		    END
+                ELSE
+		    EXIT;
+		END		
+	    ELSE
+		RETURN FALSE;    (* end of file *)
+	    END;
+        END;    (* LOOP *)
+	RETURN TRUE;
+
+    END GetCommand; 
+(* --------------------------------------------------------------------- *)
+PROCEDURE BuildLogHeader( VAR LogHeader: ARRAY OF CHAR );
+
+    BEGIN
+	Strings.Assign( "Tested module: ", LogHeader );
+	Strings.Concat( LogHeader, ModuleName, LogHeader );
+	Strings.Concat( LogHeader, ". ", LogHeader );
+	IF Deviant THEN
+	    Strings.Concat( LogHeader, "Deviant. ", LogHeader )
+        ELSE
+	    Strings.Concat( LogHeader, "Conformant. ", LogHeader )
+        END;
+	Strings.Concat( LogHeader, "Date: ", LogHeader );
+
+    END BuildLogHeader;
+(* --------------------------------------------------------------------- *)
+PROCEDURE EvaluateTestCase( TestDataRead,
+			    TestResultsWrite,
+			    TestResultsCompare: standardProc;
+			    TestData: infoPtr; 
+			    VAR Msg: TestIO.ErrMsg ): BOOLEAN;
+
+    BEGIN
+	WITH TestData^ DO 
+	    IF NOT TestDataRead( Data, Msg ) THEN 
+		RETURN FALSE;
+	    END;
+	    IF NOT Proc( Data, Msg ) THEN 
+		RETURN FALSE;
+	    END;
+	    IF NOT TestResultsWrite( Data, Msg ) THEN 
+		RETURN FALSE;
+	    END;
+	    IF NOT TestResultsCompare( Data, Msg ) THEN 
+		RETURN FALSE;
+	    END;
+	END;    (* WITH TestData *)
+	RETURN TRUE;
+
+    END EvaluateTestCase;
+(* --------------------------------------------------------------------- *)
+PROCEDURE RunTest( TestDataRead,
+		   TestResultsWrite,
+		   TestResultsCompare: standardProc;
+		   Name: ARRAY OF CHAR );
+
+    VAR
+	TestData: infoPtr;
+	Command,
+	Separator,
+	LogHeader: ARRAY[ 0..80 ] OF CHAR;
+
+    BEGIN
+	Strings.Assign( Name, ModuleName );
+	IF Interactive THEN
+	    Separator:= BlankLine
+	ELSE
+	    Separator:= Line
+	END;
+	IF NOT Interactive THEN
+	    BuildLogHeader( LogHeader );
+	    TestIO.WriteLogHeader( LogHeader );
+        END;				    
+	LOOP
+	    LOOP
+		IF NOT GetCommand( Command ) THEN
+		    RETURN    
+                END;
+		IF NameLists.Find( Commands, Command, TestData ) THEN
+		    IF SYSTEM.ADDRESS( TestData^.Proc ) = 
+		       SYSTEM.ADDRESS( Quit ) 
+		    THEN
+			RETURN;
+		    ELSE
+			EXIT;
+		    END; 
+		END;
+		IF NOT Interactive 
+		THEN
+		     Msg:= CommandError;
+		     ProgErr.Terminate( "" );
+		     RETURN;
+		ELSE
+		    TestIO.DisplayMessage( GenTestIO.GetErrOutput(), 
+					   CommandError );
+		END;    (* IF *) 	
+	    END;    (* LOOP *) 
+	    IF NOT EvaluateTestCase( TestDataRead, TestResultsWrite,
+				     TestResultsCompare, TestData, 
+				     Msg ) 
+	    THEN
+		TestIO.WriteTail( GenTestIO.GetErrOutput(),
+				  TestIO.MsgTab[ Msg ] );
+		IF NOT Interactive THEN
+		    ProgErr.Terminate( "" );
+		    RETURN ;
+		END;
+            ELSE
+		TestIO.WriteTail( GenTestIO.GetErrOutput(),
+				  TestIO.MsgTab[ Msg ] );
+            END;    (* IF NOT EvaluateTestCase *)
+	    TestIO.WriteSeparator( Separator );
+	END;    (* LOOP *) 
+
+    END RunTest; 
+(* --------------------------------------------------------------------- *)
+@IF NoNotices THEN
+    VAR
+	oldTerminationHandler : ProgErr.TerminationHandler;
+    PROCEDURE TerminationNotice( terminationMode : ProgErr.TerminationModes );
+@ELSE
+    PROCEDURE TerminationNotice( terminationMode : SYSTEM.ADDRESS );
+@END (* NoNotices *)
+
+    BEGIN
+	IF Deviant THEN 
+	    Strings.Concat( ModuleName, ": deviance test #", 
+			    MainMessage )
+	ELSE
+	    Strings.Concat( ModuleName, ": conformance test #", 
+			    MainMessage )
+	END;
+	DONTCARE:= CardConvert.ToString( TestNr, 10, 0, NrStr );
+	Strings.Concat( MainMessage, NrStr, MainMessage );
+	IF NOT Interactive THEN
+	    @IF NoNotices THEN
+		IF terminationMode = ProgErr.normalTermination THEN
+	    @ELSE
+		IF terminationMode = Notices.normalTermination THEN
+	    @END (* NoNotices *)
+		IF Deviant THEN
+		    Strings.Concat( MainMessage, 
+				    " FAILED", MainMessage );
+		    TestIO.WriteTail( GenTestIO.GetOutput(), 
+				      MainMessage );
+		    TestIO.Write( GenTestIO.GetOutput(), 
+				  "should have blown" );
+		    TestIO.WriteLn( GenTestIO.GetOutput() ); 
+		ELSE    
+		    Strings.Concat( MainMessage, " PASSED", 
+				    MainMessage );
+		    TestIO.WriteTail( GenTestIO.GetOutput(), 
+				      MainMessage )
+		END    (* if deviant *)
+	    ELSE
+		IF ( Msg = 0 ) OR ( Msg > 7 ) THEN
+		    IF Deviant THEN
+			Strings.Concat( MainMessage, " PASSED", 
+					MainMessage );
+			TestIO.WriteTail( GenTestIO.GetOutput(), 
+					  MainMessage );
+			TestIO.WriteTail( GenTestIO.GetErrOutput(), 
+			                  TestIO.MsgTab[ Msg ] );
+		    ELSE
+			Strings.Concat( MainMessage, " FAILED", 
+					MainMessage );
+			TestIO.WriteTail( GenTestIO.GetOutput(), 
+					  MainMessage );
+			TestIO.WriteTail( GenTestIO.GetErrOutput(),
+					  TestIO.MsgTab[ Msg ] );
+		    END;    (* if deviant *)
+		ELSE
+
+		(* The Msg - values between 1 and 7 represent
+		   internal errors like IO - errors *)
+
+                    Strings.Concat( ModuleName, ": CRASH", MainMessage ); 
+		    TestIO.WriteTail( GenTestIO.GetOutput(), 
+		                      MainMessage );
+		    TestIO.WriteTail( GenTestIO.GetErrOutput(),
+				      TestIO.MsgTab[ Msg ] );
+		END;    (* if Msg *)
+	    END    (* if terminationMode *)
+        ELSE
+	    IF terminationMode # Notices.normalTermination THEN
+		IF Msg = 0 THEN 
+		    TestIO.WriteTail( GenTestIO.GetOutput(), 
+				      TestIO.MsgTab[ Msg ] );
+                END;
+            END;
+        END;    (* if not interactive *)
+
+	@IF NoNotices THEN
+	    oldTerminationHandler( terminationMode );
+	@END (* NoNotices *)
+
+    END TerminationNotice;
+(* --------------------------------------------------------------------- *)
+    
+BEGIN
+    TestIO.AssignMessage( SyntaxError, "syntax error" );
+    TestIO.AssignMessage( WrongData, "wrong data" ); 
+    TestIO.AssignMessage( InputError, "input error" );
+    TestIO.AssignMessage( CommandError, "command not found" );
+
+    NameLists.Create( Commands, NameLists.forwardSorted, 
+		      NameLists.caseInsensitive );
+    Objects.CreateManager( InfoMgr, SYSTEM.TSIZE( infoRec ),
+			   "TheBigBoss" );
+    Objects.CreateManager( PromptMgr, SYSTEM.TSIZE( promptLine ),
+			   "TheBoss" );
+    CreatePromptLine( PromptMgr );
+    Deviant:= FALSE;
+    TestNr:= 0;
+    Msg:= 0;
+    @IF NOT NoProgArgs THEN
+	ProgArgs.RegisterBoolHandler( "deviant", 
+				      ProgArgs.DefaultBoolHandler,
+				      SYSTEM.ADR( Deviant ) );
+	ProgArgs.RegisterCardHandler( "test#", 
+				      ProgArgs.DefaultCardHandler,
+				      SYSTEM.ADR( TestNr ) );
+	IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	    TestIO.Write( GenTestIO.GetOutput(), "Usage: program [ -in file ]" );
+	    TestIO.Write( GenTestIO.GetOutput(), " [-out file]" );
+	    TestIO.Write( GenTestIO.GetOutput(), " [-log file]" );
+	    TestIO.Write( GenTestIO.GetOutput(), " [-deviant]" );
+	    TestIO.Write( GenTestIO.GetOutput(), " [-test# nr]" );
+	    TestIO.WriteLn( GenTestIO.GetOutput() );
+	    ProgErr.Terminate( "" );
+	END;
+    @END (* NOT NoProgArgs *)
+
+    Interactive:= GenTestIO.IsInteractive( GenTestIO.GetInput() )AND  
+                  GenTestIO.IsInteractive( GenTestIO.GetErrOutput() ) ; 
+    @IF NoNotices THEN
+	ProgErr.InstallTerminationHandler( TerminationNotice, 
+					   oldTerminationHandler );
+    @ELSE
+	Notices.Register( Notices.GetTerminationNotice(),
+			  TerminationNotice );
+    @END (* NoNotices *)
+
+END TestSystem.

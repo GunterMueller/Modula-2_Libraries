@@ -1,0 +1,125 @@
+.TH M2PP 1L  "2 September 1987"
+.       \" LS - listing start
+.de LS
+.in +.5i
+.sp
+.nf
+.na
+..
+.       \" LE - listing end
+.de LE
+.sp
+.in -.5i
+.ft \\n(PQ
+.fi
+.ad
+..
+.SH NAME
+m2pp \- preprocess Modula\-2 files.
+.SH SYNOPSIS
+m2pp [ \-D \fItrue\-variable\fP ] [ \-U \fIfalse\-variable\fP ] [ \-w ] \
+[ \-Strip ] [ \fIinput\fP [ \fIoutput\fP ] ]
+.SH DESCRIPTION
+.IX  m2pp  ""  "\fLm2pp\fP \(em preprocess Modula-2 files."
+.IX  files  "m2pp command"  files  "*.mpp" files "*.dpp"
+\fIm2pp\fP allows compile time inclusion and exclusion of Modula-2. 
+The syntax is identical to Modula\-2 with the exception that certain
+keywords are prefixed with an \fI@\fP.  The preprocessor is patterned
+after the \fB#ifdef\fP construct supported by \fIcpp(1)\fP.  However,
+the difference is that there is no equivalent to \fB#define\fP and
+\fB#undefine\fP in \fIm2pp\fP syntax.  All defines and undefines 
+must be passed on the command line to the preprocessor 
+(via the \fB-D\fP and \fB-U\fP flags, respectively).
+.LP
+The input is by default standard output or may be specified on the command line.
+The output may be specified on the command line, but only if the input is
+specified as well.  Otherwise, standard output is used as the default output.
+The \fB\-w\fP flag is only legal if the output file is specified.
+.SH SYNTAX
+The syntax is described completely in the \fIModula\-2 Preprocessor Manual\fP. 
+The control variables (defines) are treated as boolean variables:
+\fItrue\fP variables are specified by the \fB\-D\fP flag and 
+\fIfalse\fP variables are declared via the \fB\-U\fP flag (or the
+lack of a \fB\-D\fP flag).  Modula-2 source is included or excluded
+by the statement, the \fIif\-then\-else\fP.  For example,
+.LS
+@IF SomeVariable THEN
+    Include this code;
+@ELSE
+    Exclude this code;
+@END
+.LE
+The \fISomeVariable\fP can be replaced by an expression.  The syntax
+is exactly the same as Modula-2 boolean expressions excluding the 
+relational operators, that is, parentheses, \fINOT\fP, \fIAND\fP,
+and \fIOR\fP.  The only keywords which are different are the
+\fI@IF\fP, \fI@ELSIF\fP, \fI@ELSE\fP, 
+and \fI@END\fP, because the \fIm2pp\fP needs
+to distinguish between Modula-2 and the preprocessor language.
+.LP
+The syntax of the file is free format, thus it really is identical to
+Modula-2.  The only difference is that comments may not appear between
+the \fI@IF\fP and the \fI@THEN\fP keywords.  The language is case
+sensitive as with Modula-2.
+.SH OPTIONS
+.TP
+\fB\-D\fP
+True variable: defines a variable to be true.  Note this overrides
+a preceding (from left to right) false declaration.
+.TP
+\fB\-U\fP
+Print only: do not perform actions, just print them.
+.TP
+\fB\-w\fP
+Writable output: if the output file is specified on the command line
+it is by default \fIread-only\fP (not available on the PC).  This flag
+overrides the default which means that the output file will be writable.
+.TP
+\fB\-Strip\fP
+causes the output to be devoid of comments.  This makes compiling
+a bit faster, but the resulting output harder to read.  Semantic valued
+comments (i.e. comments that begin with `$') are \fInot stripped\fP.
+.SH ENVIRONMENT
+.TP
+\fBM2ppVars\fP
+allows you to specify a list of true variables (separated by colons ":").
+These variables may be undefined by the \fI\-U\fP option.
+.SH EXAMPLES
+.LP
+The following are all legal examples of input to \fIm2pp\fP:
+.LS
+@IF Var1   OR   NOT ( Var2 AND Var3 ) THEN SomeModula2Code @END
+@IF SomeExpression AND 
+    NOT OtherExpression THEN
+SomeOtherModula2Code;
+@ELSE SomeModula2Code; @END
+@IF var2 THEN
+    @IF var3 THEN
+    @END
+@ELSE
+@END
+.LE
+.SH "STANDARD VARIABLES"
+The preprocessor only has two predefined variables: \fITRUE\fP and
+\fIFALSE\fP.  Normally, \fIm2pp\fP is invoked by \fImake(1)\fP whose
+makefiles have been created by \fIbuildmake(l)\fP.  As a result,
+there are several \fIdefault\fP preprocessor flags which are normally
+defined.  These flags are structured in such a way as to allow the
+programmer to clearly identify the system dependent aspects of the
+the modules and in which way they are dependent.  There are three
+areas of system dependency: language processor, system architecture,
+and operating system.  For example, \fILogitechM2\fP defines the
+language processor \fILogitech\fP, \fISunArch\fP defines the 
+Sun system architecture, and \fIMsDosOS\fP defines the Microsoft
+Operating System DOS.  For a complete list of pre-defined
+variables, see the configuration files for bindepend(l).
+.SH "SEE ALSO"
+m2c(1), m2l(1), buildmake(l), make(1), bindepend(l).
+.SH BUGS
+There is a problem with extremely long lines and comment strip mode.
+In the event the `(' and `*' are in two separate buffers,
+the comment will not be stripped.  Comments with semantic meaning will
+be stripped if the `$' is in a separate buffer from the comment
+bracket `(*'.  The buffer size is 
+\fBGenConsts.maxLineLength\fP (which in the distributed version of
+the library is 100 characters).

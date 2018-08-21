@@ -1,0 +1,52 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE UnixIONames;
+(*
+ * This module is needed for all modules that call Unix with
+ * paths. It provides a routine called CopyPath which makes sure
+ * the resulting path is an ASCIIZ string (as required by Unix).
+ *)
+IMPORT 
+    IOConsts;
+
+EXPORT QUALIFIED 
+    CopyPath,
+    Path;
+
+TYPE
+    Path = ARRAY[ 0 .. IOConsts.maxPathLength ] OF CHAR;
+    (*
+     * This is one longer than IOConsts.Path, to
+     * guarantee a place for null-char at the end.
+     *)
+
+PROCEDURE CopyPath(
+    (*IN*)VAR source : ARRAY OF CHAR;  (* User supplied string *)
+          VAR dest   : Path            (* Where to copy string *)
+    )                : BOOLEAN;        (* Copy and null-termination => TRUE *)
+    (*
+     * Attempt to copy "source" to "dest", ensuring string fits
+     * and null character terminates for ASCIIZ name format.
+     *)
+
+END UnixIONames.

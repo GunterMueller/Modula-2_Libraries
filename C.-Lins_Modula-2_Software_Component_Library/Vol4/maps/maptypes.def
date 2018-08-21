@@ -1,0 +1,71 @@
+DEFINITION MODULE MapTypes; 
+(*==============================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Map Structure Utility - Standard Types
+
+    THE ABSTRACTION
+    This module provides centralized definitions of the operations
+    and exceptions for all map modules.
+
+    REVISION HISTORY
+    v1.01  04 May 1988  C. Lins:
+        Initial TML Modula-2 implementation
+    v1.02  18 Apr 1989  C. Lins:
+        Added component id constant.
+   v1.03   8/26/89     CL      Add duplicate binding exception.
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+==============================================================*)
+
+CONST ComponentID = 256 * 8;   (*-- must be a multiple of 256 *)
+
+    (*---------------------------------*)
+    (*--        MAP OPERATIONS       --*)
+
+TYPE  Operations = (
+                    (*-- Module Initialization *)
+                    modinit,
+
+                    (*-- Constructors *)
+                    create, destroy, clear, assign,
+                    bind, unbind,
+
+                    (*-- Selectors *)
+                    isdefined, isempty, isequal, sizeof,
+                    extentof, domainof, rangeof,
+                    isbound, boundto, isboundto,
+
+                    (*-- Iterators *)
+                    loopover, loopchange, traverse, travchange,
+
+                    (*-- Guarded Concurrent Operations *)
+                    seize, release
+                   );
+
+TYPE  Constructors = Operations [ create    .. unbind     ];
+TYPE  Selectors    = Operations [ isdefined .. isboundto  ];
+TYPE  Iterators    = Operations [ loopover  .. travchange ];
+TYPE  GuardedOps   = Operations [ seize     .. release    ];
+
+
+    (*---------------------------------*)
+    (*--        MAP EXCEPTIONS       --*)
+
+TYPE  Exceptions = (noerr,       (*-- Nothing went wrong, all's well. *)
+                    initfailed,  (*-- Module initialization failure. *)
+                    duplicate,   (*-- Duplicate binding *)
+                    notbound,    (*-- Domain value not bound to range *)
+                    outofdomain, (*-- Value not legal in domain *)
+                    outofrange,  (*-- Value not legal in range *)
+                    overflow,    (*-- Map cannot grow big enough for
+                                   -- the requested operation. *)
+                    typeerror,   (*-- Type mismatch between maps *)
+                    undefined    (*-- Map has not been Created, or
+                                   -- the map has been Destroyed. *)
+                   );
+
+TYPE  ExceptionSet = SET OF Exceptions;
+
+END MapTypes.

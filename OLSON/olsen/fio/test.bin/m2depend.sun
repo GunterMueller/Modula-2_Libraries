@@ -1,0 +1,205 @@
+FIOTest.o: ../bin/FormatIO.sym ../../io/bin/SimpleIO.sym  \
+           ../../io/bin/TextIO.sym 
+FIOTest: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+         ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+         ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+         ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o  \
+         ../bin/FIOPRIVATE.o ../bin/FIOReal.o ../bin/FIOString.o  \
+         ../bin/FormatIO.o ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+         ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+         ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+         ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+         ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+         ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+         ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+         ../../io/bin/RealIO.o ../../gen/bin/SafeStorage.o  \
+         ../../io/bin/SimpleIO.o ../../io/bin/StringIO.o  \
+         ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+         ../../io/bin/TextIO.o ../../io/bin/TextIOPRIVATE.o  \
+         ../../io/bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+         ../../io/bin/UnixIOErrors.o ../../io/bin/UnixIONames.o FIOTest.o 
+tBool.o: ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+         ../../io/bin/SimpleIO.sym ../../io/bin/TextIO.sym 
+tBool: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+       ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+       ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+       ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+       ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o ../bin/FIOPRIVATE.o  \
+       ../bin/FIOReal.o ../bin/FIOString.o ../bin/FormatIO.o  \
+       ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+       ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+       ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+       ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+       ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+       ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+       ../../gen/bin/RealConvert.o ../../io/bin/RealIO.o  \
+       ../../gen/bin/SafeStorage.o ../../io/bin/SimpleIO.o  \
+       ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+       ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+       ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+       ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+       ../../io/bin/UnixIONames.o tBool.o 
+tDataFIO.o: ../bin/DataFIO.sym ../../io/bin/IOConsts.sym  \
+            ../../io/bin/IOVersions.sym ../../gen/bin/Intrinsics.sym  \
+            ../bin/SimpleFIO.sym ../../io/bin/SimpleIO.sym  \
+            ../../gen/bin/Strings.sym 
+tDataFIO: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+          ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+          ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/DataFIO.o  \
+          ../../io/bin/DirIO.o ../bin/FIOBase.o ../bin/FIOBool.o  \
+          ../bin/FIOCard.o ../bin/FIOInt.o ../bin/FIOPRIVATE.o  \
+          ../bin/FIOReal.o ../bin/FIOString.o ../bin/FormatIO.o  \
+          ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+          ../../io/bin/IOErrors.o ../../io/bin/IONames.o  \
+          ../../io/bin/IOVersions.o ../../gen/bin/IntConvert.o  \
+          ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+          ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+          ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+          ../../gen/bin/Objects.o ../../gen/bin/ProgArgs.o  \
+          ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+          ../../gen/bin/RealConvert.o ../../io/bin/RealIO.o  \
+          ../../gen/bin/SafeStorage.o ../bin/SimpleFIO.o  \
+          ../../io/bin/SimpleIO.o ../../io/bin/StringBinaryIO.o  \
+          ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+          ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+          ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+          ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+          ../../io/bin/UnixIONames.o tDataFIO.o 
+tFIOScreen.o: ../../io/bin/CardIO.sym ../bin/FIOScreen.sym  \
+              ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+              ../../io/bin/ScreenIO.sym ../../io/bin/StringIO.sym  \
+              ../../io/bin/TextIO.sym 
+tFIOScreen: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o  \
+            ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+            ../../io/bin/CardIO.o ../../io/bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../../io/bin/ConfBinaryIO.o  \
+            ../bin/ConfFIO.o ../bin/FIOBase.o ../bin/FIOBool.o  \
+            ../bin/FIOCard.o ../bin/FIOInt.o ../bin/FIOPRIVATE.o  \
+            ../bin/FIOReal.o ../bin/FIOScreen.o ../bin/FIOString.o  \
+            ../bin/FormatIO.o ../../gen/bin/GenConsts.o  \
+            ../../io/bin/IOConsts.o ../../io/bin/IOErrors.o  \
+            ../../gen/bin/IntConvert.o ../../io/bin/IntIO.o  \
+            ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+            ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+            ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+            ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+            ../../gen/bin/RealConvert.o ../../io/bin/RealIO.o  \
+            ../../gen/bin/SafeStorage.o ../../io/bin/ScreenIO.o  \
+            ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+            ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+            ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+            ../../io/bin/UnixIONames.o tFIOScreen.o 
+tIntCard.o: ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+            ../../io/bin/SimpleIO.sym ../../gen/bin/SysTypes.sym  \
+            ../../io/bin/TextIO.sym 
+tIntCard: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+          ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+          ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+          ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o  \
+          ../bin/FIOPRIVATE.o ../bin/FIOReal.o ../bin/FIOString.o  \
+          ../bin/FormatIO.o ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+          ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+          ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+          ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+          ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+          ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+          ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+          ../../io/bin/RealIO.o ../../gen/bin/SafeStorage.o  \
+          ../../io/bin/SimpleIO.o ../../io/bin/StringIO.o  \
+          ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+          ../../io/bin/TextIO.o ../../io/bin/TextIOPRIVATE.o  \
+          ../../io/bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+          ../../io/bin/UnixIOErrors.o ../../io/bin/UnixIONames.o tIntCard.o 
+tIsValid.o: ../../gen/bin/Objects.sym ../bin/SimpleFIO.sym 
+tIsValid: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+          ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+          ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+          ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+          ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o  \
+          ../bin/FIOPRIVATE.o ../bin/FIOReal.o ../bin/FIOString.o  \
+          ../bin/FormatIO.o ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+          ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+          ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+          ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+          ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+          ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+          ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+          ../../io/bin/RealIO.o ../../gen/bin/SafeStorage.o  \
+          ../bin/SimpleFIO.o ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+          ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+          ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+          ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+          ../../io/bin/UnixIONames.o tIsValid.o 
+tReal.o: ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+         ../../io/bin/SimpleIO.sym ../../gen/bin/SysTypes.sym  \
+         ../../io/bin/TextIO.sym 
+tReal: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+       ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+       ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+       ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+       ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o ../bin/FIOPRIVATE.o  \
+       ../bin/FIOReal.o ../bin/FIOString.o ../bin/FormatIO.o  \
+       ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+       ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+       ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o ../../gen/bin/Lists.o  \
+       ../../gen/bin/ModInit.o ../../gen/bin/NameLists.o  \
+       ../../gen/bin/Notices.o ../../gen/bin/Objects.o  \
+       ../../gen/bin/ProgErr.o ../../gen/bin/ProgErrOutput.o  \
+       ../../gen/bin/RealConvert.o ../../io/bin/RealIO.o  \
+       ../../gen/bin/SafeStorage.o ../../io/bin/SimpleIO.o  \
+       ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+       ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+       ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+       ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+       ../../io/bin/UnixIONames.o tReal.o 
+tSimpleFIO.o: ../../io/bin/IOErrors.sym ../bin/SimpleFIO.sym  \
+              ../../io/bin/SimpleIO.sym ../../gen/bin/SysTypes.sym  \
+              ../../io/bin/TextIO.sym 
+tSimpleFIO: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o  \
+            ../../gen/bin/Bytes.o ../../gen/bin/CardConvert.o  \
+            ../../io/bin/CardIO.o ../../io/bin/CatBinaryIO.o  \
+            ../../gen/bin/Chars.o ../../io/bin/ConfBinaryIO.o  \
+            ../bin/ConfFIO.o ../bin/FIOBase.o ../bin/FIOBool.o  \
+            ../bin/FIOCard.o ../bin/FIOInt.o ../bin/FIOPRIVATE.o  \
+            ../bin/FIOReal.o ../bin/FIOString.o ../bin/FormatIO.o  \
+            ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+            ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+            ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+            ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+            ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+            ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+            ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+            ../../io/bin/RealIO.o ../../gen/bin/SafeStorage.o  \
+            ../bin/SimpleFIO.o ../../io/bin/SimpleIO.o  \
+            ../../io/bin/StringIO.o ../../gen/bin/Strings.o  \
+            ../../gen/bin/SysTypes.o ../../io/bin/TextIO.o  \
+            ../../io/bin/TextIOPRIVATE.o ../../io/bin/UnixBinaryIO.o  \
+            ../../gen/bin/UnixError.o ../../io/bin/UnixIOErrors.o  \
+            ../../io/bin/UnixIONames.o tSimpleFIO.o 
+tString.o: ../bin/FormatIO.sym ../../io/bin/IOErrors.sym  \
+           ../../io/bin/SimpleIO.sym ../../io/bin/TextIO.sym 
+tString: ../../gen/bin/ASCII.o ../../io/bin/BinaryIO.o ../../gen/bin/Bytes.o  \
+         ../../gen/bin/CardConvert.o ../../io/bin/CardIO.o  \
+         ../../io/bin/CatBinaryIO.o ../../gen/bin/Chars.o  \
+         ../../io/bin/ConfBinaryIO.o ../bin/ConfFIO.o ../bin/FIOBase.o  \
+         ../bin/FIOBool.o ../bin/FIOCard.o ../bin/FIOInt.o  \
+         ../bin/FIOPRIVATE.o ../bin/FIOReal.o ../bin/FIOString.o  \
+         ../bin/FormatIO.o ../../gen/bin/GenConsts.o ../../io/bin/IOConsts.o  \
+         ../../io/bin/IOErrors.o ../../gen/bin/IntConvert.o  \
+         ../../io/bin/IntIO.o ../../gen/bin/Intrinsics.o  \
+         ../../gen/bin/Lists.o ../../gen/bin/ModInit.o  \
+         ../../gen/bin/NameLists.o ../../gen/bin/Notices.o  \
+         ../../gen/bin/Objects.o ../../gen/bin/ProgErr.o  \
+         ../../gen/bin/ProgErrOutput.o ../../gen/bin/RealConvert.o  \
+         ../../io/bin/RealIO.o ../../gen/bin/SafeStorage.o  \
+         ../../io/bin/SimpleIO.o ../../io/bin/StringIO.o  \
+         ../../gen/bin/Strings.o ../../gen/bin/SysTypes.o  \
+         ../../io/bin/TextIO.o ../../io/bin/TextIOPRIVATE.o  \
+         ../../io/bin/UnixBinaryIO.o ../../gen/bin/UnixError.o  \
+         ../../io/bin/UnixIOErrors.o ../../io/bin/UnixIONames.o tString.o 
+${M2Programs}: 
+	${StandardM2link}

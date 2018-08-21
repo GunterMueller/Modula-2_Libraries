@@ -1,0 +1,71 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE IOConsts;
+(* 
+ * The names in this module are defined for all implementations,
+ * but the values are system specific. They should thus only be
+ * used symbolically.
+ *
+ * The following system configuration is supported by this module:
+ *     CPU      : Intel 86/88 family
+ *     OS       : MS-DOS 2.X/3.X
+ *     Compiler : Logitech 2.0, 3.0
+ *)
+EXPORT QUALIFIED
+    maxPathLength,
+    Path,
+    maxEntryLength,
+    maxBaseLength,
+    maxSuffixLength,
+    Entry,
+    Base,
+    Suffix;
+
+CONST 
+    maxPathLength = 128;  (* This is probably DOS max *)
+TYPE
+    Path = ARRAY[ 0 .. maxPathLength - 1 ] OF CHAR;
+    (*
+     * A Path is a general identification for IO objects.  
+     *
+     * These objects can be binary files, text files,
+     * directory entries or whatever else is supported.
+     *)
+
+CONST
+    maxBaseLength   = 8;
+    maxSuffixLength = 3;
+    maxEntryLength  = maxBaseLength + 1 + maxSuffixLength;
+    (* 
+     * Some declarations used by IONames and DirIO.
+     *
+     * A path is composed of a bunch of entries separated by
+     * directory separators. Each entry is a combination of
+     * a base and a suffix.  
+     *)
+TYPE
+    Entry  = ARRAY[ 0 .. maxEntryLength  - 1 ] OF CHAR;
+    Base   = ARRAY[ 0 .. maxBaseLength   - 1 ] OF CHAR;
+    Suffix = ARRAY[ 0 .. maxSuffixLength - 1 ] OF CHAR;
+
+END IOConsts.

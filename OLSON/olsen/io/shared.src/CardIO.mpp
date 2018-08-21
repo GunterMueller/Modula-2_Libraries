@@ -1,0 +1,395 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE CardIO;
+(*
+ * RJN - Perhaps this should be split into two modules?  Logitech
+ *       is definitely not nice stuff.
+ *)
+
+IMPORT 
+    CardConvert,
+    Chars,
+    IOErrors,
+    StringIO,
+    Strings,
+    SysTypes,
+    SYSTEM,
+    TextIO;
+
+@IF LogitechM2 THEN
+    IMPORT
+	Card32,		Intrinsics;
+    TYPE
+	MaxCardString = ARRAY [ 0 .. 32 ] OF CHAR;  
+	   (* 
+	    * SysTypes.CARDINAL32 is the largest cardinal converted by this
+	    * module, so the number is 32 + 1 + 1 ( -1 for zero based array).
+	    *)
+@ELSE
+    TYPE
+	MaxCardString = ARRAY [ 0 .. SysTypes.bitsPerCard ] OF CHAR;
+@END
+
+TYPE
+    ScanStates = (
+	nothingRead,	(* Haven't been called *)
+	ok,		(* Read something (so far so good) *)
+	overflow 	(* got overflow, still reading *)
+    );
+
+    ScanInfoRec = RECORD
+	readBase          : Chars.Bases;  (* Which base to do the conversion *)
+	value             : SysTypes.Card;(* Initialized to zero *)
+	state             : ScanStates;	  (* Initialized to nothingRead *)
+	maxBeforeMultiply : SysTypes.Card;(* SysTypes.MAX* DIV base *)
+    END;
+    ScanInfoPtr = POINTER TO ScanInfoRec;
+
+PROCEDURE Scanner(
+    infoAdr : SysTypes.ANYPTR;
+    toScan  : CHAR
+    )       : BOOLEAN;
+    (* 
+     * Read characters until non-number.  If overflow, keep reading but
+     * mark as error in record.
+     *)
+    VAR
+	digit   : SysTypes.Card;
+	infoPtr : ScanInfoPtr;
+    BEGIN (* Scanner *)
+
+	infoPtr := infoAdr;
+
+	WITH infoPtr^ DO
+	    digit := Chars.ToDigit( toScan );
+	    IF digit >= readBase THEN
+		RETURN FALSE;	(* caller will set error properly *)
+	    END;
+
+	    (* Have a valid digit, but don't know whether to keep going *)
+	    IF state # overflow THEN
+		IF value > maxBeforeMultiply THEN 
+		    state := overflow;
+		ELSE
+		    value := value * readBase;
+		    IF SysTypes.MAXCard - value < digit THEN
+			state := overflow;
+		    ELSE
+			INC( value, digit );
+			state := ok;
+		    END;
+		END;
+	    END;
+	END; (* WITH *)
+
+	RETURN TRUE;
+    END Scanner;
+
+
+
+PROCEDURE Read(
+        file   : TextIO.Object;
+    VAR toRead : SysTypes.Card
+    )          : TextIO.States;
+    VAR
+	state : TextIO.States;
+	scanInfoRec : ScanInfoRec;
+    BEGIN (* Read *)
+
+	WITH scanInfoRec DO
+	    readBase  := 10; 
+	    value     := 0; 
+	    state     := nothingRead; 
+	    maxBeforeMultiply := SysTypes.MAXCard DIV 10;
+	END;
+	state := TextIO.Scan( file, Scanner, SYSTEM.ADR( scanInfoRec ),
+			      TextIO.skipLeadingWhiteSpace );
+	IF state = TextIO.ok THEN
+	    IF scanInfoRec.state # ok THEN
+		RETURN TextIO.SetError( file, IOErrors.badData );
+	    END;
+	    toRead := scanInfoRec.value;
+	END;
+
+	RETURN state;
+    END Read;
+
+
+@IF NOT LogitechM2 THEN
+    PROCEDURE Read32(
+            file   : TextIO.Object;
+        VAR toRead : SysTypes.CARDINAL32
+        )          : TextIO.States;
+    BEGIN (* Read32 *)
+
+	RETURN Read( file, toRead );
+
+    END Read32;
+
+@ELSE (* LogitechM2 *)
+    TYPE
+	ScanInfoRec32 = RECORD
+	    readBase       : SysTypes.Card;	 (* Which base to do the conversion *)
+	    readBase32     : SysTypes.CARDINAL32; 
+	    value          : SysTypes.CARDINAL32;(* Initialized to zero *)
+	    state          : ScanStates;	(* Initialized to nothingRead *)
+	    maxBeforeMultiply : SysTypes.CARDINAL32; (* SysTypes.MAX* DIV base *)
+	END;
+	ScanInfoPtr32 = POINTER TO ScanInfoRec32;
+
+    PROCEDURE Scanner32(
+        infoAdr : SysTypes.ANYPTR;
+	toScan  : CHAR
+        )       : BOOLEAN;
+	(* 
+	 * Read characters until non-number.  If overflow, keep reading but
+	 * mark as error in record.
+	 *)
+	VAR
+	    digit   : SysTypes.Card;
+	    digit32 : SysTypes.CARDINAL32;
+	    tmp     : SysTypes.CARDINAL32;
+	    infoPtr : ScanInfoPtr32;
+	BEGIN (* Scanner32 *)
+
+	    infoPtr := infoAdr;
+
+	    WITH infoPtr^ DO
+		digit := Chars.ToDigit( toScan );
+		IF digit >= readBase THEN
+		    (* Could be error, but that is up to the caller *)
+		    RETURN FALSE; 
+		END;
+
+		(* Have a valid digit, but don't know whether to keep going *)
+		IF state # overflow THEN
+		    Card32.FromCard16( digit, 0, digit32 );
+		    IF Card32.Compare( value, maxBeforeMultiply ) = 
+			Intrinsics.greater THEN
+			state := overflow;
+		    ELSE
+			Card32.Multiply( value, readBase32, value );
+			Card32.Subtract( MAXCARDINAL32, value, tmp );
+			IF Card32.Compare( tmp, digit32 ) = Intrinsics.less THEN
+			    state := overflow;
+			ELSE
+			    Card32.Add( value, digit32, value );
+			    state := ok;
+			END;
+		    END;
+		END;
+	    END; (* WITH *)
+
+	    RETURN TRUE;
+	END Scanner32;
+    VAR
+	ten32                  : SysTypes.CARDINAL32;  (* Makes faster *)
+	maxBeforeMultiplyTen32 : SysTypes.CARDINAL32;
+	MAXCARDINAL32	       : SysTypes.CARDINAL32;
+
+    PROCEDURE Read32(
+            file   : TextIO.Object;
+        VAR toRead : SysTypes.CARDINAL32
+        )          : TextIO.States;
+	VAR
+	    state       : TextIO.States;
+	    scanInfoRec : ScanInfoRec32;
+	BEGIN (* Read32 *)
+
+	    WITH scanInfoRec DO
+		readBase := 10; 
+		readBase32 := ten32;
+		Card32.Zero( value );
+		state := nothingRead; 
+		maxBeforeMultiply := maxBeforeMultiplyTen32;
+	    END;
+	    state := TextIO.Scan( file, Scanner32, SYSTEM.ADR( scanInfoRec ),
+				  TextIO.skipLeadingWhiteSpace );
+	    IF state = TextIO.ok THEN
+		IF scanInfoRec.state # ok THEN
+		    RETURN TextIO.SetError( file, IOErrors.badData );
+		END;
+		toRead := scanInfoRec.value;
+	    END;
+
+	    RETURN state;
+	END Read32;
+
+@END (* LogitechM2 *)
+
+
+PROCEDURE ReadBase(
+        file   : TextIO.Object;
+	base   : Chars.Bases;
+    VAR toRead : SysTypes.Card
+    )          : TextIO.States;
+    VAR
+	state : TextIO.States;
+	scanInfoRec : ScanInfoRec;
+    BEGIN (* ReadBase *)
+
+	WITH scanInfoRec DO
+	    readBase := base; 
+	    value    := 0; 
+	    state    := nothingRead; 
+	    maxBeforeMultiply := SysTypes.MAXCard DIV base;
+	END;
+	state := TextIO.Scan( file, Scanner, SYSTEM.ADR( scanInfoRec ),
+			      TextIO.skipLeadingWhiteSpace );
+	IF state = TextIO.ok THEN
+	    IF scanInfoRec.state # ok THEN
+		RETURN TextIO.SetError( file, IOErrors.badData );
+	    END;
+	    toRead := scanInfoRec.value;
+	END;
+
+	RETURN state;
+    END ReadBase;
+
+
+@IF NOT LogitechM2 THEN
+    PROCEDURE ReadBase32(
+            file   : TextIO.Object;
+	    base   : Chars.Bases;
+	VAR toRead : SysTypes.CARDINAL32
+        )          : TextIO.States;
+	BEGIN (* ReadBase32 *)
+
+	    RETURN ReadBase( file, base, toRead );
+
+	END ReadBase32;
+
+@ELSE (* LogitechM2 *)
+
+    PROCEDURE ReadBase32(
+            file   : TextIO.Object;
+            base   : Chars.Bases;
+        VAR toRead : SysTypes.CARDINAL32
+        )          : TextIO.States;
+	VAR
+	    state       : TextIO.States;
+	    scanInfoRec : ScanInfoRec32;
+	BEGIN (* ReadBase32 *)
+
+	    WITH scanInfoRec DO
+		readBase := base; 
+		Card32.FromCard16( base, 0, readBase32 );
+		Card32.Zero( value );
+		state := nothingRead; 
+		Card32.Divide( MAXCARDINAL32, readBase32, maxBeforeMultiply );
+	    END;
+	    state := TextIO.Scan( file, Scanner32, SYSTEM.ADR( scanInfoRec ),
+				  TextIO.skipLeadingWhiteSpace );
+	    IF state = TextIO.ok THEN
+		IF scanInfoRec.state # ok THEN
+		    RETURN TextIO.SetError( file, IOErrors.badData );
+		END;
+		toRead := scanInfoRec.value;
+	    END;
+
+	    RETURN state;
+	END ReadBase32;
+
+@END (* LogitechM2 *)
+
+
+PROCEDURE Write(
+    file    : TextIO.Object;
+    toWrite : SysTypes.Card;
+    width   : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	str      : MaxCardString;
+	DONTCARE : BOOLEAN;
+    BEGIN (* Write *)
+
+	DONTCARE := CardConvert.ToString( toWrite, 10, 0, str );
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+            Strings.justifyRight, width, ' ' );
+    END Write;
+
+
+PROCEDURE Write32(
+    file    : TextIO.Object;
+    toWrite : SysTypes.CARDINAL32;
+    width   : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	str      : MaxCardString;
+	DONTCARE : BOOLEAN;
+    BEGIN (* Write32 *)
+
+	DONTCARE := CardConvert.ToString32( toWrite, 10, 0, str );
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+            Strings.justifyRight, width, ' ' );
+    END Write32;
+
+
+PROCEDURE WriteBase(
+    file    : TextIO.Object;
+    toWrite : SysTypes.Card;
+    base    : Chars.Bases;
+    width   : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	str      : MaxCardString;
+	DONTCARE : BOOLEAN;
+    BEGIN (* WriteBase *)
+
+	DONTCARE := CardConvert.ToString( toWrite, base, 0, str );
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+            Strings.justifyRight, width, ' ' );
+    END WriteBase;
+
+
+PROCEDURE WriteBase32(
+    file    : TextIO.Object;
+    toWrite : SysTypes.CARDINAL32;
+    base    : Chars.Bases;
+    width   : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	str      : MaxCardString;
+	DONTCARE : BOOLEAN;
+    BEGIN (* WriteBase32 *)
+
+	DONTCARE := CardConvert.ToString32( toWrite, base, 0, str );
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+            Strings.justifyRight, width, ' ' );
+    END WriteBase32;
+
+
+@IF LogitechM2 THEN
+
+    BEGIN (* CardIO *)
+	Card32.FromCard16( 10, 0, ten32 );
+	SysTypes.MAXCARDINAL32( MAXCARDINAL32 );
+	Card32.Divide( MAXCARDINAL32, ten32, maxBeforeMultiplyTen32 );
+
+@END (* LogitechM2 *)
+
+END CardIO.

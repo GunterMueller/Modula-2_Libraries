@@ -1,0 +1,135 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tTaskTime;
+IMPORT
+    Tasks,	TaskConsts, 	ProgErrOutput, 	ProgArgs,
+    SYSTEM,	ProgErr,	CardConvert,
+    Strings,	TaskTime,	TaskDebug,	TaskNotices,
+    Notices;
+
+VAR
+    timeToSleep : CARDINAL;	(* Set by StartTask and read by Sleeper *)
+
+CONST
+    sleeperPriority  = TaskConsts.defaultPriority + 1;
+    sleeperStackSize = TaskConsts.minStackSize * 2;
+PROCEDURE Sleeper( DONTCARE : SYSTEM.ADDRESS );
+    VAR
+	myName : TaskConsts.Name;
+    BEGIN (* Sleeper *)
+	
+	Tasks.GetName( Tasks.GetCurrent(), myName );
+
+	TaskTime.Sleep( timeToSleep );
+
+	ProgErrOutput.WriteString( "Exiting " );
+	ProgErrOutput.WriteString( myName );
+	ProgErrOutput.WriteLn;
+
+    END Sleeper;
+
+VAR
+    previousTask : Tasks.Object;
+PROCEDURE WakeUpPreviousTask( DONTCARE1 : ProgArgs.String;
+			     DONTCARE2 : SYSTEM.ADDRESS )
+				       : BOOLEAN;
+    BEGIN (* WakeUpPreviousTask *)
+
+	TaskTime.WakeUp( previousTask );
+
+	RETURN TRUE;
+
+    END WakeUpPreviousTask;
+
+
+PROCEDURE PrintStatus( DONTCARE1 : ProgArgs.String;
+		       DONTCARE2 : SYSTEM.ADDRESS )
+				 : BOOLEAN;
+    BEGIN (* PrintStatus *)
+
+	TaskDebug.PrintAll;
+
+	RETURN TRUE;
+
+    END PrintStatus;
+
+VAR
+    numTasks        : CARDINAL;
+PROCEDURE StartTask( temporary : ProgArgs.String;
+		     DONTCARE2 : SYSTEM.ADDRESS;
+		     toSleep   : ProgArgs.String )
+			       : BOOLEAN;
+    VAR
+	DONTCARE : BOOLEAN;
+    BEGIN (* StartTask *)
+	
+	(* Convert the time to sleep first *)
+	IF NOT CardConvert.FromString( toSleep, 10, timeToSleep ) THEN
+	    ProgErrOutput.WriteString( "Couldn't convert '" );
+	    ProgErrOutput.WriteString( toSleep );
+	    ProgErrOutput.WriteString( "' to a cardinal." );
+	    ProgErrOutput.WriteLn;
+	    RETURN FALSE;
+	END;
+
+	(* Make the name *)
+	INC( numTasks );
+	DONTCARE := CardConvert.ToString( numTasks, 10, 0, temporary );
+	Strings.Insert( temporary, Strings.BOS, "Sleeper" );
+
+	ProgErrOutput.WriteString( "Creating " );
+	ProgErrOutput.WriteString( temporary );
+	ProgErrOutput.WriteString( " to sleep for " );
+	ProgErrOutput.WriteString( toSleep );
+	ProgErrOutput.WriteLn;
+
+	(* Let 'er rip! *)
+	Tasks.Create( previousTask, temporary, Sleeper, Tasks.DONTCARE, 
+		      sleeperPriority, sleeperStackSize );
+	
+	RETURN TRUE;
+
+    END StartTask;
+
+
+VAR
+    task : Tasks.Object;
+BEGIN (* tTaskTime *)
+
+    numTasks := 0;
+    ProgArgs.RegisterBoolHandler( "wakeup", WakeUpPreviousTask, NIL );
+    ProgArgs.RegisterBoolHandler( "status", PrintStatus, NIL );
+    ProgArgs.RegisterUnflaggedHandler( StartTask, NIL );
+
+    IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	ProgErr.Terminate( 
+	   "Usage: tTaskTime { sleep-amounts | /wakeup /status }" );
+    END;
+
+    ProgErrOutput.WriteString( "Exiting main program" );
+    ProgErrOutput.WriteLn;
+
+    (* For TaskDebug *)
+    Notices.Call( TaskNotices.GetExitRequest(), Notices.DONTCARE );
+
+END tTaskTime.

@@ -1,0 +1,3 @@
+M2Defs= keyinput.def lowlevel.def maze.def screen.def 
+M2Imps= keyinput.mod lowlevel.mod maze.mod screen.mod 
+M2Mods= solver.mod 

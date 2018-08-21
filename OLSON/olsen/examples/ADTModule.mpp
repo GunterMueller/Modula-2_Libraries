@@ -1,0 +1,291 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE ADTModule;
+(*
+ * This is a dummy implementation module for the operations specified
+ * in the definition module.  It doesn't really do much except show you
+ * how to set up the boiler plate for an ADT module.  Pay particular
+ * attention to the use of Assert and Debug preprocessor control, because
+ * they may be non-intuitive.
+ *)
+IMPORT
+    Notices,	  (* Import list is sorted for easy manipulation *)
+    Objects,
+    ProgErr,
+    SYSTEM;
+
+@IF Debug THEN
+    IMPORT
+	FIOBase,  (* Use separate sections if preprocessor controlled *)
+        FormatIO,
+	IOErrors,
+        TextIO;
+@END (* Debug *)
+
+CONST
+    moduleName = formatName;   (* Save string space by using descriptive
+    				  aliases for the same name. *)
+	
+
+TYPE
+    ObjectRec = RECORD
+        state      : States; (* We don't ever change this, but it is here *)
+        createMode : Modes;  (* Saved for GetMode *)
+        oldValue   : Value;  (* Previous value passed in *)
+    END; 
+    Object = POINTER TO ObjectRec;
+VAR
+    objectMgr       : Objects.Manager;	(* List of ADTs *)
+    importantNotice : Notices.Object;   (* Called only in Operate *)
+ 
+
+PROCEDURE Create(
+    VAR adt  : Object;	(* Initialized object (IN value not checked) *)
+	mode : Modes	(* How this object should behave *)
+    );
+    (*
+     * Intialize the object and save the mode.  Sets the oldValue
+     * to zeros.
+     *)
+    BEGIN (* Create *)
+
+    	Objects.Allocate( objectMgr, adt );
+	WITH adt^ DO
+	    createMode := mode;
+	    oldValue.field1 := 0;
+	    oldValue.fieldVal2 := 0.0;
+	END; (* WITH *)
+
+    END Create;
+    
+
+PROCEDURE Destroy(
+    VAR adt : Object	(* May be in any state (i.e. created or not) *)
+    );
+    (*
+     * Checks to see if the object is valid (not in Assert) and
+     * then deallocates the pup.
+     *)
+    BEGIN (* Destroy *)
+
+        (* If it isn't valid, then return.  It's not one of ours *)
+        IF NOT Objects.IsValid( objectMgr, adt ) THEN
+	    RETURN;
+	END;
+
+	Objects.Deallocate( objectMgr, adt );
+
+    END Destroy;
+
+
+PROCEDURE InvalidState;
+    (*
+     * If there is a termination string which is used often, you should
+     * make it a procedure like this.  It saves memory and simplifies the
+     * checking code.  Usually, it is better to create a procedure which
+     * does all the work, but in-line checks and then calling the error
+     * procedure is faster.  
+     *)
+    BEGIN (* InvalidState *)
+        ProgErr.Terminate( "ADTModule: operation in non-ok state." );
+    END InvalidState;
+
+
+PROCEDURE Start(
+    adt            : Object;	(* must be valid and in "ok" state *)
+    initialValue   : Value;	(* value to start the operation. *)
+    finish         : Finish;	(* will be called when operation is complete *)
+    importerObject : SYSTEM.ADDRESS	(* Passed to finish unmodified *)
+    );
+    (*
+     * Fancy implementation.  I don't even know what linear regression
+     * is let alone how to spell it.  Anyway, note how the value is changed
+     * before we call finish.  This means we have to save the old value.
+     *)
+    VAR
+        saveValue : Value; (* Used so we can change oldValue before finish *)
+    BEGIN (* Start *)
+
+        @IF Assert THEN
+	    Objects.Assert( objectMgr, adt );
+	    IF adt^.state # ok THEN
+	    	InvalidState;
+	    END;
+	@END (* Assert *)
+
+	(* Do all ops which affect global state before calling finish *)
+	saveValue := adt^.oldValue;
+	adt^.oldValue := initialValue;
+	
+	finish( importerObject, saveValue );
+	
+    END Start;
+
+
+PROCEDURE Operate(
+        adt       : Object;	(* must be valid and in "ok" state *)
+        someValue : Value;	(* add the value to the current set *)
+    VAR newValue  : Value	(* most recently added value before this one *)
+    );
+    (*
+     * It should be obvious that this procedure is the same as
+     * Start, but it calls the notice.  Before calling the notice,
+     * we save the state to make sure the registrant can do anything.
+     *)
+    BEGIN (* Operate *)
+
+        @IF Assert THEN
+	    Objects.Assert( objectMgr, adt );
+	    IF adt^.state # ok THEN
+	    	InvalidState;
+	    END;
+	@END (* Assert *)
+
+	(* Do all ops which affect global state before calling Notices *)
+	newValue := adt^.oldValue;
+	adt^.oldValue := someValue;
+	
+	(* Invoke the notice with the adt responsible *)
+	Notices.Call( importantNotice, adt );
+	
+    END Operate;
+
+    
+PROCEDURE IsValid(
+    adt : Object	(* May be in any state *)
+    )   : BOOLEAN;	(* TRUE => object has been initialized *)
+    BEGIN (* IsValid *)
+        RETURN Objects.IsValid( objectMgr, adt );
+    END IsValid;
+    
+
+PROCEDURE SetInvalid(
+    VAR adt : Object	(* to be set to invalid state (IN value ignored) *)
+    );
+    (* 
+     * Note that we don't check the previous value of adt.  The illegal
+     * value here is NIL, but in other cases (if the Object isn't a pointer)
+     * you may have to use other values.
+     *)
+    BEGIN (* SetInvalid *)
+        adt := NIL;
+    END SetInvalid;
+
+
+PROCEDURE GetState(
+    adt : Object	(* must be a valid Object *)
+    )   : States;	(* Current state of adt *)
+    BEGIN (* GetState *)
+    
+        @IF Assert THEN
+	    Objects.Assert( objectMgr, adt );
+	@END (* Assert *)
+	RETURN adt^.state;
+
+    END GetState;
+
+PROCEDURE GetMode(
+    adt : Object	(* must be a valid Object *)
+    )   : Modes;	(* Current mode of the adt *)
+    BEGIN (* GetMode *)
+
+        @IF Assert THEN
+ 	    Objects.Assert( objectMgr, adt );
+	@END (* Assert *)
+	
+	RETURN adt^.createMode;
+
+    END GetMode;
+
+
+PROCEDURE GetImportantNotice(
+    ) : Notices.Object;
+    BEGIN (* GetImportantNotice *)
+       RETURN importantNotice;
+    END GetImportantNotice;
+
+@IF Debug THEN
+    PROCEDURE Write(
+	DONTCARE : SYSTEM.ADDRESS;
+	file     : TextIO.Object;
+	format   : ARRAY OF CHAR;
+	dataAdr  : SYSTEM.ADDRESS;
+	length   : CARDINAL
+	)        : TextIO.States;
+	(*
+	 * Performs an output operation of the contents of the ADT.
+	 * For our purposes, we are only interested in the field values,
+	 * but other ADTs may want to output state values.  Note that
+	 * dataAdr is a pointer to an Object and not the object itself,
+         *)
+	CONST
+	    debugFormat = "ADT.field1 = [Card][NL]ADT.fieldVal2 = [Sci,p5][NL]";
+	TYPE
+	    ObjectPtr = POINTER TO Object;  (* Only needed to acess data *)
+        VAR
+	    adtPtr : ObjectPtr;  (* Usable form of dataAdr *)
+        BEGIN (* Write *)
+		
+	    (* 
+	     * Since a SYSTEM.ADDRESS coerces to all pointers there
+	     * is no need for coercion here.  However, we do an assertion
+	     * check 
+	     *)
+	    adtPtr := dataAdr;
+	    @IF Assert THEN
+	        Objects.Assert( objectMgr, adtPtr^ );
+	    @END (* Assert *)
+
+	    (* 
+	     * We should not get any parameters, thus we check for
+	     * an empty string.  This method is a hack, but is clearly
+	     * defined for Modula-2 and is much more efficient than
+	     * a procedure call.
+	     *)
+	    IF format[ 0 ] # 0C THEN
+	        (* Format parameter is invalid ==> badParameter *)
+	    	RETURN TextIO.SetError( file, IOErrors.badParameter );
+	    END;
+	    
+	    (* We know the parameters are ok, so write them *)
+	    WITH adtPtr^^.oldValue DO
+	        (* Note that we can simply call FormatIO recursively *)
+	        RETURN FormatIO.Write2( file, debugFormat, field1, fieldVal2 );
+	    END; (* adt *)
+
+	END Write;
+@END (* Debug *)
+
+BEGIN (* ADTModule *)
+
+    Objects.CreateManager( objectMgr, SYSTEM.TSIZE( ObjectRec ),
+    			   moduleName );
+
+    Notices.Create( importantNotice, Notices.firstRegisteredFirstCalled );
+
+    @IF Debug THEN
+        FIOBase.RegisterWrite( formatName, Write, FIOBase.DONTCARE, 
+			       SYSTEM.TSIZE( Object ) );
+    @END (* Debug *)
+
+END ADTModule.

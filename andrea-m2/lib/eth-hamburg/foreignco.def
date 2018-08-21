@@ -1,0 +1,46 @@
+DEFINITION MODULE ForeignCommand;
+
+(*
+ This module provides an easy interface to a foreign command line in VMS.
+ A foreign command comes from a simple DCL symbol definition of the form:
+
+        command :== $device:[directory]program
+
+ then the program is run like this:
+
+        command  abc def
+
+  or
+
+        command
+        prompt? abc def
+
+ All parsing of options must be done by the user.
+*)
+
+(* V1.0, J. Andrea, May.4/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED ReadCommand, NOptions, GetAll, GetOption;
+
+
+PROCEDURE ReadCommand( prompt :ARRAY OF CHAR );
+(* First step in getting options, this must be called before GetOption   *)
+(* and should be called only once. The prompt is shown if the user types *)
+(* the command line with no options. *)
+
+
+PROCEDURE NOptions() :CARDINAL;
+(* return the number of options given *)
+
+
+PROCEDURE GetAll( VAR whole_line :ARRAY OF CHAR; VAR length :CARDINAL );
+(* Return the whole command line, and its length *)
+
+
+PROCEDURE GetOption( i :CARDINAL; VAR option :ARRAY OF CHAR;
+                                  VAR length :CARDINAL );
+(* Get the i'th option string, need not be called in order *)
+(* A returned 'length' of zero means that that option is not available. *)
+
+END ForeignCommand.

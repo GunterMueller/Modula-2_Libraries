@@ -1,0 +1,258 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE CatBinaryIO;
+(*
+ * Category BinaryIO for managing BinaryIO classes,
+ * IMPLEMENTATION SPECIFIC.
+ *
+ * Tasks note:
+ *    There is no mutual exclusion provided by this module. It
+ *    is assumed that the register and de-register are performed
+ *    by the initialization bodies and FindClass is the only
+ *    thing that is called by multiple processes.
+ *
+ * Class names may not contain space characters.
+ * They should be regular Modula-2 identifiers.
+ *)
+IMPORT 
+    BinaryIO,
+    IOConsts,
+    IOErrors,
+    Objects,
+    SysTypes;
+
+EXPORT QUALIFIED 
+    Object,           Open,           Close,        binaryOptionsChar,
+    ReadBytes,        WriteBytes,     Flush,        textOptionsChar,
+    Truncate,         GetEnd,         GetIndex,     classOptionsChar,
+    SetIndex,         GetOpenPath,    MethodTable,  Methods,
+    ObjectRec,        Register,       Deregister,   FindClass,
+    defaultOpen,      objectMgr,
+    ModeSet,          readAccess,     writeAccess,
+    anyAccess,        IsValid;
+
+CONST
+    binaryOptionsChar = 'B';  (* First char in BinaryIO.MakeOptions *)
+    textOptionsChar   = 'T';  (* First char in TextIO.MakeOptions *)
+    classOptionsChar  = 'C';  (* First char for class options *)
+    (*
+     * Each class may have options. TextIO and BinaryIO use the letters
+     * in the first position of their options string to indicate the type
+     * of options they are using. BinaryIO classes should do the same so
+     * that BinaryIO knows to pass on an options string that wasn't made
+     * with BinaryIO.MakeOptions or TextIO.MakeOptions.
+     *)
+
+TYPE
+    Object = POINTER TO ObjectRec;
+    (*
+     * BinaryIO.Object.
+     *)
+
+    Open = PROCEDURE(
+        VAR Object,               (* File to open *)
+        (*IN*)VAR ARRAY OF CHAR,  (* Path of external file *)
+        (*IN*)VAR ARRAY OF CHAR   (* Class specific options *)
+    ) : IOErrors.Errors;          (* Success *)
+    (*
+     * Responsible for initializing the Object, but not for allocating.
+     * Should initialize and allocate "classBasedInfo".
+     *
+     * The options string has been cleaned up so that only the
+     * class specific options remain.
+     *
+     * The following parts of the Object record have also
+     * already been initialized:
+     *
+     *     openMode         := mode;
+     *     isIndexable      := FALSE;
+     *     isInteractive    := FALSE;
+     *     state            := BinaryIO.ok;
+     *     errorState       := IOErrors.ok; 
+     *     stateBeforeError := BinaryIO.ok;
+     *)
+
+    Close = PROCEDURE( 
+        VAR Object          (* File *)
+    ) : IOErrors.Errors;    (* Success *)
+    (*
+     * Takes care of flushing buffers and closing associated
+     * objects. Disposes of "classBasedInfo".
+     *)
+
+    ReadBytes = PROCEDURE(
+        Object,             (* File *)
+        SysTypes.SAUPTR,    (* Buffer *)
+        SysTypes.Card,      (* Buffer size *)
+        VAR CARDINAL        (* SAUs read *)
+    ) : BinaryIO.States;    (* Success *)
+    (* 
+     * Called by ReadBlock and ReadBytes. 
+     *)
+
+    WriteBytes = PROCEDURE( 
+        Object,             (* File *)
+        SysTypes.SAUPTR,    (* Buffer *)
+        CARDINAL,           (* Buffer size *)
+        VAR CARDINAL        (* SAUs written *)
+    ) : BinaryIO.States;    (* Success *)
+    (*
+     * Called by WriteBlock and WriteBytes.
+     *)
+
+    Flush = PROCEDURE(
+        Object              (* File *)
+    ) : BinaryIO.States;    (* Success *)
+    (*
+     * Make sure the file is written to disk.
+     *)
+
+    Truncate = PROCEDURE(
+        Object              (* File *)
+    ) : BinaryIO.States;    (* Success *)
+    (*
+     * Shorten the file to the current index.
+     *)
+
+    GetEnd = PROCEDURE(
+        Object,             (* File *)
+        VAR BinaryIO.Index  (* End index *)
+    ) : BinaryIO.States;    (* Success *)
+
+    GetIndex = PROCEDURE(
+        Object,             (* File *)
+        VAR BinaryIO.Index  (* Current index *)
+    ) : BinaryIO.States;    (* Success *)
+
+    SetIndex = PROCEDURE(
+        Object,             (* File *)
+        BinaryIO.Index      (* New index *)
+    ) : BinaryIO.States;    (* Success *)
+
+    GetOpenPath = PROCEDURE(   
+        Object,             (* File *)
+        VAR IOConsts.Path   (* Path *)
+    );
+
+    MethodTable = RECORD
+        close       : Close;
+        readBytes   : ReadBytes;
+        writeBytes  : WriteBytes;
+        flush       : Flush;
+        truncate    : Truncate;
+        getEnd      : GetEnd;
+        getIndex    : GetIndex;
+        setIndex    : SetIndex;
+        getOpenPath : GetOpenPath;
+    END;
+    (* 
+     * Class specific operations (methods).
+     * Note that "open" is not needed here.
+     *)
+
+    Methods = POINTER TO MethodTable;
+
+    ObjectRec = RECORD
+        methods          : Methods;          (* Procedures to call *)
+        openMode         : BinaryIO.Modes;   (* Mode passed to Open *)
+        isIndexable      : BOOLEAN;          (* Not device or write-only *)
+        isInteractive    : BOOLEAN;          (* Interactive device *)
+        state            : BinaryIO.States;  (* Current file state *)
+        errorState       : IOErrors.Errors;  (* Current file error state *)
+        stateBeforeError : BinaryIO.States;  (* See SetError *)
+        classBasedInfo   : SysTypes.ANYPTR;  (* Class specific stuff *)
+    END;
+
+PROCEDURE Register(
+    className : ARRAY OF CHAR;  (* name of class to register *)
+    open      : Open            (* called to initialize object info *)
+    );
+    (*
+     * Register the named class with this category, and associate
+     * the listed procedures with the named class.
+     *
+     * If a class with the given name already exists, the caller
+     * is terminated.
+     *)
+
+PROCEDURE Deregister(
+    className : ARRAY OF CHAR  (* name of class to de-register *)
+    );
+    (*
+     * Remove the named class from the manager's list so that
+     * subsequent attempts to use the class will fail.
+     *
+     * The class need not have been actually registered.
+     *)
+
+PROCEDURE FindClass(
+        className : BinaryIO.ClassName;  (* Data from this class *)
+    VAR open      : Open                 (* Procedure to call to open *)
+    )             : BOOLEAN;             (* TRUE => Was registered *)
+    (*
+     * Attempts to locate the specified class.
+     *)
+
+VAR
+    defaultOpen : Open;
+    (*
+     * Is initialized by this module and specifies the default class
+     * Open to be used in the event a caller does not specify a class
+     * to BinaryIO.Open.
+     *)
+
+VAR
+    objectMgr : Objects.Manager; 
+    (* 
+     * This can be used to validate BinaryIO.Objects and to allocate them.
+     *
+     * If a class exports a procedure which takes an BinaryIO.Object
+     * as a parameter, it must then do an Objects.Assert check on the
+     * input parameter. For the normal class routines (in ObjectRec),
+     * the input checking is performed by BinaryIO.
+     *)
+
+TYPE
+    ModeSet = SET OF BinaryIO.Modes;
+
+CONST
+    readAccess  = ModeSet{ BinaryIO.readOnly,
+			   BinaryIO.readWrite };
+    writeAccess = ModeSet{ BinaryIO.appendOnly,
+			   BinaryIO.readWrite };
+    anyAccess   = ModeSet{ BinaryIO.readOnly,
+			   BinaryIO.readWrite, 
+			   BinaryIO.appendOnly };
+
+PROCEDURE IsValid(
+    file        : Object;   (* File to be validated *)
+    fileAccess  : ModeSet   (* Access modes required by calling proc *)
+    )           : BOOLEAN;  (* FALSE => File mode inappropriate *)
+    (* 
+     * Validate file as a BinaryIO.Object and verify file is not
+     * in error state. If either of these tests fail, terminate
+     * the caller.
+     *)
+
+END CatBinaryIO.
+

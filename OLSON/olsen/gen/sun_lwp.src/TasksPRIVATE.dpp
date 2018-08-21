@@ -1,0 +1,360 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TasksPRIVATE; 
+(*
+ * Systems on which this module will run: 
+ *       SunOS -- probably other Unixes as well.
+ *       SunArch (32 bit)
+ * 
+ * To read this module, you should have the implementation Tasks by your
+ * side.  This module and Tasks are completely intertwined.
+ *
+ * Data structures used by Tasks, TaskInfo, and Interrupts.  The variables 
+ * in this module are initialized by Tasks via Intialize, because of the 
+ * circular import between this module and Tasks.  The modules DosMonitor
+ * and ProgErr sit below Tasks in the import chain, but have procedure
+ * installation entry points for functions which require higher level
+ * management.  The initialization order of the critical modules is
+ * listed below (top is last to initialize):
+ *
+ *	     [Higher level tasking primitives and facilities]
+ *           TaskInfo		(sets TasksPRIVATE.callOnBirth/Death)
+ *	     Interrupts
+ *           Notices		(ProgErr.Install, SafeStorage.InstallOutOfMem)
+ *           Objects
+ *           Tasks 		(ProgErr.Install, DosMonitor.Enter/Exit,
+ *				 RTSMain.InstallTermProc)
+ *           TasksPRIVATE       (initialized by Tasks explicitly)
+ *           TaskConsts
+ *           SafeStorage
+ *           ProgErr	        (RTSMain.InstallTermProc)
+ *           ProgErrOutput
+ *           DosMonitor
+ * 
+ * Stack allocation/deallocation is managed by this module.  A stack
+ * and task object are allocated in the same memory area for efficiency.
+ *
+ * IMPORTANT:
+ * We make stringent attempts to not depend on the task and stack being
+ * in the same data block.  None of the code outside of this module makes
+ * this assumption.  This makes it easy to upgrade and port the system.
+ *
+ * preemptionLevel:
+ * Each thread has its own value of preemptionLevel (this includes interrupts).
+ * The procedures Disallow/AllowPreemption modify the value for the "running"
+ * task.  If this value becomes allowPreemption, then (and only then) can 
+ * this task be switched for another.  Suspend overrides this rule by 
+ * allowing the running task to voluntarily give up the processor to 
+ * another task.  Obviously, the task which is relinquishing the processor 
+ * must be careful not to leave shared data structures in a half modified state.
+ * For performance and code simplicity reasons, the preemptionLevel is 
+ * treated as a register which is saved and restored during context switches.
+ *
+ * lowestSP:
+ * Always valid and is set by SwitchRunning when stack checks are performed.
+ * Upon termination, the destroyer knows the amount of stack space utilized 
+ * by the particular task.  This is useful for determining optimal memory
+ * allocation for tasks.  See the module TasksDebug.
+ *
+ * otherNext:
+ * This is a rather funny field, because it is used by so many different
+ * pieces.  The basic rule is that it is used only when a task is going
+ * to be suspended for an absolute event.  What this means is that the
+ * field is never used for two purposes at once.  Specifically, the uses
+ * are in Tasks.Create, when a task dies, and in Enter/Exit (below).  
+ * In Tasks.Create, the parent task sets its link field to the process of
+ * the child and then the task suspends itself until the child is finished
+ * with callOnBirth.  On death, the task puts itself on the deathQueue 
+ * and suspends itself forever.  The Enter routine is absolute in
+ * that a task is not released from the wait queue until it is specifically
+ * the owner of the lock.  Note this field must be modified in a
+ * non-preemptable section.
+ *
+ * Context switching:
+ * We save the current stack pointer in intStackTop when the task is switched.
+ * It is passed to us by the TasksAsm module during the switch.  There
+ * are three parts of switching: save, switch, and restore.  The save and
+ * restore (except preemptionLevel) are done by TasksAsm while SwitchRunning
+ * tasks care of the stuff that can't be coded in Modula-2.
+ *)
+IMPORT
+    Objects,
+    SYSTEM,
+    SysTypes,
+    TaskConsts,
+    Tasks,
+    TasksAsm,
+    UnixCsignal;
+
+EXPORT QUALIFIED
+    Initialize,	        invalidFP,	        Register16,	        
+    Register32,	        SignalMask,	        blockAllSignals,
+    Object,		
+    IntStackTopRec,	IntStackTop,       
+    States,		Priorities,		InfoGroups,
+    ObjectRec,		allocRoot,		mainTask,
+    Enter,		Exit,			
+    TaskEnvelope,	taskEnvelopeAdr,
+    Allocate,		Deallocate,	        Iterator,
+    Traverse,
+    IsValid,		Assert,
+    readyQueue,		running,
+    preemptionLevel,	allowPreemption, 	firstLevelDisallow, 
+    callOnBirth,	callOnDeath,		systemPanicked,
+    DefaultPanicHandler,ExitSystem, 		RebootSystem;
+
+
+PROCEDURE Initialize(
+    taskEpilogue : PROC	    (* Called when main task dies *)
+    );
+    (*
+     * Because of circular import issues, this procedure must be called
+     * by Tasks.  The value taskEpilogueAdr is needed to create the
+     * "main" task around the currently executing thread.
+     *)
+
+CONST
+    invalidFP    = 0;	(* identifies the last stack frame for traces *)
+
+TYPE
+    Register16 = TasksAsm.Register16;
+    Register32 = TasksAsm.Register32;
+    SignalMask = TasksAsm.Mask;
+CONST
+    blockAllSignals = { 0 .. UnixCsignal.NSIG - 1 } 
+		      - { UnixCsignal.SIGSEGV - 1 };
+
+TYPE
+    Object     = POINTER TO ObjectRec;
+	(* 
+	 * Same as Tasks.Object.  Note that Objects always have normalized
+	 * addresses, so we can do simpler tests for equality.
+	 *)
+
+    IntStackTopRec = TasksAsm.SavedStackRec;
+    IntStackTop = RECORD
+	CASE @IF NOT M2V2 THEN : @END BOOLEAN OF
+	    TRUE:
+		ptr : TasksAsm.SavedStack; (* access pushed registers *)
+	    |
+	    FALSE:
+		adr : SYSTEM.ADDRESS;	   (* arithmetic *)
+	END;
+    END; (* IntStackTop *)
+
+
+(* 
+ * Following section describes the normal tasking information.
+ * The readyQueue is the list of tasks which are not suspended.
+ *)
+TYPE
+    States    = ( readyOrRunning,	(* in the readyQueue *)
+		  suspended );		(* just hanging out  *)
+
+    Priorities = [ TaskConsts.minPriority - 1 .. TaskConsts.maxPriority + 1 ];
+	(* 
+	 * The -1 is for the idle task and the +1 is for high priority exit.
+	 * The death task runs at maxPriority.  See Tasks implementation for
+	 * more details.
+	 *)
+    InfoGroups = [ 0 .. TaskConsts.maxInfoGroups - 1 ];
+
+TYPE
+    ObjectRec = RECORD
+	(* Stuff managed by this module *)
+	savedLevel  : SysTypes.Card;  (* Saved preemption level *)
+	stackBase   : SysTypes.SAUPTR;(* so we can do stack checks *)
+	stackSize   : SysTypes.Card;  (* number of usable stack bytes *)
+	intStack    : IntStackTop;    (* Stack pointer to interrupted area *)
+	lowestSP    : SYSTEM.ADDRESS; (* Lowest we've gotten so far *)
+	nextAlloc   : Object;	      (* List of allocated tasks *)
+	allocSize   : SysTypes.Card;  (* number of bytes allocated *)
+
+	(* Stuff managed by Tasks *)
+	state       : States; 	    (* current state of task        *)
+	priority    : Priorities;   (* ordering of readyQueue       *)
+	nextReady   : Object;       (* linkage for readyQueue       *)
+	otherNext   : Object;	    (* used during birth, death, and
+		 		       for mutex TasksPRIVATE.Enter/Exit.*)
+	info        : ARRAY InfoGroups OF SysTypes.ANYPTR;
+				    (* initially NIL; modified by TaskInfo  *)
+	name        : TaskConsts.Name;(* passed to Tasks.Create     *)
+	magic	    : SysTypes.Card;  (* used to assert object.  Should 
+				       be just below stack. *)
+    END; (* ObjectRec *)
+
+VAR    
+
+    mainTask  : Object;	      (* Only task which is not allocated.
+				 Will be set to NIL when task dies. *)       
+    allocRoot : Object;	      (* List of all allocated tasks (not main) *)
+
+(*
+ * The following two mutual exclusion procedures are provided for protection
+ * of the allocRoot and nextAlloc field.  If you merely traversing the list,
+ * then you can do this in a non-preemptable section.  If you call Allocate
+ * or Deallocate (below), then these calls must be surrounded by Enter/Exit
+ * calls.  The Enter/Exit calls may be nested.
+ * 
+ * NOTE: These routines can only be called from a task.
+ *)
+PROCEDURE Enter;
+    (*
+     * Enter critical section with use of objectMgr.  Note that the entry
+     * queue is not necessarily on a first come first served basis.
+     *)
+
+PROCEDURE Exit;
+    (*
+     * Exit critical section with use of objectMgr. 
+     *)
+
+
+TYPE
+    TaskEnvelope = PROCEDURE(	(* Here for documentation only *)
+	Tasks.Object,	(* parent *)
+	Tasks.Proc,	(* thread *)
+	SysTypes.ANYPTR	(* importerObject *)
+    );
+VAR	
+    taskEnvelopeAdr : SYSTEM.ADDRESS;  (* Must be type TaskEnvelope and
+					  must be initialized before
+					  allocate is called. *)
+
+PROCEDURE Allocate(
+        stack  : TaskConsts.StackSizes; (* Size of stack to be allocated *)
+	thread : Tasks.Proc;		(* thread passed to Create *)
+	impObj : SysTypes.ANYPTR;	(* importerObject passed to Create *)
+    VAR task   : Object		        (* OUT: partially initialized object*)
+    );
+    (*
+     * Allocates a task object and sets: magic, stackBase (and 
+     * its values) and stackSize.  
+     * intStackTop is set up so that Ready will start the TaskEnvelope.
+     * The caller must fill in: name, state, priority, nextReady, info,
+     * and otherNext.
+     *
+     * NOTE: Must be called from within Enter/Exit section.
+     *)
+
+
+PROCEDURE Deallocate(
+    VAR task : Object	 (* IN: valid task; OUT: invalid task *)
+    );
+    (*
+     * Frees the memory associated with the specified task object.
+     * The "nextAlloc" list is managed and the first task is managed
+     * properly.  
+     *
+     * NOTE: Must be called from within Enter/Exit section.
+     *)
+
+TYPE
+    Iterator = PROCEDURE(
+	SysTypes.ANYPTR,  (* importerObject passed unmodified *)
+	Object		  (* task in list *)
+    );
+    
+PROCEDURE Traverse(
+    callWithTasks  : Iterator;	     (* will be called for each task in list*)
+    importerObject : SysTypes.ANYPTR (* passed to callWithTasks unmodified *)
+    );
+    (*
+     * Calls the Iterator for each task in the list of living tasks
+     * (including mainTask if it is alive).  This procedure is only
+     * needed for TaskDebug and TaskInfo.
+     *
+     * NOTE: Must be called from w/in code protected by Enter/Exit.
+     *)
+
+(* The following two procedures must be called from a Disallowed section *)
+PROCEDURE IsValid( 
+    task : Object      (* may be in any state *)
+    )    : BOOLEAN;    (* TRUE => "task" is a valid Object at time of call. *)
+
+PROCEDURE Assert(
+    task : Object      (* must be valid or caller will be terminated. *)
+    );
+
+
+(*
+ * The following three variables must only be accessed and modified in
+ * a interrupts disabled section.
+ *)
+VAR
+    readyQueue      : Object;
+	(*
+	 * The list of tasks which are ready to run (including running).
+	 * This list is *always* ordered in terms of priority and is
+	 * only modified by the Tasks module.  Tasks are inserted ahead
+	 * of another only if the new task is strictly greater in priority.
+	 *)
+    running         : Object;
+	(*
+	 * Normally is the same as readyQueue, but may not be the same in
+	 * the readyQueue (if preemptionLevel is greater than zero).  Note
+	 * that this variable should not be modified by any module except
+	 * Tasks.  The running task can be in an intermediate state between
+	 * suspended and running (since the running task actually must 
+	 * perform the switch to another task after it is suspended).
+	 *)
+    
+    preemptionLevel : SysTypes.Card;
+	(* 
+	 * Indicates whether the current thread is preemptable or not.
+	 * In interrupt handlers, this is always firstLevelDisallow.
+	 *)
+CONST
+    allowPreemption    = 0;
+    firstLevelDisallow = 1;
+	(* 
+	 * Some general values useful testing preemptability and for
+	 * initializing the fields.
+	 *)
+
+(* 
+ * The following section is the link between Tasks, TaskInfo, and TaskNotices.
+ * When a task is created, the procedure "callOnBirth" is called before
+ * the Tasks.Create procedure returns.  When a task dies normally,
+ * "callOnDeath" is called.  These procedures are set to null by this
+ * module, initially.  TaskInfo fills them in during its initialization.
+ * Note that this initialization occurs *after* Tasks.  See TaskInfo
+ * for more information.  Note also that these procedures assume that
+ * "running" is the task to be modified.
+ *)
+VAR
+    callOnBirth  : PROC;	(* called upon creation *)
+    callOnDeath  : PROC;	(* called during death  *)
+    
+
+    systemPanicked : BOOLEAN;	(* Set in Tasks.Panic *)
+PROCEDURE DefaultPanicHandler(
+    msg : ARRAY OF CHAR	    (* Msg to be output *)
+    );
+
+PROCEDURE ExitSystem;
+
+PROCEDURE RebootSystem;
+
+
+END TasksPRIVATE.

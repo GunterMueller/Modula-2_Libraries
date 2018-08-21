@@ -1,0 +1,280 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE FormatIO;
+(* 
+ * Provides an extensible formated input/output facility.
+ *
+ * A format string specifies both literal text and commands to be
+ * read or written. A command is usually accompanied by a argument
+ * which specifies the "type" of the argument. For example, the
+ * command "[Card]" specifies that a "CARDINAL number" is to be
+ * read or written. FormatIO performs the service of connecting
+ * these named commands with procedures to call for reading and
+ * writing. It also handles the default service of reading or
+ * writing literals.
+ *
+ * Formatting facilities for standard types (INTEGER, CARDINAL,
+ * etc) are provided by default. You can change the default types
+ * by modifying the module ConfFIO.
+ *
+ * User-defined types may be added to the list of formats supported
+ * by registering service procedures with the FIOBase module.
+ *)
+IMPORT 
+    TextIO,
+    SysTypes;
+
+EXPORT QUALIFIED 
+    Write,          Write1,        Write2,         Write3,
+    Write4,         Read,          Read1,          Read2,
+    Read3,          Read4,         PromptedRead1,  PromptedRead2,
+    PromptedRead3,  PromptedRead4;
+
+    (*
+     * Write procedures.
+     *
+     * The "format" string is scanned for text literals and
+     * for format commands (enclosed in square brackets).
+     *
+     * The following occurs in the sequence in which the
+     * objects are encountered in the format string:  
+     *
+     *     Text literals are written to the file immediately and directly.  
+     *
+     *     Format commands are scanned for a leading name (such as "Card")
+     *     and the name is looked up in a case sensitive manner in an
+     *     internal dictionary of registered write names. If the name is
+     *     found and the size in the dictionary is non-zero, the size of
+     *     the corresponding argument is compared with the size expected
+     *     by the procedure variable associated with the name. If the
+     *     sizes match (or the dictionary size is zero) the remaining
+     *     elements of the format command are stripped out ("f0,w2") and
+     *     the procedure variable is called to perform the write operation.
+     *     If the dictionary size is zero, the procedure variable is
+     *     responsible for argument size checking.
+     *
+     *     Ill-formed format commands, format commands with proper
+     *     syntax but unrecognized names, or valid format commands
+     *     with arguments of an unexpected size will set the file
+     *     to an error state ("IOErrors.badParameter") and return
+     *     a value of "TextIO.error".
+     *)
+PROCEDURE Write(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR
+    )      : TextIO.States;
+                        
+PROCEDURE Write1(
+    file   : TextIO.Object;        (* To which formated data is written *)
+    format : ARRAY OF CHAR;        (* Control of output format and text *)
+    arg1   : ARRAY OF SysTypes.ANY (* Argument to be formated *)
+    )      : TextIO.States;        (* Reflects both file and format errors *)
+
+PROCEDURE Write2(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY
+    )      : TextIO.States;
+
+PROCEDURE Write3(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY
+    )      : TextIO.States;
+
+PROCEDURE Write4(
+    file   : TextIO.Object;
+    format : ARRAY OF CHAR;
+    arg1   : ARRAY OF SysTypes.ANY;
+    arg2   : ARRAY OF SysTypes.ANY;
+    arg3   : ARRAY OF SysTypes.ANY;
+    arg4   : ARRAY OF SysTypes.ANY
+    )      : TextIO.States;
+
+    (*
+     * Read procedures.
+     *
+     * Two versions of the Read procedures are provided, one of which
+     * prompts the user for input, the other of which does not (to be
+     * used for file input). They function in a similar fashion.
+     *
+     * The "format" string is scanned for text literals and
+     * for format commands (enclosed in square brackets).
+     *
+     * The following occurs in the sequence in which the
+     * objects are encountered in the format string:  
+     *
+     *     Text literals cause the file to be read in an attempt to
+     *     match the incoming characters with the text literals. Match
+     *     failures cause the input file to be set to an error state
+     *     ("IOErrors.badParameter") and the procedure to return a
+     *     value of "TextIO.error".
+     *
+     *     Format commands are scanned for a leading name (such as "Card")
+     *     and the name is looked up in a case sensitive manner in an
+     *     internal dictionary of registered write names. If the name is
+     *     found and the size in the dictionary is non-zero, the size of
+     *     the corresponding argument is compared with the size expected
+     *     by the procedure variable associated with the name. If the
+     *     sizes match (or the dictionary size is zero) the remaining
+     *     elements of the format command are stripped out ("f0,w2") and
+     *     the procedure variable is called to perform the write operation.
+     *     If the dictionary size is zero, the procedure variable is
+     *     responsible for argument size checking.
+     *
+     *     Ill-formed format commands, format commands with proper
+     *     syntax but unrecognized names, or valid format commands
+     *     with arguments of an unexpected size will set the file
+     *     to an error state ("IOErrors.badParameter") and return
+     *     a value of "TextIO.error".
+     *)
+PROCEDURE Read(
+    inFile : TextIO.Object;
+    format : ARRAY OF CHAR
+    )      : TextIO.States;
+
+PROCEDURE Read1(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY
+    )          : TextIO.States;
+
+PROCEDURE PromptedRead1(
+        inFile     : TextIO.Object;         (* From which data is read *)
+        format     : ARRAY OF CHAR;         (* Input format and text *)
+    VAR arg1       : ARRAY OF SysTypes.ANY; (* Argument to be read *)
+        promptFile : TextIO.Object          (* Prompts will be written to *)
+    )              : TextIO.States;         (* Reflects both file and errors *)
+
+PROCEDURE Read2(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY
+    )          : TextIO.States;
+
+PROCEDURE PromptedRead2(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SysTypes.ANY;
+    VAR arg2       : ARRAY OF SysTypes.ANY;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+
+PROCEDURE Read3(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY
+    )          : TextIO.States;
+
+PROCEDURE PromptedRead3(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SysTypes.ANY;
+    VAR arg2       : ARRAY OF SysTypes.ANY;
+    VAR arg3       : ARRAY OF SysTypes.ANY;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+
+PROCEDURE Read4(
+        inFile : TextIO.Object;
+        format : ARRAY OF CHAR;
+    VAR arg1   : ARRAY OF SysTypes.ANY;
+    VAR arg2   : ARRAY OF SysTypes.ANY;
+    VAR arg3   : ARRAY OF SysTypes.ANY;
+    VAR arg4   : ARRAY OF SysTypes.ANY
+    )          : TextIO.States;
+
+PROCEDURE PromptedRead4(
+        inFile     : TextIO.Object;
+        format     : ARRAY OF CHAR;
+    VAR arg1       : ARRAY OF SysTypes.ANY;
+    VAR arg2       : ARRAY OF SysTypes.ANY;
+    VAR arg3       : ARRAY OF SysTypes.ANY;
+    VAR arg4       : ARRAY OF SysTypes.ANY;
+        promptFile : TextIO.Object
+    )              : TextIO.States;
+
+    (*
+     * The following routines facilitate run-time fabrication
+     * of format strings.
+     *
+     * RJN - I don't think that run-time fabrication is going to be
+     * used much, if at all. There are several commands which need
+     * to be added.
+     *)
+@IF FALSE THEN
+    PROCEDURE AppendBeginCommand(
+        VAR format : ARRAY OF CHAR
+        )          : BOOLEAN;
+        (*
+         * Initiates a new command at the end of the format string. 
+         *)
+
+    PROCEDURE AppendEndCommand(
+        VAR format : ARRAY OF CHAR
+        )          : BOOLEAN;
+
+    PROCEDURE AppendLiteral(
+        VAR format  : ARRAY OF CHAR;
+            literal : ARRAY OF CHAR
+        )           : BOOLEAN;
+        (*
+         * Inserts escape characters into the literal as it appends
+         * it to the string.
+         *)
+
+    PROCEDURE AppendCard(
+        VAR format        : ARRAY OF CHAR;  (* To be augmented *)
+            specifier     : CHAR;           (* Type of "modifierValue" *)
+            modifierValue : CARDINAL;       (* CARDINAL value appended *)
+            modifierBase  : Chars.Bases     (* Base of "modifierValue" *)
+        )                 : BOOLEAN;        (* Now legal "format" => TRUE *)
+        (*
+         * Appends a new modifier to the format.
+         *
+         * If the format is non-empty (or doesn't end with a
+         * "FIOBase.beginCommand", it inserts an "FIOBase.argSeparator"
+         * so that the syntax is preserved. If the specifier is 0C, it
+         * is not prepended and only the "modifierValue" is appended.
+         *)
+
+    PROCEDURE AppendString(
+        VAR formatString : ARRAY OF CHAR;  (* To be augmented *)
+            commandCh    : CHAR;           (* Command character to append *)
+            string       : ARRAY OF CHAR   (* String to be appended *)
+        )                : BOOLEAN;        (* Success => TRUE *)
+        (*
+         * Append "argSeparator".
+         *
+         * If the command character is not 0C, append it. Append
+         * the additional "string" to the formatString.  
+         *)
+@END (* FALSE *)
+
+END FormatIO.

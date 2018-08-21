@@ -1,0 +1,169 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE TestCRC16;
+(* 
+ * Check out the CRC16 module which does CCITT CRCs
+ * Fairly rudimentary only checks a one character CRC
+ * and then checks a simple string.
+ *)
+IMPORT
+    CardConvert,
+    CRC16,
+    ProgErrOutput,
+    SYSTEM;
+VAR
+    tbl      : ARRAY CHAR OF CRC16.Result;
+    c        : CHAR;
+    hexStr   : ARRAY [0..3] OF CHAR;
+    DONTCARE : BOOLEAN;
+    abc      : ARRAY [0..25] OF CHAR;
+
+BEGIN (* TestCRC16 *)
+
+   tbl[   0C ] := 00000H;   tbl[   1C ] := 01189H;   tbl[   2C ] := 02312H;
+   tbl[   3C ] := 0329BH;   tbl[   4C ] := 04624H;   tbl[   5C ] := 057ADH;
+   tbl[   6C ] := 06536H;   tbl[   7C ] := 074BFH;   tbl[  10C ] := 08C48H;
+   tbl[  11C ] := 09DC1H;   tbl[  12C ] := 0AF5AH;   tbl[  13C ] := 0BED3H;
+   tbl[  14C ] := 0CA6CH;   tbl[  15C ] := 0DBE5H;   tbl[  16C ] := 0E97EH;
+   tbl[  17C ] := 0F8F7H;   tbl[  20C ] := 01081H;   tbl[  21C ] := 00108H;
+   tbl[  22C ] := 03393H;   tbl[  23C ] := 0221AH;   tbl[  24C ] := 056A5H;
+   tbl[  25C ] := 0472CH;   tbl[  26C ] := 075B7H;   tbl[  27C ] := 0643EH;
+   tbl[  30C ] := 09CC9H;   tbl[  31C ] := 08D40H;   tbl[  32C ] := 0BFDBH;
+   tbl[  33C ] := 0AE52H;   tbl[  34C ] := 0DAEDH;   tbl[  35C ] := 0CB64H;
+   tbl[  36C ] := 0F9FFH;   tbl[  37C ] := 0E876H;   tbl[  40C ] := 02102H;
+   tbl[  41C ] := 0308BH;   tbl[  42C ] := 00210H;   tbl[  43C ] := 01399H;
+   tbl[  44C ] := 06726H;   tbl[  45C ] := 076AFH;   tbl[  46C ] := 04434H;
+   tbl[  47C ] := 055BDH;   tbl[  50C ] := 0AD4AH;   tbl[  51C ] := 0BCC3H;
+   tbl[  52C ] := 08E58H;   tbl[  53C ] := 09FD1H;   tbl[  54C ] := 0EB6EH;
+   tbl[  55C ] := 0FAE7H;   tbl[  56C ] := 0C87CH;   tbl[  57C ] := 0D9F5H;
+   tbl[  60C ] := 03183H;   tbl[  61C ] := 0200AH;   tbl[  62C ] := 01291H;
+   tbl[  63C ] := 00318H;   tbl[  64C ] := 077A7H;   tbl[  65C ] := 0662EH;
+   tbl[  66C ] := 054B5H;   tbl[  67C ] := 0453CH;   tbl[  70C ] := 0BDCBH;
+   tbl[  71C ] := 0AC42H;   tbl[  72C ] := 09ED9H;   tbl[  73C ] := 08F50H;
+   tbl[  74C ] := 0FBEFH;   tbl[  75C ] := 0EA66H;   tbl[  76C ] := 0D8FDH;
+   tbl[  77C ] := 0C974H;   tbl[ 100C ] := 04204H;   tbl[ 101C ] := 0538DH;
+   tbl[ 102C ] := 06116H;   tbl[ 103C ] := 0709FH;   tbl[ 104C ] := 00420H;
+   tbl[ 105C ] := 015A9H;   tbl[ 106C ] := 02732H;   tbl[ 107C ] := 036BBH;
+   tbl[ 110C ] := 0CE4CH;   tbl[ 111C ] := 0DFC5H;   tbl[ 112C ] := 0ED5EH;
+   tbl[ 113C ] := 0FCD7H;   tbl[ 114C ] := 08868H;   tbl[ 115C ] := 099E1H;
+   tbl[ 116C ] := 0AB7AH;   tbl[ 117C ] := 0BAF3H;   tbl[ 120C ] := 05285H;
+   tbl[ 121C ] := 0430CH;   tbl[ 122C ] := 07197H;   tbl[ 123C ] := 0601EH;
+   tbl[ 124C ] := 014A1H;   tbl[ 125C ] := 00528H;   tbl[ 126C ] := 037B3H;
+   tbl[ 127C ] := 0263AH;   tbl[ 130C ] := 0DECDH;   tbl[ 131C ] := 0CF44H;
+   tbl[ 132C ] := 0FDDFH;   tbl[ 133C ] := 0EC56H;   tbl[ 134C ] := 098E9H;
+   tbl[ 135C ] := 08960H;   tbl[ 136C ] := 0BBFBH;   tbl[ 137C ] := 0AA72H;
+   tbl[ 140C ] := 06306H;   tbl[ 141C ] := 0728FH;   tbl[ 142C ] := 04014H;
+   tbl[ 143C ] := 0519DH;   tbl[ 144C ] := 02522H;   tbl[ 145C ] := 034ABH;
+   tbl[ 146C ] := 00630H;   tbl[ 147C ] := 017B9H;   tbl[ 150C ] := 0EF4EH;
+   tbl[ 151C ] := 0FEC7H;   tbl[ 152C ] := 0CC5CH;   tbl[ 153C ] := 0DDD5H;
+   tbl[ 154C ] := 0A96AH;   tbl[ 155C ] := 0B8E3H;   tbl[ 156C ] := 08A78H;
+   tbl[ 157C ] := 09BF1H;   tbl[ 160C ] := 07387H;   tbl[ 161C ] := 0620EH;
+   tbl[ 162C ] := 05095H;   tbl[ 163C ] := 0411CH;   tbl[ 164C ] := 035A3H;
+   tbl[ 165C ] := 0242AH;   tbl[ 166C ] := 016B1H;   tbl[ 167C ] := 00738H;
+   tbl[ 170C ] := 0FFCFH;   tbl[ 171C ] := 0EE46H;   tbl[ 172C ] := 0DCDDH;
+   tbl[ 173C ] := 0CD54H;   tbl[ 174C ] := 0B9EBH;   tbl[ 175C ] := 0A862H;
+   tbl[ 176C ] := 09AF9H;   tbl[ 177C ] := 08B70H;   tbl[ 200C ] := 08408H;
+   tbl[ 201C ] := 09581H;   tbl[ 202C ] := 0A71AH;   tbl[ 203C ] := 0B693H;
+   tbl[ 204C ] := 0C22CH;   tbl[ 205C ] := 0D3A5H;   tbl[ 206C ] := 0E13EH;
+   tbl[ 207C ] := 0F0B7H;   tbl[ 210C ] := 00840H;   tbl[ 211C ] := 019C9H;
+   tbl[ 212C ] := 02B52H;   tbl[ 213C ] := 03ADBH;   tbl[ 214C ] := 04E64H;
+   tbl[ 215C ] := 05FEDH;   tbl[ 216C ] := 06D76H;   tbl[ 217C ] := 07CFFH;
+   tbl[ 220C ] := 09489H;   tbl[ 221C ] := 08500H;   tbl[ 222C ] := 0B79BH;
+   tbl[ 223C ] := 0A612H;   tbl[ 224C ] := 0D2ADH;   tbl[ 225C ] := 0C324H;
+   tbl[ 226C ] := 0F1BFH;   tbl[ 227C ] := 0E036H;   tbl[ 230C ] := 018C1H;
+   tbl[ 231C ] := 00948H;   tbl[ 232C ] := 03BD3H;   tbl[ 233C ] := 02A5AH;
+   tbl[ 234C ] := 05EE5H;   tbl[ 235C ] := 04F6CH;   tbl[ 236C ] := 07DF7H;
+   tbl[ 237C ] := 06C7EH;   tbl[ 240C ] := 0A50AH;   tbl[ 241C ] := 0B483H;
+   tbl[ 242C ] := 08618H;   tbl[ 243C ] := 09791H;   tbl[ 244C ] := 0E32EH;
+   tbl[ 245C ] := 0F2A7H;   tbl[ 246C ] := 0C03CH;   tbl[ 247C ] := 0D1B5H;
+   tbl[ 250C ] := 02942H;   tbl[ 251C ] := 038CBH;   tbl[ 252C ] := 00A50H;
+   tbl[ 253C ] := 01BD9H;   tbl[ 254C ] := 06F66H;   tbl[ 255C ] := 07EEFH;
+   tbl[ 256C ] := 04C74H;   tbl[ 257C ] := 05DFDH;   tbl[ 260C ] := 0B58BH;
+   tbl[ 261C ] := 0A402H;   tbl[ 262C ] := 09699H;   tbl[ 263C ] := 08710H;
+   tbl[ 264C ] := 0F3AFH;   tbl[ 265C ] := 0E226H;   tbl[ 266C ] := 0D0BDH;
+   tbl[ 267C ] := 0C134H;   tbl[ 270C ] := 039C3H;   tbl[ 271C ] := 0284AH;
+   tbl[ 272C ] := 01AD1H;   tbl[ 273C ] := 00B58H;   tbl[ 274C ] := 07FE7H;
+   tbl[ 275C ] := 06E6EH;   tbl[ 276C ] := 05CF5H;   tbl[ 277C ] := 04D7CH;
+   tbl[ 300C ] := 0C60CH;   tbl[ 301C ] := 0D785H;   tbl[ 302C ] := 0E51EH;
+   tbl[ 303C ] := 0F497H;   tbl[ 304C ] := 08028H;   tbl[ 305C ] := 091A1H;
+   tbl[ 306C ] := 0A33AH;   tbl[ 307C ] := 0B2B3H;   tbl[ 310C ] := 04A44H;
+   tbl[ 311C ] := 05BCDH;   tbl[ 312C ] := 06956H;   tbl[ 313C ] := 078DFH;
+   tbl[ 314C ] := 00C60H;   tbl[ 315C ] := 01DE9H;   tbl[ 316C ] := 02F72H;
+   tbl[ 317C ] := 03EFBH;   tbl[ 320C ] := 0D68DH;   tbl[ 321C ] := 0C704H;
+   tbl[ 322C ] := 0F59FH;   tbl[ 323C ] := 0E416H;   tbl[ 324C ] := 090A9H;
+   tbl[ 325C ] := 08120H;   tbl[ 326C ] := 0B3BBH;   tbl[ 327C ] := 0A232H;
+   tbl[ 330C ] := 05AC5H;   tbl[ 331C ] := 04B4CH;   tbl[ 332C ] := 079D7H;
+   tbl[ 333C ] := 0685EH;   tbl[ 334C ] := 01CE1H;   tbl[ 335C ] := 00D68H;
+   tbl[ 336C ] := 03FF3H;   tbl[ 337C ] := 02E7AH;   tbl[ 340C ] := 0E70EH;
+   tbl[ 341C ] := 0F687H;   tbl[ 342C ] := 0C41CH;   tbl[ 343C ] := 0D595H;
+   tbl[ 344C ] := 0A12AH;   tbl[ 345C ] := 0B0A3H;   tbl[ 346C ] := 08238H;
+   tbl[ 347C ] := 093B1H;   tbl[ 350C ] := 06B46H;   tbl[ 351C ] := 07ACFH;
+   tbl[ 352C ] := 04854H;   tbl[ 353C ] := 059DDH;   tbl[ 354C ] := 02D62H;
+   tbl[ 355C ] := 03CEBH;   tbl[ 356C ] := 00E70H;   tbl[ 357C ] := 01FF9H;
+   tbl[ 360C ] := 0F78FH;   tbl[ 361C ] := 0E606H;   tbl[ 362C ] := 0D49DH;
+   tbl[ 363C ] := 0C514H;   tbl[ 364C ] := 0B1ABH;   tbl[ 365C ] := 0A022H;
+   tbl[ 366C ] := 092B9H;   tbl[ 367C ] := 08330H;   tbl[ 370C ] := 07BC7H;
+   tbl[ 371C ] := 06A4EH;   tbl[ 372C ] := 058D5H;   tbl[ 373C ] := 0495CH;
+   tbl[ 374C ] := 03DE3H;   tbl[ 375C ] := 02C6AH;   tbl[ 376C ] := 01EF1H;
+   tbl[ 377C ] := 00F78H;
+
+    ProgErrOutput.WriteString( "Checking CRC table." );
+    ProgErrOutput.WriteLn;
+    FOR c := 0C TO 377C DO
+	(* The 0 is a way of cheating, it just dumps the table *)
+	IF CRC16.Compute( 0, SYSTEM.ADR(c), 1 ) # tbl[ c ] THEN
+	    ProgErrOutput.WriteString( "Error on CHAR #" );
+	    DONTCARE := CardConvert.ToString( ORD( c ), 10, 0, hexStr);
+	    ProgErrOutput.WriteString( hexStr );
+	    ProgErrOutput.WriteString( "  Expected = " );
+	    DONTCARE := CardConvert.ToString( tbl[ c ], 16, 4, hexStr);
+	    ProgErrOutput.WriteString(hexStr);
+	    ProgErrOutput.WriteString( "  Computed = " );
+	    DONTCARE := CardConvert.ToString(
+			    CRC16.Compute( CRC16.initialResult, SYSTEM.ADR(c), 1 ),
+			    16, 4,
+			    hexStr);
+	    ProgErrOutput.WriteString(hexStr);
+	    ProgErrOutput.WriteLn;
+	END;
+    END;
+
+    ProgErrOutput.WriteString( "Checking CRC of 'abcdefghijklmnopqrstuvwxyz'." );
+    ProgErrOutput.WriteLn;
+    (* Try a simple string test *)
+    (* Must assign the constant to a variable of 26 characters since some
+     * systems assign a null byte at the end and others don't.
+     *)
+    abc := "abcdefghijklmnopqrstuvwxyz";
+    IF CRC16.Compute( CRC16.initialResult, SYSTEM.ADR(abc), 26 ) # 0F2BCH THEN
+	ProgErrOutput.WriteString( "Alphabet string test failed." );
+	ProgErrOutput.WriteLn;
+	ProgErrOutput.WriteString( "Should have gotten 0F2BC and CRC was " );
+	DONTCARE := CardConvert.ToString(CRC16.Compute( CRC16.initialResult,
+					    SYSTEM.ADR(abc), 26 ),
+					 16, 4, hexStr);
+	ProgErrOutput.WriteString(hexStr);
+	ProgErrOutput.WriteLn;
+    END;
+
+END TestCRC16.

@@ -1,0 +1,247 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE CRC16;
+(*
+ * Computes a Cyclic Redundancy Code for an infinitely large
+ * sequence of chunks of memory.  
+ *
+ * This version generates the CCITT CRC used in HDLC, SDLC, etc.
+ * The generator polynomial is:
+ *           16    12    5
+ *   G(X) = X   + X   + X  + 1
+ *
+ * The divisions have already been done and are contained in 
+ * the variable "tbl".  Since all of the arithmetic is exclusive
+ * OR, all the state needed to be maintained is contained in the
+ * size of the CRC (or 16 bits).  We luck out that this is not
+ * a 8080 implementation.
+ *
+ * PORTABILITY NOTES:
+ * Requires system dependent types CARDINAL16, BITSET16 and CHAR8.
+ * Also requires that there be two 8-bit SYSTEM.BYTEs per CARDINAL16.
+ * The preprocessor flag BigEndian or LittleEndian should be defined
+ * to tell if the "big end" (most significant byte) of a CARDINAL16 comes
+ * first.  Character constant 377C is used...may not be supported everywhere.
+ *
+ * TO DO:
+ * - Define some standard bit/byte manipulation stuff for bit hackers.
+ * - Clean this up to be a little less hacker like.
+ *)
+IMPORT
+    SYSTEM,
+    SysTypes;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END
+
+TYPE
+    HackerRec = RECORD  (* Yea, it's gross, but it's the imp mod .*)
+	@IF M2V2 THEN
+	    CASE CARDINAL OF
+	@ELSE
+	    CASE : CARDINAL OF
+	@END (* M2V2 *)
+	    0:
+		(* PORTABILITY PROBLEM: what order are the bytes in a CARD16? *)
+		@IF BigEndian THEN
+		    (* "Big end" of byte comes first. *)
+		    highByte : SYSTEM.BYTE;
+		    lowByte  : SYSTEM.BYTE;
+		@END
+		@IF LittleEndian THEN
+		    lowByte  : SYSTEM.BYTE;
+		    highByte : SYSTEM.BYTE;
+		@END
+	    |
+	    1:
+		@IF BigEndian THEN
+		    (* "Big end" of byte comes first. *)
+		    highChar : SysTypes.CHAR8;
+		    lowChar  : SysTypes.CHAR8;
+		@END
+		@IF LittleEndian THEN
+		    lowChar  : SysTypes.CHAR8;
+		    highChar : SysTypes.CHAR8;
+		@END
+	    |
+	    2:
+		(* PORTABILITY PROBLEM: what order are the bits in the set? *)
+		set      : SysTypes.BITSET16;
+	    |
+	    3:
+		cardinal : SysTypes.CARDINAL16;
+	    |
+	    4:
+	        result   : Result;
+	END;  (* CASE *)
+    END; (* HackerRec *)                  
+                    
+
+VAR
+    CRCs : ARRAY CHAR OF SysTypes.BITSET16;  (* tbl of CRCs for all CHARs *)
+    
+PROCEDURE Compute(
+    previous : Result;
+    buffer   : SysTypes.SAUPTR;
+    length   : SysTypes.Card
+    )        : Result;
+    (*
+     * Cycle through all the bytes one at a time and perform
+     * the incantation.  The CRCs table is a precomputation of the
+     * CRCs for all of the possible values of a byte.  A CRC
+     * is merely a division of a sequence of bytes (shifted
+     * left by two bytes) and subtracting off the remainder
+     * (which is the same as adding in binary polynomial math).  
+     *)
+    TYPE
+	BigBuffer=ARRAY [ 0 .. SysTypes.maxArrayIndexBYTE - 1 ] OF 
+		    SYSTEM.BYTE;
+	BufferPointer=POINTER TO BigBuffer;
+    VAR
+        crc,
+        tmp : HackerRec;
+        i   : SysTypes.Card; 
+	bufferPtr: BufferPointer;
+    BEGIN (* Compute *)
+    
+	bufferPtr := buffer;
+        crc.result := previous;
+        
+        FOR i := 0 TO length-1 DO
+            tmp.lowByte  := bufferPtr^[ i ];        (* tmp.highByte is unused *)
+            tmp.set      := tmp.set / crc.set;  (* XOR whole thing, only
+            					  care about the lowChar *)
+	    crc.cardinal := crc.cardinal DIV 256;  (* Shift right 8 bits *)
+	    crc.set      := crc.set / CRCs[ tmp.lowChar ];
+        END; (* FOR *)
+        
+        RETURN crc.result;
+        
+    END Compute;
+    
+VAR
+    i : HackerRec;
+    x : SysTypes.BITSET16;
+    
+BEGIN (* CRC16 *)
+
+    @IF SysTypesCheck THEN
+	(*  
+	 * Check some of our basic assumptions first -- they can vary with
+	 * the hardware architecture.
+	 *)
+	IF SysTypes.bitsPerBYTE # 8 THEN
+	    ProgErr.Terminate( "CRC16: SysTypesCheck failed!" );
+	END;
+	IF SYSTEM.TSIZE( HackerRec ) <> SYSTEM.TSIZE( SysTypes.CARDINAL16 ) 
+	  THEN ProgErr.Terminate( "CRC16: SysTypesCheck failed!" );
+	END;
+	(* See if the low byte is where we want it *)
+	i.result := 1;
+	IF i.lowChar <> 1C THEN
+	    ProgErr.Terminate( "CRC16: SysTypesCheck failed!" );
+	END;
+	IF NOT SysTypes.littleEndianSets THEN
+	    ProgErr.Terminate( "CRC16: SysTypesCheck failed!" );
+	END;
+    @END
+
+    (*
+     * Compute the CCITT CRCs for all possible 8 bit characters.
+     * You have to look at this code for a long time (unless 
+     * you are familiar with Rings, Groups, Fields, and...)
+     * before you understand it.  I stole it, so I don't understand
+     * it well enough to give a good explanation.  However, I
+     * can say that it works on XOR division of the the generator
+     * polynomial given earlier.
+     *)
+
+    i.lowChar := 0C;
+    
+    LOOP (* Can't be a FOR loop with RECORD selector i.cardinal *)
+    
+    							(* bits to XOR *)
+        IF ( 7 IN i.set ) # ( 3 IN i.set ) THEN 	(* 7 ^ 3 *)
+            x := SysTypes.BITSET16 { 15 };
+        ELSE
+            x := SysTypes.emptyBITSET16;
+        END;
+        IF ( 6 IN i.set ) # ( 2 IN i.set ) THEN 	(* 6 ^ 2 *)
+            INCL( x, 14 );
+        END;
+        IF ( 5 IN i.set ) # ( 1 IN i.set ) THEN 	(* 5 ^ 1 *)
+            INCL( x, 13 );
+        END;
+        IF ( 4 IN i.set ) # ( 0 IN i.set ) THEN 	(* 4 ^ 0 *)
+            INCL( x, 12 );
+        END;
+        IF 3 IN i.set THEN 				(* 3 *)
+            INCL( x, 11 );
+        END;
+        IF ( 15 IN x ) # ( 2 IN i.set ) THEN 		(* 7 ^ 3 ^ 2 *)
+            INCL( x, 10 );
+        END;
+        IF ( 14 IN x ) # ( 1 IN i.set ) THEN    	(* 6 ^ 2 ^ 1 *)
+            INCL( x, 9 );
+        END;
+        IF ( 13 IN x ) # ( 0 IN i.set ) THEN    	(* 5 ^ 1 ^ 0 *)
+            INCL( x, 8 );
+        END;
+        IF 12 IN x THEN					(* 4 ^ 0 *)
+            INCL( x, 7 );
+        END;
+        IF 3 IN i.set THEN				(* 3 *)
+            INCL( x, 6 );
+        END;
+        IF 2 IN i.set THEN				(* 2 *)
+            INCL( x, 5 );
+        END;
+        IF 1 IN i.set THEN				(* 1 *)
+            INCL( x, 4 );
+        END;
+        IF ( 15 IN x ) # ( 0 IN i.set ) THEN		(* 7 ^ 3 ^ 0 *)
+            INCL( x, 3 );
+        END;
+        IF 14 IN x THEN					(* 6 ^ 2 *)
+            INCL( x, 2 );
+        END;
+        IF 13 IN x THEN					(* 5 ^ 1 *)
+            INCL( x, 1 );
+        END;
+        IF 12 IN x THEN					(* 4 ^ 0 *)
+            INCL( x, 0 );
+        END;
+        
+        CRCs[ i.lowChar ] := x;	   (* store the result *)
+        
+        (* loop management *)
+        IF i.lowChar = 377C THEN
+            EXIT;
+        END;
+        INC( i.lowChar );
+
+    END; (* LOOP *)
+
+END CRC16.

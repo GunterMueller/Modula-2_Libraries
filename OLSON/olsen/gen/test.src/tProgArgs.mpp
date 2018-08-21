@@ -1,0 +1,177 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tProgArgs;
+IMPORT
+    ProgArgs,	ProgErrOutput,	CardConvert,	NameLists,
+    SYSTEM;
+VAR
+    aFlag  : BOOLEAN;
+    bFlag  : BOOLEAN;
+    cFlag  : BOOLEAN;
+    iFlag  : CARDINAL;	(* Go Fortran! *)
+    jFlag  : CARDINAL;
+    kFlag  : CARDINAL;
+    XFlag  : NameLists.Object;
+    YFlag  : NameLists.Object;
+    ZFlag  : NameLists.Object;
+    noFlag : NameLists.Object;
+
+PROCEDURE PrintBool( name  : ARRAY OF CHAR;
+	             value : BOOLEAN );
+    BEGIN (* PrintBool *)
+
+	ProgErrOutput.WriteString( name );
+	IF value THEN
+	    ProgErrOutput.WriteString( "= TRUE" );
+	ELSE
+	    ProgErrOutput.WriteString( ": FALSE" );
+	END;
+	ProgErrOutput.WriteLn;
+
+    END PrintBool;
+
+
+PROCEDURE PrintCard( name : ARRAY OF CHAR;
+	             card : CARDINAL );
+    VAR
+	string : ProgArgs.String;	(* should be big enough *)
+    BEGIN (* PrintCard *)
+
+	ProgErrOutput.WriteString( name );
+	ProgErrOutput.WriteString( " = " );
+	IF CardConvert.ToString( card, 10, 0, string ) THEN
+	    ProgErrOutput.WriteString( string );
+	ELSE
+	    ProgErrOutput.WriteString( "???" );
+	END;
+	ProgErrOutput.WriteLn;
+
+    END PrintCard;
+
+
+PROCEDURE PrintStrings( name    : ARRAY OF CHAR;
+	                strings : NameLists.Object );
+    VAR
+	string : ProgArgs.String;
+    BEGIN (* PrintStrings *)
+
+	ProgErrOutput.WriteString( name );
+	ProgErrOutput.WriteString( "=" );
+	NameLists.MakeFirstNext( strings );
+	WHILE NameLists.Next( strings, string, NameLists.DONTCARE ) DO
+	    ProgErrOutput.WriteString( " '" );
+	    ProgErrOutput.WriteString( string );
+	    ProgErrOutput.WriteString( "'" );
+	END; (* WHILE *)
+	ProgErrOutput.WriteLn;
+
+    END PrintStrings;
+
+BEGIN (* tProgArgs *)
+
+    ProgErrOutput.WriteString( " *** Nothing registered (ignoreErrors) *** " );
+    ProgErrOutput.WriteLn;
+    IF NOT ProgArgs.Parse( ProgArgs.ignoreErrors ) THEN
+	ProgErrOutput.WriteString( 
+		"tProgArgs: [abc] [(i|j|k)#] [(X|Y|Z)string] [strings]" );
+	ProgErrOutput.WriteLn;
+    END;
+    aFlag := FALSE;
+    bFlag := FALSE;
+    cFlag := FALSE;
+    ProgArgs.RegisterBoolHandler( 'a', ProgArgs.DefaultBoolHandler, 
+				      SYSTEM.ADR( aFlag ) );
+    ProgArgs.RegisterBoolHandler( 'b', ProgArgs.DefaultBoolHandler, 
+				      SYSTEM.ADR( bFlag ) );
+    ProgArgs.RegisterBoolHandler( 'c', ProgArgs.DefaultBoolHandler, 
+				      SYSTEM.ADR( cFlag ) );
+
+    ProgErrOutput.WriteString( " *** Booleans registered *** " );
+    ProgErrOutput.WriteLn;
+    IF NOT ProgArgs.Parse( ProgArgs.continueAfterErrors ) THEN
+	ProgErrOutput.WriteString( 
+		"tProgArgs: [abc] [(i|j|k)#] [(X|Y|Z)string] [strings]" );
+	ProgErrOutput.WriteLn;
+    END;
+
+    iFlag := 0;
+    jFlag := 0;
+    kFlag := 0;
+    ProgArgs.RegisterCardHandler( 'i', ProgArgs.DefaultCardHandler, 
+				      SYSTEM.ADR( iFlag ) );
+    ProgArgs.RegisterCardHandler( 'j', ProgArgs.DefaultCardHandler, 
+				      SYSTEM.ADR( jFlag ) );
+    ProgArgs.RegisterCardHandler( 'k', ProgArgs.DefaultCardHandler, 
+				      SYSTEM.ADR( kFlag ) );
+
+    ProgErrOutput.WriteString( " *** Cardinals registered *** " );
+    ProgErrOutput.WriteLn;
+    IF NOT ProgArgs.Parse( ProgArgs.continueAfterErrors ) THEN
+	ProgErrOutput.WriteString( 
+		"tProgArgs: [abc] [(i|j|k)#] [(X|Y|Z)string] [strings]" );
+	ProgErrOutput.WriteLn;
+    END;
+
+    
+    NameLists.Create( XFlag, NameLists.queue, 
+			NameLists.caseSensitive );
+    NameLists.Create( YFlag, NameLists.queue, 
+			NameLists.caseSensitive );
+    NameLists.Create( ZFlag, NameLists.queue, 
+			NameLists.caseSensitive );
+
+    ProgArgs.RegisterStringHandler( 'X', ProgArgs.DefaultStringListHandler, 
+					SYSTEM.ADDRESS( XFlag ) );
+    ProgArgs.RegisterStringHandler( 'Y', ProgArgs.DefaultStringListHandler, 
+					SYSTEM.ADDRESS( YFlag ) );
+    ProgArgs.RegisterStringHandler( 'Z', ProgArgs.DefaultStringListHandler, 
+					SYSTEM.ADDRESS( ZFlag ) );
+
+    NameLists.Create( noFlag, NameLists.queue, 
+			NameLists.caseSensitive );
+    ProgArgs.RegisterUnflaggedHandler( ProgArgs.DefaultStringListHandler, 
+					SYSTEM.ADDRESS( noFlag ) );
+    
+    ProgErrOutput.WriteString( " *** Everything registered *** " );
+    ProgErrOutput.WriteLn;
+    IF NOT ProgArgs.Parse( ProgArgs.continueAfterErrors ) THEN
+	ProgErrOutput.WriteString( 
+		"tProgArgs: [abc] [(i|j|k)#] [(X|Y|Z)string] [strings]" );
+	ProgErrOutput.WriteLn;
+    END;
+
+    PrintBool( "a", aFlag );
+    PrintBool( "b", bFlag );
+    PrintBool( "c", cFlag );
+
+    PrintCard( "i", iFlag );
+    PrintCard( "j", jFlag );
+    PrintCard( "k", kFlag );
+
+    PrintStrings( "X", XFlag );
+    PrintStrings( "Y", YFlag );
+    PrintStrings( "Z", ZFlag );
+
+    PrintStrings( "Unflagged", noFlag );
+
+END tProgArgs.

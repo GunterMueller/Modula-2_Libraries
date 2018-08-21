@@ -1,0 +1,82 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE ConvertFIO;
+(*
+ * Converts arbitrary objects to and from strings using FormatIO
+ * formats. The routines behave just like FormatIO routines, but
+ * they operate on strings (which are assumed to be a single line).
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    DONTCARE,           
+    Read1,
+    Read2,
+    Write1,
+    Write2;
+
+VAR
+    DONTCARE : BOOLEAN;
+    (*
+     * Used when you don't care about return results.
+     *)
+
+PROCEDURE Read1(
+        toConvert : ARRAY OF CHAR;         (* String to be "read" *)
+        format    : ARRAY OF CHAR;         (* To be used for conversion *)
+    VAR arg1      : ARRAY OF SysTypes.ANY  (* Result of conversion *)
+    )             : BOOLEAN;               (* Success => TRUE *)
+
+PROCEDURE Read2(
+        toConvert : ARRAY OF CHAR;         (* String to be "read" *)
+        format    : ARRAY OF CHAR;         (* To be used for conversion *)
+    VAR arg1      : ARRAY OF SysTypes.ANY; (* Result of conversion *)
+    VAR arg2      : ARRAY OF SysTypes.ANY  (* Result of conversion *)
+    )             : BOOLEAN;               (* Success => TRUE *)
+    (*
+     * "Reads" the toConvert string and puts it in the arguments.
+     *)
+
+PROCEDURE Write1(
+    VAR result : ARRAY OF CHAR;         (* Result of conversion *)
+        format : ARRAY OF CHAR;         (* To be used in conversion *)
+        arg1   : ARRAY OF SysTypes.ANY  (* Value to be "written" *)
+    )          : BOOLEAN;               (* Success => TRUE *)
+
+PROCEDURE Write2(
+    VAR result : ARRAY OF CHAR;         (* Result of conversion *)
+        format : ARRAY OF CHAR;         (* To be used in conversion *)
+        arg1   : ARRAY OF SysTypes.ANY; (* Value to be "written" *)
+        arg2   : ARRAY OF SysTypes.ANY  (* Value to be "written" *)
+    )          : BOOLEAN;               (* Success => TRUE *)
+    (*
+     * "Writes" the args into the result using the specified format.
+     *
+     * If the format causes multiple lines to be output, only the
+     * first line will be returned and the call will return FALSE.
+     * If the string is too short or a 0C is inserted by the format,
+     * the call will fail.
+     *)
+
+END ConvertFIO.

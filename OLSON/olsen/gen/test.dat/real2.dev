@@ -1,0 +1,10 @@
+$ Real overflow. Causes a RealConvert - syntax error.
+$ This test is not run because it makes RealConvert hang.
+$ !!!
+test1
+9E308
+scientific
+normal
+10
+1
+3

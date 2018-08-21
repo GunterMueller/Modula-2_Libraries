@@ -1,0 +1,90 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DosIOErrors;
+(*
+ * Note that we do a range check in this module, because you never know
+ * what a particular version of DOS will return to you.
+ *)
+IMPORT 
+    DOS,
+    IOErrors,
+    SysTypes;
+
+CONST
+    lastDosError  = DOS.failOnINT24;	(* MUST BE CORRECT *)
+
+VAR
+    toIOError : ARRAY [ 0 .. lastDosError ] OF IOErrors.Errors;
+
+
+PROCEDURE ToIOError(
+    dosError : SysTypes.Card
+    )        : IOErrors.Errors;
+    BEGIN (* ToIOError *)
+
+	(* 
+	 * Must do a range check, because you never know what you are 
+	 * going to get 
+	 *)
+	IF dosError <= lastDosError THEN
+	    RETURN toIOError[ dosError ];
+	END;
+
+	RETURN IOErrors.otherError;	(* Could be anything *)
+    END ToIOError;
+
+
+PROCEDURE InitializeTable;
+    VAR
+	i : SysTypes.Card;
+    BEGIN (* InitializeTable *)
+
+	(* Set up the table with the ones we don't know *)
+	FOR i := 0 TO lastDosError DO
+	    toIOError[ i ] := IOErrors.otherError;
+	END;
+
+	toIOError[ DOS.success ]                    := IOErrors.ok;
+	toIOError[ DOS.fileNotFound ]               := IOErrors.notFound;
+	toIOError[ DOS.pathNotFound ]               := IOErrors.notFound;
+	toIOError[ DOS.accessDenied ]               := IOErrors.noAccess;
+	toIOError[ DOS.invalidAccessCode ]          := IOErrors.noAccess;
+	toIOError[ DOS.invalidDriveWasSpecified ]   := IOErrors.illegalName;
+	toIOError[ DOS.attemptToWriteOnWriteProtectedDisk ] 
+						    := IOErrors.noAccess;
+	toIOError[ DOS.dataError ]                  := IOErrors.badData;
+	toIOError[ DOS.seekError ]                  := IOErrors.invalidIndex;
+	toIOError[ DOS.writeFault ]                 := IOErrors.noAccess;
+	toIOError[ DOS.readFault ]                  := IOErrors.noAccess;
+	toIOError[ DOS.sharingViolation ]           := IOErrors.noAccess;
+	toIOError[ DOS.lockViolation ]              := IOErrors.noAccess;
+	toIOError[ DOS.fileExists ]                 := IOErrors.alreadyExists;
+
+    END InitializeTable;
+
+
+BEGIN (* DosIOErrors *)
+
+    InitializeTable;
+
+END DosIOErrors.

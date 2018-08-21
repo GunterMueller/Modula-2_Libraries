@@ -1,0 +1,26 @@
+#
+# Dependencies
+# 
+
+# Automaticatically generated dependencies.
+include m2depend.mak
+
+# Preprocessor dependencies
+FIOTest.mod: ../test.src/FIOTest.mpp 
+	${StandardM2pp}
+tBool.mod: ../test.src/tBool.mpp 
+	${StandardM2pp}
+tDataFIO.mod: ../test.src/tDataFIO.mpp 
+	${StandardM2pp}
+tFIOScreen.mod: ../test.src/tFIOScreen.mpp 
+	${StandardM2pp}
+tIntCard.mod: ../test.src/tIntCard.mpp 
+	${StandardM2pp}
+tIsValid.mod: ../test.src/tIsValid.mpp 
+	${StandardM2pp}
+tReal.mod: ../test.src/tReal.mpp 
+	${StandardM2pp}
+tSimpleFIO.mod: ../test.src/tSimpleFIO.mpp 
+	${StandardM2pp}
+tString.mod: ../test.src/tString.mpp 
+	${StandardM2pp}

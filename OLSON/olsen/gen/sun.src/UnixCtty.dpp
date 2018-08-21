@@ -1,0 +1,230 @@
+DEFINITION FOR C MODULE UnixCtty;
+(*
+ * Unix asynchronous serial I/O facilities, see the following:
+ *     tty(4), ioctl(2).
+ * This was converted from /usr/include/sys/ioctl.h and
+ *     /usr/include/sys/ttydev.h.
+ *)
+IMPORT 
+    SYSTEM;
+
+FROM UnixCsys_types IMPORT
+    u_char;
+FROM UnixCtypes IMPORT
+    short;
+
+CONST
+    B0 = 0;
+    B50 = 1;
+    B75 = 2;
+    B110 = 3;
+    B134 = 4;
+    B150 = 5;
+    B200 = 6;
+    B300 = 7;
+    B600 = 8;
+    B1200 = 9;
+    B1800 = 10;
+    B2400 = 11;
+    B4800 = 12;
+    B9600 = 13;
+    B19200 = 14;
+    B38400 = 15;
+    EXTA = 14;
+    EXTB = 15;
+
+    DONE = 0200;
+    IENABLE = 0100;
+
+    DMSET = 0;
+    DMBIS = 1;
+    DMBIC = 2;
+    DMGET = 3;
+
+TYPE
+    tchars = RECORD
+        t_intrc: CHAR; 
+        t_quitc: CHAR; 
+        t_startc: CHAR; 
+        t_stopc: CHAR; 
+        t_eofc: CHAR; 
+        t_brkc: CHAR; 
+    END;
+    ltchars = RECORD
+        t_suspc: CHAR; 
+        t_dsuspc: CHAR; 
+        t_rprntc: CHAR; 
+        t_flushc: CHAR; 
+        t_werasc: CHAR; 
+        t_lnextc: CHAR; 
+    END;
+
+    sgttyb = RECORD
+        sg_ispeed: u_char; 
+        sg_ospeed: u_char; 
+        sg_erase: CHAR; 
+        sg_kill: CHAR; 
+        sg_flags: short; 
+    END;
+
+    winsize = RECORD
+        ws_row: short;  
+        ws_col: short;  
+        ws_xpixel: short;  
+        ws_ypixel: short;  
+    END;
+
+    ttysize = RECORD
+        ts_lines: INTEGER; 
+        ts_cols: INTEGER; 
+    END;
+
+CONST
+
+    IOCPARM_MASK = 7fH; 
+    IOC_VOID = 20000000H; 
+    IOC_OUT = 40000000H; 
+    IOC_IN = 80000000H; 
+
+    TIOCM_LE = 0001; 
+    TIOCM_DTR = 0002; 
+    TIOCM_RTS = 0004; 
+    TIOCM_ST = 0010; 
+    TIOCM_SR = 0020; 
+    TIOCM_CTS = 0040; 
+    TIOCM_CAR = 0100; 
+    TIOCM_CD = TIOCM_CAR;
+    TIOCM_RNG = 0200; 
+    TIOCM_RI = TIOCM_RNG;
+    TIOCM_DSR = 0400; 
+
+    TANDEM = 00000001H; 
+    CBREAK = 00000002H; 
+    LCASE = 00000004H; 
+    ECHO = 00000008H; 
+    CRMOD = 00000010H; 
+    RAW = 00000020H; 
+    ODDP = 00000040H; 
+    EVENP = 00000080H; 
+    ANYP = 000000c0H; 
+    NLDELAY = 00000300H; 
+    NL0 = 00000000H;
+    NL1 = 00000100H; 
+    NL2 = 00000200H; 
+    NL3 = 00000300H;
+    TBDELAY = 00000c00H; 
+    TAB0 = 00000000H;
+    TAB1 = 00000400H; 
+    TAB2 = 00000800H;
+    XTABS = 00000c00H; 
+    CRDELAY = 00003000H; 
+    CR0 = 00000000H;
+    CR1 = 00001000H; 
+    CR2 = 00002000H; 
+    CR3 = 00003000H; 
+    VTDELAY = 00004000H; 
+    FF0 = 00000000H;
+    FF1 = 00004000H; 
+    BSDELAY = 00008000H; 
+    BS0 = 00000000H;
+    BS1 = 00008000H;
+
+    CRTBS = 00010000H; 
+    PRTERA = 00020000H; 
+    CRTERA = 00040000H; 
+    TILDE = 00080000H; 
+    MDMBUF = 00100000H; 
+    LITOUT = 00200000H; 
+    TOSTOP = 00400000H; 
+    FLUSHO = 00800000H; 
+    NOHANG = 01000000H; 
+    L001000 = 02000000H;
+    CRTKIL = 04000000H; 
+    PASS8 = 08000000H;
+    CTLECH = 10000000H; 
+    PENDIN = 20000000H; 
+    DECCTQ = 40000000H; 
+    NOFLSH = 80000000H; 
+
+    TIOCPKT_DATA = 00H; 
+    TIOCPKT_FLUSHREAD = 01H; 
+    TIOCPKT_FLUSHWRITE = 02H; 
+    TIOCPKT_STOP = 04H; 
+    TIOCPKT_START = 08H; 
+    TIOCPKT_NOSTOP = 10H; 
+    TIOCPKT_DOSTOP = 20H; 
+
+    NOPOST = 00000001H; 
+    NOISIG = 00000002H; 
+    STOPB = 00000004H; 
+
+    OTTYDISC = 0; 
+    NETLDISC = 1; 
+    NTTYDISC = 2; 
+    TABLDISC = 3; 
+    NTABLDISC = 4; 
+    MOUSELDISC = 5; 
+    KBDLDISC = 6; 
+
+CONST
+    TIOCGETD=1074033664;
+    TIOCSETD=-2147191807;
+    TIOCHPCL=536900610;
+    TIOCMODG=1074033667;
+    TIOCMODS=-2147191804;
+    TIOCGETP=1074164744;
+    TIOCSETP=-2147060727;
+    TIOCSETN=-2147060726;
+    TIOCEXCL=536900621;
+    TIOCNXCL=536900622;
+    TIOCFLUSH=-2147191792;
+    TIOCSETC=-2147060719;
+    TIOCGETC=1074164754;
+    TIOCLBIS=-2147191681;
+    TIOCLBIC=-2147191682;
+    TIOCLSET=-2147191683;
+    TIOCLGET=1074033788;
+    TIOCSBRK=536900731;
+    TIOCCBRK=536900730;
+    TIOCSDTR=536900729;
+    TIOCCDTR=536900728;
+    TIOCGPGRP=1074033783;
+    TIOCSPGRP=-2147191690;
+    TIOCSLTC=-2147060619;
+    TIOCGLTC=1074164852;
+    TIOCOUTQ=1074033779;
+    TIOCSTI=-2147388302;
+    TIOCNOTTY=536900721;
+    TIOCPKT=-2147191696;
+    TIOCSTOP=536900719;
+    TIOCSTART=536900718;
+    TIOCMSET=-2147191699;
+    TIOCMBIS=-2147191700;
+    TIOCMBIC=-2147191701;
+    TIOCMGET=1074033770;
+    TIOCREMOTE=-2147191703;
+    TIOCGWINSZ=1074295912;
+    TIOCSWINSZ=-2146929561;
+    TIOCUCNTL=-2147191706;
+    _O_TIOCCONS=536900712;
+    _O_TIOCSSIZE=-2146929561;
+    _O_TIOCGSIZE=1074295910;
+    _N_TIOCCONS=536900644;
+    _N_TIOCSSIZE=-2146929627;
+    _N_TIOCGSIZE=1074295846;
+    TIOCTCNTL=-2147191776;
+    TIOCSIGNAL=-2147191775;
+    TIOCSETX=-2147191774;
+    TIOCGETX=1074033699;
+    TIOCCONS=536900712;
+    TIOCSSIZE=-2146929561;
+    TIOCGSIZE=1074295910;
+    FIOCLEX=536897025;
+    FIONCLEX=536897026;
+    FIONREAD=1074030207;
+    FIONBIO=-2147195266;
+    FIOASYNC=-2147195267;
+    FIOSETOWN=-2147195268;
+    FIOGETOWN=1074030203;
+
+END UnixCtty.

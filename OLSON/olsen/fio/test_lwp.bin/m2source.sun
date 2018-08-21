@@ -1,0 +1,4 @@
+M2Defs= 
+M2Imps= 
+M2Mods= FIOTest.mod tBool.mod tDataFIO.mod tFIOScreen.mod tIntCard.mod  \
+        tIsValid.mod tReal.mod tSimpleFIO.mod tString.mod 

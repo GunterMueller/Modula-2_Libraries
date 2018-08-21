@@ -1,0 +1,1183 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE Lists;
+(*
+ * A list object is a header which points to elements.  Elements
+ * are allocated on a per list basis (i.e. a single allocator
+ * per list).   An element is a partially allocated data structure,
+ * because list elements vary in size by the type of the list.  The
+ * object contains the procedure variables, because SpecialCreate
+ * doesn't have a "Type" to keep the poiner to.  It is only a couple
+ * of extra bytes and saves pointer chasing.
+ *
+ * The various Orderings of lists are managed by in line checks
+ * of ordering.  This probably could be changed to a method table, 
+ * but for the time being it works and was easy to implement.   
+ * The checks are usually O(1), so they aren't expensive.
+ *
+ * Rules that procedures have to follow:
+ *   - Procedures which change "current" must also set madeFirstNext
+ *     to be false.  MakeFirstNext is the only procedure to modify
+ *     this field.  All accesses to madeFirst next must be enclosed
+ *     by IF Assert control.
+ *   - Procedures which set current must set it to NIL upon failure.
+ *     NIL is used to indicate that Next must start from the beginning.
+ *   - Procedures cannot call external routines with Keys, because
+ *     they are not proper data structures and will make a mess of the
+ *     stack.
+ *   - "XXXCurrent" procedures must check for the validity of current
+ *     inside of IF Assert control.
+ *
+ * NameLists imports this module and this module imports NameLists,
+ * thus there is a bit of a circularity.  See PRIVATEIntialize for
+ * the resolution.
+ *
+ * Note that we use both HIGH and SIZE.  SIZE is saved in the object
+ * for checking of the size and HIGH is used to do array index bounds.
+ *
+ * TODO:
+ *    - Figure out if in-line copies are slow.  I think most elements
+ *      are small, thus an in-line copy makes sense.  At this time,
+ *	Bytes is unoptimized anyway.
+ *)
+IMPORT
+    Intrinsics,
+    NameLists,
+    Objects,
+    ProgErr, 	
+    SYSTEM,
+    SysTypes;
+@IF M2V2 OR LogitechM2 THEN
+    FROM SYSTEM IMPORT
+	SIZE;
+@END
+
+(*
+ * Management of type information.
+ *)
+TYPE
+    TypeInfo    = POINTER TO TypeInfoRec;
+    TypeInfoRec = RECORD
+	assert	     : AssertProc;    (* specified by type or SpecialCreate *)
+	needToAssert : BOOLEAN;       (* if assert # NoAssert *)
+	compare	     : CompareProc;   (* ditto *)
+	size         : SysTypes.Card; (* how big are the elements *)
+    END;
+VAR
+    types   : NameLists.Object;	(* importerObject is TypeInfo *)
+    typeMgr : Objects.Manager;	(* TypeInfo manager *)
+
+CONST
+    some = ( SysTypes.bitsPerANY DIV SysTypes.bitsPerSAU ) * 
+	   5 * ( SysTypes.bitsPerADDRESS DIV SysTypes.bitsPerSAU );
+	(*
+	 * This number is approximating the number of bytes of the
+	 * other parts of an ElementRec.  If this is a couple bytes
+	 * off, nothing much will be hurt.
+	 *)
+TYPE
+    KeyArray = ARRAY [ 0 .. SysTypes.maxArrayIndexANY - some ] OF SysTypes.ANY;
+    (*
+     * An element is a partially allocated record which assumes that
+     * the order of declaration is from low memory to high.  If this
+     * changes, then we will have problems.  Everything is fully
+     * allocated except "keyValue" which is why it is last.
+     *)
+    Element     = POINTER TO ElementRec;
+    ElementRec  = RECORD
+	@IF M2V2 THEN
+	    CASE Orderings OF 
+	@ELSE
+	    CASE : Orderings OF              (* the way it *should* be *)
+	@END (* M2V2 *)
+            queue,                      (* insert at end, just before root   *)
+            stack:                      (* insert as root, root becomes next *)
+                prev   : Element;       (* circular doubly linked lists      *)
+                next   : Element;       (*     for easy manipulation         *)
+            |
+            forwardSorted,                    
+            reverseSorted:              (* tree implementation for now...   *)
+                parent : Element;       (* bidirectional paths are nice     *)
+                left   : Element;       (*   especially for traversals      *)
+                right  : Element;       (* lessThan is to the left          *)
+        END; (* CASE *)
+
+        impObj      : SysTypes.ANYPTR;   (* associated on Insert      *)
+        keyValue    : KeyArray;
+    END; (* ElementRec *)
+
+    Object     = POINTER TO ObjectRec;
+    ObjectRec  = RECORD
+	type          : TypeInfoRec; (* "class" information *)
+        ordering      : Orderings;   (* how to Next and MakeFirstNext    *)
+
+	elementMgr    : Objects.Manager;  (* Makes destroy much simpler  *)
+        root          : Element;     (* head of lists and base of tree   *)
+        current       : Element;     (* "current" element                *)
+	leftCompare   : Intrinsics.CompareResults;
+				     (* specifies which compare result to
+					make search/insert go to the left.
+					Only valid for sorted orderings *)
+	@IF Assert THEN
+	    madeFirstNext : BOOLEAN; (* MakeFirstNext was called, but is
+					only needed for assertion checking *)
+	@END
+    END; (* ObjectRec *)
+
+TYPE
+    OrderSet     = SET OF Orderings;
+
+CONST
+    listOrders   = OrderSet { queue, stack };
+    sortedOrders = OrderSet { forwardSorted, reverseSorted };
+
+VAR
+    listMgr : Objects.Manager;
+
+
+PROCEDURE Create(
+    VAR list          : Object;
+	typeName      : ARRAY OF CHAR;
+        howToTraverse : Orderings
+    );
+    VAR
+	typeInfo : TypeInfo;
+    BEGIN (* Create *)
+
+	IF NOT NameLists.Find( types, typeName, typeInfo ) THEN
+	    ProgErr.Terminate( "Lists: unknown type name." );
+	END;
+
+        Objects.Allocate( listMgr, list );
+
+        (* Initialize *)
+	WITH list^ DO
+	    type     := typeInfo^;
+	    ordering := howToTraverse;
+	    (*
+	     * We compute the size in a "portable" fashion, that is,
+	     * we carefully round up.
+	     *)
+	    Objects.CreateManager( elementMgr, ( 
+			     SYSTEM.TSIZE( ElementRec ) - 
+			     SYSTEM.TSIZE( KeyArray ) ) + type.size, typeName );
+	    root     := NIL;
+	    current  := NIL;
+	    leftCompare := orderToLeftCompare[ ordering ];
+	    @IF Assert THEN
+		madeFirstNext := TRUE;
+	    @END (* Assert *)
+
+	END; (* WITH *)
+    END Create;
+
+
+PROCEDURE Destroy(
+    VAR list : Object
+    );
+    VAR
+        node    : Element;
+    BEGIN (* Destroy *)
+
+	IF NOT Objects.IsValid( listMgr, list ) THEN 
+	    RETURN;
+	END;
+           
+	Objects.DestroyManager( list^.elementMgr );  (* Disposes of elements *)
+
+        Objects.Deallocate( listMgr, list );
+
+    END Destroy;
+
+
+PROCEDURE SetInvalid(
+    VAR list : Object
+    );
+    BEGIN (* SetInvalid *)
+	
+	list := NIL;
+    
+    END SetInvalid;
+
+
+PROCEDURE Insert(
+    list           : Object;
+    key            : ARRAY OF SysTypes.ANY;
+    importerObject : SysTypes.ANYPTR
+    );
+    VAR
+        node          : Element;
+        tmpNode       : Element;
+	compareResult : Intrinsics.CompareResults;
+	i             : SysTypes.Card;
+    BEGIN (* Insert *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+           
+        WITH list^ DO
+	    @IF Assert THEN
+		madeFirstNext := FALSE;
+
+		IF type.size # SIZE( key ) THEN
+		    SizeFault;
+		END;
+
+		IF type.needToAssert THEN
+		    type.assert( SYSTEM.ADR( key ) );
+		END;
+	    @END (* Assert *)
+
+
+            (* Allocate and initialize *)
+            Objects.Allocate( elementMgr, node );
+            WITH node^ DO
+		impObj := importerObject;
+		FOR i := 0 TO HIGH( key ) DO
+		    keyValue[ i ] := key[ i ];
+		END;
+
+                IF ordering IN sortedOrders THEN
+                    left   := NIL;      (* always an end node, easy *)
+                    right  := NIL;
+                    IF root = NIL THEN
+                        parent  := NIL;
+                        root    := node;
+			current := node;	(* Must be kept up to date *)
+                        RETURN;
+                    END;
+
+                    (* Seek and insert *)
+                    tmpNode := root;
+                    LOOP
+                        compareResult := type.compare( SYSTEM.ADR( key ), 
+				SYSTEM.ADR( tmpNode^.keyValue ) );
+			IF compareResult = leftCompare THEN
+			    (* go to the left *)
+			    IF tmpNode^.left = NIL THEN (* insert *)
+				parent        := tmpNode;
+				tmpNode^.left := node;
+				EXIT;
+			    END;
+			    tmpNode := tmpNode^.left;
+
+			ELSIF compareResult = Intrinsics.equal THEN
+			    (* 
+			     * Found a spot in which we can insert.
+			     * Always put duplicates to the right,
+			     * but duplicate ordering is not defined.
+			     *)
+			    parent         := tmpNode;
+                            right          := tmpNode^.right;
+			    tmpNode^.right := node;
+			    IF right # NIL THEN 
+				right^.parent := node;
+			    END;
+			    EXIT;
+
+			ELSE 
+			    (* 
+			     * NOT leftCompare or equal, so must be right.
+			     *)
+			    IF tmpNode^.right = NIL THEN (* insert *)
+				parent         := tmpNode;
+				tmpNode^.right := node;
+				EXIT;
+			    END; 
+			    tmpNode := tmpNode^.right;
+                        END; (* CASE *)
+                    END; (* LOOP *)
+
+                ELSE (* list insertion *)
+                    IF root = NIL THEN
+                        root := node;
+                        next := node;
+                        prev := node;
+
+                    ELSE
+                        (* Insert at tail before the root *)
+                        prev       := root^.prev;
+                        root^.prev := node;
+                        next       := root;
+                        prev^.next := node;
+
+                        IF ordering = stack THEN
+                            (* Move the start *)
+                            root := node;
+                        END;
+                    END; (* IF root = NIL *)
+
+                END; (* IF sorted *)
+            END; (* WITH node *)
+
+	    current := node;	(* Set the "current" as specified in def mod. *)
+
+        END; (* WITH *)
+    END Insert;
+
+
+PROCEDURE DeleteCurrent(
+    list : Object
+    );
+    (*
+     * Delete "current" entry with the extra links.
+     * This is kind of messy.  Basically, the tree deletion with
+     * the parent nodes makes for a lot of tests, but it is simpler.
+     *)
+    VAR
+        toDelete : Element;
+        tmpNode  : Element;
+    BEGIN (* DeleteCurrent *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+           
+        WITH list^ DO
+
+	    @IF Assert THEN
+		IF current = NIL THEN
+		    CurrentFault;
+		END;
+		madeFirstNext := FALSE;	 (* Not legal to do a next... *)
+	    @END (* Assert *)
+
+            toDelete := current;
+            current  := NIL;   (* undefined after a deletion *)
+
+            WITH toDelete^ DO
+                IF ordering IN sortedOrders THEN
+                    IF ( left = NIL ) OR ( right = NIL ) THEN
+
+                        (* Have one or zero subtrees, which one is not NIL? *)
+                        IF left # NIL THEN
+                            tmpNode := left;    (* replace node with left  *)
+                        ELSE
+                            tmpNode := right;   (* replace node with right *)
+                        END;
+
+                        (* Where is toDelete in relation to parent? *)
+                        IF parent = NIL THEN
+                            root := tmpNode;    (* have to set root *)
+                        ELSIF parent^.left = toDelete THEN
+                            parent^.left := tmpNode;    (* came from left *)
+                        ELSE
+                            parent^.right := tmpNode;    (* was the right  *)
+                        END;
+
+                        (* Have to update parent, only if not empty tree *)
+                        IF tmpNode # NIL THEN
+                            tmpNode^.parent := parent;
+                        END;
+
+                    ELSE (* have to merge two trees *)
+                        (* Put the right tree on the rightmost node of left *)
+                        tmpNode := left;
+                        WHILE tmpNode^.right # NIL DO (* find rightmost *)
+                            tmpNode := tmpNode^.right; 
+                        END;
+
+                        (*  
+                         * Have rightmost node of left subtree.
+                         * Tell this node about the right subtree
+                         * and vice-versa.
+                         *)
+                        tmpNode^.right := right;    (* tell left about right *)
+                        right^.parent  := tmpNode;  (* tell right about left *)
+                        
+                        (*
+                         * Adjust the root pointer of toDelete by
+                         * telling the left node who its parent is
+                         * and telling the parent that "left" is its child.
+                         *)
+                        left^.parent := parent;
+
+                        (* Adjust root pointer, if necessary *)
+                        IF toDelete = root THEN 
+                            root := left;
+                        ELSIF parent^.left = toDelete THEN
+                            parent^.left := left;
+                        ELSE
+                            parent^.right := left;
+                        END;
+                    END;
+
+                ELSE (* deletion is from list *)
+
+                    (* Is this a single node list? *)
+                    IF next = toDelete THEN
+                        root       := NIL;    (* empty list now! *)
+
+                    ELSE  (* relink without toDelete *)
+                        next^.prev := prev;
+                        prev^.next := next;
+
+                        (* Were we the root? *)
+                        IF toDelete = root THEN
+                            root := next;  (* preserves order in both cases *)
+                        END;
+                    END;
+                END; (* IF ordering *)
+
+            END; (* WITH toDelete *)
+
+            (* toDelete is still the node to be deleted *)
+            Objects.Deallocate( elementMgr, toDelete );
+
+        END; (* WITH list *)
+
+    END DeleteCurrent;
+
+
+PROCEDURE DeleteAll(
+    list : Object    (* must be a valid object *)
+    );
+    (*
+     * Merely have to flush the objects list and set the root to nil.
+     *)
+    BEGIN (* DeleteAll *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+	
+	WITH list^ DO
+	    Objects.DeallocateAll( elementMgr );
+	    root := NIL;
+	    @IF Assert THEN
+		madeFirstNext := FALSE;
+	    @END (* Assert *)
+	END; (* WITH *)
+           
+    END DeleteAll;
+
+
+PROCEDURE Find(
+        list           : Object;
+        key            : ARRAY OF SysTypes.ANY;
+    VAR importerObject : SysTypes.ANYPTR
+    )                  : BOOLEAN;
+    (*
+     * Searches the list for the specified "key".  Note that we 
+     * don't use current to prevent problems with mutual exclusion
+     * on concurrent finds.
+     *)
+    VAR
+	compareResult : Intrinsics.CompareResults;
+	found         : Element;	
+    BEGIN (* Find *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+           
+        WITH list^ DO
+
+	    @IF Assert THEN
+		IF type.size # SIZE( key ) THEN
+		    SizeFault;
+		END;
+		IF type.needToAssert THEN
+		    type.assert( SYSTEM.ADR( key ) );
+		END;
+		madeFirstNext := FALSE;	 (* Not legal to do a Next *)
+	    @END (* Assert *)
+
+            IF root = NIL THEN
+                RETURN FALSE;
+            END;
+
+	    found := root;
+
+	    IF ordering IN sortedOrders THEN
+		REPEAT
+		    WITH found^ DO
+			compareResult := type.compare( 
+			   SYSTEM.ADR( key ), SYSTEM.ADR( keyValue ) );
+			IF compareResult = Intrinsics.equal THEN
+			    importerObject := found^.impObj;
+			    current := found;
+			    RETURN TRUE;	(* found it *)
+			END;
+			IF compareResult = leftCompare THEN
+			    found := left;
+			ELSE
+			    found := right;
+			END;
+		    END; (* WITH *)
+		UNTIL found = NIL;	
+
+	    ELSE (* is a list search *)
+
+		REPEAT
+		    WITH found^ DO
+			IF type.compare( SYSTEM.ADR( key ), 
+			  SYSTEM.ADR( keyValue ) ) = Intrinsics.equal THEN
+			    importerObject := found^.impObj;
+			    current := found;
+			    RETURN TRUE;	(* Found it *)
+			END;
+			found := next;
+		    END; (* WITH *)
+		UNTIL found = root;  (* circular list, check for root *)
+
+		(* not found *)
+		current := NIL;	
+
+	    END; (* IF ordering *)
+
+        END; (* WITH *)
+
+	RETURN FALSE;
+    END Find;
+
+
+PROCEDURE Next(
+        list           : Object;
+    VAR key            : ARRAY OF SysTypes.ANY;
+    VAR importerObject : SysTypes.ANYPTR
+    )                  : BOOLEAN;
+    VAR
+        tmpNode : Element;
+	i       : SysTypes.Card;
+    BEGIN (* Next *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+        
+        WITH list^ DO
+	    @IF Assert THEN
+		IF type.size # SIZE( key ) THEN
+		    SizeFault;
+		END;
+	    @END (* Assert *)
+            
+            IF current = NIL THEN
+		(* This is the first place after a "MakeFirstNext" *)
+
+		@IF Assert THEN
+		    IF NOT madeFirstNext THEN
+			NextFault;
+		    END;
+		    madeFirstNext := FALSE;
+		@END (* Assert *)
+
+		current := root;
+		IF current = NIL THEN
+		    RETURN FALSE;	(* Empty list *)
+		END;
+
+		IF ordering IN sortedOrders THEN
+		    (* 
+		     * Find the left most node 
+		     *)
+		    WHILE current^.left # NIL DO
+			current := current^.left;
+		    END;
+		END;
+
+	    ELSIF ordering IN sortedOrders THEN
+		(* Next is valid *)
+
+                IF current^.right # NIL THEN 
+                    (*
+                     * Go to the next node to the right and then
+                     * go all the way to the left (always return leftmost).
+                     *)
+                    current := current^.right;
+                    (* Always return the leftmost node! *)
+                    WHILE current^.left # NIL DO
+                        current := current^.left;
+                    END;
+                    IF current = NIL THEN
+                       RETURN FALSE;
+                    END;
+
+                ELSE
+                    (*
+                     * Keep going up until we find a node with a right child
+                     * that isn't where we came from e.g. parent^.right # node.
+                     *)
+                    LOOP
+                        tmpNode := current;
+                        current := current^.parent;
+                        IF current = NIL THEN 
+                            (* the "current" upon entry was the rightmost *)
+                            RETURN FALSE;
+                        END;
+                        IF tmpNode = current^.left THEN 
+                            (* came from the left, thus we found a new node *)
+                            EXIT;
+                        END;
+                    END; (* LOOP *)
+                END;
+
+            ELSE (* list search *)
+		(* Next is valid *)
+
+                (* search the "next" path until we find the root *)
+                current := current^.next;
+                IF current = root THEN
+                    current := NIL;
+                    RETURN FALSE;
+                END;
+            END;
+
+	    (* Found a value and current is valid. *)
+	    WITH current^ DO 
+		importerObject := impObj;
+		FOR i := 0 TO HIGH( key ) DO
+		    key[ i ] := keyValue[ i ];
+		END;
+	    END;
+
+        END; (* WITH list  *)
+        
+	RETURN TRUE;
+    END Next;
+    
+
+PROCEDURE MakeFirstNext(
+    list : Object
+    );
+    (* 
+     * Just set up for the "next" call to next.
+     *)
+    BEGIN (* MakeFirstNext *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+        
+        WITH list^ DO
+	    current := NIL;	(* Always the case *)
+	    @IF Assert THEN
+		madeFirstNext := TRUE;	(* First time around. *)
+	    @END
+	END;
+
+    END MakeFirstNext;
+
+
+PROCEDURE GetCurrent(
+        list           : Object;
+    VAR key            : ARRAY OF SysTypes.ANY;
+    VAR importerObject : SysTypes.ANYPTR
+    );
+    VAR
+	i : SysTypes.Card;
+    BEGIN  (* GetCurrent *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+
+	WITH list^ DO
+	    @IF Assert THEN
+		IF type.size # SIZE( key ) THEN
+		    SizeFault;
+		END;
+
+		IF current = NIL THEN
+		    CurrentFault;
+		END;
+	    @END (* Assert *)
+
+	    WITH current^ DO 
+		importerObject := impObj;
+		FOR i := 0 TO HIGH( key ) DO
+		    key[ i ] := keyValue[ i ];
+		END;
+	    END;
+
+	END; (* WITH *)
+    END GetCurrent;
+
+
+PROCEDURE ChangeCurrentObject(
+    list           : Object;
+    importerObject : SysTypes.ANYPTR
+    );
+    BEGIN (* ChangeCurrentObject *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+        
+	WITH list^ DO
+	    @IF Assert THEN
+		IF current = NIL THEN
+		    CurrentFault;
+		END;
+	    @END (* Assert *)
+
+	    current^.impObj := importerObject;
+
+	END;
+    END ChangeCurrentObject;
+
+
+PROCEDURE ChangeCurrentKey(
+    list   : Object;
+    newKey : ARRAY OF SysTypes.ANY
+    );
+    (*
+     * For sorted lists, we delete the current and replace with
+     * the new key (not we must save impObj in between operations).
+     * For queues lists, we just replace the "key" in line.
+     *)
+    VAR
+        importerObject : SysTypes.ANYPTR;
+	i              : SysTypes.Card;
+    BEGIN (* ChangeCurrentKey *)
+
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+
+	WITH list^ DO
+        
+	    @IF Assert THEN
+		IF type.size # SIZE( newKey ) THEN
+		    SizeFault;
+		END;
+
+		IF type.needToAssert THEN
+		    type.assert( SYSTEM.ADR( newKey ) );
+		END;
+
+		IF current = NIL THEN
+		    CurrentFault;
+		END;
+	    @END (* Assert *)
+        
+	    IF ordering IN sortedOrders THEN
+		(*
+		 * Have to do a delete and an insert, because
+		 * the key changes the position of current.
+		 *)
+	        importerObject := current^.impObj;
+	        DeleteCurrent( list );
+	        Insert( list, newKey, importerObject );
+		(* This also sets up "current" properly. *)
+        
+	    ELSE  (* lists (stacks/queues) *)
+	        (* 
+		 * maintain current ordering 
+		 *)
+		WITH current^ DO
+		    FOR i := 0 TO HIGH( newKey ) DO
+			keyValue[ i ] := newKey[ i ];
+		    END;
+		END; (* WITH *)
+	    END;
+	
+	END; (* WITH *)
+    END ChangeCurrentKey;
+
+
+PROCEDURE GetCount( 
+    list : Object     (* must be valid *)
+    )    : SysTypes.Card;  (* number of elements in the list *)
+    BEGIN (* GetCount *)
+    
+	RETURN Objects.NumAllocated( list^.elementMgr );
+
+    END GetCount;
+    
+
+PROCEDURE GetOrdering(
+    list : Object
+    )    : Orderings;
+    BEGIN (* GetOrdering *)
+	
+	@IF Assert THEN
+	    Objects.Assert( listMgr, list );
+	@END (* Assert *)
+
+	RETURN list^.ordering;
+    END GetOrdering;
+
+
+(* 
+ * Type management.
+ *)
+PROCEDURE Register(
+    typeName    : ARRAY OF CHAR;
+    assertProc  : AssertProc;
+    compareProc : CompareProc;
+    keySize     : SysTypes.Card
+    );
+    VAR
+	typeInfo : TypeInfo;
+    BEGIN (* Register *)
+
+	@IF Assert THEN
+	    IF NameLists.Find( types, typeName, typeInfo ) THEN
+		ProgErr.Terminate( "Lists: duplicate type registered." );
+	    END;
+	@END (* Assert *)
+
+	Objects.Allocate( typeMgr, typeInfo );
+	WITH typeInfo^ DO
+	    assert       := assertProc;
+	    needToAssert := SYSTEM.ADDRESS( assertProc ) 
+			    # SYSTEM.ADDRESS( NoAssert );
+	    compare	 := compareProc;
+	    size         := keySize;
+	END; (* WITH *)
+	NameLists.Insert( types, typeName, typeInfo );
+
+    END Register;
+
+
+PROCEDURE SpecialCreate(
+    VAR list          : Object;
+	assertProc    : AssertProc;
+	compareProc   : CompareProc;
+	keySize       : SysTypes.Card;
+	howToTraverse : Orderings
+    );
+    (*
+     * Creates an "anonymous" list.
+     *)
+    BEGIN (* SpecialCreate *)
+
+        Objects.Allocate( listMgr, list );
+
+        (* Initialize *)
+	WITH list^ DO
+	    WITH type DO 
+		assert       := assertProc;
+		needToAssert := SYSTEM.ADDRESS( assertProc ) 
+				# SYSTEM.ADDRESS( NoAssert );
+		compare := compareProc;
+		size    := keySize;
+	    END; (* WITH *)
+
+	    ordering := howToTraverse;
+
+	    (*
+	     * We compute the size in a "portable" fashion, that is,
+	     * we carefully round up.
+	     *)
+	    Objects.CreateManager( elementMgr, 
+				   ( SYSTEM.TSIZE( ElementRec ) - 
+				     SYSTEM.TSIZE( KeyArray ) )
+				   + keySize, "Lists.Anonymous" );
+	    root     := NIL;
+	    current  := NIL;
+	    leftCompare := orderToLeftCompare[ ordering ];
+	    @IF Assert THEN
+		madeFirstNext := TRUE;
+	    @END (* Assert *)
+
+	END; (* WITH *)
+    END SpecialCreate;
+
+
+PROCEDURE NoAssert(
+    keyPtr : SysTypes.ANYPTR
+    );
+    END NoAssert;
+
+
+PROCEDURE CardCompare(
+    left  : SysTypes.ANYPTR;
+    right : SysTypes.ANYPTR
+    )     : Intrinsics.CompareResults;
+    VAR
+	leftPtr  : POINTER TO SysTypes.Card;
+	rightPtr : POINTER TO SysTypes.Card;
+    BEGIN (* CardCompare *)
+
+	leftPtr  := left;
+	rightPtr := right;
+	IF leftPtr^ < rightPtr^ THEN
+	    RETURN Intrinsics.less;
+	END;
+
+	IF leftPtr^ > rightPtr^ THEN
+	    RETURN Intrinsics.greater;
+	END;
+
+	RETURN Intrinsics.equal;
+    END CardCompare;
+
+
+PROCEDURE IntCompare(
+    left  : SysTypes.ANYPTR;
+    right : SysTypes.ANYPTR
+    )     : Intrinsics.CompareResults;
+    VAR
+	leftPtr  : POINTER TO SysTypes.Int;
+	rightPtr : POINTER TO SysTypes.Int;
+    BEGIN (* IntCompare *)
+
+	leftPtr  := left;
+	rightPtr := right;
+	IF leftPtr^ < rightPtr^ THEN
+	    RETURN Intrinsics.less;
+	END;
+
+	IF leftPtr^ > rightPtr^ THEN
+	    RETURN Intrinsics.greater;
+	END;
+
+	RETURN Intrinsics.equal;
+    END IntCompare;
+
+
+PROCEDURE RealCompare(
+    left  : SysTypes.ANYPTR;
+    right : SysTypes.ANYPTR
+    )     : Intrinsics.CompareResults;
+    VAR
+	leftPtr  : POINTER TO SysTypes.Real;
+	rightPtr : POINTER TO SysTypes.Real;
+    BEGIN (* RealCompare *)
+
+	leftPtr  := left;
+	rightPtr := right;
+	IF leftPtr^ < rightPtr^ THEN
+	    RETURN Intrinsics.less;
+	END;
+
+	IF leftPtr^ > rightPtr^ THEN
+	    RETURN Intrinsics.greater;
+	END;
+
+	RETURN Intrinsics.equal;
+    END RealCompare;
+
+
+@IF NOT ( LogitechM2 AND IbmPcArch ) THEN
+    PROCEDURE AdrCompare(
+	left  : SysTypes.ANYPTR;
+	right : SysTypes.ANYPTR
+	)     : Intrinsics.CompareResults;
+	VAR
+	    leftPtr  : POINTER TO SysTypes.ANYPTR;
+	    rightPtr : POINTER TO SysTypes.ANYPTR;
+	BEGIN (* AdrCompare *)
+
+	    leftPtr  := left;
+	    rightPtr := right;
+	    IF leftPtr^ < rightPtr^ THEN
+		RETURN Intrinsics.less;
+	    END;
+
+	    IF leftPtr^ > rightPtr^ THEN
+		RETURN Intrinsics.greater;
+	    END;
+
+	    RETURN Intrinsics.equal;
+	END AdrCompare;
+
+@ELSE (* Logitech AND IbmPcArch *)
+
+    PROCEDURE AdrCompare(
+	left  : SysTypes.ANYPTR;
+	right : SysTypes.ANYPTR
+	)     : Intrinsics.CompareResults;
+	(*
+	 * Logitech doesn't support full address compares on the PC,
+	 * so we must do them ourselves.   Note that we can't normalize
+	 * addresses, because we must allow for all ranges and normalization
+	 * only works for legal addresses.
+	 *)
+	CONST
+	    bytesPerParagraph = 16;
+	VAR
+	    leftPtr  : POINTER TO SysTypes.ANYPTR;
+	    rightPtr : POINTER TO SysTypes.ANYPTR;
+	    lSEG     : SysTypes.Card;
+	    rSEG     : SysTypes.Card;
+	    dSEG     : SysTypes.Card;	(* Difference *)
+	    lOFF     : SysTypes.Card;
+	    rOFF     : SysTypes.Card;
+	    dOFF     : SysTypes.Card;	(* Difference *)
+	    dOFFPara : SysTypes.Card;	(* Difference in paragraphs *)
+	    result   : Intrinsics.CompareResults;
+	    negRes   : Intrinsics.CompareResults;
+	BEGIN (* AdrCompare *)
+
+	    leftPtr  := left;
+	    rightPtr := right;
+	    WITH leftPtr^ DO
+		lOFF := OFFSET;
+		lSEG := SEGMENT;
+	    END;
+	    WITH rightPtr^ DO
+		rOFF := OFFSET;
+		rSEG := SEGMENT;
+	    END;
+
+	    (* Common case first *)
+	    IF lSEG = rSEG THEN
+		IF lOFF > rOFF THEN 
+		    RETURN Intrinsics.greater;
+		ELSIF lOFF < rOFF THEN 
+		    RETURN Intrinsics.less;
+		END;
+		RETURN Intrinsics.equal;
+
+	    ELSIF lSEG > rSEG THEN
+		(* Must be greater if the segments and offsets compare same *)
+		IF lOFF >= rOFF THEN
+		    RETURN Intrinsics.greater;
+		END;
+		dSEG := lSEG - rSEG;
+		dOFF := rOFF - lOFF;
+		result := Intrinsics.greater;
+		negRes := Intrinsics.less;
+	    ELSE
+		(* Must be less if the segments and offsets compare same *)
+		IF lOFF <= rOFF THEN
+		    RETURN Intrinsics.less;
+		END;
+		dSEG := rSEG - lSEG;
+		dOFF := lOFF - rOFF;
+		result := Intrinsics.less;
+		negRes := Intrinsics.greater;
+	    END;
+
+	    (* If offset contribution to segment isn't bigger, return result *)
+	    dOFFPara := dOFF DIV bytesPerParagraph;
+	    IF dSEG > dOFFPara THEN
+		RETURN result;
+	    END;
+
+	    (* If offset contribution is greater, then must be opposite *)
+	    IF dSEG < dOFFPara THEN
+		RETURN negRes;
+	    END;
+
+	    (*  
+	     * Segemtns are equal when adjusted with dOFFPara.
+	     * If no odd bytes, then two addresses are equal.
+	     *)
+	    IF dOFF MOD bytesPerParagraph = 0 THEN
+		RETURN Intrinsics.equal;
+	    END;
+
+	    (* Otherwise, the difference is in favor of OFFSETs *)
+	    RETURN negRes;
+
+	END AdrCompare;
+@END
+
+
+PROCEDURE CharCompare(
+    left  : SysTypes.ANYPTR;
+    right : SysTypes.ANYPTR
+    )     : Intrinsics.CompareResults;
+    VAR
+	leftPtr  : POINTER TO CHAR;
+	rightPtr : POINTER TO CHAR;
+    BEGIN (* CharCompare *)
+
+	leftPtr  := left;
+	rightPtr := right;
+	IF leftPtr^ < rightPtr^ THEN
+	    RETURN Intrinsics.less;
+	END;
+
+	IF leftPtr^ > rightPtr^ THEN
+	    RETURN Intrinsics.greater;
+	END;
+
+	RETURN Intrinsics.equal;
+    END CharCompare;
+
+@IF Assert THEN
+    PROCEDURE SizeFault;
+	BEGIN (* SizeFault *)
+	    ProgErr.Terminate( "Lists: object incorrect size for list." );
+	END SizeFault;
+
+    PROCEDURE CurrentFault;
+	BEGIN (* CurrentFault *)
+	    ProgErr.Terminate( "Lists: current is invalid." );
+	END CurrentFault;
+
+    PROCEDURE NextFault;
+	BEGIN (* NextFault *)
+	    ProgErr.Terminate( 
+		"Lists: Next called before MakeFirstNext." );
+	END NextFault;
+@END (* Assert *)
+
+VAR
+    orderToLeftCompare : ARRAY Orderings OF Intrinsics.CompareResults;
+                            
+PROCEDURE PRIVATEInitialize;
+    (*
+     * Initialization is very tricky between the module NameLists 
+     * and this module because they are mutually importing.  NameLists
+     * calls us after it initializes its internal data structures
+     * (its list manager).  We then must initialize our internal
+     * data structures and then call NameLists for the type manager.
+     * NameLists does not call Register or Create, it uses the SpecialCreate
+     * interface.
+     *)
+    BEGIN (* PRIVATEInitialize *)
+
+	(*
+	 * How to go when a Compare routine returns a result.
+	 *)
+	orderToLeftCompare[ forwardSorted ] := Intrinsics.less;
+	orderToLeftCompare[ reverseSorted ] := Intrinsics.greater;
+	(* Don't really care about these *)
+	orderToLeftCompare[ queue ] 	    := Intrinsics.less;
+	orderToLeftCompare[ stack ] 	    := Intrinsics.less;
+
+
+	Objects.CreateManager( listMgr, SYSTEM.TSIZE( ObjectRec ), 
+			       'Lists.objects' );
+
+	Objects.CreateManager( typeMgr, SYSTEM.TSIZE( TypeInfoRec ), 
+			       'Lists.types' );
+
+	(* MUST BE AFTER Objects *)
+	NameLists.Create( types, NameLists.forwardSorted,
+			  NameLists.caseSensitive );
+
+	(*
+	 * Register the default lists after we are all intialized.
+	 *)
+	Register( typeCard, NoAssert, CardCompare, 
+			SYSTEM.TSIZE( SysTypes.Card ) );
+	Register( typeInt, NoAssert, IntCompare, 
+			SYSTEM.TSIZE( SysTypes.Int ) );
+	Register( typeAdr, NoAssert, AdrCompare, 
+			SYSTEM.TSIZE( SYSTEM.ADDRESS ));
+	Register( typeChar, NoAssert, CharCompare, 
+			SYSTEM.TSIZE( CHAR ) );
+	Register( typeReal, NoAssert, RealCompare, 
+			SYSTEM.TSIZE( SysTypes.Real ) );
+    END PRIVATEInitialize;
+
+END Lists.

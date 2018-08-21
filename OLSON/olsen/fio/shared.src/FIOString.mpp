@@ -1,0 +1,230 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE FIOString;
+(* 
+ * Uses StringIO.WriteXXXAdr and TextIO.ReadChars.
+ *)
+IMPORT 
+    FIOBase,
+    IOErrors,
+    ModInit,	(* MUST BE HERE -- See ConfFIO *)
+    Strings,
+    StringIO,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+@IF SysTypesCheck THEN
+    IMPORT
+	ProgErr;
+@END 
+
+CONST
+    sizeToLength = SysTypes.bitsPerArrayCHAR DIV SysTypes.bitsPerSAU;
+	(*
+	 * To use this: length := size * sizeToLength
+	 *)
+TYPE
+    BigArray = POINTER TO ARRAY [ 0 .. SysTypes.maxArrayIndexCHAR ] OF CHAR;
+
+CONST
+    defaultWidth         = 0;
+    defaultFillChar      = ' ';
+    defaultJustification = Strings.justifyLeft;
+   
+CONST
+    stringType = NIL;	(* charType is non-NIL *)
+
+PROCEDURE Write(
+    type     : SysTypes.ANYPTR;
+    outFile  : TextIO.Object;
+    format   : ARRAY OF CHAR;
+    dataAdr  : SysTypes.SAUPTR;
+    dataSize : SysTypes.Card
+    )        : TextIO.States;
+    VAR
+	modifiers  : FIOBase.ModifierValues;
+	len        : SysTypes.Card;
+	char       : POINTER TO CHAR;
+	array      : BigArray;
+    BEGIN (* Write *)
+
+	WITH modifiers DO
+	    width         := defaultWidth;
+	    justification := defaultJustification;
+	    fillChar      := defaultFillChar;
+	END; (* WITH *)
+
+	(* scan for default modifiers *)
+	IF NOT FIOBase.ScanModifiers( format, FIOBase.writeModifierSet,
+				      outFile, modifiers, format ) THEN
+	    RETURN TextIO.SetError( outFile, IOErrors.badParameter );
+	END; 
+
+	(* Don't expect any other parameters *)
+	IF format[0] # 0C THEN
+	    RETURN TextIO.SetError(outFile, IOErrors.badParameter);
+	END; 
+
+	IF type # stringType THEN
+	    (* Always just write out the character in terms *)
+	    IF SYSTEM.TSIZE( CHAR ) # dataSize THEN
+		RETURN TextIO.SetError(outFile, IOErrors.badParameter);
+	    END;
+	    len := 1;
+	    IF SysTypes.bitsPerCHAR # SysTypes.bitsPerArrayCHAR THEN
+		array := dataAdr;
+		char := dataAdr;
+		array^[ 0 ] := char^;
+	    END;
+	ELSE
+	    (* Determine the length of the string *)
+	    len := Strings.LengthAdr( dataAdr, 
+				      ( sizeToLength * dataSize ) - 1 );
+	END;
+
+	WITH modifiers DO
+	    (* Truncate the string (as opposed to putting out stars) *)
+	    IF width = 0 THEN
+		width := len;	(* Handle "0" specially *)
+	    END;
+	    RETURN StringIO.WriteJustifiedAdr( 
+		    outFile, dataAdr, len, justification, width, fillChar );
+
+	END; (* WITH *)
+
+    END Write;
+
+    
+PROCEDURE Read(
+    type       : SysTypes.ANYPTR;
+    inFile     : TextIO.Object;
+    format     : ARRAY OF CHAR;
+    dataAdr    : SysTypes.SAUPTR;
+    dataSize   : SysTypes.Card;
+    prompting  : BOOLEAN;
+    promptFile : TextIO.Object
+    )          : TextIO.States;
+    VAR
+	modifiers : FIOBase.ModifierValues;
+	state     : TextIO.States;
+	read      : SysTypes.Card;
+	length    : SysTypes.Card;
+	char      : POINTER TO CHAR;
+	array     : BigArray;
+    BEGIN (* Read *)
+
+	IF prompting THEN 
+	    modifiers.messageOutput := FALSE;
+	    IF NOT FIOBase.ScanModifiers( format, FIOBase.readModifierSet, 
+					  promptFile, modifiers, format ) 
+	      THEN RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	    END;
+	END;
+
+	(* No other parameters are expected *)
+	IF format[ 0 ] # 0C THEN
+	    RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+	END;
+
+	LOOP
+	    IF prompting AND NOT modifiers.messageOutput THEN
+		IF type = stringType THEN
+		    IF StringIO.Write( promptFile, 'Enter a string: ') 
+		       # TextIO.ok THEN
+			RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+		    END;
+		ELSE
+		    IF StringIO.Write( promptFile, 'Enter a character: ') 
+		       # TextIO.ok THEN
+			RETURN TextIO.SetError( inFile, IOErrors.badParameter );
+		    END;
+		END;
+	    END;
+
+	    IF type = stringType THEN
+		length := dataSize * sizeToLength;
+		state := TextIO.ReadChars( inFile, dataAdr, length, read );
+		(* Nothing we can do if we aren't prompting! *)
+		IF ( read = 0 ) AND ( state # TextIO.endOfLine ) THEN
+		    RETURN state;
+		END;
+
+		IF read < length THEN
+		    (* Null-terminate in all states which will end up in OK *)
+		    array := dataAdr;
+		    array^[ read ] := 0C;
+		END;
+		IF state # TextIO.ok THEN
+		    RETURN TextIO.UndoRead( inFile );
+		END;
+		RETURN state;
+	    END;
+
+	    char := dataAdr;
+	    state := TextIO.Read( inFile, char^ );
+	    IF ( state = TextIO.ok ) OR NOT prompting THEN
+		RETURN state;
+	    END;
+
+	    (* We are prompting, so use the standard procedure for errors *)
+	    state := FIOBase.PromptForReread( promptFile, inFile );
+	    IF state # TextIO.ok THEN
+		RETURN state;
+	    END;
+
+	    modifiers.messageOutput := FALSE;
+            (* Force a re-prompt at top *)
+	END;
+
+    END Read;
+
+
+BEGIN (* FIOString *)
+    
+    @IF SysTypesCheck THEN
+	(*
+	 * An SAU is smaller than an ARRAY CHAR.  You probably just 
+	 * have to flip the declaration.
+	 *)
+	IF sizeToLength = 0 THEN
+	    ProgErr.Terminate( "FIOString: SysTypesCheck failed." );
+	END;
+    @END
+
+    (*
+     * stringType is NIL and charType (not defined) is non-NIL.
+     *)
+    FIOBase.RegisterWrite( stringFormatName, Write, stringType,
+			   FIOBase.noSizeCheck );
+
+    FIOBase.RegisterRead( stringFormatName, Read, stringType,
+			  FIOBase.noSizeCheck );
+
+    FIOBase.RegisterWrite( charFormatName, Write, SysTypes.ANYPTR( Write ),
+			   SYSTEM.TSIZE( CHAR ) );
+
+    FIOBase.RegisterRead( charFormatName, Read, SysTypes.ANYPTR( Read ),
+			   SYSTEM.TSIZE( CHAR ) );
+
+END FIOString.

@@ -1,0 +1,106 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TaskMonitors;
+(* 
+ * Supports global resource sharing between Tasks.
+ *
+ * Protection is provided by a simple monitor facility which appears
+ * around the critical data accesses. Entries are serialized on a
+ * first-come first-serve basis. Entries and Exits may be nested,
+ * but nesting should be avoided where possible.
+ *)
+IMPORT
+    TaskTime;
+EXPORT QUALIFIED
+    Object,   Create,       Destroy,
+    Enter,    TimedEnter,   Exit;
+
+TYPE
+    Object;
+    (*
+     * Protector of those who believe.
+     *)
+
+PROCEDURE Create(
+    VAR monitor : Object;        (* In any state, will be valid *)
+        anyName : ARRAY OF CHAR  (* Uniqueness not required; for debug *)
+    );
+    (* 
+     * Allocate a resource protector.
+     *)
+
+PROCEDURE Destroy(
+    VAR monitor : Object  (* In any state, will be invalid *)
+    );
+    (*
+     * Dispose of the monitor.
+     *
+     * Any task may destroy a monitor if it is not owned at the time
+     * destroy is called. If the monitor is owned, then only the owner
+     * may destroy it and only if there are no tasks waiting for it.
+     *)
+
+PROCEDURE Enter(
+    monitor : Object  (* Must be valid *)
+    );
+
+PROCEDURE TimedEnter(
+    monitor : Object;        (* Must be valid *)
+    timeout : TaskTime.Units (* Max time to wait for monitor entry *)
+    )       : BOOLEAN;       (* Access granted => TRUE *)
+    (*
+     * Await entry into the critical section protected by the monitor.
+     *
+     * This call will block if another process holds the monitor. If
+     * the caller already owns the monitor, it is let through and one
+     * more count is added to the nesting.
+     *
+     * TimedEnter uses TaskTime.Sleep instead of Tasks.Suspend
+     * so that entries may fail.
+     *
+     * WARNING:
+     *     Tasks are not allowed to die normally if they have monitors
+     *     locked. In this event, the system will be terminated via
+     *     ProgErr.Terminate.
+     *)
+
+PROCEDURE Exit(
+    monitor : Object  (* Must be valid *)
+    );
+    (*
+     * Release the monitor.
+     *
+     * This may cause preemption because readies the next Task in line
+     * for the critical section. Note that the monitor may not be release
+     * if this Exit is associated with a (Timed)Enter inside another
+     * (Timed)Enter/Exit on the same monitor. In this latter case,
+     * the nesting count is decremented and only when it is zero will
+     * the monitor be released.
+     *
+     * WARNING: 
+     *     If a monitor is released for which there is no corresponding
+     *     Enter (or successful TimedEnter), then the caller will be
+     *     terminated.
+     *)
+
+END TaskMonitors.

@@ -1,0 +1,29 @@
+DEFINITION MODULE MoreIO;
+
+(* misc. extra i/o functions *)
+(* J. Andrea, Feb.18/92 *)
+(* This code may be freely used and distributed, it may not be sold. *)
+
+EXPORT QUALIFIED ReadLine, WriteLeftString, WriteRightString;
+
+
+PROCEDURE ReadLine( VAR line :ARRAY OF CHAR );
+(*
+ Read a line from standard input into the given string.
+*)
+
+PROCEDURE WriteLeftString( string :ARRAY OF CHAR; width :CARDINAL );
+(*
+ Write a string to standard output, left justified into a fixed width field,
+ if the string is longer then the specified width then truncate the string,
+ if the string is shorter then the width, append spaces to fill the width.
+*)
+
+PROCEDURE WriteRightString( string :ARRAY OF CHAR; width :CARDINAL );
+(*
+ Write a string to standard output, right justified into a fixed width field,
+ if the string is longer then the specified width then truncate the string,
+ if the string is shorter then the width, prepend spaces to fill the width.
+*)
+
+END MoreIO.

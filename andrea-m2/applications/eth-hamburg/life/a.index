@@ -1,0 +1,34 @@
+LIFE.EXE
+LIFE.MOD
+LIFEMODUL.DEF
+LIFEMODUL.MOD
+    This program is the Game of Life which may be run on standard
+    terminals.
+
+    See: Computer Recreations Dept. in Oct.83 and March.84 of 
+         Scientific American and the original paper by Martin Gardner in
+         Mathematical Games, Scientific American, Oct. 1970
+
+     Anyone can run the program with:
+
+                   $ RUN MOD$EXAMPLES:LIFE
+
+     on a VT100 or VT200 terminal or emulator.
+     To create a file containing a description of the game plan:
+
+                   $ SET TERM/NOAPP
+                   $ RUN MOD$EXAMPLES:MAKELIFE
+                   $ SET TERM/APP
+
+     The application keypad must be turned off in order to use the numbers
+     on the keypad as directions to move.
+     Some example game plans exist in the subdirectory LIFE of MOD$EXAMPLES,
+     the easiest way to run these samples is to:
+                   $ set def mod$examples
+                   $ down life
+                   $ dir
+                   $ run [-]life
+
+MAKELIFE.EXE
+MAKELIFE.MOD
+    This program builds initial setups for the program LIFE.

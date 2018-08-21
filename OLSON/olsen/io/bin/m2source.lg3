@@ -1,0 +1,11 @@
+M2Defs= binaryio.def binarysu.def cardio.def catbinar.def confbina.def  \
+        dirio.def dosbinar.def dosioerr.def dosionam.def intio.def  \
+        ioconsts.def ioerrors.def ionames.def iosearch.def ioversio.def  \
+        keyboard.def realio.def screenio.def simpleio.def stringbi.def  \
+        stringio.def textio.def textiopr.def textsupp.def 
+M2Imps= binaryio.mod binarysu.mod cardio.mod catbinar.mod confbina.mod  \
+        dirio.mod dosbinar.mod dosioerr.mod dosionam.mod intio.mod  \
+        ioconsts.mod ioerrors.mod ionames.mod iosearch.mod ioversio.mod  \
+        keyboard.mod realio.mod screenio.mod simpleio.mod stringbi.mod  \
+        stringio.mod textio.mod textiopr.mod textsupp.mod 
+M2Mods= 

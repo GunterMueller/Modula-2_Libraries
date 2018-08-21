@@ -1,0 +1,935 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE DirIO;
+(* 
+ * TO DO:
+ *    RJN - It would be best if CreateEntry did a creat first and
+ *          then checked the mode.  There is an option to creat
+ *          which says do not create if already exists.  This would
+ * 	    improve the performance for the normal case.
+ *
+ * IMPLEMENTATION NOTE:
+ *    GetDefault does not assume that the IOConsts.Path is of the
+ *    correct length, because this will cause disasterous results.
+ *    getwd does not take a size parameter so it can't know the size
+ *    of the path it is going to fill.    Therefore, we must allocate
+ *    an array which is MAXPATHLEN (sys/params) long on the stack.
+ *    If you change IOConts to have the correct path length, then it 
+ *    might be useful to change DirIO.GetDefault.  In general, not 
+ *    many people call this procedure.
+ *)
+IMPORT
+    Bytes,
+    CardConvert,
+    Chars,
+    Intrinsics,
+    IOConsts,
+    IOErrors,
+    NameLists,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    UnixCerrno,
+    UnixCsys_dir,
+    UnixCsys_file,
+    UnixCsys_param,
+    UnixCsys_stat,
+    UnixIOErrors,
+    UnixIONames;
+
+@IF Tasks THEN
+    IMPORT
+	UnixMonitor;
+@END 
+
+
+CONST
+    defaultDirectoryAccess = AccessSet {
+	otherExecute, otherWrite, otherRead,
+	groupExecute, groupWrite, groupRead,
+	ownerExecute, ownerWrite, ownerRead };
+
+    defaultRegularAccess = AccessSet {
+	otherWrite, otherRead,
+	groupWrite, groupRead,
+	ownerWrite, ownerRead };
+
+    (* All of the normal Unix bits minus local enhancements *)
+    unixAccessBits = AccessSet {
+	otherExecute, otherWrite, otherRead,
+	groupExecute, groupWrite, groupRead,
+	ownerExecute, ownerWrite, ownerRead,
+	saveText, setGroupId, setUserId };
+
+    emptyAccessSet = AccessSet { };
+TYPE
+    EntryTypeSet = SET OF EntryTypes;
+    UnixModeSet  = SysTypes.BITSET16;
+
+PROCEDURE GetInfo(     
+    (*IN*)VAR path     : ARRAY OF CHAR;
+          VAR info     : EntryInfo;
+          VAR unixPath : UnixIONames.Path	(* Converted "path" *)
+    )                  : IOErrors.Errors;
+    (*
+     * Takes path and converts it to "unixPath".
+     * Fills the "stat" part of the info.  If that went okay,
+     * then convert the accessSet by bit twiddling.  The type is
+     * trickier, because Unix has a randomly ordered set of FMT values.
+     * RJN - Should we shift "tmp" to reduce the search space?
+     *)
+    VAR
+	tmp  : UnixModeSet;
+    BEGIN (* GetInfo *)
+	
+	(* Must be ASCIIZ *)
+	IF NOT UnixIONames.CopyPath( path, unixPath ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* Get the structure *)
+	IF UnixCsys_stat.stat( unixPath, info.stat ) = -1 THEN
+	    RETURN UnixIOErrors.ErrnoToIOError();
+	END;
+
+	WITH info DO
+	    (* Get the access bits *)
+	    tmp       := UnixModeSet( stat.st_mode ) 
+			 - UnixModeSet( UnixCsys_stat.S_IFMT );
+	    accessSet := AccessSet( tmp );
+
+	    (* 
+	     * The randomly ordered UnixSet has to be converted into
+	     * a regularly ordere EntryTypes.  
+	     *)
+	    tmp := UnixModeSet( stat.st_mode ) 
+		   * UnixModeSet( UnixCsys_stat.S_IFMT );
+
+	    CASE SysTypes.CARDINAL16( tmp ) OF
+		UnixCsys_stat.S_IFDIR:
+		    type := directory;
+		|
+		UnixCsys_stat.S_IFCHR:
+		    type := characterSpecial;
+		|
+		UnixCsys_stat.S_IFBLK:
+		    type := blockSpecial;
+		|
+		UnixCsys_stat.S_IFREG:
+		    type := regular;
+		|
+		UnixCsys_stat.S_IFLNK:
+		    type := symbolicLink;
+		|
+		UnixCsys_stat.S_IFSOCK:
+		    type := socket;
+		|
+		UnixCsys_stat.S_IFIFO:
+		    type := fifo;
+		ELSE
+		    RETURN IOErrors.otherError;
+	    END; (* CASE *)
+	END; (* WITH *)
+
+	RETURN IOErrors.ok;
+
+    END GetInfo;
+
+
+PROCEDURE ModeCheckOut(
+	      mode     : CreateModes;
+    (*IN*)VAR path     : ARRAY OF CHAR;
+          VAR result   : IOErrors.Errors;
+	  VAR unixPath : UnixIONames.Path 	(* path in ASCIIZ *)
+    )                  : BOOLEAN;
+    (*
+     * Does mode handling/verification properly.  If the file does not exist,
+     * then both modes are identical.  In the case the file exists, we
+     * must return failure in mustBeNewPath.  Otherwise (overwritePath),
+     * we must delete the already existing file.
+     *
+     * NOTE: result is only valid if the return is FALSE.
+     *)
+    VAR
+	DONTCARE : EntryInfo;
+    BEGIN (* ModeCheckOut *)
+
+	result := GetInfo( path, DONTCARE, unixPath ); 
+	IF result = IOErrors.notFound THEN
+	    RETURN TRUE;	(* File doesn't exist *)
+	END;
+
+	(* Only do something if the file was found *)
+	IF result = IOErrors.ok THEN
+	    CASE mode OF 
+		mustBeNewPath:
+		    result := IOErrors.alreadyExists;
+		|
+		overwritePath:
+		    result := DeleteEntry( path );
+	    END; (* CASE *)
+	END;
+
+	RETURN result = IOErrors.ok;
+
+    END ModeCheckOut;
+
+
+PROCEDURE CreateEntry( 
+    path    : ARRAY OF CHAR;
+    options : ARRAY OF CHAR;
+    mode    : CreateModes 
+    )       : IOErrors.Errors;
+    (*
+     * Evaluate the options before doing anything.  If they are ok,
+     * then figure out if the name already exists.  If it does,
+     * then it must be deleted or return failure (depends upon mode).
+     * Then we must proceed to create the entry based upon its type.
+     * If this proceeds correctly, check the dontUmask bit in the 
+     * accessSet.  If it is on, then we have to do a chmod to actually
+     * set the file or directory to the accessSet requested.
+     *)
+    CONST
+	validTypes = EntryTypeSet { 		(* Only types we can create! *)
+	    directory, regular };
+
+    VAR
+	entryType : EntryTypes;
+	accessSet : AccessSet;
+	result    : IOErrors.Errors;
+	handle    : SysTypes.Int;
+	DONTCARE1 : SysTypes.Int;
+	DONTCARE3 : EntryInfo;
+	unixPath  : UnixIONames.Path;
+    BEGIN (* CreateEntry *)
+
+	(* 
+	 * First verify that the request is valid.  We always have options.
+	 *)
+	IF NOT SeparateOptions( options, entryType, accessSet ) OR
+	  NOT ( entryType IN validTypes ) THEN
+	    RETURN IOErrors.badParameter;
+	END;
+
+	(*  
+	 * create(2) doesn't blow away directories, so we have to
+	 * check the modes.
+	 *)
+	IF NOT ModeCheckOut( mode, path, result, unixPath ) THEN
+	    RETURN result;
+	END;
+
+	(* Now do the creation *)
+	CASE entryType OF
+	    directory:
+		IF useDefault IN accessSet THEN
+		    accessSet := accessSet - unixAccessBits 
+				 + defaultDirectoryAccess;
+		END;
+
+		IF UnixCsys_dir.mkdir( unixPath, 
+		  SysTypes.CARDINAL16( accessSet * unixAccessBits ) ) = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END; (* IF *)
+	    |
+	    regular:
+		IF useDefault IN accessSet THEN
+		    accessSet := accessSet - unixAccessBits 
+				 + defaultRegularAccess;
+		END;
+
+		handle := UnixCsys_file.creat( 
+		    unixPath, 
+		    SysTypes.CARDINAL16( accessSet * unixAccessBits) );
+		IF handle = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END;
+		(* 
+		 * Close the valid file handle.  We don't care what happens,
+		 * because the file was created successfully.
+		 *)
+	        DONTCARE1 := UnixCsys_file.close( handle );
+
+	END; (* CASE *)
+
+	(* Do we have to clean up the mode bits? *)
+	IF NOT ( dontUmask IN accessSet ) THEN
+	    RETURN IOErrors.ok;	(* Everything ok *)
+	END;
+
+	(* Clean up the mode bits *)
+	IF UnixCsys_stat.chmod( unixPath, 
+	  SysTypes.CARDINAL16( accessSet * unixAccessBits ) ) = 0 THEN 
+	    RETURN IOErrors.ok;  (* Mode changed properly *)
+	END;
+
+	(* The chmod failed, we have to delete the entry! *)
+	result := UnixIOErrors.ErrnoToIOError();
+	IOErrors.DONTCARE := DeleteEntry( unixPath );
+	RETURN result;
+
+    END CreateEntry;
+
+CONST
+    accessBase    = Chars.maxBase;	  (* most compact form *)
+TYPE
+    AccessNum     = SysTypes.CARDINAL16;  (* used to convert strings *)
+CONST
+    fullAccessSet = AccessSet { 
+	otherExecute, otherWrite, otherRead,
+	groupExecute, groupWrite, groupRead,
+	ownerExecute, ownerWrite, ownerRead,
+	saveText, setGroupId, setUserId,
+	useDefault, dontUmask };
+
+VAR
+    entryTypeToChar : ARRAY EntryTypes OF CHAR;
+CONST
+    directoryChar	 = 'd';		(* DirIO.createDirectory *)
+    characterSpecialChar = 'c';
+    blockSpecialChar	 = 'b';
+    regularChar		 = 'r';		(* DirIO.createBinary/createText *)
+    symbolicLinkChar	 = 'l';
+    socketChar		 = 's';
+    fifoChar		 = 'f';
+
+PROCEDURE MakeOptions(  
+	entryType : EntryTypes;
+	accessSet : AccessSet;
+    VAR result    : Options 
+    );
+    (* 
+     * Creates a string that looks like:
+     *     options ::= entryTypeString AccessNumString;
+     *)
+    BEGIN (* MakeOptions *)
+	
+	(* Right justify the access set in the string. *)
+	CardConvert.DONTCARE := CardConvert.ToString( AccessNum( accessSet ),
+				      accessBase, maxOptionsLength, result );
+	    
+	result[ 0 ] := entryTypeToChar[ entryType ];
+
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions(     
+	options   : ARRAY OF CHAR;
+    VAR entryType : EntryTypes;
+    VAR accessSet : AccessSet 
+    )             : BOOLEAN;
+    (* 
+     * Splits a string that looks like:
+     *     options ::= entryTypeString AccessNumString;
+     *)
+    VAR
+	cardinal  : SysTypes.Card;
+	accessNum : AccessNum;
+    BEGIN (* SeparateOptions *)
+	
+	(* The entry type must be first! *)
+	CASE options[ 0 ] OF
+	    directoryChar:		
+		entryType := directory;
+	    |
+	    characterSpecialChar:	
+		entryType := characterSpecial;
+	    |
+	    blockSpecialChar:		
+		entryType := blockSpecial;
+	    |
+	    regularChar:		
+		entryType := regular;
+	    |
+	    symbolicLinkChar:		
+		entryType := symbolicLink;
+	    |
+	    socketChar:			
+		entryType := socket;
+	    |
+	    fifoChar:			
+		entryType := fifo;
+	ELSE
+	    RETURN FALSE; (* empty or not a valid character *)
+	END;
+
+	(* If createText, createBinary, createDirectory, then... *)
+	IF options[ 1 ] = 0C THEN
+	    accessSet := defaultAccess;		(* Use default *)
+	    RETURN TRUE;
+	END;
+	    
+	(* Delete the first character *)
+	options[ 0 ] := ' ';
+
+	(*  
+	 * Make sure the cardinal converts and do a range check.  
+	 *)
+	IF NOT CardConvert.FromString( options, accessBase, cardinal ) OR
+	  ( cardinal > AccessNum( fullAccessSet ) ) THEN
+	    RETURN FALSE;
+	END;
+
+	(*  
+	 * Because of size differences, have to do this funny coercion.
+	 *)
+	accessNum := cardinal;
+	accessSet := AccessSet( accessNum );
+
+	RETURN TRUE;
+
+    END SeparateOptions;
+
+
+
+PROCEDURE RenameEntry( 
+    oldPath : ARRAY OF CHAR;
+    newPath : ARRAY OF CHAR;
+    mode    : CreateModes 
+    )       : IOErrors.Errors;
+    (*
+     * First checks to see if there is anything to rename (ie. does newPath
+     * exist?).  After that, it attempts to rename the file.
+     *)
+    VAR
+	unixNew  : UnixIONames.Path;
+	unixOld  : UnixIONames.Path;
+	result   : IOErrors.Errors;
+	DONTCARE : EntryInfo;
+    BEGIN (* RenameEntry *)
+
+	result := GetInfo( oldPath, DONTCARE, unixOld ); 
+	IF result # IOErrors.ok THEN
+	    RETURN result; (* Only do something if we can "stat" the oldPath *)
+	END;
+
+	(*  
+	 * rename(2) doesn't blow away files if you are creating directories,
+	 * so we have to delete the file first, if it exists or return 
+	 * alreadyExists.
+	 *)
+	IF NOT ModeCheckOut( mode, newPath, result, unixNew ) THEN
+	    RETURN result;
+	END;
+
+	(* Just do what the guy asked! *)
+	IF UnixCsys_dir.rename( unixOld, unixNew ) = -1 THEN
+	    RETURN UnixIOErrors.ErrnoToIOError();
+	END; 
+
+	RETURN IOErrors.ok; 
+
+    END RenameEntry;
+
+
+PROCEDURE DeleteEntry( 
+    path : ARRAY OF CHAR 
+    )    : IOErrors.Errors;
+    VAR
+	result    : IOErrors.Errors;
+	entryInfo : EntryInfo;
+	unixPath  : UnixIONames.Path;
+    BEGIN (* DeleteEntry *)
+
+	result := GetInfo( path, entryInfo, unixPath );
+	IF result # IOErrors.ok THEN
+	    RETURN result;
+	END;
+
+	CASE entryInfo.type OF
+	    directory:
+		IF UnixCsys_dir.rmdir( unixPath ) = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END; (* if *)
+
+	    ELSE (* Everything else isn't special in Unix *)
+		IF UnixCsys_dir.unlink( unixPath ) = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END; (* if *)
+	END; (* CASE *)
+
+	RETURN IOErrors.ok;
+
+    END DeleteEntry;
+
+
+PROCEDURE EntryExists( 
+    path : ARRAY OF CHAR 
+    )    : IOErrors.Errors;
+    VAR
+	DONTCARE : EntryInfo;
+	unixPath : UnixIONames.Path;
+    BEGIN (* EntryExists *)
+	
+	RETURN GetInfo( path, DONTCARE, unixPath );
+
+    END EntryExists;
+
+
+PROCEDURE GetEntryInfo(     
+        path : ARRAY OF CHAR;
+    VAR info : EntryInfo 
+    )        : IOErrors.Errors;
+    VAR
+	unixPath : UnixIONames.Path;
+    BEGIN (* GetEntryInfo *)
+	
+	RETURN GetInfo( path, info, unixPath );
+
+    END GetEntryInfo;
+
+
+PROCEDURE SetEntryInfo( 
+    path : ARRAY OF CHAR; 
+    info : EntryInfo 
+    )    : IOErrors.Errors;
+    (*
+     * First, get the current information.  Then do some error checking
+     * on the fields that shouldn't change.  Then, proceed through the
+     * list of fields that are suppose to change.   If they are different,
+     * then the appropriate routine is called.
+     *)
+    VAR
+	unixPath    : UnixIONames.Path;
+	currentInfo : EntryInfo;
+	unixModeSet : UnixModeSet;
+	tvp         : UnixCsys_stat.tvpType; 	(* see utimes *)
+	result      : IOErrors.Errors;
+    BEGIN (* SetEntryInfo *)
+	
+	result := GetInfo( path, currentInfo, unixPath );
+	IF result # IOErrors.ok THEN
+	    RETURN result;
+	END;
+
+	WITH currentInfo.stat DO
+	    
+	    @IF Assert THEN
+		(* 
+		 * Compare all the easy things first.
+		 * We don't check the "spare" blocks.
+		 *)
+		IF ( currentInfo.type # info.type ) OR 
+		   ( st_dev # info.stat.st_dev ) OR
+		   ( st_ino # info.stat.st_ino ) OR
+		   ( st_rdev # info.stat.st_rdev ) OR
+		   ( st_nlink # info.stat.st_nlink ) THEN
+		    RETURN IOErrors.badParameter;
+		END;
+
+		(*  
+		 * This is my C hacking for the day... 
+		 * It compares the "format" part of the st_mode field.
+		 *)
+		IF UnixModeSet( st_mode ) * UnixModeSet( UnixCsys_stat.S_IFMT )
+		  # UnixModeSet( info.stat.st_mode )
+		    * UnixModeSet( UnixCsys_stat.S_IFMT ) THEN 
+		    RETURN IOErrors.badParameter;
+		END;
+
+		(* Make sure the guy isn't handing screwed up access set *)
+		IF info.accessSet - unixAccessBits # emptyAccessSet THEN
+		    RETURN IOErrors.badParameter;
+		END;
+
+	    @END (* Assert *)
+
+	    (* 
+	     * The order of the "set" matters.  Try the most privileged
+	     * operations first and then work your way down to the less
+	     * privileged.  This way a screw up in access privileges 
+	     * doesn't cause major damages.  The operations that are
+	     * equally privileged are performed in order of damage that
+	     * they do.
+	     *)
+
+	    (* User and Group IDs are the most privileged operations in Unix. *)
+	    IF ( st_uid # info.stat.st_uid ) OR ( st_gid # info.stat.st_gid ) 
+	      THEN
+		(* Note that we coerce to INTEGER16 to prevent range errors. *)
+		IF UnixCsys_stat.chown( unixPath, 
+			SysTypes.INTEGER16( info.stat.st_uid ), 
+			SysTypes.INTEGER16( info.stat.st_gid ) ) = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END;
+	    END; (* IF st_uid *)
+
+	    (* Change the times next, because it is not so damaging *)
+	    IF ( st_atime # info.stat.st_atime )
+	      OR ( st_mtime # info.stat.st_mtime ) THEN
+
+		WITH tvp[ UnixCsys_stat.atimeIndex ] DO
+		    tv_usec := 0;
+		    tv_sec  := info.stat.st_atime;
+		END; (* WITH *)
+
+		WITH tvp[ UnixCsys_stat.mtimeIndex ] DO
+		    tv_usec := 0;
+		    tv_sec  := info.stat.st_mtime;
+		END; (* WITH *)
+
+		IF UnixCsys_stat.utimes( unixPath, tvp ) = -1 THEN
+		    RETURN UnixIOErrors.ErrnoToIOError();
+		END;
+	    END; (* IF st_atime *)
+
+	    (* Truncate before changing the mode *)
+	    IF st_size # info.stat.st_size THEN
+		IF UnixCsys_stat.truncate( unixPath, info.stat.st_size ) = -1 
+		  THEN RETURN UnixIOErrors.ErrnoToIOError();
+		END;
+	    END;
+
+	    (* 
+	     * Change the mode of the file according to the algorithm that
+	     * we check the st_mode first, then the accessSet.  
+	     * NOTE: we exit out of the middle for code sharing.
+	     *)
+	    IF st_mode = info.stat.st_mode THEN
+		IF currentInfo.accessSet = info.accessSet THEN
+		    (* No mode change *)
+		    RETURN IOErrors.ok
+		END;
+		unixModeSet := UnixModeSet( info.accessSet );
+	    ELSE
+	        unixModeSet := UnixModeSet( st_mode ) 
+			- UnixModeSet( UnixCsys_stat.S_IFMT );
+	    END; (* IF st_mode *)
+
+	    (* We have something to set, so set it! *)
+	    IF UnixCsys_stat.chmod( unixPath, 
+		SysTypes.CARDINAL16( unixModeSet ) ) = -1 THEN
+		RETURN UnixIOErrors.ErrnoToIOError();
+	    END;
+
+	END; (* WITH *)
+
+	RETURN IOErrors.ok;
+
+    END SetEntryInfo;
+
+
+PROCEDURE CompareSizes(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left smaller than right *)
+    BEGIN (* CompareSizes *)
+
+	IF left.stat.st_size > right.stat.st_size THEN
+	    RETURN Intrinsics.greater;
+	ELSIF left.stat.st_size < right.stat.st_size THEN
+	    RETURN Intrinsics.less;
+	END;
+	RETURN Intrinsics.equal;
+
+    END CompareSizes;
+ 
+PROCEDURE CompareChangeDates(
+    left  : EntryInfo;	  (* left side of comparison *)
+    right : EntryInfo	  (* right side of comparison *)
+    )     : Intrinsics.CompareResults; (* less => left older than right;... *)
+    BEGIN (* CompareChangeDates *)
+
+	IF left.stat.st_mtime > right.stat.st_mtime THEN
+	    RETURN Intrinsics.greater;
+	ELSIF left.stat.st_mtime < right.stat.st_mtime THEN
+	    RETURN Intrinsics.less;
+	END;
+	RETURN Intrinsics.equal;
+
+    END CompareChangeDates;
+
+
+PROCEDURE GetDefault( 
+    VAR path : IOConsts.Path 
+    )        : IOErrors.Errors;
+    (*
+     * IOConsts.Path is incorrect in the current implementation.
+     * Therefore, we must allocate our own path to protect us from
+     * getwd running all over memory.
+     *)
+    VAR
+	tmp    : ARRAY [ 0 .. UnixCsys_param.MAXPATHLEN ] OF CHAR;
+	result : IOErrors.Errors;
+	length : SysTypes.Card;
+    BEGIN (* GetDefault *)
+
+	@IF Tasks THEN
+	    (* getwd is not in section 2, therefore it must be protected *)
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    IF UnixCsys_dir.getwd( tmp ) # NIL THEN
+		result := IOErrors.ok;
+		length := 
+		  Bytes.CopyAsString( SYSTEM.ADR( tmp ), HIGH( tmp ) + 1,
+		  		      SYSTEM.ADR( path ), HIGH( path ) + 1 );
+		(* If the result was truncated, indicate an error *)
+		IF ( length > HIGH( path ) ) AND 
+		  ( HIGH( path ) < HIGH( tmp ) ) AND
+		  ( tmp[ HIGH( path ) + 1 ]  # 0C ) THEN
+		    result := IOErrors.noMoreRoom;
+		END;
+	    ELSE
+		path[ 0 ] := 0C;    (* unix places a message in "tmp". *)
+		result := IOErrors.otherError;
+	    END; 
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END GetDefault;
+
+
+PROCEDURE SetDefault( 
+    path : ARRAY OF CHAR 
+    )    : IOErrors.Errors;
+    VAR
+	unixPath : UnixIONames.Path;
+    BEGIN (* SetDefault *)
+
+	IF NOT UnixIONames.CopyPath( path, unixPath ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+	IF UnixCsys_dir.chdir( unixPath ) = -1 THEN
+	    RETURN UnixIOErrors.ErrnoToIOError();
+	END;
+
+	RETURN IOErrors.ok;
+
+    END SetDefault;
+
+
+PROCEDURE List( 
+    directory	       : ARRAY OF CHAR;
+    calledForEachEntry : ListHandler;
+    importerObject     : SysTypes.ANYPTR 
+    )                  : IOErrors.Errors;
+    (*
+     * Very straight forward implementation.  The only weird part is
+     * that we don't return "." and "..".
+     *)
+    VAR
+	direct   : UnixCsys_dir.direct;
+	handle   : UnixCsys_dir.DIR;
+	unixPath : UnixIONames.Path;
+    BEGIN (* List *)
+
+	(* Must be ASCIIZ *)
+	IF NOT UnixIONames.CopyPath( directory, unixPath ) THEN
+	    RETURN IOErrors.illegalName;
+	END;
+
+	(* Note that an empty string opens "current directory" *)
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    (* "dir" is not in section 2 which means it must be protected *)
+	    handle := UnixCsys_dir.opendir( unixPath );
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+	IF handle = NIL THEN 
+	    RETURN UnixIOErrors.ErrnoToIOError();
+	END; 
+
+	(* 
+	 * Read the directory until no more or user says to stop 
+	 * Apparently, readdir does not return errors.
+	 *)
+	LOOP
+	    @IF Tasks THEN
+		UnixMonitor.Enter;
+	    @END (* Tasks *)
+		direct := UnixCsys_dir.readdir( handle );
+	    @IF Tasks THEN
+		UnixMonitor.Exit;
+	    @END (* Tasks *)
+	    IF direct = NIL THEN
+		EXIT;
+	    END;
+	    (* 
+	     * We don't return "." or ".." which can be check simply
+	     * by looking for the first character being ".".
+	     *)
+	    WITH direct^ DO
+		IF NOT ( ( d_name[ 0 ] = '.' ) AND
+			 ( ( d_name[ 1 ] = 0C ) OR
+			   ( ( d_name[ 1 ] = '.' ) AND 
+			     ( d_name[ 2 ] = 0C ) ) ) ) THEN
+		    (* Call the handler and terminate if requested *)
+		    IF NOT calledForEachEntry( importerObject, d_name ) THEN
+			EXIT;
+		    END;
+		END;
+	    END;
+	END; (* LOOP *)
+
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    UnixCsys_dir.closedir( handle );
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN IOErrors.ok;
+
+    END List;
+
+
+PROCEDURE DefaultListHandler( 
+    nameList : SysTypes.ANYPTR;
+    toInsert : ARRAY OF CHAR 
+    )        : BOOLEAN;
+    BEGIN (* DefaultListHandler *)
+
+	NameLists.Insert( NameLists.Object( nameList ), toInsert,
+			  NameLists.DONTCARE );
+	
+	RETURN TRUE;
+
+    END DefaultListHandler;
+
+PROCEDURE ListWithInfo( 
+    directory	       : ARRAY OF CHAR;
+    calledForEachEntry : ListWithInfoHandler;
+    importerObject     : SysTypes.ANYPTR 
+    ) 		       : IOErrors.Errors;
+    (*
+     * Same as list except we must to a GetEntryInfo after appending
+     * d_name to the path that was passed in.
+     *)
+    VAR
+	direct   : UnixCsys_dir.direct;
+	handle   : UnixCsys_dir.DIR;
+	result   : IOErrors.Errors;
+	unixPath : UnixIONames.Path;	(* Need to have whole thing *)
+	index    : SysTypes.Card;	(* Where to insert d_name *)
+	info     : EntryInfo;
+    BEGIN (* ListWithInfo *)
+
+	(* Do this stuff first, so we don't have to close the dir *)
+	IF directory[ 0 ] = 0C THEN
+	    index := 0;
+	    unixPath[ 0 ] := 0C;
+	ELSE
+	    (* Must be ASCIIZ *)
+	    IF NOT UnixIONames.CopyPath( directory, unixPath ) THEN
+		RETURN IOErrors.illegalName;
+	    END;
+	    index := Strings.Length( unixPath );
+	    IF unixPath[ index - 1 ] # "/" THEN
+		(* Must be ASCIIZ *)
+		IF index >= HIGH( unixPath ) THEN
+		    RETURN IOErrors.illegalName;
+		END;
+		unixPath[ index ] := "/";
+		INC( index );
+	    END;
+	END;
+
+	(* Note that an empty string opens "current directory" *)
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    (* "dir" is not in section 2 which means it must be protected *)
+	    handle := UnixCsys_dir.opendir( unixPath );
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+	IF handle = NIL THEN 
+	    RETURN UnixIOErrors.ErrnoToIOError();
+	END; 
+
+	(* 
+	 * Read the directory until no more or user says to stop 
+	 * Apparently, readdir does not return errors.
+	 *)
+	result := IOErrors.ok;
+	LOOP
+	    @IF Tasks THEN
+		UnixMonitor.Enter;
+	    @END (* Tasks *)
+		direct := UnixCsys_dir.readdir( handle );
+	    @IF Tasks THEN
+		UnixMonitor.Exit;
+	    @END (* Tasks *)
+	    IF direct = NIL THEN
+		EXIT;
+	    END;
+	    (* 
+	     * We don't return "." or ".." which can be check simply
+	     * by looking for the first character being ".".
+	     *)
+	    WITH direct^ DO
+		IF NOT ( ( d_name[ 0 ] = '.' ) AND
+			 ( ( d_name[ 1 ] = 0C ) OR
+			   ( ( d_name[ 1 ] = '.' ) AND 
+			     ( d_name[ 2 ] = 0C ) ) ) ) THEN
+		    (* 
+		     * Get the "info" for this entry by concatenating
+		     * the d_name onto the path.  And then call our boy.
+		     * Terminate if an error or request statistified.
+		     *)
+		    unixPath[ index ] := 0C;
+		    IF NOT Strings.InsertOK( unixPath, Strings.EOS, d_name ) 
+		      THEN
+			result := IOErrors.otherError;
+			EXIT;
+		    END;
+		    (* This is ok... *)
+		    result := GetInfo( unixPath, info, unixPath );
+		    IF ( result # IOErrors.ok ) 
+		      OR NOT calledForEachEntry( importerObject, d_name, info )
+		      THEN EXIT;
+		    END;
+		END;
+	    END;
+	END; (* LOOP *)
+
+	@IF Tasks THEN
+	    UnixMonitor.Enter;
+	@END (* Tasks *)
+	    UnixCsys_dir.closedir( handle );
+	@IF Tasks THEN
+	    UnixMonitor.Exit;
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END ListWithInfo;
+
+
+BEGIN (* DirIO *)
+
+    entryTypeToChar[ directory        ] := directoryChar;
+    entryTypeToChar[ characterSpecial ] := characterSpecialChar;
+    entryTypeToChar[ blockSpecial     ] := blockSpecialChar;
+    entryTypeToChar[ regular          ] := regularChar;
+    entryTypeToChar[ symbolicLink     ] := symbolicLinkChar;
+    entryTypeToChar[ socket           ] := socketChar;
+    entryTypeToChar[ fifo             ] := fifoChar;
+
+END DirIO.

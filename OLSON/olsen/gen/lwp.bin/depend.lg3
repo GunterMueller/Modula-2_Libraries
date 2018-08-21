@@ -1,0 +1,64 @@
+#
+# Dependencies for the files in this directory.
+# 
+
+# Automatically generated dependencies
+include m2depend.mak
+
+# Preprocessor and other dependencies
+dosmonit.def: ..\pc_lwp.src\dosmonit.dpp 
+	${StandardM2pp}
+taskcons.def: ..\pc_lwp.src\taskcons.dpp 
+	${StandardM2pp}
+taskspri.def: ..\pc_lwp.src\taskspri.dpp 
+	${StandardM2pp}
+interrup.def: ..\lwp.src\interrup.dpp 
+	${StandardM2pp}
+taskdebu.def: ..\lwp.src\taskdebu.dpp 
+	${StandardM2pp}
+taskinfo.def: ..\lwp.src\taskinfo.dpp 
+	${StandardM2pp}
+taskmess.def: ..\lwp.src\taskmess.dpp 
+	${StandardM2pp}
+taskmoni.def: ..\lwp.src\taskmoni.dpp 
+	${StandardM2pp}
+tasknoti.def: ..\lwp.src\tasknoti.dpp 
+	${StandardM2pp}
+tasksema.def: ..\lwp.src\tasksema.dpp 
+	${StandardM2pp}
+tasktime.def: ..\lwp.src\tasktime.dpp 
+	${StandardM2pp}
+tasks.def: ..\lwp.src\tasks.dpp 
+	${StandardM2pp}
+dosmonit.mod: ..\pc_lwp.src\dosmonit.mpp 
+	${StandardM2pp}
+interrup.mod: ..\pc_lwp.src\interrup.mpp 
+	${StandardM2pp}
+taskcons.mod: ..\pc_lwp.src\taskcons.mpp 
+	${StandardM2pp}
+tasktime.mod: ..\pc_lwp.src\tasktime.mpp 
+	${StandardM2pp}
+taskspri.mod: ..\pc_lwp.src\taskspri.mpp 
+	${StandardM2pp}
+safestor.mod: ..\pc.src\safestor.mpp 
+	${StandardM2pp}
+taskdebu.mod: ..\lwp.src\taskdebu.mpp 
+	${StandardM2pp}
+taskinfo.mod: ..\lwp.src\taskinfo.mpp 
+	${StandardM2pp}
+taskmess.mod: ..\lwp.src\taskmess.mpp 
+	${StandardM2pp}
+taskmoni.mod: ..\lwp.src\taskmoni.mpp 
+	${StandardM2pp}
+tasknoti.mod: ..\lwp.src\tasknoti.mpp 
+	${StandardM2pp}
+tasksema.mod: ..\lwp.src\tasksema.mpp 
+	${StandardM2pp}
+tasks.mod: ..\lwp.src\tasks.mpp 
+	${StandardM2pp}
+notices.mod: ..\shared.src\notices.mpp 
+	${StandardM2pp}
+objects.mod: ..\shared.src\objects.mpp 
+	${StandardM2pp}
+randomnu.mod: ..\shared.src\randomnu.mpp 
+	${StandardM2pp}

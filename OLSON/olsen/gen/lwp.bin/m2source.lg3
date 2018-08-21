@@ -1,0 +1,8 @@
+M2Defs= dosmonit.def interrup.def taskcons.def taskdebu.def taskinfo.def  \
+        taskmess.def taskmoni.def tasknoti.def tasks.def tasksema.def  \
+        taskspri.def tasktime.def 
+M2Imps= dosmonit.mod interrup.mod notices.mod objects.mod randomnu.mod  \
+        safestor.mod taskcons.mod taskdebu.mod taskinfo.mod taskmess.mod  \
+        taskmoni.mod tasknoti.mod tasks.mod tasksema.mod taskspri.mod  \
+        tasktime.mod 
+M2Mods= 

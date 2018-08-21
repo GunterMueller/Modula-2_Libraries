@@ -1,0 +1,1549 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE TextIO;
+(*
+ * This imlementation runs on both MsDosOS and SunOS.
+ *)
+IMPORT 
+    IOErrors,  		CatBinaryIO,	BinaryIO,  	Objects,   
+    ProgErrOutput, 	Notices,	IOConsts,	ASCII,     
+    SYSTEM,    		TextIOPRIVATE,	CardConvert,	SysTypes,
+    ProgErr,	        Strings,	Chars, 		GenConsts;
+
+@IF Tasks THEN
+    IMPORT
+	IOMonitors,
+	TaskMonitors;
+    VAR
+	inputMonitor       : TaskMonitors.Object;
+	outputMonitor      : TaskMonitors.Object;
+	errorOutputMonitor : TaskMonitors.Object;
+@END
+
+TYPE
+    Object  = TextIOPRIVATE.Object;
+
+
+PROCEDURE Open( 
+    VAR file    : Object;
+	path    : ARRAY OF CHAR;
+	mode    : Modes;
+	options : ARRAY OF CHAR 
+    )		: IOErrors.Errors;
+    VAR
+	binFile     : BinaryIO.Object;
+	result      : IOErrors.Errors;
+	index       : BinaryIO.Index;
+	binaryState : BinaryIO.States;
+	DONTCARE    : IOErrors.Errors;
+	haveOption  : BOOLEAN;
+	bufferMode  : BufferingModes;
+    BEGIN (* Open *)
+
+	(* Do we have to parse our options? *)
+	haveOption := options[ 0 ] = CatBinaryIO.textOptionsChar;
+	IF haveOption AND NOT SeparateOptions( options, bufferMode ) THEN
+	    RETURN IOErrors.badParameter;
+	END;
+
+	(* 
+	 * Try readwrite first, so we can Rewind or Append later. 
+	 * This may be sub-optimal on some implementations, so 
+	 * you could make Rewind/Append modes only selectable via
+	 * a new Option.  On Suns there didn't seem to be any 
+	 * signficant performance loss, because file components are 
+	 * in the caches.   On Dos, this didn't matter because 99%
+	 * files are read/write for the local disk.  In general,
+	 * it seems like a good idea to put the cost off to the
+	 * user of a facility (i.e. Append/Rewind), therefore I
+	 * have added this to the TODO list.
+	 *)
+	result := BinaryIO.Open( binFile, path, 
+				 BinaryIO.readWrite, options );
+	CASE mode OF
+	    readOnly:
+		IF result # IOErrors.ok THEN
+		    result := BinaryIO.Open( binFile, path, 
+					     BinaryIO.readOnly, options);
+		END;
+	    |
+	    appendOnly:
+		IF result = IOErrors.ok THEN
+		    binaryState := BinaryIO.GetEnd( binFile, index );
+		    IF binaryState # BinaryIO.error THEN
+			binaryState := BinaryIO.SetIndex( binFile, index );
+		    END;
+		    (* If we get a seek error, then can't open read/write *)
+		    IF binaryState = BinaryIO.error THEN
+			DONTCARE := BinaryIO.Close( binFile );
+			result   := IOErrors.notOpen;
+		    END;
+		END;
+		IF result # IOErrors.ok THEN
+		    (* Couldn't open read/write, so we try appendOnly *)
+		    result := BinaryIO.Open( binFile, path, 
+					     BinaryIO.appendOnly, options );
+		END;
+	END; (* CASE *)
+
+	IF result # IOErrors.ok THEN
+	    RETURN result;
+	END;
+
+	Objects.Allocate( TextIOPRIVATE.objectMgr, file );
+	WITH file^ DO
+	    binaryFile       := binFile;
+	    binarySupplied   := FALSE;	(* Only set for default files *)
+	    openMode         := mode;
+	    state            := ok;
+	    errorState       := IOErrors.ok;
+	    stateBeforeError := ok;
+	    inScan	     := FALSE;
+	    undo.state       := TextIOPRIVATE.undoIllegal;
+	    undo.fileState   := ok;
+	    undo.char        := 0C;	(* must be initialized for DOS *)
+	    isInteractive    := BinaryIO.IsInteractive( binaryFile );
+	    haveBufferOption := haveOption; (* Need for call to Append *)
+	    IF haveOption THEN
+		bufferOption := bufferMode;
+	    ELSIF isInteractive AND ( openMode = appendOnly ) THEN
+		bufferOption := doNotBuffer;
+	    ELSE
+		bufferOption := doBuffering;
+	    END;
+	    writesBuffered := ( openMode = appendOnly ) AND 
+			      ( bufferOption = doBuffering );
+	    IF bufferOption = doNotBuffer THEN
+		buffer := NIL;
+	    ELSE
+		Objects.Allocate( TextIOPRIVATE.bufferMgr, buffer );
+		WITH buffer^ DO
+		    length    := 0;
+		    readIndex := 0;
+		END; (* WITH *)
+	    END;
+	    lineNumber       := 1;
+	END; (* WITH *)
+
+	RETURN IOErrors.ok;
+
+    END Open;
+
+CONST
+    (* How the enumerated type is encoded. *)
+    doBufferingChar = 'Y';
+    doNotBufferChar = 'N';
+
+PROCEDURE MakeOptions(
+	howToBuffer   : BufferingModes;
+	binaryOptions : ARRAY OF CHAR;
+    VAR result        : ARRAY OF CHAR 
+    );
+    CONST
+	lengthError = "TextIO: options string too short.";
+    BEGIN (* MakeOptions *)
+	
+	IF HIGH( result ) >= maxOptionsLength - 1 THEN
+	    (* 
+	     * Build our options string.
+	     *)
+	    result[ 0 ] := CatBinaryIO.textOptionsChar;
+	    IF howToBuffer = doBuffering THEN
+		result[ 1 ] := doBufferingChar;
+	    ELSE
+		result[ 1 ] := doNotBufferChar;
+	    END;
+	    (* We have to null-terminate, only if enough room. *)
+	    IF HIGH( result ) >= maxOptionsLength THEN
+		result[ 2 ] := 0C;
+	    END;
+
+	    (* Add on the binaryoptions (if any) *)
+	    IF ( binaryOptions[ 0 ] = 0C ) OR
+	       Strings.InsertOK( result, Strings.EOS, binaryOptions ) THEN
+		RETURN;
+	    END;
+	END;
+
+	ProgErr.Terminate( lengthError );
+
+    END MakeOptions;
+
+
+PROCEDURE SeparateOptions( 
+    VAR options     : ARRAY OF CHAR;
+    VAR howToBuffer : BufferingModes 
+    )		    : BOOLEAN;
+    BEGIN (* SeparateOptions *)
+
+	(* Is the string long enough? *)
+	IF HIGH( options ) < maxOptionsLength - 1 THEN
+	    RETURN FALSE;	(* too short *)
+	END;
+
+	(* Is the next character good?  If so, translate. *)
+	CASE options[ 1 ] OF
+	    doBufferingChar:
+		howToBuffer := doBuffering;
+	    |
+	    doNotBufferChar:
+		howToBuffer := doNotBuffer;
+	    ELSE
+		(* Could be null or otherwise, always an error *)
+		RETURN FALSE;
+	END; (* CASE *)
+
+	(* Get rid of our part of the options *)
+	Strings.Delete( options, Strings.BOS, maxOptionsLength - 1 );
+
+	RETURN TRUE;
+
+    END SeparateOptions;
+
+
+PROCEDURE Close( 
+    VAR file : Object 
+    )        : IOErrors.Errors; 
+    VAR
+	result : IOErrors.Errors;
+    BEGIN (* Close *)
+
+	@IF Assert THEN
+	    IF NOT Objects.IsValid(TextIOPRIVATE.objectMgr, file) THEN
+		file := NIL;
+		RETURN IOErrors.notOpen;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    result := IOErrors.ok;
+	    IF writesBuffered AND ( TextIOPRIVATE.WriteBuffer( file ) # ok ) THEN
+		result := errorState;
+	    END;
+	    IF NOT binarySupplied THEN
+		errorState := BinaryIO.Close(binaryFile);
+		IF errorState # IOErrors.ok THEN
+		    result := errorState;
+		END;
+	    END;
+	    (* Get rid of buffer, only if the buffer option was do buffering *)
+	    IF bufferOption = doBuffering THEN
+		Objects.Deallocate( TextIOPRIVATE.bufferMgr, buffer );
+	    END;
+	END; (* WITH *)
+
+	Objects.Deallocate( TextIOPRIVATE.objectMgr, file );
+
+	RETURN result;
+
+    END Close;
+
+
+PROCEDURE SetInvalid( 
+    VAR file : Object 
+    );
+    BEGIN (* SetInvalid *)
+	
+	file := NIL;
+
+    END SetInvalid;
+
+
+PROCEDURE GetState( 
+    file : Object 
+    )	 : States;
+    BEGIN (* GetState *)
+
+	(* Not in Assert section, because this is inquisitive *)
+	IF NOT Objects.IsValid(TextIOPRIVATE.objectMgr, file) THEN
+	    RETURN error;
+	END;
+
+	RETURN file^.state;
+
+    END GetState;
+
+
+PROCEDURE GetError( 
+    file : Object 
+    )    : IOErrors.Errors;
+    BEGIN (* GetError *)
+
+	(* Not in Assert section, because this is inquisitive *)
+	IF NOT Objects.IsValid(TextIOPRIVATE.objectMgr, file) THEN
+	    RETURN IOErrors.notOpen;
+	END;
+
+	RETURN file^.errorState;
+
+    END GetError;
+
+
+PROCEDURE IsInteractive( 
+    file : Object 
+    )    : BOOLEAN;
+    BEGIN (* IsInteractive *)
+
+	@IF Assert THEN
+	    Objects.Assert( TextIOPRIVATE.objectMgr, file );
+	@END (* Assert *)
+
+	RETURN file^.isInteractive;
+
+    END IsInteractive;
+
+
+PROCEDURE Read(     
+	file   : Object;
+    VAR toRead : CHAR 
+    )	       : States;
+    VAR
+	DONTCARE : SysTypes.Card;
+    BEGIN (* Read *)
+
+	RETURN ReadChars( file, SYSTEM.ADR( toRead ), 1, DONTCARE );
+
+    END Read;
+
+
+PROCEDURE ReadChars(
+        file      : Object;          (* in "ok" state and readable *)
+        buf       : SYSTEM.ADDRESS;  (* location where read data is put *)
+        bufSize   : SysTypes.Card;   (* maximum number of chars to read *)
+    VAR charsRead : SysTypes.Card    (* actual number of chars read *)
+    )             : States;          (* see States *)
+    (*
+     * Reads chars into the buf until it is field or state is not ok.
+     * Note that we return "0C" as valid data.
+     *)
+    VAR
+	i         : SysTypes.Card;
+	tempState : States;
+	ch        : CHAR;
+	bp	  : RECORD	(* Can't INC pointers... *)
+	    CASE @IF NOT M2V2 THEN : @END BOOLEAN OF
+		TRUE:
+		    ptr : POINTER TO CHAR;
+		|
+		FALSE:
+		    adr : SYSTEM.ADDRESS;
+	    END;
+	END;
+    BEGIN (* ReadChars *)
+
+	charsRead := 0;	(* Set in all cases *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.readAccess ) 
+	      THEN RETURN error;
+	    END;
+	@END (* Assert *)
+
+	bp.adr := buf;
+
+	WITH file^ DO
+
+	    CASE state OF
+		ok:
+		    (* Fall through *)
+		|
+		endOfFile:
+		    RETURN SetError( file, IOErrors.readPastEOF );
+		|
+		endOfLine:
+		    (* Make sure overflow doesn't blow us up! *)
+		    IF lineNumber < TextIOPRIVATE.maxLineNumber THEN
+			INC( lineNumber );
+		    END;
+		(* error shouldn't happen *)
+	    END;
+
+	    IF undo.state # TextIOPRIVATE.undoAvailable THEN
+		undo.state := TextIOPRIVATE.undoOK;	(* maybe illegal *)
+	    ELSE
+		undo.state := TextIOPRIVATE.undoOK;
+
+		(* swap states *)
+		tempState      := state;
+		state          := undo.fileState;
+		undo.fileState := tempState;
+
+		CASE state OF
+		    ok:
+			bp.ptr^ := undo.char;
+			INC( bp.adr );
+			charsRead := 1;
+		    |
+		    endOfFile,
+		    endOfLine:
+			(* 
+			 * If we just un-did an EOF or EOL, 
+			 * don't try to read more.
+			 *)
+			RETURN state;
+		    (* error shouldn't happen *)
+		END;
+	    END; (* IF undo *)
+
+	    ch := undo.char;	(* must always be initialized *)
+	    undo.fileState := state;
+	    state := ok;	(* Always "ok" unless EOF or EOL hit *)
+
+	    (*
+	     * This code is duplicated, because the bufferOption is a
+	     * loop constant.   This procedure is designed for high
+	     * performance IO, therefore it is expected that one gets it.
+	     *)
+	    IF bufferOption = doBuffering THEN
+		LOOP (* read char *)
+
+		    IF charsRead >= bufSize THEN
+			EXIT;	(* No more space *)
+		    END;
+
+		    (* Buffered read, get it from buf *)
+		    WITH buffer^ DO
+			IF readIndex >= length THEN
+			    IF TextIOPRIVATE.ReadBuffer( file ) # ok THEN 
+				EXIT;
+			    END;
+			END;
+
+			ch := data[ readIndex ];
+			INC( readIndex );
+		    END; (* WITH *)
+
+		    @IF SunOS THEN
+			IF ch = ASCII.lf THEN
+			    state := endOfLine;
+			    EXIT;
+		    @END (* SunOS *)
+
+		    @IF MsDosOS THEN
+			IF ch = ASCII.cr THEN
+			    state := endOfLine;
+			    EXIT;
+
+			ELSIF ch = ASCII.lf THEN 
+			    (* 
+			     * Ignore "lf" after "cr" and treat single "lf" 
+			     * as EOL 
+			     *)
+			    IF undo.char # ASCII.cr THEN
+				state := endOfLine;
+				EXIT;
+			    END;
+
+			(* In DOS, we have an EOF which is ASCII.sub. *)
+			ELSIF ch = ASCII.sub THEN
+			    state := endOfFile;
+			    EXIT;   
+
+		    @END (* MsDosOS *)
+
+		    ELSE (* Should be a valid character *)
+
+			bp.ptr^ := ch;
+			INC( bp.adr );
+			INC( charsRead );
+		    END;
+
+		    @IF MsDosOS THEN
+			undo.char := ch;	(* cr-lf is to complicated *)
+		    @END
+
+		END; (* LOOP *)
+
+	    ELSE (* Not buffered *)
+
+		LOOP (* read char *)
+
+		    IF charsRead >= bufSize THEN
+			EXIT;	(* No more space *)
+		    END;
+
+		    (* Non-buffered read, just do it *)
+		    CASE BinaryIO.ReadBlock( binaryFile, ch ) OF
+			BinaryIO.ok:   (* keep on truckin' *)
+			|
+			BinaryIO.endOfFile:
+			    state := endOfFile;
+			    EXIT;
+			|
+			BinaryIO.error:
+			    state := SetError( file,
+				       BinaryIO.GetError( binaryFile ) );
+			    EXIT;
+		    END; (* CASE *)
+
+		    @IF SunOS THEN
+			IF ch = ASCII.lf THEN
+			    state := endOfLine;
+			    EXIT;
+		    @END (* SunOS *)
+
+		    @IF MsDosOS THEN
+			IF ch = ASCII.cr THEN
+			    state := endOfLine;
+			    EXIT;
+
+			ELSIF ch = ASCII.lf THEN 
+			    (* 
+			     * Ignore "lf" after "cr" and treat single "lf" 
+			     * as EOL 
+			     *)
+			    IF undo.char # ASCII.cr THEN
+				state := endOfLine;
+				EXIT;
+			    END;
+
+			(* In DOS, we have an EOF which is ASCII.sub. *)
+			ELSIF ch = ASCII.sub THEN
+			    state := endOfFile;
+			    EXIT;   
+
+		    @END (* MsDosOS *)
+
+		    ELSE (* Should be a valid character *)
+
+			bp.ptr^ := ch;
+			INC( bp.adr );
+			INC( charsRead );
+		    END;
+
+		    @IF MsDosOS THEN
+			undo.char := ch;	(* cr-lf is to complicated *)
+		    @END
+
+		END; (* LOOP *)
+
+	    END; (* IF buffering *)
+
+	    (*  
+	     * In all cases, undo.char gets set to "ch".
+	     * This may just be the old value of undo.char (see above).
+	     *)
+	    undo.char := ch;
+
+	    (* If we read something, then the "undo" is always "ok" *)
+	    IF charsRead > 0 THEN
+		undo.fileState := ok;
+	    END;
+
+	    RETURN state;
+
+	END; (* WITH file *)
+
+    END ReadChars;
+
+
+PROCEDURE ReadLn( 
+    file : Object 
+    )    : States;
+    (*
+     * Reads characters until EOL or EOF is found.  Note that if already
+     * EOL, this procedure merely changes the state.
+     *)
+    VAR
+	DONTCARE1 : GenConsts.Line;
+	DONTCARE2 : SysTypes.Card;
+    BEGIN (* ReadLn *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.readAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    IF state = endOfFile THEN
+		RETURN SetError( file, IOErrors.readPastEOF );
+	    END;
+
+	    IF state = ok THEN
+		WHILE ReadChars( file, SYSTEM.ADR( DONTCARE1 ),
+				 HIGH( DONTCARE1 ), DONTCARE2 ) = ok DO
+		END;
+	    END;
+
+	    IF state = endOfLine THEN
+		state          := ok;
+		undo.fileState := endOfLine;
+		(* Make sure we don't blow up! *)
+		IF lineNumber < TextIOPRIVATE.maxLineNumber THEN
+		    INC( lineNumber );
+		END;
+	    END;
+
+	    RETURN state;
+
+	END; (* WITH *)
+
+    END ReadLn;
+
+
+PROCEDURE UndoRead( 
+    file : Object 
+    )    : States;
+    VAR
+	tempState : States;
+    BEGIN (* UndoRead *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.readAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    IF undo.state # TextIOPRIVATE.undoOK THEN
+		RETURN SetError( file, IOErrors.illegalOp );
+	    END;
+
+	    undo.state := TextIOPRIVATE.undoAvailable;
+
+	    (* swap states *)
+	    tempState  := state;
+	    state      := undo.fileState;
+	    undo.fileState := tempState;
+
+	    IF state = endOfLine THEN
+		DEC( lineNumber );
+	    END;
+
+	    RETURN state;
+
+	END; (* WITH *)
+
+    END UndoRead;
+
+
+PROCEDURE Scan( 
+    file           : Object;
+    scanner        : ScannerProc;
+    importerObject : SysTypes.ANYPTR;
+    scanMode       : ScanModes 
+    )		   : States;
+    (*
+     * The initial set up is kind of tricky.  We must check for
+     * an undo and duplicate the scanMode crap.  Once in the main
+     * loop, things get a little more straightforward.   We change
+     * the scanMode once, scanner is called.
+     *)
+    VAR
+	tempState     : States;
+	toRead        : CHAR;
+	DONTCARE      : BOOLEAN;
+	calledScanner : BOOLEAN;
+	scannerError  : BOOLEAN;
+	oldError      : IOErrors.Errors;
+    BEGIN (* Scan *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.readAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    CASE state OF
+		ok:
+		    (* Fall through *)
+		|
+		endOfFile:
+		    RETURN SetError( file, IOErrors.readPastEOF );
+		|
+		endOfLine:
+		    IF lineNumber < TextIOPRIVATE.maxLineNumber THEN
+			INC( lineNumber );
+		    END;
+		(* error shouldn't happen *)
+	    END;
+
+	    inScan         := TRUE;   (* set global *)
+	    calledScanner  := FALSE;  (* used to know to "undo" or not *)
+
+	    IF undo.state # TextIOPRIVATE.undoAvailable THEN
+		(* Set up for the scan *)
+		undo.state     := TextIOPRIVATE.undoOK;
+	    ELSE
+		(* Read the "undo" *)
+
+		(* swap states *)
+		tempState      := state;
+		state          := undo.fileState;
+		undo.fileState := tempState;
+
+		(* and then use previous character *)
+		undo.state     := TextIOPRIVATE.undoOK;
+		IF state # ok THEN
+		    inScan := FALSE;
+		    RETURN state;	(* nothing to read *)
+		END;
+
+		IF ( scanMode # skipLeadingWhiteSpace ) OR
+		    NOT Chars.IsWhiteSpace( undo.char ) THEN
+		    (* If we are calling the scanner, then change modes *)
+		    scanMode := doNotSkip;
+		    calledScanner := TRUE;
+		    IF NOT scanner( importerObject, undo.char ) THEN
+			inScan := FALSE;	
+			(* Did the guy not want the undo character? *)
+			IF state = ok THEN
+			    RETURN UndoRead( file );
+			END;
+			(* 
+			 * Else the state must be "error" 
+			 *)
+			state := ok;
+			oldError := errorState;
+			errorState := IOErrors.ok;
+			state := UndoRead( file );
+			RETURN SetError( file, oldError );
+		    END;
+		    
+		    @IF Assert THEN
+
+			(* Not allowed to set error and return TRUE! *)
+			IF state = error THEN
+			    (* This will make things go boom *)
+			    DONTCARE := TextIOPRIVATE.IsValid( file, 
+					    TextIOPRIVATE.readAccess );
+			END;
+		    @END 
+		    undo.fileState := ok;   (* read something! *)
+		END;
+	    END;
+
+	    (*
+	     * Keep reading characters until the scanner returns false
+	     * or a "non-ok" file state.
+	     *)
+	    state := ok;	(* We assume that everything is "ok" *)
+	    LOOP 
+		IF bufferOption = doBuffering THEN
+		    (* Buffered read, get it from buf *)
+		    WITH buffer^ DO
+			IF readIndex >= length THEN
+			    IF TextIOPRIVATE.ReadBuffer( file ) # ok THEN
+				scannerError := FALSE;
+				EXIT;
+			    END;
+			END;
+
+			toRead := data[ readIndex ];
+			INC( readIndex );
+		    END; (* WITH *)
+		ELSE
+		    (* Non-buffered read, just do it *)
+		    CASE BinaryIO.ReadBlock( binaryFile, toRead ) OF
+			BinaryIO.ok:   (* keep on truckin' *)
+			|
+			BinaryIO.endOfFile:
+			    state := endOfFile;
+			    EXIT;
+			|
+			BinaryIO.error:
+			    state := SetError( file,
+					   BinaryIO.GetError( binaryFile ) );
+			    scannerError := FALSE;
+			    EXIT;
+		    END; (* CASE *)
+		END;
+
+		@IF SunOS THEN
+		    IF toRead = ASCII.lf THEN
+			state := endOfLine;
+			EXIT;
+		@END (* SunOS *)
+
+		@IF MsDosOS THEN
+		    IF toRead = ASCII.cr THEN
+			state := endOfLine;
+			EXIT;
+
+		    (* In DOS, we have an EOF which is ASCII.sub. *)
+		    ELSIF toRead = ASCII.sub THEN
+			state := endOfFile;
+			EXIT;   
+
+		    ELSIF toRead = ASCII.lf THEN 
+			(* 
+			 * Ignore "lf" after "cr" and treat single "lf" 
+			 * as EOL 
+			 *)
+			IF undo.char # ASCII.cr THEN
+			    state := endOfLine;
+			    EXIT;
+			END;
+
+		@END (* MsDosOS *)
+		ELSE
+		    (* Is a valid character, but should we scan it? *)
+		    IF ( scanMode # skipLeadingWhiteSpace ) OR
+		      NOT Chars.IsWhiteSpace( toRead ) THEN
+			(* Set the state variables (inScan already set). *)
+			scanMode := doNotSkip;
+			calledScanner := TRUE;
+			IF NOT scanner( importerObject, toRead ) THEN
+			    scannerError := TRUE;   (* only true if error *)
+			    EXIT;	(* All done *)
+			END;
+			
+			@IF Assert THEN
+			    (* Not allowed to set error and return TRUE! *)
+			    IF state = error THEN
+				(* This will make things go boom *)
+				DONTCARE := TextIOPRIVATE.IsValid( file, 
+						TextIOPRIVATE.readAccess );
+			    END;
+			@END
+		    END;
+		    (* Read something, must undo to "ok" *)
+		    undo.fileState := ok; 
+		    
+		END;
+
+		@IF MsDosOS THEN
+		    (* Used for weird lone "lf" case (above) *)
+		    undo.char := toRead;
+		@END (* MsDosOS *)
+
+	    END; (* LOOP *)
+
+	    (* Terminate scanning mode *)
+	    inScan := FALSE;
+
+
+	    (* Only undo, if we have called the scanner at least once *)
+	    IF NOT calledScanner THEN
+		RETURN state;
+	    END;
+
+	    (* Don't undo if in an error state *)
+	    IF state = error THEN
+		IF NOT scannerError THEN
+		    RETURN error;
+		END;
+		(*
+		 * The scanner returned false after it called SetError.
+		 * We must "undo" the character to get the proper
+		 * semantics.
+		 *)
+		state := ok;
+		undo.char := toRead;       (* Must save *)
+		oldError := errorState;
+		errorState := IOErrors.ok;
+		state := UndoRead( file );
+		RETURN SetError( file, oldError );
+	    END;
+
+	    (* Do the undo *)
+	    undo.state := TextIOPRIVATE.undoAvailable;
+	    undo.char  := toRead;     (* save for next time *)
+	    (* swap states *)
+	    tempState  := state;
+	    state      := undo.fileState;
+	    undo.fileState := tempState;
+
+	    (* Get the line numbers correct *)
+	    IF state = endOfLine THEN
+		DEC( lineNumber );
+	    END;
+
+	    RETURN state;
+
+	END; (* WITH *)
+
+    END Scan;
+
+
+PROCEDURE Write( 
+    file    : Object;
+    toWrite : CHAR
+    )	    : States;
+    BEGIN (* Write *)
+
+	RETURN WriteChars( file, SYSTEM.ADR( toWrite ), 1 );
+
+    END Write;
+
+
+PROCEDURE WriteChars(
+        file    : Object;          (* not in "error" state and writable *)
+        buf     : SYSTEM.ADDRESS;  (* contains data to be written *)
+        bufSize : SysTypes.Card    (* number of chars to be written *)
+    )           : States;          (* success => "ok" *)
+    VAR
+	DONTCARE  : SysTypes.Card;
+	i         : SysTypes.Card;
+	bp	  : RECORD	(* Can't INC pointers... *)
+	    CASE @IF NOT M2V2 THEN : @END BOOLEAN OF
+		TRUE:
+		    ptr : POINTER TO CHAR;
+		|
+		FALSE:
+		    adr : SYSTEM.ADDRESS;
+	    END;
+	END;
+    BEGIN (* WriteChars *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.writeAccess ) 
+	      THEN RETURN error;
+	    END;
+	@END (* Assert *)
+
+
+	WITH file^ DO
+
+	    IF writesBuffered THEN
+		WITH buffer^ DO
+
+		    (* Need this check for the FOR loop below *)
+		    IF bufSize = 0 THEN
+			RETURN ok;
+		    END;
+
+		    (* Guarantee to only do a single flush check. *)
+		    IF bufSize + length > HIGH( data ) THEN
+			IF TextIOPRIVATE.WriteBuffer( file ) # ok THEN
+			    RETURN state;
+			END;
+		    END;
+
+		    (* Is the string is smaller than the buffer? *)
+		    IF bufSize <= HIGH( data ) THEN
+
+			(* Dump the characters into the buffer *)
+			(* RJN - when Bytes optimized, use here *)
+			bp.adr := buf;
+			FOR i := 0 TO bufSize - 1 DO
+			    data[ length ] := bp.ptr^;
+			    INC( bp.adr );
+			    INC( length );
+			END;
+
+			(* Flush will happen some time later... *)
+			RETURN ok;
+		    END;
+
+		END; (* WITH buffer *)
+	    END; (* IF *)
+
+	    (* 
+	     * Unbuffered writes or the buffer is too small for the
+	     * amount of data we want to write.
+	     *)
+	    IF BinaryIO.WriteBytes( binaryFile, buf, bufSize, DONTCARE ) 
+	       = BinaryIO.error THEN
+
+		RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+	    END;
+
+	    RETURN state;
+
+	END; (* WITH private *)
+
+    END WriteChars;
+
+
+PROCEDURE WriteLn( 
+    file : Object 
+    )	 : States;
+    (*
+     * For non-buffered writes just dump to a file.
+     * For buffered writes, empty the buffer if there isn't enough room
+     * for the eolString.  After which we dump the eolString into the buffer.
+     * This approach saves code space and gets better performance.
+     *)
+    VAR
+	DONTCARE   : SysTypes.Card;
+    BEGIN (* WriteLn *)
+
+	RETURN WriteChars( file, SYSTEM.ADR( TextIOPRIVATE.eolString ),
+		           HIGH( TextIOPRIVATE.eolString ) + 1 );
+
+    END WriteLn;
+
+
+PROCEDURE SetError( 
+    file     : Object;
+    newError : IOErrors.Errors 
+    )        : States;
+    BEGIN (* SetError *)
+
+	@IF Assert THEN
+	    IF NOT Objects.IsValid( TextIOPRIVATE.objectMgr, file ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+
+	    (* Is this a first-time "set"? *)
+	    IF errorState = IOErrors.ok THEN
+
+		(* Is this a no-op? *)
+		IF newError = IOErrors.ok THEN
+		    RETURN ok;
+		END;
+
+		(* set the error state and state value in the event of reset *)
+		stateBeforeError := state;
+		state            := error;
+
+	    ELSIF newError = IOErrors.ok THEN
+
+		(* Do we have to reset the binary file error state? *)
+	        IF ( BinaryIO.GetError( binaryFile ) # IOErrors.ok )
+		  AND ( BinaryIO.SetError( binaryFile, IOErrors.ok ) 
+				   = BinaryIO.error ) THEN 
+		    RETURN error;
+		END;
+
+		(* 
+		 * We just cleared an error, return to state before error 
+		 * occurred and reset the stateBeforeError to ok.
+		 *)
+		state  		 := stateBeforeError;
+		stateBeforeError := ok;
+	    END;
+
+	    errorState := newError;
+
+	    RETURN state;
+
+	END; (* WITH *)
+
+    END SetError;
+
+
+PROCEDURE GetOpenPath(     
+	file : Object;
+    VAR path : IOConsts.Path 
+    );
+    BEGIN (* GetOpenPath *)
+
+	@IF Assert THEN
+	    IF NOT Objects.IsValid( TextIOPRIVATE.objectMgr, file ) THEN
+		path[ 0 ] := 0C;	(* As defined by the def mod *)
+		RETURN;
+	    END;
+	@END (* Assert *)
+
+	BinaryIO.GetOpenPath( file^.binaryFile, path );
+
+    END GetOpenPath;
+
+
+PROCEDURE Flush( 
+    file : Object 
+    )    : States;
+    BEGIN (* Flush *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.writeAccess ) 
+	      THEN RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+
+	    IF file^.writesBuffered THEN
+		state := TextIOPRIVATE.WriteBuffer( file );
+	    ELSE
+		state := ok;
+	    END;
+
+	    IF state = ok THEN
+		IF BinaryIO.Flush( binaryFile ) = BinaryIO.error THEN
+		    RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+		END; (* if *)
+	    END;
+
+	    RETURN state;
+
+	END; (* with *)
+
+    END Flush;
+
+
+PROCEDURE Rewind( 
+    file : Object 
+    )    : States;
+    VAR
+	index : BinaryIO.Index;
+    BEGIN (* Rewind *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.anyAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+
+	    CASE BinaryIO.GetMode( binaryFile ) OF
+		BinaryIO.appendOnly:
+		    RETURN SetError( file, IOErrors.noAccess );
+		|
+		BinaryIO.readWrite:
+		    IF writesBuffered AND
+		       ( TextIOPRIVATE.WriteBuffer( file ) # ok ) THEN
+			RETURN state;
+		    END;
+		|
+		BinaryIO.readOnly:
+		    (* All the fix ups are later *)
+	    END; (* CASE *)
+
+	    (* Seek back to the start of the file *)
+	    IF ( BinaryIO.GetStart( binaryFile, index ) = BinaryIO.error ) OR
+	       ( BinaryIO.SetIndex( binaryFile, index ) = BinaryIO.error ) THEN
+		RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+	    END;
+	    (* 
+	     * Fix up the file, everything is ok.
+	     * Mark the file as readOnly (may be redundant).
+	     * Set the read buffer to empty and mark for non-write buffering.
+	     * Mark file to prevent UndoRead immediately after rewind 
+	     *)
+	    openMode         := readOnly;
+	    state            := ok;	(* In case we were at EOF before *)
+	    undo.state       := TextIOPRIVATE.undoIllegal;
+	    writesBuffered   := FALSE;	(* can't be true.  File is readOnly *)
+
+	    (* If no buffer option, we may have to allocate one *)
+	    IF NOT haveBufferOption AND ( bufferOption = doNotBuffer ) THEN
+		(* Only in appendOnly & isInteractive do we not buffer *)
+		Objects.Allocate( TextIOPRIVATE.bufferMgr, buffer );
+		bufferOption := doBuffering;
+	    END;
+	    IF bufferOption = doBuffering THEN
+		WITH buffer^ DO 
+		    length    := 0;
+		    readIndex := 0;
+		END;
+	    END;
+	    lineNumber       := 1;
+
+	END; (* WITH *)
+
+	RETURN ok;
+
+    END Rewind;
+
+
+PROCEDURE SetAppendMode(
+    file : Object
+    )    : States;
+    BEGIN (* SetAppendMode *)
+
+	WITH file^ DO
+	    (* 
+	     * Fix up the file, everything is ok.
+	     * Mark the file as appendOnly.
+	     * Set the write buffer if necessary.
+	     *)
+	    openMode   := appendOnly;
+	    state      := ok;	(* In case we were at EOF before *)
+	    undo.state := TextIOPRIVATE.undoIllegal;
+
+	    (* If no buffer option, we may have to de-allocate one *)
+	    IF NOT haveBufferOption AND isInteractive AND
+	      ( bufferOption = doBuffering ) THEN
+		Objects.Deallocate( TextIOPRIVATE.bufferMgr, buffer );
+		bufferOption := doNotBuffer;
+	    END;
+
+	    writesBuffered := bufferOption = doBuffering;
+	    IF writesBuffered THEN
+		WITH buffer^ DO 
+		    length    := 0;
+		    readIndex := 0; (* Just to be nice *)
+		END;
+	    END;
+	    lineNumber       := 1;  (* Kind of like a new file open. *)
+	END; (* WITH *)
+
+	RETURN ok;
+
+    END SetAppendMode;
+
+
+PROCEDURE Append( 
+    file : Object 
+    )    : States;
+    VAR
+	index    : BinaryIO.Index;
+    BEGIN (* Append *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.anyAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    CASE BinaryIO.GetMode( binaryFile ) OF
+		BinaryIO.appendOnly:
+		    (* Has to be in "our" appendOnly mode as well *)
+		    RETURN state;
+		|
+		BinaryIO.readWrite:
+		    IF openMode = appendOnly THEN
+			RETURN state;	(* Already there *)
+		    END;
+		|
+		BinaryIO.readOnly:
+		    RETURN SetError( file, IOErrors.noAccess );
+	    END; (* CASE *)
+
+	    (* Seek back to the start of the file *)
+	    IF ( BinaryIO.GetEnd( binaryFile, index ) = BinaryIO.error ) OR
+	       ( BinaryIO.SetIndex( binaryFile, index ) = BinaryIO.error ) 
+	      THEN RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+	    END;
+
+	END; (* WITH *)
+
+	RETURN SetAppendMode( file );
+
+    END Append;
+
+
+PROCEDURE RewindAndTruncate( 
+    file : Object  (* not in "error" state *)
+    )    : States; (* ok => file is empty and appendOnly *)
+    VAR
+	index : BinaryIO.Index;
+    BEGIN (* RewindAndTruncate *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.anyAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	WITH file^ DO
+	    IF BinaryIO.GetMode( binaryFile ) # BinaryIO.readWrite THEN
+		RETURN SetError( file, IOErrors.noAccess );
+	    END;
+
+	    (*  
+	     * We don't need to flush, because file is going to be truncated.
+	     * Seek back to the start of the file
+	     *)
+	    IF ( BinaryIO.GetStart( binaryFile, index ) = BinaryIO.error ) OR
+	       ( BinaryIO.SetIndex( binaryFile, index ) = BinaryIO.error ) THEN
+		RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+	    END;
+
+	    IF BinaryIO.Truncate( binaryFile ) = BinaryIO.error THEN
+	        RETURN SetError( file, BinaryIO.GetError( binaryFile ) );
+	    END;
+
+	END; (* WITH *)
+
+	RETURN SetAppendMode( file );
+	
+    END RewindAndTruncate;
+
+
+PROCEDURE PrintErrorMessage( 
+    file    : Object;
+    message : ARRAY OF CHAR 
+    ); 
+    (* 
+     * Error messages look like:
+     * 	  '"filename", line NNN: message'.
+     *)
+    VAR
+	errorMsg : IOErrors.String;
+	fileName : IOConsts.Path;
+	cardStr  : ARRAY [ 0 .. SysTypes.bitsPerCard - 1 ] OF CHAR;
+	DONTCARE : BOOLEAN;
+
+    BEGIN (* PrintErrorMessage *)
+
+	IF NOT Objects.IsValid( TextIOPRIVATE.objectMgr, file ) THEN
+	    ProgErrOutput.WriteString( 'TextIO: ' );
+	    IOErrors.ToString( IOErrors.notOpen, errorMsg );
+	    ProgErrOutput.WriteString( errorMsg );
+	    ProgErrOutput.WriteLn;
+	    RETURN;
+	END;
+
+	WITH file^ DO
+	    BinaryIO.GetOpenPath( binaryFile, fileName );
+	    ProgErrOutput.WriteString( '"' );
+	    ProgErrOutput.WriteString( fileName );
+	    IF openMode # readOnly THEN
+		ProgErrOutput.WriteString( '": ' );
+	    ELSE
+		(* 
+		 * Just display line number: nothing we can do about 
+		 * append-only files, since we don't know line number 
+		 * on which they started.
+		 *)
+		ProgErrOutput.WriteString( '", line ' );
+		DONTCARE:= CardConvert.ToString( lineNumber, 10, 0, cardStr );
+		ProgErrOutput.WriteString( cardStr );
+		ProgErrOutput.WriteString( ": " );
+	    END;
+	    IF message[ 0 ] # 0C THEN
+		ProgErrOutput.WriteString( message );
+	    ELSE
+		IOErrors.ToString( file^.errorState, errorMsg );
+		ProgErrOutput.WriteString( errorMsg );
+	    END;
+	    ProgErrOutput.WriteLn;
+
+	END; (* WITH *)
+
+    END PrintErrorMessage;
+
+
+PROCEDURE GetMode( 
+    file : Object 
+    )    : Modes;
+    BEGIN (* GetMode *)
+
+	@IF Assert THEN
+	    Objects.Assert( TextIOPRIVATE.objectMgr, file );
+	@END
+
+	RETURN file^.openMode;
+
+    END GetMode;
+
+
+PROCEDURE GetInput(
+    ) : Object;
+    VAR
+	result : Object;
+    BEGIN (* GetInput *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	result := TextIOPRIVATE.input;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END GetInput;
+
+
+PROCEDURE GetOutput(
+    ) : Object;
+    VAR
+	result : Object;
+    BEGIN (* GetOutput *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	result := TextIOPRIVATE.output;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END GetOutput;
+
+
+PROCEDURE GetErrorOutput(
+    ) : Object;
+    VAR
+	result : Object;
+    BEGIN (* GetErrorOutput *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( errorOutputMonitor );
+	@END (* Tasks *)
+
+	result := TextIOPRIVATE.errorOutput;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( errorOutputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END GetErrorOutput;
+
+
+PROCEDURE SetInput( 
+    file : Object 
+    )    : States;
+    VAR 
+	result : States;
+    BEGIN (* SetInput *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.readAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( inputMonitor );
+	@END (* Tasks *)
+
+	TextIOPRIVATE.input := file;
+
+	result := file^.state;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( inputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END SetInput;
+
+
+PROCEDURE SetOutput( 
+    file : Object 
+    )    : States;
+    VAR 
+	result : States;
+    BEGIN (* SetOutput *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.writeAccess ) THEN
+		RETURN error;
+	    END;
+	@END (* Assert *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( outputMonitor );
+	@END (* Tasks *)
+
+	TextIOPRIVATE.output := file;
+
+	result := file^.state;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( outputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END SetOutput;
+
+
+PROCEDURE SetErrorOutput( 
+    file : Object 
+    )	 : States;
+    (*
+     * Have to set up the new file correctly so that writes aren't
+     * buffered.  TextIOPRIVATE assumes this when it writes the
+     * error file.
+     *)
+    VAR 
+	result : States;
+    BEGIN (* SetErrorOutput *)
+
+	@IF Assert THEN
+	    IF NOT TextIOPRIVATE.IsValid( file, TextIOPRIVATE.writeAccess) THEN
+		RETURN error;
+	    END;
+	    WITH file^ DO
+		(*  
+		 * Flush the buffer before getting into the monitor.  The
+		 * file has not be publicized yet, thus the caller should
+		 * have it under control (i.e. no one else should be using it).
+		 *)
+		IF ( state = error ) OR ( writesBuffered AND 
+			( TextIOPRIVATE.WriteBuffer( file ) # ok ) ) THEN
+		    RETURN state;
+		END;
+	    END; (* WITH *)
+	@END (* Assert *)
+
+	@IF Tasks THEN
+	    TaskMonitors.Enter( errorOutputMonitor );
+	@END (* Tasks *)
+
+	(* Error output may be invalid, i.e. closed. *)
+	IF Objects.IsValid( TextIOPRIVATE.objectMgr, 
+	   		    TextIOPRIVATE.errorOutput ) THEN
+	    WITH TextIOPRIVATE.errorOutput^ DO
+		(* 
+		 * We have to set the buffering back to the correct way 
+		 * Note that errorOutput could have been rewound and thus
+		 * put in readOnly mode.  The openMode check is necessary.
+		 *)
+		writesBuffered := ( openMode = appendOnly ) AND 
+				  ( bufferOption = doBuffering );
+	    END;
+	END; (* IF *)
+	
+	TextIOPRIVATE.errorOutput := file;
+	(* We have to set to no buffering *)
+	file^.writesBuffered := FALSE;
+
+	result := file^.state;
+
+	@IF Tasks THEN
+	    TaskMonitors.Exit( errorOutputMonitor );
+	@END (* Tasks *)
+
+	RETURN result;
+
+    END SetErrorOutput;
+
+BEGIN (* TextIO *)
+
+    @IF SysTypesCheck THEN
+	(*
+	 * Assumes in many places that char is interchangable with
+	 * array chars and SAUs.  Probably this implementation will
+	 * be totally different on systems which do not support these
+	 * assumptions.
+	 *)
+	IF ( SysTypes.bitsPerArrayCHAR # SysTypes.bitsPerCHAR )
+	  OR ( SysTypes.bitsPerArrayCHAR # SysTypes.bitsPerSAU ) THEN
+	    ProgErr.Terminate( "TextIO: SysTypesCheck failed." );
+	END;
+    @END
+
+    @IF Tasks THEN
+	inputMonitor := IOMonitors.GetInput();
+	outputMonitor := IOMonitors.GetOutput();
+	errorOutputMonitor := IOMonitors.GetErrorOutput();
+    @END (* Tasks *)
+
+END TextIO.
+
+

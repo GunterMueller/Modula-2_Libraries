@@ -1,0 +1,211 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+IMPLEMENTATION MODULE IntIO;
+(*
+ * We use CardIO for reads, since it would just duplicate could otherwise.
+ *
+ * Bug: See cardMINInt description
+ *)
+IMPORT 
+    CardIO,
+    Chars,
+    IntConvert,
+    IOErrors,
+    StringIO,
+    Strings,
+    SYSTEM,
+    SysTypes,
+    TextIO;
+
+TYPE
+    MaxIntString = ARRAY [ 0 .. SysTypes.bitsPerInt ] OF CHAR;
+	(*
+	 * We always convert base 10, so the bitsPerInt number
+	 * is more than sufficient.
+	 *)
+VAR
+    cardMINInt : SysTypes.Card;	
+	(*  
+	 * Seems that comparing ABS( MINInt ) with a Card
+	 * does not work.  MAXInt seems to work.
+	 *)
+
+TYPE
+    ScanStates = (
+	readNothing,	(* Haven't been called *)
+        noSign,    	(* Was not a sign. *)
+	readPlus,       (* "+" was read *)
+        readMinus,	(* "-" was read *)
+	pastPlus,       (* "+" was read and next char is a digit. *)
+	pastMinus	(* "-" was read and next char is a digit. *)
+    );  
+ 
+    ScanInfoRec = RECORD
+        state      : ScanStates;	(* What to do *)
+	fileToRead : TextIO.Object;	(* Need to set error *)
+    END;
+    ScanInfoPtr = POINTER TO ScanInfoRec;
+
+PROCEDURE Scanner(
+    infoAdr : SysTypes.ANYPTR;
+    toScan  : CHAR
+    )       : BOOLEAN;
+    (* 
+     * Read a sign and then make sure the next thing is a number.
+     *)
+    VAR
+	infoPtr : ScanInfoPtr;
+    BEGIN (* Scanner *)
+
+	infoPtr := infoAdr;
+
+	WITH infoPtr^ DO
+	    CASE state OF
+		readNothing:
+		    IF toScan = '-' THEN
+			state := readMinus;
+		    ELSIF toScan = '+' THEN
+			state := readPlus;
+		    ELSE
+			state := noSign;
+			RETURN FALSE;	(* Don't know what it is, but 
+					   CardIO will barf if it needs to. *)
+		    END;
+		|
+		readPlus,
+		readMinus:
+		    IF NOT Chars.IsDigit( toScan, 10 ) THEN
+			TextIO.DONTCARE := TextIO.SetError( fileToRead,
+						IOErrors.badData );
+		    ELSIF state = readPlus THEN
+			state := pastPlus;
+		    ELSE
+			state := pastMinus;
+		    END;
+		    RETURN FALSE;  (* Don't continue no matter what it is *)
+	    END; (* CASE *)
+	END; (* WITH *)
+
+	RETURN TRUE;
+    END Scanner;
+
+
+PROCEDURE Read(
+        file   : TextIO.Object;
+    VAR toRead : SysTypes.Int
+    )          : TextIO.States;
+    VAR
+	fileState   : TextIO.States;
+	card        : SysTypes.Card;
+	scanInfoRec : ScanInfoRec;
+    BEGIN (* Read *)
+
+	WITH scanInfoRec DO
+	    state      := readNothing; 
+	    fileToRead := file;
+	    fileState := TextIO.Scan( file, Scanner, SYSTEM.ADR( scanInfoRec ),
+				      TextIO.skipLeadingWhiteSpace );
+	    (*
+	     * This check isn't so obvious, because we may get endOfLine
+	     * as the state upon return from Scan.  This is the case of
+	     * a digit at the begining of the line when the
+	     * previous read didn't clear end of line (unformatted reads.)
+	     *)
+	    CASE fileState OF
+		TextIO.error,
+	        TextIO.endOfFile:
+		    RETURN fileState;
+		|
+		TextIO.endOfLine:
+		    IF state = readNothing THEN
+			RETURN fileState;
+		    END;
+		|
+		TextIO.ok:
+
+	    END;
+
+	    (* 
+	     * Did we read a sign and not get called again afterwards?
+	     *)	
+	    IF ( state = readMinus ) OR ( state = readPlus ) THEN
+		RETURN TextIO.SetError( file, IOErrors.badData );
+	    END;
+
+	    fileState := CardIO.Read( file, card );
+	    IF fileState # TextIO.ok THEN
+		RETURN fileState;
+	    END;
+
+	    (* Got a cardinal, see if it range checks *)
+	    IF state # pastMinus THEN
+		IF card <= ABS( SysTypes.MAXInt ) THEN
+		    toRead := card;
+		    RETURN TextIO.ok;	 (* success! *)
+		END;
+	    ELSIF card < cardMINInt THEN
+		toRead := card;
+		toRead := -toRead;
+		RETURN TextIO.ok;	 (* success! *)
+	    (* 
+	     * IMPLEMENTATION SPECIFIC:
+	     *     This is a 2's complement hack. 
+	     *)
+	    ELSIF card = cardMINInt THEN
+		toRead := SysTypes.MINInt;
+		RETURN TextIO.ok;		(* success! *)
+	    END;
+	END; (* WITH *)
+
+	RETURN TextIO.SetError( file, IOErrors.badData );
+    END Read;
+
+
+PROCEDURE Write(
+    file    : TextIO.Object;
+    toWrite : SysTypes.Int;
+    width   : SysTypes.Card
+    )       : TextIO.States;
+    VAR
+	str      : MaxIntString;
+	DONTCARE : BOOLEAN;
+    BEGIN (* Write *)
+
+	DONTCARE := IntConvert.ToString( toWrite, 0, str );
+
+	RETURN StringIO.WriteJustifiedField( file, str,
+            Strings.justifyRight, width, ' ' );
+    END Write;
+
+
+BEGIN (* IntIO *)
+
+    (* 
+     * If you don't have the Card(), it crashes with a range error
+     * (by the naturally complete definition of modula-2).  In any event,
+     * this is correct for a 2s complement machine.
+     *)
+    cardMINInt := SysTypes.Card( SysTypes.MINInt );
+
+END IntIO.
+

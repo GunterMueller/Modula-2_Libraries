@@ -1,0 +1,177 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE TextIOPRIVATE;
+(*
+ * - Proper behavior of co-conspirators.
+ * - Rules of write-buffering (never leave in length = bufferSize)
+ * - errorOutput is always unbuffered.
+ *)
+IMPORT 
+    ASCII,
+    BinaryIO,
+    IOErrors,
+    Objects,
+    SysTypes,
+    TextIO;
+
+EXPORT QUALIFIED 
+    eolString,      bufferLength,   BufferRec,    Buffer,
+    UndoStates,     maxLineNumber,
+    Object,         ObjectRec,      objectMgr,
+    bufferMgr,      ModeSet,        readAccess,   binStateToTextState, 
+    writeAccess,    anyAccess,      IsValid,      ReadBuffer,
+    WriteBuffer,    input,          output,       errorOutput;
+
+(* 
+ * The length used here must exactly match the length of eol 
+ * and bufferLength > HIGH( eolString ) + 1 must be true
+ * because WriteLn depends upon this hack.
+ *)
+@IF SunOS THEN
+    VAR
+	eolString : ARRAY[ 0 .. 0 ] OF CHAR;  (* ASCII.lf *)
+    CONST
+	bufferLength = 2048;  (* No need to be bigger *)
+@END
+
+@IF MsDosOS THEN
+    VAR
+	eolString : ARRAY[ 0 .. 1 ] OF CHAR;  (* ASCII.cr + .lf *)
+    CONST
+	bufferLength = 1024;  (* Small to save memory *)
+@END
+
+TYPE
+    Buffer = POINTER TO BufferRec;
+
+    BufferRec = RECORD
+        length        : SysTypes.Card;  (* Number of characters in buffer *)
+        readIndex     : SysTypes.Card;  (* Next char to be read in readOnly *)
+        data          : ARRAY[ 0 .. bufferLength - 1 ] OF CHAR;
+    END;
+
+    UndoStates = (
+        undoOK,        (* ok to call Undo *)
+        undoIllegal,   (* illegal to call Undo *)
+        undoAvailable  (* character and state in undone *)
+    );
+
+CONST
+    maxLineNumber = SysTypes.MAXCard;
+
+TYPE
+    Object = POINTER TO ObjectRec;
+
+    ObjectRec = RECORD
+        binaryFile        : BinaryIO.Object;  (* Where to read and write *)
+        binarySupplied    : BOOLEAN;          (* Don't close binaryFile *)
+        openMode          : TextIO.Modes;     (* For access and buffering *)
+        state             : TextIO.States;    (* What GetState returns *)
+        errorState        : IOErrors.Errors;  (* What GetError returns *)
+        stateBeforeError  : TextIO.States;    (* Used after an error reset *)
+        inScan            : BOOLEAN;          (* In Scan right now *)
+        isInteractive     : BOOLEAN;          (* = BinaryIO.IsInteractive *)
+        writesBuffered    : BOOLEAN;          (* Can be <> from buffer-mode *)
+        lineNumber        : SysTypes.Card;    (* No greater than max! *)
+        haveBufferOption  : BOOLEAN;          (* Was it supplied on Open? *)
+	CASE bufferOption : TextIO.BufferingModes OF
+            TextIO.doBuffering :
+                buffer    : Buffer;           (* Where to hold buffered data *)
+        END (* CASE *);
+        undo : RECORD
+            state         : UndoStates;       (* See the definition above *)
+            fileState     : TextIO.States;    (* See UndoRead! *)
+            char          : CHAR;             (* Character "undone" *)
+        END;
+    END;
+    (*
+     * The buffer is in a case-variant as we don't want to allocate
+     * it if buffer mode is doNotBuffer.
+     *)
+
+VAR
+    objectMgr : Objects.Manager;
+    bufferMgr : Objects.Manager;
+    (*
+     * Used to allocate files (objects) and buffers.
+     *)
+VAR
+    binStateToTextState : ARRAY BinaryIO.States OF TextIO.States;
+   
+TYPE
+    ModeSet = SET OF TextIO.Modes;
+   
+CONST
+    readAccess  = ModeSet{ TextIO.readOnly };
+    writeAccess = ModeSet{ TextIO.appendOnly };
+    anyAccess   = ModeSet{ TextIO.readOnly, TextIO.appendOnly };
+    (*
+     * Used for read/write permissions.
+     *)
+   
+PROCEDURE IsValid(
+    file       : Object;   (* File variable to be validated *)
+    fileAccess : ModeSet   (* Access modes required by calling procedure *)
+    )          : BOOLEAN;  (* TRUE => Passes all tests *)
+    (* 
+     * Validate file as a TextIO.Object and verify file is not in 
+     * error state. If either of these tests fail, terminate the caller.  
+     *
+     * FALSE is returned if file mode is inappropriate. This thus verifies
+     * that we are currently not already in a Scan. State of file is set
+     * in this case to "error".
+     *)
+        
+PROCEDURE ReadBuffer(
+    file : Object          (* File with buffer to be read (filled) *)
+    )    : TextIO.States;  (* ok => No error *)
+    (*
+     * Read the file's internal read  buffer and return a state 
+     * appropriate to the success of the read.
+     *
+     * WARNING:
+     *     Ignores file mode (read, write, read/write) and buffer
+     *     state (full, empty, etc).
+     *     LET THE CALLER BEWARE!
+     *)
+
+PROCEDURE WriteBuffer(
+    file : Object          (* File with buffer to be written to binary *)
+    )    : TextIO.States;  (* ok => No error *)
+    (*
+     * Write the internal file write buffer and return a state 
+     * appropriate to the success of the write.
+     *
+     * The buffer.length is the number of characters to be written.
+     *)
+
+VAR
+    (*
+     * All these variables are initialized by this module.
+     *)
+    input       : Object;
+    output      : Object;
+    errorOutput : Object;
+
+END TextIOPRIVATE.
+

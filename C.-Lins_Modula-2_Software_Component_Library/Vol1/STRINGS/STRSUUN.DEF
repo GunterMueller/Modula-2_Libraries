@@ -1,0 +1,124 @@
+DEFINITION MODULE StrSUUN;
+(*============================================================
+    Version  : 2.00  30 Apr 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structure - String
+               Sequential Unbounded Unmanaged Non-Iterator
+
+    REVISION HISTORY
+    v2.00  30 Apr 1989  C. Lins:
+        Initial re-implementation from StringSUUI module.
+
+    (C) Copyright 1989 Charles A. Lins
+============================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+FROM StrEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*-----------------------*)
+
+TYPE  String;
+TYPE  Position   = [ 1 .. 8100 ];
+CONST NullString = String(NIL);
+
+
+    (*-----------------------*)
+
+CONST ModuleID = 10;
+
+PROCEDURE StringError ()             : Exceptions  (*-- out   *);
+
+PROCEDURE GetHandler  (    ofError   : Exceptions  (*-- in    *))
+                                     : HandlerProc (*-- out   *);
+
+PROCEDURE SetHandler  (    ofError   : Exceptions  (*-- in    *);
+                           toHandler : HandlerProc (*-- in    *));
+
+
+    (*-----------------------*)
+
+PROCEDURE Create    (    theDataType: TypeID     (*-- in    *)) 
+									: String     (*-- out   *);
+
+PROCEDURE Destroy   (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Clear     (VAR theString  : String     (*-- inout *));
+
+PROCEDURE Assign    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Prepend   (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Append    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *));
+
+PROCEDURE Insert    (    theString  : String     (*-- in    *);
+                     VAR toString   : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *));
+
+PROCEDURE Delete    (VAR theString  : String     (*-- inout *);
+                         fromIndex  : Position   (*-- in    *);
+                         toIndex    : Position   (*-- in    *));
+
+PROCEDURE Replace   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         withString : String     (*-- in    *));
+
+PROCEDURE SetItem   (VAR theString  : String     (*-- inout *);
+                         theIndex   : Position   (*-- in    *);
+                         theItem    : Item       (*-- in    *));
+
+PROCEDURE Construct (VAR theString   : String        (*-- inout *);
+						 theDataType : TypeID		 (*-- in    *);
+                         theSubstring: ARRAY OF Item (*-- in    *));
+
+
+    (*-----------------------*)
+
+PROCEDURE IsDefined  (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE IsEmpty    (    theString  : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE LengthOf   (    theString  : String      (*-- in    *))
+                                     : CARDINAL    (*-- out   *);
+
+PROCEDURE TypeOf     (    theString  : String      (*-- in    *))
+                                     : TypeID      (*-- out   *);
+
+PROCEDURE Compare    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : Relation    (*-- out   *);
+
+PROCEDURE IsEqual    (    left       : String      (*-- in    *);
+                          right      : String      (*-- in    *))
+                                     : BOOLEAN     (*-- out   *);
+
+PROCEDURE ItemOf     (    theString  : String      (*-- in    *);
+                          theIndex   : Position    (*-- in    *))
+                                     : Item        (*-- out   *);
+
+PROCEDURE SliceOf    (    theString  : String        (*-- in    *);
+                          fromIndex  : Position      (*-- in    *);
+                          toIndex    : Position      (*-- in    *);
+                      VAR theSlice   : ARRAY OF Item (*-- out   *));
+
+PROCEDURE SubstringOf(    theString  : String        (*-- in    *);
+                      VAR toSubstring: ARRAY OF Item (*-- out   *));
+
+END StrSUUN.
+

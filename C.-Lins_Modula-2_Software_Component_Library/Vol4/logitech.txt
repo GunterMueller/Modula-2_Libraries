@@ -1,0 +1,91 @@
+***** Logitech Conversion Notes *****
+
+There is no version of the Modula-2 Software Component Library specific to the Logitech compiler.
+These disks contain the 'generic' version. Even in this case, it appears that the Logitech compiler
+is extremely limiting with respect to use of VAL as well as the type transfer functions. The type
+transfer functions in the Logitech compiler allow conversion only between variable of the same size.
+"Programming in Modula-2" has never specified such a limitation, so it's unfortunate that Logitech
+has introduced one in their compiler.
+
+Conversations with others on UseNet has revealed serious numerical accuracy problems with LONGINTs.
+Several individuals have switched from the Logitech compiler to other products due to all the problems
+they encountered (and not necessarily with using the Modula-2 Software Component Library). In case you
+want to continue using the Logitech compiler, the following paragraphs describe a workaround for type
+transfer between types of different sizes.
+ 
+The idea is to use a free union variant record and perform the type conversion oneself. Of course,
+this entails some risks in that the programmer must be careful to use the appropriate conversions.
+The basic type required is:
+ 
+ TYPE ConvertRec = RECORD
+        CASE :INTEGER OF
+          0: fill1  : INTEGER;
+             fill2  : CHAR;    (* to align asChar to low-order byte *)
+             asChar : CHAR;
+        | 1: fill3  : INTEGER; (* to align asInt to low-order word *)
+             asInt  : INTEGER;
+        | 2: asLong : LONGINT;
+        | 3: asItem : Items.Item;
+        END;
+      END;
+ 
+This techique requires SIZE(ConvertRec) to be 4 bytes. Of course, other cases can be added so long as their
+size is 4 bytes; otherwise, filler must be added as necessary. The following routines convert CHARacters,
+INTEGERs, and LONGINTs to and from generic items.
+ 
+ VAR convertHack : ConvertRec; (* assumed globally visible to these routines *)
+ 
+ PROCEDURE CharToItem (    source : CHAR) : Items.Item;
+ BEGIN
+     convertHack.asChar := source;
+     RETURN convertHack.asItem;
+ END CharToItem;
+ 
+ PROCEDURE IntToItem (    source : INTEGER) : Items.Item;
+ BEGIN
+     convertHack.asInt := source;
+     RETURN convertHack.asItem;
+ END IntToItem;
+ 
+ PROCEDURE LongToItem (    source : LONGINT) : Items.Item;
+ BEGIN
+     convertHack.asLong := source;
+     RETURN convertHack.asItem;
+ END LongToItem;
+ 
+ PROCEDURE ItemToChar (    source : Items.Item) : CHAR;
+ BEGIN
+     convertHack.asItem := source;
+     RETURN convertHack.asChar;
+ END ItemToChar;
+ 
+ PROCEDURE ItemToInt (    source : Items.Item) : INTEGER;
+ BEGIN
+     convertHack.asItem := source;
+     RETURN convertHack.asInt;
+ END ItemToInt;
+ 
+ PROCEDURE ItemToLong (    source : Items.Item) : LONGINT;
+ BEGIN
+     convertHack.asItem := source;
+     RETURN convertHack.asLong;
+ END ItemToLong;
+ 
+ In the ItemComparison module, you'll have to perform these conversions before doing the comparison(s).
+ There are probably other places where the Logitech compiler will give syntax errors for type transfers. The
+ above ideas can be easily extended as needed to account for these situations.
+ 
+ If you have any other problems or comments regarding the library feel free to contact me. I can be reached
+ via UseNet at the Internet address:
+ 
+ lins@apple.com
+ 
+ or by physical mail at the following address:
+ 
+ Chuck Lins
+ Apple Computer, Inc.
+ 20525 Mariani Avenue
+ Mail Stop: 81-BD
+ Cupertino, CA 95014
+ U.S.A.
+ 

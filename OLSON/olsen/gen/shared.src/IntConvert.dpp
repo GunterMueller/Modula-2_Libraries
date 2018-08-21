@@ -1,0 +1,89 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+DEFINITION MODULE IntConvert;
+(*
+ * Provides conversions between human readable strings and machine
+ * readable representations of integer numbers.
+ *
+ * The conversions are all performed in base 10.
+ *)
+IMPORT
+    SysTypes;
+
+EXPORT QUALIFIED
+    DONTCARE,
+    FromString,
+    ToString;
+
+VAR
+    DONTCARE : BOOLEAN;
+    (*
+     * Garbage can, don't use for other purposes.
+     *)
+ 
+PROCEDURE FromString(
+        toConvert : ARRAY OF CHAR;  (* Human readable string *)
+    VAR result    : SysTypes.Int    (* Machine readable form *)
+    )             : BOOLEAN;        (* Success => TRUE *)
+    (*
+     * Convert human readable string to a machine readable form.
+     *
+     *     integer ::= { white-space } [ "-" | "+" ] digit { digit }
+     *
+     * where <white-space> is by Chars.IsWhiteSpace and <digit> is
+     * defined by Chars.IsDigit for base 10 only.
+     *
+     * On conversion, the entire toConvert string is parsed. If it does
+     * not conform to the specified syntax (above) or if the converted
+     * integer is larger (or smaller) than what will fit in the specified
+     * machine representation, the conversion will fail.
+     *)
+
+PROCEDURE ToString(
+        toConvert : SysTypes.Int;  (* Machine readable form *)
+        width     : SysTypes.Card; (* Width of field *)
+    VAR result    : ARRAY OF CHAR  (* Human readable form *)
+    )             : BOOLEAN;       (* Success => TRUE *)
+    (*
+     * Convert machine readable form to a human readable string.
+     *
+     *     integer ::= { ' ' } [ "-" ] digit { digit }
+     *
+     * where digit is defined by Chars.FromDigit, always to base 10.  
+     *
+     * If the number of significant characters (sign may be necessary)
+     * is less than width, the number will right justified in a field
+     * of blank characters. If the number of significant characters
+     * is greater than the width, the string is filled with '*' chars
+     * and the conversion fails.
+     *
+     * A special case occurs for width 0. In this case, the number is
+     * converted and no blank filling is done. If HIGH( result ) + 1
+     * is less than the number of significant characters, the result
+     * will be empty and the conversion fails.
+     *
+     * If the width specified is greater than HIGH( result ) + 1,
+     * the caller will be terminated.
+     *)
+
+END IntConvert.

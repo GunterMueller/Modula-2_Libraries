@@ -1,0 +1,185 @@
+(*
+16.1 Bounded Priority Balking Deque Interface
+*)
+
+DEFINITION MODULE DQPBSBMI;
+(*===========================================================
+    Version  : 1.00  16 May 1989  C. Lins
+    Compiler : TopSpeed Modula-2
+    Component: Monolithic Structures - Deque (Opaque version)
+      Priority Balking Sequential Bounded Managed Iterator
+
+    REVISION HISTORY
+    v1.00  16 May 1989  C. Lins:
+	  Initial TopSpeed Modula-2 implementation.
+	(C) Copyright 1989 Charles A. Lins
+===========================================================*)
+
+FROM ErrorHandling IMPORT
+    (*--Type*) HandlerProc;
+
+FROM Items IMPORT
+    (*--Type*) Item, AccessProc, LoopAccessProc;
+
+FROM QEnum IMPORT
+    (*--Type*) Exceptions;
+
+FROM Relations IMPORT
+    (*--Type*) Relation;
+
+FROM TypeManager IMPORT
+    (*--Type*) TypeID;
+
+    (*--------------------*)
+
+(*
+16.1.1 Type Declarations
+
+A deque is declared as the abstract data type, Deque.  In the bounded
+form presented here a deque is limited to a maximum size of 8100
+items.  Since the deque insertion and removal operations, Arrive and
+Depart, may occur at either the front or the back of the deque the
+enumeration Location is declared to represent these choices.
+
+An item's priority is declared as a generic entity, allowing the client
+module to have priorities of any complexity.  All that is needed for
+the priority form of deque is the ability to retrieve an item's priority
+and to compare priorities for the relational ordering between them.
+*)
+
+TYPE  Deque;
+TYPE  DequeSize = [1..8100];
+TYPE  Location  = (front, back);
+CONST NullDeque = Deque(NIL);
+
+TYPE  Priority;
+TYPE  PriorityProc    = PROCEDURE (Item) : Priority;
+TYPE  PriorityCompare = PROCEDURE (Priority, Priority) : Relation;
+
+
+(*
+16.1.2 Exceptions
+
+The ModuleID uniquely identifies this module from all others.
+
+DequeError returns the most recent deque exception, or noerr if the
+last operation was successful.  While SetHandler and GetHandler allow
+assignment and retrieval of exception handling routines for specific
+exceptions.
+*)
+
+CONST ModuleID = 5;
+
+PROCEDURE DequeError () : Exceptions (*-- out   *);
+
+PROCEDURE SetHandler (    theError   : Exceptions  (*-- in    *);
+	theHandler : HandlerProc (*-- in    *));
+
+PROCEDURE GetHandler (    theError   : Exceptions  (*-- in    *))
+	: HandlerProc (*-- out   *);
+
+
+(*
+16.1.3 Constructors
+
+The constructor Create has been changed from the non-priority
+non-balking form of queue to accomodate procedure parameters to (1)
+retrieve the priority for an item, and (2) compare two priorities.
+
+An additional constructor, Leave, has been added to implement the
+actual balking mechanism.  The difference between this version of
+Leave and the queue version is the addition of the parameter theEnd.
+This is done for consistency with the Arrive and Depart operations.
+
+All other constructors remain unchanged from the non-priority
+non-balking form of deque.
+*)
+
+PROCEDURE Create  (    theType    : TypeID	(*-- in    *);
+	theSize    : DequeSize       (*-- in    *);
+					   priorityOf : PriorityProc    (*-- in    *);
+					   comparison : PriorityCompare (*-- in    *))
+	: Deque	(*-- out   *);
+
+PROCEDURE Destroy (VAR theDeque : Deque     (*-- inout *));
+
+PROCEDURE Clear   (VAR theDeque : Deque     (*-- inout *));
+
+PROCEDURE Assign  (    theDeque : Deque     (*-- in    *);
+	VAR toDeque  : Deque     (*-- inout *));
+
+PROCEDURE Arrive  (VAR theDeque : Deque     (*-- inout *);
+       	       	       theItem  : Item      (*-- in    *);
+					   theEnd   : Location  (*-- in    *));
+
+PROCEDURE Depart  (VAR theDeque : Deque     (*-- inout *);
+					   theEnd   : Location  (*-- in    *));
+
+PROCEDURE Leave   (VAR theDeque : Deque     (*-- inout *);
+       	       	       theItem  : Item      (*-- in    *);
+					   theEnd   : Location  (*-- in    *));
+
+
+(*
+16.1.4 Selectors
+
+All of the selector interfaces are unchanged from the non-priority
+non-balking form of deque.
+
+An additional selector has been added, PositionOf, that returns the
+number of positions from the given item from the front of the queue. If
+theItem is not present in theDeque then zero is returned.  Note that
+the position is always from the front of the deque as the position
+from the back can be easily calculated by the client.
+*)
+
+PROCEDURE IsDefined (    theDeque : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEmpty   (    theDeque : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE IsEqual   (    left     : Deque    (*-- in    *);
+	right    : Deque    (*-- in    *))
+	: BOOLEAN  (*-- out   *);
+
+PROCEDURE LengthOf  (    theDeque : Deque    (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE SizeOf    (    theDeque : Deque    (*-- in    *))
+	: CARDINAL (*-- out   *);
+
+PROCEDURE TypeOf    (    theDeque : Deque    (*-- in    *))
+	: TypeID   (*-- out   *);
+
+PROCEDURE FrontOf   (    theDeque : Deque    (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+PROCEDURE RearOf    (    theDeque : Deque    (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+PROCEDURE EndOf     (    theDeque : Deque    (*-- in    *);
+	theEnd   : Location (*-- in    *))
+       	       		: Item     (*-- out   *);
+
+PROCEDURE PositionOf (    theDeque: Deque    (*-- in    *);
+       	       		theItem : Item     (*-- in    *))
+							: CARDINAL (*-- out   *);
+
+
+(*
+16.1.5 Iterators
+
+The interfaces to both iterators are unchanged from the non-priority
+non-balking form of deque.
+*)
+
+PROCEDURE LoopOver (    theDeque  : Deque	(*-- in    *);
+	theProcess: LoopAccessProc (*-- in    *);
+						theEnd    : Location       (*-- in    *));
+
+PROCEDURE Traverse (    theDeque  : Deque	(*-- in    *);
+	theProcess: AccessProc     (*-- in    *);
+						theEnd    : Location       (*-- in    *));
+
+END DQPBSBMI.

@@ -1,0 +1,68 @@
+
+DEFINITION MODULE ItemConversions;
+(*====================================================================
+    Version  : 1.0  Sat, Mar 4, 1989  C. Lins
+    Compiler : JPI TopSpeed Modula-2
+    Component: Item Conversions Utility
+
+    INTRODUCTION
+    This module provides conversion operations between generic items
+    and the basic data types.
+
+    REVISION HISTORY
+    v1.0  Sat, Mar 4, 1989  C. Lins
+      Initial JPI implementation.
+
+    PROPRIETARY NOTICES
+    "ItemConversions.DEF", by C. Lins, Copyright (C) 1989 Charles A. Lins.
+=====================================================================*)
+
+FROM SYSTEM IMPORT
+    (*--Type*) ADDRESS;
+
+FROM Items IMPORT
+    (*--Type*) Item;
+
+    (*--------------------*)
+
+
+(*--
+    Basic Type -> Item Conversions
+--*)
+
+PROCEDURE AddrToItem (	  x : ADDRESS  (*-- in	  *))
+			    : Item     (*-- out   *);
+
+PROCEDURE CardToItem (	  x : CARDINAL (*-- in	  *))
+			    : Item     (*-- out   *);
+
+PROCEDURE CharToItem (	  x : CHAR     (*-- in	  *))
+			    : Item     (*-- out   *);
+
+PROCEDURE IntToItem  (	  x : INTEGER  (*-- in	  *))
+			    : Item     (*-- out   *);
+
+PROCEDURE RealToItem (	  x : REAL     (*-- in	  *))
+			    : Item     (*-- out   *);
+
+
+(*--
+    Item -> Basic Type Conversions
+--*)
+
+PROCEDURE ItemToAddr (	  x : Item	(*-- in    *))
+			    : ADDRESS	(*-- out   *);
+
+PROCEDURE ItemToCard (	  x : Item	(*-- in    *))
+			    : CARDINAL	(*-- out   *);
+
+PROCEDURE ItemToChar (	  x : Item	(*-- in    *))
+			    : CHAR	(*-- out   *);
+
+PROCEDURE ItemToInt  (	  x : Item	(*-- in    *))
+			    : INTEGER	(*-- out   *);
+
+PROCEDURE ItemToReal (	  x : Item	(*-- in    *))
+			    : REAL	(*-- out   *);
+
+END ItemConversions.

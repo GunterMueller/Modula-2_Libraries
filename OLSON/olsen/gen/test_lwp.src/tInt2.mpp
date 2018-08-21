@@ -1,0 +1,153 @@
+(*$Copyright 1988 by Olsen & Associates (O&A), Zurich, Switzerland.
+
+                       All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that all modifications of this software
+or its documentation not made by O&A or its agents are accompanied
+by a prominent notice stating who made the modifications and the date
+of the modifications.
+
+O&A DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE AND ITS
+DOCUMENTATION, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS.  IN NO EVENT SHALL O&A BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES, ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE OR ITS DOCUMENTATION.
+******************)
+
+MODULE tInt2;
+(*
+ * Tests nested interrupts, GetReg/SetReg, Interrupts.DONTCARE.
+ *)
+IMPORT
+    Tasks,	TaskConsts, 	ProgErrOutput, 	ProgArgs,
+    SYSTEM,	ProgErr,	Interrupts;	
+@IF SunM2 THEN
+    IMPORT
+	UnixCsignal;
+@END
+
+VAR
+    numInterrupts : CARDINAL;
+
+PROCEDURE Thread2( DONTCARE : SYSTEM.ADDRESS );
+    BEGIN (* Thread2 *)
+	DEC( numInterrupts );
+    END Thread2;
+CONST
+    @IF LogitechM2 THEN
+	intVector1 = 250;
+	intVector2 = 251;
+    @END (* LogitechM2 *)
+    @IF SunM2 THEN
+	intVector1 = UnixCsignal.SIGUSR1;
+	intVector2 = UnixCsignal.SIGUSR2;
+    @END (* SunM2 *)
+    
+VAR
+    chain    : BOOLEAN;
+PROCEDURE Thread1( DONTCARE : SYSTEM.ADDRESS );
+    VAR
+	tmp    : CARDINAL;
+    BEGIN (* Thread1 *)
+
+	@IF LogitechM2 THEN
+	    tmp := Interrupts.GetSavedRegister( Interrupts.DX );
+	    IF tmp # intVector1 THEN
+		ProgErr.Terminate( "GetSavedRegister failed." );
+	    END;
+	    Interrupts.SetSavedRegister( Interrupts.DX, intVector2 );
+	@END (* LogitechM2 *)
+	IF NOT chain THEN
+	    @IF LogitechM2 THEN
+		SYSTEM.SWI( intVector2 );
+	    @END
+	    @IF SunM2 THEN
+		tmp := UnixCsignal.kill( 0, intVector2 );
+	    @END
+	END;
+
+    END Thread1;
+    
+VAR
+    handler1 : Interrupts.Object;
+    handler2 : Interrupts.Object;
+    handler3 : Interrupts.Object;
+    tmp      : CARDINAL;
+    afterReturn1 : Interrupts.ReturnTypes;
+    realIntVector2 : CARDINAL;
+
+BEGIN (* tInt2 *)
+
+
+    chain := FALSE;
+    ProgArgs.RegisterBoolHandler( 'chain', ProgArgs.DefaultBoolHandler,
+				  SYSTEM.ADR( chain ) );
+    numInterrupts := 1;
+    ProgArgs.RegisterCardHandler( 'n', ProgArgs.DefaultCardHandler,
+				  SYSTEM.ADR( numInterrupts ) );
+    IF NOT ProgArgs.Parse( ProgArgs.stopOnFirstError ) THEN
+	ProgErr.Terminate( "Usage: tInt2 /n=#ints /chain" );
+    END;
+
+    IF chain THEN
+	afterReturn1 := Interrupts.callPrevious;
+	realIntVector2 := intVector1;
+    ELSE
+	afterReturn1 := Interrupts.doNotChain;
+	realIntVector2 := intVector2;
+    END;
+
+    (* Always install first *)
+    ProgErrOutput.WriteString( "Creating handler2" );
+    ProgErrOutput.WriteLn;
+
+    Interrupts.Create( handler2, Thread2, Interrupts.DONTCARE,
+		       realIntVector2, Interrupts.doNotChain );
+
+    IF chain THEN 
+	ProgErrOutput.WriteString( "Creating handler3" );
+	ProgErrOutput.WriteLn;
+	Interrupts.Create( handler3, Interrupts.EmptyHandler, 
+			   Interrupts.DONTCARE, intVector1, 
+			   Interrupts.callPrevious );
+    END;
+    ProgErrOutput.WriteString( "Creating handler1" );
+    ProgErrOutput.WriteLn;
+    (* Must pass in actual location of handler. *)
+    Interrupts.Create( handler1, Thread1, Interrupts.DONTCARE,
+		       intVector1, afterReturn1 );
+    
+    WHILE numInterrupts # 0 DO
+	ProgErrOutput.WriteString( "Call " );
+	@IF LogitechM2 THEN
+	    SYSTEM.SETREG( SYSTEM.DX, intVector1 );
+	    SYSTEM.SWI( intVector1 );
+	    SYSTEM.GETREG( SYSTEM.DX, tmp );
+	    IF tmp # intVector2 THEN
+		ProgErr.Terminate( "SetSavedRegister failed." );
+	    END;
+	@END
+	@IF SunM2 THEN
+	    tmp := UnixCsignal.kill( 0, intVector1 );
+	@END
+	ProgErrOutput.WriteString( "Return" );
+	ProgErrOutput.WriteLn;
+    END;
+
+    (* Reversing the order here should cause it to blow *)
+    Interrupts.Destroy( handler1 );
+    IF chain THEN
+	Interrupts.Destroy( handler3 );
+    END;
+    Interrupts.Destroy( handler2 );
+
+    ProgErrOutput.WriteString( "Handlers destroyed" );
+    ProgErrOutput.WriteLn;
+
+END tInt2.

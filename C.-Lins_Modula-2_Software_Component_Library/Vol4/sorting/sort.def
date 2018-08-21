@@ -1,0 +1,128 @@
+DEFINITION MODULE Sort;
+(*==============================================================
+    Version  : 2.0 16 Sep 1990 C. Lins
+    Compiler : Generic pc Modula-2
+    Component: Tools - Sorting Utilities
+
+       Unless stated otherwise, each of the sort algorithms assume
+       the array being sorted has an index in the range of 0..N-1.
+       Furthermore, the array itself extends from 0 through N, inclusive.
+       a[N] is used by many of the below algorithms as a temporary.
+       
+       Refer to The Modula-2 Software Component Library, Volume 4,
+       Chapter 3 for comprehensive analytic results on the performance
+       of these algorithms.
+
+    REVISION HISTORY
+    v1.00  13-21 May 1989  C. Lins:
+        Initial implementation
+
+   v2.00  16 Sep 1990  C. Lins
+     Created generic pc version
+   (C) Copyright 1990 Charles A. Lins
+==============================================================*)
+
+FROM Relations IMPORT
+   (*--type*)  Relation;
+
+(*--------------------*)
+
+(*
+The following procedure types declare operations on the components of an
+array given indices into the array. The client module must provide actual
+procedures necessary to implement these operations. The following semantics
+are assumed by the various sort algorithms:
+
+CompareProc    compares the values of the elements at the given indices
+               returning the ordering relation between them. Specifically,
+               CompareProc returns the following result:
+                   less        when A[i] < A[j]
+                   greater when A[i] > A[j]
+                   equal       when A[i] = A[j]
+               where A is the array, i indicates the first parameter, and j
+               indicates the second parameter.
+AssignProc assigns the value of the element at the second index to the value
+           of the element at the first index. This is equivalent to the
+           Modula-2 language statement A[i] := A[j].
+SwapProc   swaps the elements at the given indices. Thus, the result is:
+               A[i]' = A[j] and
+               A[j]' = A[i]
+*)
+
+TYPE   CompareProc = PROCEDURE (CARDINAL, CARDINAL) : Relation;
+TYPE   AssignProc  = PROCEDURE (CARDINAL, CARDINAL);
+TYPE   SwapProc    = PROCEDURE (CARDINAL, CARDINAL);
+
+(*--------------------*)
+
+PROCEDURE InsertionSort  (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+PROCEDURE BinaryInsertionSort (    numItems : CARDINAL    (*--in   *);
+                                   compare  : CompareProc (*--in   *);
+                                   assign   : AssignProc  (*--in   *));
+
+PROCEDURE SelectionSort  (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+PROCEDURE ShellSort      (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              assign   : AssignProc  (*--in   *));
+
+PROCEDURE HeapSort       (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+PROCEDURE QuickSort         (    numItems : CARDINAL    (*--in   *);
+                                 compare  : CompareProc (*--in   *);
+                                 assign   : AssignProc  (*--in   *);
+                                 swap     : SwapProc    (*--in   *);
+                                 cutoff   : INTEGER       (*--in   *));
+
+PROCEDURE BSort          (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              assign   : AssignProc  (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+
+(*
+MeanSort is only suitable for sorting arrays whose keys are numeric
+quantities. This is because is uses the mean value of a sample of the
+array to perform the ordering of keys. In this particular version, we
+assume that the keys are INTEGERs. Thus, in addition to the usual
+comparison and swap procedure parameters, operations are necessary for
+extracting the numeric key and storing the computed mean at a specific
+array index. These operations are provided by the procedure types
+"ValueProc" and "AssignItemProc", respectively.
+*)
+
+TYPE   ValueProc = PROCEDURE (CARDINAL) : INTEGER;
+TYPE   AssignItemProc = PROCEDURE (CARDINAL, INTEGER);
+
+PROCEDURE MeanSort       (    numItems : CARDINAL       (*--in   *);
+                              compare  : CompareProc    (*--in   *);
+                              swap     : SwapProc       (*--in   *);
+                              value    : ValueProc      (*--in   *);
+                              assign   : AssignItemProc (*--in   *));
+
+(*
+StraightMerge sort assumes array indices in the range of 1..N instead of
+0..N-1. The index positions N+1 to 2*N are used as temporaries for holding
+the intermediate result.
+*)
+
+PROCEDURE StraightMerge  (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              assign   : AssignProc  (*--in   *));
+
+PROCEDURE BubbleSort     (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+PROCEDURE ShakerSort     (    numItems : CARDINAL    (*--in   *);
+                              compare  : CompareProc (*--in   *);
+                              swap     : SwapProc    (*--in   *));
+
+END Sort.
