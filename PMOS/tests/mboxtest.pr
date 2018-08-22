@@ -1,0 +1,10 @@
+#system auto exe
+#model compact
+#pragma check(index=>on,range=>on,stack=>on,nil_ptr=>on,overflow=>on,guard=>on)
+#pragma optimize(cpu=>486,copro=>387)
+
+#compile %main
+#pragma link (pmos%M%.lib)
+#link %prjname
+
+

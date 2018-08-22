@@ -1,0 +1,43 @@
+DEFINITION MODULE CircularBuffers;
+
+	(****************************************************************)
+	(*								*)
+	(*	Circular Buffer for passing character data		*)
+	(*		between a pair of tasks.			*)
+	(*								*)
+	(*	Author:		P. Moylan				*)
+	(*	Last edited:	7 December 1993				*)
+	(*								*)
+	(*	Status:		OK.					*)
+	(*								*)
+	(****************************************************************)
+
+TYPE CircularBuffer;	(* is private *)
+
+PROCEDURE CreateBuffer (VAR (*OUT*) B: CircularBuffer;  size: CARDINAL);
+
+    (* Allocates space for a circular buffer, and initializes it.  The	*)
+    (* caller specifies how many characters the buffer will hold.	*)
+
+PROCEDURE PutBuffer (B: CircularBuffer; item: CHAR);
+
+    (* Waits for space available, then puts item at the tail of the queue. *)
+
+PROCEDURE PutBufferImpatient (B: CircularBuffer;  item: CHAR;
+						TimeLimit: CARDINAL);
+
+    (* Like PutBuffer, but waits no longer than TimeLimit milliseconds	*)
+    (* for a buffer slot to become available.  If the time limit	*)
+    (* expires, the oldest item in the buffer is overwritten by the	*)
+    (* new data.							*)
+
+PROCEDURE GetBuffer (B: CircularBuffer) : CHAR;
+
+    (* Takes one character from the head of the queue, waiting if necessary. *)
+
+PROCEDURE BufferEmpty (B: CircularBuffer): BOOLEAN;
+
+    (* Returns TRUE iff the buffer is empty. *)
+
+END CircularBuffers.
+

@@ -1,0 +1,7 @@
+             FAULTS IN THE CONTROL DEMO CONTROLD
+             ===================================
+
+NOTE: Unless otherwise noted, these faults were observed with RTIpresent
+set to FALSE, i.e. the A/D wasn't doing anything.
+
+No known faults in the present version.

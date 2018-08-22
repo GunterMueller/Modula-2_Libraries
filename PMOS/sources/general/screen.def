@@ -1,0 +1,134 @@
+DEFINITION MODULE Screen;
+
+	(********************************************************)
+	(*							*)
+	(*		Low-level screen functions		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	31 January 1995			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(*		WARNING		WARNING		WARNING			*)
+(*									*)
+(*  The operations performed by this module are among the rare examples	*)
+(*  where a programming error can cause physical damage to the		*)
+(*  hardware.  Do NOT attempt to modify anything in this module unless	*)
+(*  you have a detailed understanding of how the video adaptors work.	*)
+(*  In particular, beware of putting inappropriate values into the	*)
+(*  registers of the 6845 video controller.				*)
+(*									*)
+(*  It is normal for the screen picture to "bloom" or "bounce" after	*)
+(*  a mode change (e.g. changing from a text mode to a graphics mode).	*)
+(*  Some monitors are worse than others for this, but all should	*)
+(*  regain synchronism after a second or so.  A bright dot at the	*)
+(*  centre of the screen or a "tearing" effect are NOT normal; if the	*)
+(*  screen display goes crazy you should turn off the monitor and/or	*)
+(*  reset the computer immediately, since it probably means that the	*)
+(*  software is not compatible with your hardware.			*)
+(*									*)
+(*  The procedures in this module are for the use of other library	*)
+(*  modules such as Graphics and Windows.  They should not normally	*)
+(*  be called directly from applications programs.			*)
+(*									*)
+(*  DISCLAIMER: This software is supplied "as is" with no warranty as	*)
+(*  to its compatibility with your hardware.  It has been tested on a	*)
+(*  small sample of computers, but because of the wide variety of	*)
+(*  video adaptors on the market it is impossible to be certain that	*)
+(*  it will work correctly on all hardware configurations.		*)
+(*									*)
+(************************************************************************)
+
+CONST
+    HercGraphics = 128+7;
+
+TYPE
+    (* This is a list of all the adaptors this module can recognise.	*)
+    (* Note: the value "SVGA" means that we've found more modes beyond	*)
+    (* the standard VGA set (e.g. because we've found a VESA driver),	*)
+    (* but we haven't made a more specific hardware identification.	*)
+
+    VideoAdaptorType = (MDA, Hercules, CGA, EGA, VGA, SVGA, ATI, S3, Trident);
+
+    (* A record type for storing mode properties. *)
+
+    ModeInfoType = RECORD
+			MaxX, MaxY, MaxColour, LastCharRow: CARDINAL;
+			BitsPerPixel, BytesPerRow, FramesPerScreen: CARDINAL;
+			Planar, MultiBank, TextMode: BOOLEAN;
+		   END (*RECORD*);
+
+(************************************************************************)
+
+PROCEDURE VideoKind (): VideoAdaptorType;
+
+    (* Returns the display adaptor type.  This is a best guess, and it	*)
+    (* is possible that some adaptor types will be misclassified.	*)
+    (* In the present version, most SVGA adaptors will be reported as	*)
+    (* VGA or SVGA rather than something more specific; and no		*)
+    (* distinction is drawn between the "ordinary" Hercules adaptor and	*)
+    (* the Hercules Plus or Hercules InColor.				*)
+
+PROCEDURE VESAdriverPresent (): BOOLEAN;
+
+    (* Returns TRUE iff a VESA driver was detected. *)
+
+PROCEDURE Supported (mode: CARDINAL): BOOLEAN;
+
+    (* Returns TRUE iff the specified mode is a mode supported	*)
+    (* by the hardware and by this module.			*)
+
+PROCEDURE SetVideoMode (newmode: CARDINAL;  ClearScreen: BOOLEAN): BOOLEAN;
+
+    (* Sets the video mode.  The mode numbers are as defined in the	*)
+    (* BIOS, plus HercGraphics to denote the Hercules graphics mode,	*)
+    (* plus whatever the VESA BIOS (if present) will support.		*)
+    (* For VESA modes, GetModeInfo should subsequently be called to	*)
+    (* ensure that bank switching functions are correctly set up.	*)
+    (* Returns TRUE iff the mode change was successful.			*)
+
+    (* Warning: the option ClearScreen=FALSE sometimes produces some	*)
+    (* strange effects, apparently because of some aspect of the BIOS	*)
+    (* that I don't yet understand.					*)
+
+PROCEDURE GetModeInfo (mode: CARDINAL;  VAR (*OUT*) result: ModeInfoType);
+
+    (* Returns information about the given mode.  If the information	*)
+    (* is not available, the parameter values are left unchanged.	*)
+
+    (* Deliberate side-effect: for a VESA mode, this procedure also	*)
+    (* initialises the bank switching.					*)
+
+PROCEDURE RestoreOriginalMode;
+
+    (* Sets the video mode back to what it was before this program ran.	*)
+
+PROCEDURE SelectReadBank (bank: CARDINAL);
+
+    (* Switches to a new bank of screen memory for reading.  Should be	*)
+    (* used only with the adaptors which support the high-resolution	*)
+    (* modes using bank switching.					*)
+
+PROCEDURE SelectWriteBank (bank: CARDINAL);
+
+    (* Switches to a new bank of screen memory for writing.  Should be	*)
+    (* used only with the adaptors which support the high-resolution	*)
+    (* modes using bank switching.					*)
+
+PROCEDURE GetAddresses (VAR (*OUT*) ScreenSegment, IObase: CARDINAL);
+
+    (* Returns the segment of the screen memory and the port number	*)
+    (* of the video controller.  (Note that these could be different	*)
+    (* for different modes.)						*)
+
+PROCEDURE WaitForVerticalRetrace;
+
+    (* Busy wait until we reach the vertical retrace period.		*)
+    (* Warning: I wrote this quickly for one specific application, and	*)
+    (* haven't gotten around to checking it for the general case.	*)
+
+END Screen.
+

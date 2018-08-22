@@ -1,0 +1,396 @@
+module IKS
+
+        (****************************************************************)
+        (*                                                              *)
+        (*      This is a stripped-down version of the module           *)
+        (*      called InnerKernel, with support for interrupt          *)
+        (*      tasks removed.                                          *)
+        (*                                                              *)
+        (*      By removing the interrupt support, we achieve a         *)
+        (*      large reduction in code complexity.  Note that          *)
+        (*      interrupt handlers can still be written and used,       *)
+        (*      but since the kernel does not know about them           *)
+        (*      they have to be implemented as procedures rather        *)
+        (*      than as tasks.                                          *)
+        (*                                                              *)
+        (*      For the sake of additional readibility, we assume       *)
+        (*      that we are using the TopSpeed Extra Large memory       *)
+        (*      model: multiple code segments, multiple data            *)
+        (*      segments, and separate stack segments.  (That is,       *)
+        (*      all intermodule pointers are long.)  This allows us     *)
+        (*      to delete some of the conditional compilation.          *)
+        (*                                                              *)
+        (*      Note the extensive use of compiler pragmas to specify   *)
+        (*      which registers parameters are passed in.               *)
+        (*                                                              *)
+        (*      Programmer:     P. Moylan                               *)
+        (*      Last edited:    1 April 2004                            *)
+        (*      Status:         OK                                      *)
+        (*                                                              *)
+        (****************************************************************)
+
+(************************************************************************)
+(*                              MODULE DATA                             *)
+(************************************************************************)
+
+(*********************** The default data segment ***********************)
+
+segment _DATA (DATA, 28H)
+
+    (* The following variable saves the value of SS at program startup. *)
+    (* We need it because of an awkward glitch in termination           *)
+    (* processing - the TopSpeed run-time system resets the stack       *)
+    (* pointer while shutting down the program, but unfortunately for   *)
+    (* most memory models it does this by modifying SP without at the   *)
+    (* same time modifying SS.  The solution we adopt here for doing    *)
+    (* the shutdown involves a deliberate stack corruption, and is not  *)
+    (* an especially clean solution, but for the moment I can't think   *)
+    (* of anything better.  (Apart from modifying the TopSpeed core     *)
+    (* library; but I'm reluctant to do that.)                          *)
+
+    OriginalSS: dw 0
+
+(****************** Pointer to the initialisation code ******************)
+
+segment _INIT_DATA_CONST (FAR_DATA, 28H)
+
+    public IKS$:
+                dd InitCode
+                db 0FFH, 0FFH
+
+(**************** Start of code segment for this module *****************)
+
+segment IKS_TEXT (CODE, 48H)
+
+(************************************************************************)
+(* PROCEDURE EnterKernel (): CARDINAL;                                  *)
+(*                                                                      *)
+(* Saves the processor flags word, including the current "interrupt     *)
+(* enable" status, and returns with interrupts disabled.                *)
+(* NOTE: this procedure and the following one should be used as a       *)
+(* matched pair.                                                        *)
+(************************************************************************)
+
+public IKS$EnterKernel:
+        pushf
+        pop   ax
+        cli
+        ret far 0
+
+(************************************************************************)
+(* PROCEDURE LeaveKernel (PSW: CARDINAL);                               *)
+(*                                                                      *)
+(* Restores the processor flags word, including the "interrupt enable"  *)
+(* status.  NOTE: this procedure and the one above should be used as a  *)
+(* matched pair.                                                        *)
+(************************************************************************)
+
+public IKS$LeaveKernel:
+        push  ax
+        popf
+        ret far 0
+
+(************************************************************************)
+(*                      FLOATING POINT SAVE/RESTORE                     *)
+(************************************************************************)
+
+extrn __FloatSave
+extrn __FloatRestore
+
+(************************************************************************)
+(* PROCEDURE MakeFloatSaveSelector (selector: TaskSelector)             *)
+(*                                              : FloatSaveSelector;    *)
+(*                                                                      *)
+(* Creates the special form of selector which must subsequently be      *)
+(* used in calls to save and restore the floating point state.          *)
+(************************************************************************)
+
+public IKS$MakeFloatSaveSelector:
+
+        ret far 0               (* result is simply the segment *)
+                                (*    part of the selector      *)
+
+(************************************************************************)
+(* PROCEDURE NPXsave (selector: FloatSaveSelector);                     *)
+(*                                                                      *)
+(* Saves the state of the Numeric Processor Extension coprocessor.      *)
+(* (Has no effect, apart from a short time delay, if there is no        *)
+(* coprocessor present.)                                                *)
+(************************************************************************)
+
+public IKS$NPXsave:
+
+        push es
+        mov es, ax
+        call far __FloatSave
+        pop es
+        ret far 0
+
+(************************************************************************)
+(* PROCEDURE NPXrestore (selector: FloatSaveSelector);                  *)
+(*                                                                      *)
+(* The operation complementary to NPXsave.  Restores the previously     *)
+(* saved state of the floating point coprocessor.                       *)
+(************************************************************************)
+
+public IKS$NPXrestore:
+
+        push ds
+        mov ds, ax
+        call far __FloatRestore
+        pop ds
+        ret far 0
+
+(************************************************************************)
+(*                      CREATING A NEW TASK                             *)
+(************************************************************************)
+
+(************************************************************************)
+(* PROCEDURE TaskInit (StackBase: ADDRESS;  StackSize: CARDINAL;        *)
+(*                      EnableInterrupts: BOOLEAN;                      *)
+(*                      TaskExit, StartAddress: PROC): TaskSelector;    *)
+(*                                                                      *)
+(* Initialises the stack for a new task.  Parameter StackBase           *)
+(* points to a block of memory which can be used to hold the stack      *)
+(* (note that this is a pointer to the start of the memory block,       *)
+(* not to the bottom of the stack); and StackSize is the size of        *)
+(* this block.  The next parameter specifies whether processor          *)
+(* interrupts should be enabled when the task is started.  StartAddress *)
+(* and TaskExit are the start address of the task code and the start    *)
+(* address of the code to execute when the task terminates.  The        *)
+(* value returned is a selector for the new task.                       *)
+(*                                                                      *)
+(* Note that the new task will commence execution as the result of a    *)
+(* call to procedure StackSwap by some other task; therefore we must    *)
+(* set up the stack to make it look as if the new task had just called  *)
+(* StackSwap in the middle of Transfer; and the return address          *)
+(* seen by Transfer must be the address at which we wish execution to   *)
+(* commence.  This means that the initial stack must contain 16 words:  *)
+(*                                                                      *)
+(*      SS:SP-> address TaskStart within procedure Transfer (1 word)    *)
+(*              initial DS (1 word)                                     *)
+(*              other dummy saved registers (9 words)                   *)
+(*              processor flags (1 word)                                *)
+(*              StartAddress (2 words)                                  *)
+(*              TaskExit (2 words)                                      *)
+(*                                                                      *)
+(* The point of putting the address of TaskExit at the bottom of the    *)
+(* stack is to act as a return address if the new task falls out the    *)
+(* bottom of its code.                                                  *)
+(*                                                                      *)
+(* In earlier versions of this module, the stack was set up so that     *)
+(* the bottom byte in the stack was at address SS:FFFF, a choice which  *)
+(* would have simplified porting this code to a Protected Mode version  *)
+(* using "expand-down" stack segments.  Unfortunately this decision     *)
+(* turned out to be incompatible with the TopSpeed floating point       *)
+(* library; some of the routines in that library store information in   *)
+(* locations SS:0001 to SS:0004 inclusive.  In addition, an area near   *)
+(* the beginning of the stack segment is used for saving the task's     *)
+(* floating point state.  (Typical location is SS:000E.)  For these     *)
+(* reasons we have to make sure that those locations are in a task's    *)
+(* stack space.  To achieve this we set up the stack so that its lowest *)
+(* address is SS:0000, and we initially clear the following locations:  *)
+(*                                                                      *)
+(*      SS:0000         unused (1 byte)                                 *)
+(*      SS:0001         reserved for floating point library (4 bytes)   *)
+(*      SS:0005         unused (1 byte)                                 *)
+(*                                                                      *)
+(* Parameters:  StackBase is in BX:AX                                   *)
+(*              StackSize is in CX                                      *)
+(*              EnableInterrupts is in DL                               *)
+(*              remaining two parameters are on the caller's stack      *)
+(*              result to be returned in ES:BX                          *)
+(*                                                                      *)
+(************************************************************************)
+
+public IKS$TaskInit:
+
+        push bp                 (* set up a stack frame         *)
+        mov bp, sp
+        push di                 (* save some registers          *)
+        push si
+        push ds
+
+        (* Round up the stack address so that we start at a segment     *)
+        (* boundary, and make sure that the last word in the stack has  *)
+        (* an even address.  This could lose us up to 16 bytes of       *)
+        (* memory, but that is a small price to pay if StackSize is not *)
+        (* too small.                                                   *)
+
+        mov si, 15              (* a useful constant            *)
+        add ax, si              (* add enough to the stack      *)
+        jnc Init10              (*  address to make it a        *)
+        add bx, 1000H           (*   multiple of 16             *)
+Init10: sub cx, si              (* reduce the stack size by the *)
+        and si, ax              (*  same amount                 *)
+        add si, cx              (* SI now holds stack size      *)
+        mov cx, 4
+        shr ax, cx              (* divide offset by 16, and add *)
+        add ax, bx              (*  that to the segment value   *)
+        mov bx, 0FFFEH
+        and bx, si              (* make stack size even         *)
+        sub bx, 20H             (* allow for initial contents   *)
+        mov es, ax              (* new stack pointer is ES:BX   *)
+
+        (* Clear the three reserved words at the start of the stack     *)
+        (* segment, for use by the floating point library.              *)
+
+        pushf                   (* save direction flag          *)
+        cld                     (* set direction = forwards     *)
+        xor ax, ax
+        mov di, ax              (* start at location ES:0000    *)
+        mov cx, 3
+        rep; stosw              (* clear three words            *)
+
+        (* Now load the initial stack contents, using ES:DI temporarily *)
+        (* as a stack pointer.  A copy of the stack pointer is in BX.   *)
+
+        mov di, bx              (* initial stack pointer        *)
+        mov ax, TaskStart       (* task starting point          *)
+        stosw
+        mov ax, _DATA           (* initial DS for task          *)
+        stosw
+        sub ax, ax
+        mov cx, 9               (* nine dummy "saved registers" *)
+        rep; stosw              (* (we arbitrarily make them 0) *)
+        or al, dl               (* set the initial flags        *)
+        jz Init20               (*   to an all-zero word,       *)
+        mov ax, 200H            (*   except for "interrupt      *)
+Init20: stosw                   (*   enable" where specified    *)
+        mov ax, ss              (* make DS:SI point to other    *)
+        mov ds, ax              (*   parameters                 *)
+        lea si, [bp][6]
+        mov cx, 4
+        rep; movsw              (* push StartAddress, TaskExit  *)
+        popf                    (* restore direction flag       *)
+
+        (* All done.  The stack pointer for this newly created  *)
+        (* stack is now in ES:BX, and this is what we return to *)
+        (* the caller as the selector value.                    *)
+
+        pop ds                  (* restore saved registers      *)
+        pop si
+        pop di
+        pop bp
+        ret far 8
+
+(************************************************************************)
+(* PROCEDURE InitMainTask (): TaskSelector;                             *)
+(*                                                                      *)
+(* Like TaskInit, but for the special case of the original task which   *)
+(* is running at program startup.  The function of this procedure is    *)
+(* simply to ensure that the main stack layout is consistent with what  *)
+(* we do for all other tasks.  A selector is returned in ES:BX.         *)
+(************************************************************************)
+
+public IKS$InitMainTask:
+
+        sub bx, bx
+        push ss
+        pop es          (* return SS:0000 as the result selector *)
+        ret far 0
+
+(************************************************************************)
+(*                      THE TASK SWITCH OPERATION                       *)
+(************************************************************************)
+
+StackSwap:
+        (* Local procedure to switch to a new stack.  Because we return *)
+        (* using a return address taken from the NEW stack, this        *)
+        (* procedure does not directly return to the caller.  However,  *)
+        (* some future call to this procedure will cause a switch back  *)
+        (* to the original caller, so from the caller's point of view   *)
+        (* this just looks like a procedure which takes an unusually    *)
+        (* long time to execute.  The intervening execution of other    *)
+        (* tasks does, however, mean that the caller must assume that   *)
+        (* all registers have been corrupted.                           *)
+
+        (* Enter with interrupts disabled, with BX:AX holding the       *)
+        (* desired new SS:SP, and with DS:SI pointing to the doubleword *)
+        (* where we should save the caller's SS:SP.                     *)
+
+        mov [si], sp            (* save the current SS:SP       *)
+        mov [si][2], ss
+        mov ss, bx              (* switch to new stack          *)
+        mov sp, ax
+        ret near 0              (* return to destination task   *)
+
+(************************************************************************)
+(* PROCEDURE Transfer (VAR (*OUT*) source: TaskSelector;                *)
+(*                                      destination: TaskSelector);     *)
+(*                                                                      *)
+(* Performs a task switch to the destination task, at the same time     *)
+(* saving a selector for the outgoing task in variable "source".        *)
+(* This allows a subsequent call to Transfer to resume the              *)
+(* original task.  By the time this procedure has returned to the       *)
+(* caller, then, we are again executing the calling task.               *)
+(*                                                                      *)
+(************************************************************************)
+
+public IKS$Transfer:
+
+        pushf                   (* save flags                   *)
+        db 60H  (* pusha *)     (* save all registers           *)
+        push es
+        push ds
+        call near StackSwap     (* do the task switch           *)
+
+        (* By the time we get back here, there will have been   *)
+        (* two or more task switches, and the original task     *)
+        (* will again be running.                               *)
+        (* This is also the point at which new tasks start.     *)
+
+TaskStart:
+        pop ds
+        pop es
+        db 61H  (* popa *)
+        popf
+        ret far 0
+
+(************************************************************************)
+(*                      SPECIAL SHUTDOWN KLUDGE                         *)
+(************************************************************************)
+
+(************************************************************************)
+(* PROCEDURE PrepareForShutdown;                                        *)
+(*                                                                      *)
+(* This procedure is needed just before executing the "exit from        *)
+(* program" operation, and is provided to get around a problem with     *)
+(* some memory models in TopSpeed version 3.  (With other compilers,    *)
+(* this can afford to be a dummy procedure.)  A (deliberate)            *)
+(* side-effect of calling this procedure is that the stack is           *)
+(* corrupted, so do NOT call it except as the final step of termination *)
+(* processing.                                                          *)
+(************************************************************************)
+
+public IKS$PrepareForShutdown:
+
+        pop ax                  (* put return addr into BX:AX   *)
+        pop bx
+        mov cx, _DATA           (* let DS select our data       *)
+        mov dx, ds              (*    segment                   *)
+        mov ds, cx
+        mov ss, [OriginalSS]    (* switch to another stack segment *)
+        mov ds, dx              (* restore caller's DS  *)
+        push bx                 (* return to caller, but now    *)
+        push ax                 (*   using a different stack    *)
+        ret far 0               (*     segment                  *)
+
+(************************************************************************)
+(*                      MODULE INITIALISATION                           *)
+(************************************************************************)
+
+InitCode:
+        push ds
+        push ax
+        mov ax, _DATA           (* Save original value of the   *)
+        mov ds, ax              (*   SS register                *)
+        mov [OriginalSS], ss
+        pop ax
+        pop ds
+        ret far 0
+
+(************************************************************************)
+
+end
+

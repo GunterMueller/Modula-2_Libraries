@@ -1,0 +1,21 @@
+DEFINITION MODULE Printer;
+
+	(********************************************************)
+	(*							*)
+	(*	    Device driver for the printer.		*)
+	(*							*)
+	(*	Author:		P. Moylan			*)
+	(*	Last edited:	21 August 1989			*)
+	(*							*)
+	(*	Status:		Working.			*)
+	(*							*)
+	(********************************************************)
+
+PROCEDURE PrintChar (ch: CHAR);
+
+    (* Sends one character to the printer.  NOTE: Many printers have	*)
+    (* an internal buffer which saves characters until a whole line of	*)
+    (* characters has been received.  Thus, the printing of the current	*)
+    (* character might be delayed until a carriage return is received.	*)
+
+END Printer.

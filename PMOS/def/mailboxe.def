@@ -1,0 +1,43 @@
+DEFINITION MODULE Mailboxes;
+
+        (********************************************************)
+        (*                                                      *)
+        (*      Mailboxes for intertask communication           *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Last edited:        30 September 1996               *)
+        (*  Status:             Working                         *)
+        (*                                                      *)
+        (********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)  ADDRESS;
+
+TYPE Mailbox;           (* is private *)
+
+PROCEDURE CreateMailbox (LengthLimit: CARDINAL): Mailbox;
+
+    (* Creates a new mailbox.  LengthLimit is the maximum number of     *)
+    (* characters in a single message.  (A limit is needed so that a    *)
+    (* task reading the mailbox knows how much space to allocate.)      *)
+
+PROCEDURE SendMessage (MB: Mailbox;  messageptr: ADDRESS;
+                                        length: CARDINAL): BOOLEAN;
+
+    (* Copies a string, specified by its address and length, into the   *)
+    (* specified mailbox.  Returns TRUE if successful, and FALSE if the *)
+    (* message is too long or the mailbox does not exist.               *)
+
+PROCEDURE ReceiveMessage (MB: Mailbox;  VAR (*OUT*) message: ARRAY OF CHAR;
+                                        TimeLimit: CARDINAL): CARDINAL;
+
+    (* Returns the next message (after waiting if necessary) from       *)
+    (* mailbox MB.  TimeLimit is a timeout value in milliseconds.       *)
+    (* (Specify TimeLimit=0 for infinite patience.)  The function       *)
+    (* return value is the message length; this is zero if no message   *)
+    (* was obtained, either because of a faulty mailbox or because of   *)
+    (* timeout.  Note: it is also possible to have a genuine message of *)
+    (* zero length.                                                     *)
+
+END Mailboxes.
+

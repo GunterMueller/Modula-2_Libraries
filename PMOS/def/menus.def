@@ -1,0 +1,203 @@
+DEFINITION MODULE Menus;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*      Displays menus on screen, allows terminal user to       *)
+        (*                      select from them.                       *)
+        (*                                                              *)
+        (*  Programmer:         P. Moylan                               *)
+        (*  Last edited:        11 May 1997                             *)
+        (*  Status:             OK                                      *)
+        (*                                                              *)
+        (****************************************************************)
+
+(************************************************************************)
+(*                                                                      *)
+(*  NOTE: This module gives you the choice of specifying your own       *)
+(*  window in which to display the menu, or using a window which is     *)
+(*  created for you when SelectFromMenu is called.  In either case,     *)
+(*  you use CreateMenu to define the menu initially, SelectFromMenu     *)
+(*  to prompt the user to choose from the menu, and DestroyMenu when    *)
+(*  you have finished using the menu.  You can also control some        *)
+(*  aspects of menu behaviour by calling the optional procedures        *)
+(*  MenuColours, SetOptions, and OffEdge after calling CreateMenu.      *)
+(*                                                                      *)
+(*  In most applications, you will want to let this module look after   *)
+(*  the screen window for you.  You need to call PositionMenu to        *)
+(*  define where on the screen the menu will be displayed, but you      *)
+(*  don't need to open a window explicitly.  The menu does not appear   *)
+(*  on the screen until SelectFromMenu is called, and - unless you      *)
+(*  have specified the MNoClose option - it disappears from the         *)
+(*  screen as soon as the keyboard user has made a selection.           *)
+(*  You may, if you wish, use a new call to PositionMenu before each    *)
+(*  call to SelectFromMenu, although the more common case would be to   *)
+(*  call PositionMenu just once, after the call to CreateMenu.          *)
+(*                                                                      *)
+(*  The alternative is to open your own screen window, and to call      *)
+(*  DisplayMenu to show the menu on the screen.  (This also means       *)
+(*  that DisplayMenu defines the location of the menu on the screen,    *)
+(*  so in this case PositionMenu should not be called.)  After that,    *)
+(*  you call SelectFromMenu to prompt the user to choose an item.       *)
+(*  This possibility is provided for applications where, for example,   *)
+(*  you want multiple menus within the same screen window.              *)
+(*                                                                      *)
+(*  Note for users of earlier versions of this module: the earlier      *)
+(*  distinction between Normal Mode and Special Mode is now obsolete.   *)
+(*                                                                      *)
+(************************************************************************)
+
+FROM Windows IMPORT
+    (* type *)  Window, Colour, RowRange, ColumnRange;
+
+TYPE
+    Menu;               (* is private *)
+    ItemText = ARRAY ColumnRange OF CHAR;
+    MenuColumn = CARDINAL;
+
+    (* Note the dual use of the word "column".  A variable of type      *)
+    (* ColumnRange refers to a horizontal screen position.  But in      *)
+    (* menus we use "column" to a column of character strings, which    *)
+    (* is why we have the separate type MenuColumn.  The type           *)
+    (* MenuColumn is defined primarily to make it clear which type of   *)
+    (* column is being referred to in every case.                       *)
+
+    MenuOption = (MTitle, MNoTitle, MBorder, MNoBorder, MClose, MNoClose,
+                        MKeyBack, MNoKeyBack, MFastSelect, MNoFastSelect,
+                        MMouse, MNoMouse, MCloseonClickOutside,
+                        MNoCloseonClickOutside);
+
+    MO = SET OF MenuOption;
+
+    (* The options have the following meanings:                         *)
+    (*  MTitle          Messages[0], as specified in the CreateMenu     *)
+    (*                  call, is used as a menu title to be displayed.  *)
+    (*  MNoTitle        No title is displayed, Messages[0] is ignored.  *)
+    (*  MBorder         The menu has a border.                          *)
+    (*  MNoBorder       The menu has no border.                         *)
+    (*  MClose          The window containing the menu is closed after  *)
+    (*                  a selection has been made.                      *)
+    (*  MNoClose        The window containing the menu is kept open on  *)
+    (*                  return from SelectFromMenu (and the same window *)
+    (*                  will be re-used on the next call).              *)
+    (*  MKeyBack        The keystroke that caused an exit from          *)
+    (*                  SelectFromMenu remains available to the caller, *)
+    (*                  via InKey() or equivalent.                      *)
+    (*  MNoKeyBack      On return from SelectFromMenu, the keystroke    *)
+    (*                  that caused the exit has been consumed.         *)
+    (*  MFastSelect     A menu item reached by selection key or mouse   *)
+    (*                  click is selected immediately.                  *)
+    (*  MNoFastSelect   The user has to type Space or Return to select  *)
+    (*                  the highlighted menu item.                      *)
+    (*  MMouse          The user may move and hide the menu with the    *)
+    (*                  mouse, if a mouse driver is present.            *)
+    (*  MNoMouse        User may click on the menu but may not move it  *)
+    (*                  with the mouse.                                 *)
+    (*  MCloseonClickOutside                                            *)
+    (*                  If user clicks outside the menu, we return as   *)
+    (*                  if Esc had been typed, and the click remains    *)
+    (*                  available to be interpreted by whatever windows *)
+    (*                  are on the screen.                              *)
+    (*  MNoCloseonClickOutside                                          *)
+    (*                  Any mouse click outside the menu is consumed    *)
+    (*                  but otherwise ignored.                          *)
+    (* Note that some of the options are mutually contradictory.  This  *)
+    (* way of specifying options was chosen to make it easy to specify  *)
+    (* "no change to previously set option", e.g. if you specify        *)
+    (* neither MTitle nor MNoTitle then the behaviour of the menu with  *)
+    (* respect to the title display remains at what was already in      *)
+    (* force.  If you specify contradictory options (e.g. MTitle and    *)
+    (* MNoTitle) at the same time then the result is not guaranteed to  *)
+    (* be consistent between versions of this module.                   *)
+
+    OffEdgeOption = (stick, wrap, escape, return);
+
+    (* An OffEdgeOption specifies what is to be done when the user      *)
+    (* tries to run the menu cursor off the edge of the menu.  The      *)
+    (* possibilities are:                                               *)
+    (*  stick           The cursor refuses to move in that direction.   *)
+    (*  wrap            The cursor wraps to the opposite edge.          *)
+    (*  escape          Return to caller with a result of 0.            *)
+    (*  return          Return to caller with a result that reflects    *)
+    (*                  the currently highlighted item.                 *)
+
+(************************************************************************)
+
+PROCEDURE CreateMenu (VAR (*OUT*) M: Menu;  columns: MenuColumn;
+                        VAR (*IN*) Messages: ARRAY OF ItemText;
+                        NumberOfItems: CARDINAL);
+
+    (* Introduces a menu into the system, but does not display it yet.  *)
+    (* For a simple vertical menu, columns = 1.  Use columns > 1 for    *)
+    (* shorter and wider menus.  Messages[0] is the label to put into   *)
+    (* the menu header, if present.  The remaining entries in Messages  *)
+    (* are the items displayed when the menu is put on the screen.      *)
+    (* Special case: if you specify NumberOfItems = 0 then the whole of *)
+    (* array Messages is used.                                          *)
+    (* For each entry of Messages, the selection character is the       *)
+    (* character following a "\".  If there is no "\", the selection    *)
+    (* character is the first character.  The selection character must  *)
+    (* be alphanumeric.  To disable the selection character feature,    *)
+    (* put the "\" in front of a non-alphanumeric character or put it   *)
+    (* at the end of the string.                                        *)
+
+PROCEDURE PositionMenu (M: Menu;  startline, endline: RowRange;
+                                leftcol, rightcol: ColumnRange);
+
+    (* Sets the screen position and size to be used when this menu is   *)
+    (* displayed by a call to SelectFromMenu.  This procedure does not  *)
+    (* actually display the menu - that doesn't happen until            *)
+    (* SelectFromMenu is called.                                        *)
+
+PROCEDURE MenuColours (M: Menu;  fore, back, hfore, hback, select: Colour);
+
+    (* Set the colours for the screen display of the menu.  The colours *)
+    (* fore and back are used as the normal foreground and background   *)
+    (* colours, and the highlighted menu item is displayed in colours   *)
+    (* hfore, hback.  The "select" colour is for highlighting the       *)
+    (* selection character.  This procedure is optional.                *)
+
+PROCEDURE SetOptions (M: Menu;  options: MO);
+
+    (* See the MenuOptions declaration for the possible options.  This  *)
+    (* procedure is optional.  If it is not called, the default options *)
+    (* are {MTitle,MBorder,MClose,MNoKeyBack,MNoFastSelect,MMouse,      *)
+    (* MCloseonClickOutside}.                                           *)
+
+PROCEDURE OffEdge (M: Menu;  top, bottom, left, right: OffEdgeOption);
+
+    (* Sets the menu behaviour when the user runs the cursor off the    *)
+    (* edge of the menu.  There is one parameter for each edge of the   *)
+    (* menu.                                                            *)
+    (* See the OffEdgeOption type declaration for the possible options. *)
+
+PROCEDURE SelectFromMenu (M: Menu): CARDINAL;
+
+    (* Displays menu M on the screen, allows terminal user to use       *)
+    (* cursor keys to move about the menu and the ENTER key to select   *)
+    (* an item.  (The space bar is also accepted, as an alternative to  *)
+    (* the ENTER key, to select an item.)  An item may also be selected *)
+    (* by typing its initial letter, followed by space or ENTER.        *)
+    (* Returns the number of the item which was selected.               *)
+    (* (Item numbers start from 1).  An answer of 0 indicates that the  *)
+    (* user typed the ESC key to return without selecting anything.     *)
+
+PROCEDURE DestroyMenu (M: Menu);
+
+    (* Removes a menu from the system, freeing up the space it used.    *)
+
+(************************************************************************)
+(*                      ALTERNATIVE DISPLAY PROCEDURE                   *)
+(************************************************************************)
+
+PROCEDURE DisplayMenu (w: Window;  M: Menu;
+                                rows, columns, initialvalue: CARDINAL);
+
+    (* Displays menu M at the current cursor position in window w,      *)
+    (* with initialvalue specifying a field to highlight.  The space    *)
+    (* reserved on the screen is "rows" screen rows in height and       *)
+    (* "columns" character positions wide.  (The remainder of window w  *)
+    (* may of course be used for other purposes, including other        *)
+    (* menus.)  When SelectFromMenu is called, it will use window w.    *)
+
+END Menus.
+

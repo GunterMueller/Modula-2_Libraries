@@ -1,0 +1,15 @@
+#system auto exe
+#pragma check(index=>on,range=>on,stack=>on,nil_ptr=>on,overflow=>on,guard=>on)
+#pragma link_option(map=>off)
+
+#model small jpi
+#include assemble.pi
+#model compact jpi
+#include assemble.pi
+#model medium jpi
+#include assemble.pi
+#model large jpi
+#include assemble.pi
+#model xlarge jpi
+#include assemble.pi
+

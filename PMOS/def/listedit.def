@@ -1,0 +1,87 @@
+DEFINITION MODULE ListEditor;
+
+	(********************************************************)
+	(*							*)
+	(*		"Generic" list editor			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	13 February 1991		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+FROM FieldEditor IMPORT
+    (* type *)	FieldType, WriteProc, EditProc;
+
+(************************************************************************)
+(*									*)
+(*  The editor in this module is "generic" in a limited sense.  It	*)
+(*  performs screen editing of a linear list, but obviously it has to	*)
+(*  make some assumptions about the linkage method by which the list	*)
+(*  is implemented.  The list must have the general form		*)
+(*									*)
+(*	 TYPE List = POINTER TO	RECORD					*)
+(*				    next: List;				*)
+(*				    component: some pointer type;	*)
+(*				END (*RECORD*)				*)
+(*									*)
+(*  Notice however that this definition module actually defines lists	*)
+(*  and components in terms of type ADDRESS, so that there is no	*)
+(*  requirement that the caller's types and field names match the	*)
+(*  above definition.							*)
+(*									*)
+(*  The caller is required to supply, via FieldEditor.DefineFieldType,	*)
+(*  procedures which write and edit list components.			*)
+(*									*)
+(*  The procedures in this module obey the rules set by module		*)
+(*  FieldEditor.  In the case where a list of lists is being edited,	*)
+(*  the component editor can simply call EditList to do its job for it.	*)
+(*									*)
+(************************************************************************)
+
+TYPE
+    ListFormat;		(* is private *)
+    List = ADDRESS;
+
+(************************************************************************)
+
+PROCEDURE DefineListFormat (header, separator, trailer: ARRAY OF CHAR;
+				ComponentType: FieldType): ListFormat;
+
+    (* Sets up the output format for a class of lists.  The header is	*)
+    (* what is written before the first component; the separator is	*)
+    (* what is written between the components; and the trailer is what	*)
+    (* is written after the last component.  For an empty list, only	*)
+    (* the header and trailer will be written.  ComponentType		*)
+    (* implicitly specifies the procedures which will be used to write	*)
+    (* and edit the components of the list.				*)
+
+PROCEDURE DiscardFormat (format: ListFormat);
+
+    (* A notification from the user that this format will not be used	*)
+    (* again (unless it is redefined by another call to procedure	*)
+    (* DefineListFormat).  Use of this procedure is optional, but is	*)
+    (* recommended for the sake of "clean" memory management.		*)
+
+PROCEDURE WriteList (w: Window;  L: List;  format: ListFormat);
+
+    (* Writes L on the screen, including its delimiters.  This		*)
+    (* procedure is not actually used in this module, but is provided	*)
+    (* as something that a client module may find useful.		*)
+
+PROCEDURE EditList (w: Window;  VAR (*INOUT*) L: List;  format: ListFormat);
+
+    (* Edits a list at the current cursor position in window w.  We	*)
+    (* leave this procedure on seeing a keyboard character which does	*)
+    (* not belong to us.  The cursor is left just beyond the "trailer"	*)
+    (* string which terminates the displayed form of the list.  The	*)
+    (* terminating keystroke is returned to the keyboard driver so that	*)
+    (* it can still be read by the caller.				*)
+
+END ListEditor.

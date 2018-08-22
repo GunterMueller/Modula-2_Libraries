@@ -1,0 +1,91 @@
+DEFINITION MODULE MultiScreen;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*  This module allows the creation of multiple virtual screens *)
+        (*  - complete screens, not just windows - with three keyboard  *)
+        (*      "hot keys" used to navigate around the screens.         *)
+        (*                                                              *)
+        (*  We support a two-level hierarchy: a virtual screen is a     *)
+        (*  collection of windows, and each virtual screen is a member  *)
+        (*  of a group.  (In addition, there is a pseudo-group made up  *)
+        (*  of all windows which are not associated with any virtual    *)
+        (*  screen, to handle the "normal output" which bypasses this   *)
+        (*  module.)  The virtual screen switching is done using hot    *)
+        (*  keys, as follows:                                           *)
+        (*     Hotkey1   steps to the previous group                    *)
+        (*     Hotkey2   steps to the next group                        *)
+        (*     Hotkey3   steps to the next virtual screen of the        *)
+        (*               currently active group.                        *)
+        (*                                                              *)
+        (*  In the present version, the client module has to call       *)
+        (*  EnableHotKeys to define the three hot keys.                 *)
+        (*                                                              *)
+        (*      Programmer:         P. Moylan                           *)
+        (*      Last edited:        4 September 1998                    *)
+        (*      Status:             OK                                  *)
+        (*                                                              *)
+        (****************************************************************)
+
+FROM Windows IMPORT
+    (* type *)  Window, DisplayPage;
+
+TYPE ScreenGroup;       (* is private *)
+     VirtualScreen;     (* is private *)
+
+PROCEDURE EnableScreenSwitching (enable: BOOLEAN);
+
+    (* Enables hot key screen switching if enable is TRUE, or disables  *)
+    (* it if enable is FALSE.                                           *)
+
+PROCEDURE EnableHotKeys (flag1: BOOLEAN;  key1: CHAR;
+                         flag2: BOOLEAN;  key2: CHAR;
+                         flag3: BOOLEAN;  key3: CHAR);
+
+    (* Creates the "hot key" tasks, and enable the hot keys.  The first *)
+    (* and second pair of parameters define the previous/next group     *)
+    (* switching hot keys, and the third pair defines the hot key for   *)
+    (* cycling within a group.                                          *)
+    (* The "flag" part of each parameter pair is FALSE for a normal     *)
+    (* key, and TRUE for an extended key defined by a two-character     *)
+    (* sequence (where the first character is CHR(0).                   *)
+
+PROCEDURE CreateScreenGroup (hardwarepage: DisplayPage): ScreenGroup;
+
+    (* Creates a new screen group, and maps it to the specified display *)
+    (* page in the screen hardware.  It is permissible to map more than *)
+    (* one group to the same hardware page.  Note that any group on     *)
+    (* hardware page 0 shares the screen with "normal output" which     *)
+    (* does not belong to any virtual page.  This is permitted, but     *)
+    (* on aesthetic grounds is usually not a good idea.                 *)
+
+PROCEDURE CreateVirtualScreen (group: ScreenGroup): VirtualScreen;
+
+    (* Adds a new virtual screen to the specified group.        *)
+
+PROCEDURE MapToVirtualScreen (w: Window;  screen: VirtualScreen);
+
+    (* Before calling this procedure, both w and screen must have been  *)
+    (* created.  This procedure ensures that window w is visible on     *)
+    (* the screen only when the given virtual screen page is active.    *)
+    (* The association lasts until the window is closed or the virtual  *)
+    (* screen is removed.                                               *)
+
+PROCEDURE VirtualScreenOf (w: Window): VirtualScreen;
+
+    (* Returns the virtual screen, if any, with which window w is       *)
+    (* associated.  It is possible that no such association exists, in  *)
+    (* which case we return a NIL result.                               *)
+
+PROCEDURE RemoveVirtualScreen (VAR (*INOUT*) screen: VirtualScreen);
+
+    (* Destroys all associations between the given virtual screen and   *)
+    (* its windows (but does not close the windows), and permanently    *)
+    (* removes this screen from the collection of virtual screens.      *)
+
+PROCEDURE RemoveScreenGroup (VAR (*INOUT*) group: ScreenGroup);
+
+    (* As above, but removes an entire group.   *)
+
+END MultiScreen.
+

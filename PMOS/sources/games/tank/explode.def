@@ -1,0 +1,7 @@
+DEFINITION MODULE Explode;
+(*****************************************************************************)
+(*** procedures to produce sound effects.                                   **)
+(*****************************************************************************)
+
+PROCEDURE ExplodeSound(Explosion:CARDINAL);
+END Explode.

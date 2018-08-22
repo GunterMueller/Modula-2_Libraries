@@ -1,0 +1,85 @@
+DEFINITION MODULE Conversions;
+
+	(********************************************************)
+	(*							*)
+	(*		Miscellaneous type conversions		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	25 April 1994			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+TYPE HexDigit = [0..15];
+     EightChar = ARRAY [0..7] OF CHAR;
+
+PROCEDURE atoi (a: LONGREAL;  i: CARDINAL): LONGREAL;
+
+    (* Calculates a**i.  This procedure does not really belong in this	*)
+    (* module, but it's missing from MATHLIB and there's no more	*)
+    (* logical place to put it.						*)
+
+PROCEDURE StringToHex (string: ARRAY OF CHAR): LONGCARD;
+PROCEDURE StringToCardinal (string: ARRAY OF CHAR): CARDINAL;
+PROCEDURE StringToLongCard (string: ARRAY OF CHAR): LONGCARD;
+PROCEDURE StringToReal (string: ARRAY OF CHAR): REAL;
+PROCEDURE StringToLongReal (string: ARRAY OF CHAR): LONGREAL;
+
+    (* Converts a text string to numeric.  Leading blanks are ignored.	*)
+    (* The conversion stops at the end of the array or at the first	*)
+    (* character which cannot be part of the number, and in the		*)
+    (* latter case all subsequent characters are ignored.		*)
+
+PROCEDURE HexToChar (number: HexDigit): CHAR;
+
+    (* Converts a one-digit hexadecimal number to its readable form.	*)
+
+PROCEDURE HexByteToString (value: SHORTCARD;
+			VAR (*OUT*) buffer: ARRAY OF CHAR;  pos: CARDINAL);
+
+    (* Converts a byte value to 2-character hexadecimal, with the	*)
+    (* result stored at buffer[pos] and buffer[pos+1].			*)
+
+PROCEDURE HexToString (value: CARDINAL;  VAR (*OUT*) buffer: ARRAY OF CHAR);
+PROCEDURE LongHexToString (value: LONGCARD;  VAR (*OUT*) buffer: EightChar);
+
+    (* Converts 'value' to a string in hexadecimal notation.	*)
+
+PROCEDURE ShortCardToString (number: SHORTCARD;
+					VAR (*OUT*) buffer: ARRAY OF CHAR;
+					fieldsize: CARDINAL);
+PROCEDURE CardinalToString (number: CARDINAL;
+					VAR (*OUT*) buffer: ARRAY OF CHAR;
+					fieldsize: CARDINAL);
+PROCEDURE LongCardToString (number: LONGCARD;
+					VAR (*OUT*) buffer: ARRAY OF CHAR;
+					fieldsize: CARDINAL);
+PROCEDURE RealToString (number: REAL;  VAR (*OUT*) buffer: ARRAY OF CHAR;
+					fieldsize: CARDINAL);
+PROCEDURE LongRealToString (number: LONGREAL;
+					VAR (*OUT*) buffer: ARRAY OF CHAR;
+					fieldsize: CARDINAL);
+
+    (* Converts the number to a decimal character string in array	*)
+    (* "buffer", right-justified in a field of fieldsize characters.	*)
+    (* In the case of reals the format depends on the size of the	*)
+    (* number relative to the size of the buffer.			*)
+
+PROCEDURE RealToF (number: REAL;  VAR (*INOUT*) fieldsize: CARDINAL;
+			decimalplaces: CARDINAL;  LeftJustified: BOOLEAN;
+			VAR (*OUT*) buffer: ARRAY OF CHAR);
+PROCEDURE LongRealToF (number: LONGREAL;  VAR (*INOUT*) fieldsize: CARDINAL;
+			decimalplaces: CARDINAL;  LeftJustified: BOOLEAN;
+			VAR (*OUT*) buffer: ARRAY OF CHAR);
+
+    (* Converts the number to an F-format string, of up to fieldsize	*)
+    (* characters with decimalplaces digits after the decimal point.	*)
+    (* The result is left justified if LeftJustified = TRUE is		*)
+    (* specified by the caller, and right justified with space fill	*)
+    (* otherwise.  On return fieldsize gives the number of character	*)
+    (* positions actually used.  The result string is terminated with	*)
+    (* at least one CHR(0) (which is not counted in fieldsize), except	*)
+    (* where the result fills the entire buffer.			*)
+
+END Conversions.
+

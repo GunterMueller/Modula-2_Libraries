@@ -1,0 +1,51 @@
+DEFINITION MODULE Rationals;
+
+	(********************************************************)
+	(*							*)
+	(*		Arithmetic on rational numbers		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	2 May 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+TYPE Rational = RECORD
+		    num: INTEGER;
+		    denom: CARDINAL;
+		END (*RECORD*);
+
+PROCEDURE Zero (): Rational;
+
+    (* Returns a representation of zero. *)
+
+PROCEDURE Unity (): Rational;
+
+    (* Returns a representation of the number 1. *)
+
+PROCEDURE Add (x, y: Rational): Rational;
+
+    (* Returns x+y. *)
+
+PROCEDURE Subtract (x, y: Rational): Rational;
+
+    (* Returns x-y. *)
+
+PROCEDURE Multiply (x, y: Rational): Rational;
+
+    (* Returns x*y. *)
+
+PROCEDURE Divide (x, y: Rational): Rational;
+
+    (* Returns x/y. *)
+
+PROCEDURE Reciprocal (x: Rational): Rational;
+
+    (* Returns 1/x. *)
+
+PROCEDURE Compare (x, y: Rational): INTEGER;
+
+    (* Returns 0 if x=y, <0 if x<y, and >0 if x>y. *)
+
+END Rationals.
+

@@ -1,0 +1,104 @@
+DEFINITION MODULE Directories;
+
+	(********************************************************)
+	(*							*)
+	(*		Disk directory lookup.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	13 June 1992			*)
+	(*  Status:						*)
+	(*	Working, but needs more detailed testing.	*)
+	(*	FindRelativeCluster not tested.			*)
+	(*							*)
+	(********************************************************)
+
+FROM Devices IMPORT
+    (* type *)	Device, BlockNumberType;
+
+FROM IOErrorCodes IMPORT
+    (* type *)	ErrorCode;
+
+(************************************************************************)
+
+TYPE Handle;	(* is private *)
+
+TYPE Cluster = CARDINAL;
+
+CONST
+
+    (* NoSuchBlock is, by convention, returned to indicate a		*)
+    (* nonexistent block.						*)
+
+    NoSuchBlock = 0FFFFFFFFH;
+
+(************************************************************************)
+(*									*)
+(*  Remark: file space is allocated in clusters, where a cluster is	*)
+(*  one or more blocks.  Because the mapping from cluster number to	*)
+(*  block number varies from one disk to another (it depends on the	*)
+(*  disk capacity and format), and because module Devices does not	*)
+(*  know about clusters, it is simplest to keep that mapping private	*)
+(*  to this module, and return information to the caller in terms of	*)
+(*  block numbers.  However, the caller needs to be told the cluster	*)
+(*  size in bytes, in order to know how much data to read or write	*)
+(*  at a time.								*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE SetDefaultDirectory (VAR (*IN*) path: ARRAY OF CHAR): ErrorCode;
+
+    (* Sets the starting point for directory searches in subsequent	*)
+    (* file operations.  Each device has a separate default directory.	*)
+    (* If parameter path includes a device name, the default is set for	*)
+    (* that device; otherwise, the default directory is set for the	*)
+    (* current default device.						*)
+
+PROCEDURE Lookup (newfile: BOOLEAN;  name: ARRAY OF CHAR;
+		VAR (*OUT*) device: Device;
+		VAR (*OUT*) unit: CARDINAL;
+		VAR (*OUT*) fileid: Handle;
+		VAR (*OUT*) StartingBlock: BlockNumberType;
+		VAR (*OUT*) BytesPerCluster: CARDINAL;
+		VAR (*OUT*) BytesInFile: LONGCARD): ErrorCode;
+
+    (* Parses the file name, returns the device code and unit number,	*)
+    (* and looks up the device directory (which might involve some	*)
+    (* subdirectory searches) to find the location of the directory	*)
+    (* entry, the starting block number, cluster size in bytes, and	*)
+    (* file size in bytes, for the file.  If newfile=TRUE, we create a	*)
+    (* new directory entry for this file (or report an error if the	*)
+    (* file already exists).  When creating a new file, we pre-allocate	*)
+    (* the first cluster; this partially avoids the complication of	*)
+    (* having to go back and modify the directory entry when the first	*)
+    (* cluster of data is ready to be written (we will still have to	*)
+    (* modify the file size part of the entry when the file is closed).	*)
+
+PROCEDURE NextBlockNumber (fileid: Handle;
+			   currentblock: BlockNumberType): BlockNumberType;
+
+    (* Given the block number of the current cluster in a file, returns	*)
+    (* the block number of the following cluster.			*)
+
+PROCEDURE FindRelativeCluster (fileid: Handle;  N: CARDINAL)
+							: BlockNumberType;
+
+    (* Returns the block number of the Nth cluster, where N = 0		*)
+    (* corresponds to the starting cluster of the file.			*)
+
+PROCEDURE AllocateBlock (fileid: Handle;
+			currentblock: BlockNumberType): BlockNumberType;
+
+    (* Allocates a new free cluster, and returns its block number.  The	*)
+    (* variable currentblock shows the block number of the last cluster	*)
+    (* used by this file - we need this to update the space allocation	*)
+    (* chain.								*)
+
+PROCEDURE UpdateFileSize (fileid: Handle;  NewSize: LONGCARD);
+
+    (* Updates a directory entry to show a modified file size.	*)
+
+PROCEDURE DiscardHandle (VAR (*INOUT*) fileid: Handle);
+
+    (* To be called when a file is no longer going to be accessed.	*)
+
+END Directories.

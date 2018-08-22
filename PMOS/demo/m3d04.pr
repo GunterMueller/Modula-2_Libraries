@@ -1,0 +1,9 @@
+#system auto exe
+#model compact jpi
+#pragma optimize(cpu=>486,copro=>387)
+
+#compile %main
+#pragma link(pmos%M%.lib)
+#link %prjname
+
+

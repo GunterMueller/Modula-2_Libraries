@@ -1,0 +1,94 @@
+DEFINITION MODULE UserInterface;
+
+	(****************************************************************)
+	(*								*)
+	(*		Text User Interface for PMOS			*)
+	(*								*)
+	(*	This module allows you to put selected text windows	*)
+	(*	under the control of the mouse.  In the present		*)
+	(*	version, the controls available are for repositioning	*)
+	(*	and for hiding windows.  The module also lets you	*)
+	(*	define "active regions" within windows, i.e. regions	*)
+	(*	within which a mouse click will cause a caller-supplied	*)
+	(*	procedure to be executed.				*)
+	(*								*)
+	(*		Original version by M.Walsh.			*)
+	(*		  This version by P.Moylan			*)
+	(*								*)
+	(*	Last Edited:	25 February 1994			*)
+	(*	Status:		OK					*)
+	(*								*)
+	(****************************************************************)
+
+FROM Mouse IMPORT
+    (* type *)	ButtonSet;
+
+FROM Windows IMPORT
+    (* type *)	RowRange, ColumnRange, Window;
+
+(************************************************************************)
+
+TYPE
+    (* A UIWindow is like a Window from module Windows, but it has	*)
+    (* a few extra attributes added for the purposes of this module.	*)
+
+    UIWindow;	(* is private *)
+
+    (* The capabilities which you can add to a Window by making it into	*)
+    (* a UIWindow are:							*)
+    (*	wshow	left click anywhere on visible part of window (except,	*)
+    (*		of course, regions for which other click actions are	*)
+    (*		defined) brings it to the top of the stack of windows.	*)
+    (*		This will also change the input focus in cases where	*)
+    (*		a task is waiting for keyboard input in this window.	*)
+    (*	whide	window gets a "hide button", and left clicking on this	*)
+    (*		makes the window invisible.				*)
+    (*	wmove	window gets a "move button", and you can drag the	*)
+    (*		window around the screen with the left or right button.	*)
+    (*	wescape	window gets a "hide button", and left clicking on this	*)
+    (*		simulates an Esc from the keyboard.  Note that this	*)
+    (*		option supersedes the operation of whide, since the	*)
+    (*		same button location is used for both.			*)
+
+    Capability = (wshow, wmove, whide, wescape);
+    CapabilitySet = SET OF Capability;
+
+    (* This module also gives a special meaning to a right mouse click	*)
+    (* on a blank area of the screen: it brings up a list of windows	*)
+    (* for which mouse control is enabled, and you can click on a	*)
+    (* window name to bring that window to the top of the display.	*)
+    (* This is a way of getting back hidden windows.			*)
+
+    (* An Action procedure is one to be called on a mouse click in a	*)
+    (* defined Active Region.  The parameters identify the window	*)
+    (* which was clicked on, and the row and column within that window.	*)
+
+    Action = PROCEDURE (Window, RowRange, ColumnRange);
+
+(************************************************************************)
+(*		ACTIVATING MOUSE CONTROL FOR A WINDOW			*)
+(************************************************************************)
+
+PROCEDURE AllowMouseControl (w: Window;  Title: ARRAY OF CHAR;
+				OptionsEnabled: CapabilitySet): UIWindow;
+
+    (* Adds w to the set of windows which this module is allowed to	*)
+    (* manipulate.  The window should already be open (but not		*)
+    (* necessarily visible).  The Title parameter gives a name to be	*)
+    (* used when a list of windows is displayed.			*)
+
+(************************************************************************)
+(*			DEFINING ACTIVE REGIONS				*)
+(************************************************************************)
+
+PROCEDURE AddActiveRegion (UIW: UIWindow; Top, Bottom: RowRange;
+			Left, Right: ColumnRange;  ButtonsEnabled: ButtonSet;
+			ActionProc: Action);
+
+    (* After a call to this procedure, any mouse click on a button in	*)
+    (* ButtonsEnabled, and in the rectangle defined by the other	*)
+    (* parameters, will cause ActionProc to be called.			*)
+    (* Note: Active regions may overlap.  In the event of an ambiguity,	*)
+    (* the more recently defined active region takes precedence.	*)
+
+END UserInterface.

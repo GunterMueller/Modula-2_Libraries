@@ -1,0 +1,88 @@
+DEFINITION MODULE Tiles;
+
+	(********************************************************)
+	(*							*)
+	(*	    Support module for screen graphics		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	11 February 1995		*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	NOTE: This is a support module for GWindows,	*)
+	(*	and is not intended to be called directly by	*)
+	(*	applications programs.  It does not contain	*)
+	(*	all of the data validity checks which the	*)
+	(*	end-user procedures perform.			*)
+	(*							*)
+	(********************************************************)
+
+FROM ScreenGeometry IMPORT
+    (* type *)	Point, Rectangle;
+
+FROM Graphics IMPORT
+    (* type *)	ColourType;
+
+TYPE
+    TileSet;		(* is private *)
+
+PROCEDURE CreateTileSet (border: Rectangle;  background: ColourType): TileSet;
+
+    (* Creates a TileSet which covers the given rectangular region.	*)
+    (* The second parameter specifies the background colour.		*)
+    (* This will usually require breaking up tiles of previously	*)
+    (* created TileSets, but since the caller does not have access to	*)
+    (* the internal structure of a TileSet this restructuring is	*)
+    (* transparent to the caller.					*)
+
+PROCEDURE DiscardTileSet (VAR (*INOUT*) T: TileSet);
+
+    (* Destroys TileSet T.  This too might involve restructuring the	*)
+    (* tiling of other TileSets, but again the caller need not know	*)
+    (* the details.							*)
+
+PROCEDURE ClearTileSet (T: TileSet);
+
+    (* Removes all points, lines, and text from T, and re-displays	*)
+    (* the visible parts of T.						*)
+
+PROCEDURE TileSetMemory (T: TileSet;  memory: BOOLEAN);
+
+    (* Specifying a FALSE value for the memory parameter means that	*)
+    (* subsequent data sent to this TileSet will be written to the	*)
+    (* screen but not remembered.  This saves time and memory, the only	*)
+    (* penalty being that data covered by an overlapping TileSet will	*)
+    (* be lost.  Specifying TRUE restores the default condition, where	*)
+    (* all data are retained for refreshing the screen when necessary.	*)
+
+PROCEDURE AddPoint (T: TileSet;  p: Point;  colour: ColourType);
+
+    (* Adds a new point to TileSet T, and displays it on the screen.	*)
+
+PROCEDURE AddLine (T: TileSet;  start, end: Point;  colour: ColourType);
+
+    (* Adds a new line to TileSet T, and displays it on the screen.	*)
+
+PROCEDURE AddRectangle (T: TileSet;  R: Rectangle;  colour: ColourType);
+
+    (* Draws a rectangular shape.  A shorthand for four AddLine calls.	*)
+
+PROCEDURE AddString (T: TileSet;  place: Point;
+			VAR (*IN*) text: ARRAY OF CHAR;
+			count: CARDINAL;  colour: ColourType;  R: Rectangle);
+
+    (* Adds a string of count characters to tileset T, and displays it.	*)
+    (* Points outside rectangle R are not displayed.			*)
+
+PROCEDURE AddRotatedString (T: TileSet;  place: Point;
+			VAR (*IN*) text: ARRAY OF CHAR;
+			count: CARDINAL;  colour: ColourType;  R: Rectangle);
+
+    (* Like AddString, but writes in the +Y direction.	*)
+
+PROCEDURE ScrollContents (TS: TileSet;  amount: INTEGER;  R: Rectangle);
+
+    (* Moves all data within R up by "amount" rows, discarding what	*)
+    (* falls outside the rectangle.					*)
+
+END Tiles.
+

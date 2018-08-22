@@ -1,0 +1,20 @@
+-- List of files that have to be processed by the PP preprocessor.
+
+\pmos\sources\general\calculat.mod
+\pmos\sources\general\innerker.def
+\pmos\sources\general\lowlevel.def
+\pmos\sources\special\lowlevel.mod
+\pmos\sources\general\miscpmos.def
+\pmos\sources\general\miscpmos.mod
+\pmos\sources\general\mouse.mod
+\pmos\sources\general\mouse0.def
+\pmos\sources\general\mouse33.mod
+\pmos\sources\general\screen.mod
+\pmos\sources\general\serialmo.mod
+\pmos\sources\general\terminat.mod
+\pmos\sources\general\timer.mod
+\pmos\sources\general\types.def
+\pmos\sources\general\userinte.mod
+\pmos\sources\util\ppmisc.def
+\pmos\sources\util\ppmisc.mod
+

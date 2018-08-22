@@ -1,0 +1,51 @@
+DEFINITION MODULE MD5;
+
+        (********************************************************)
+        (*                                                      *)
+        (*                  MD5 ENCRYPTION                      *)
+        (*                                                      *)
+        (*  MD5 message-digest algorithm as defined in RFC 1321 *)
+        (*                                                      *)
+        (*  Processes a data sequence of arbitrary length,      *)
+        (*  producing a 16-byte "digest" as a secure signature  *)
+        (*  of this data sequence.                              *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Started:            14 September 1998               *)
+        (*  Last edited:        07 August 2002                  *)
+        (*  Status:             Working                         *)
+        (*                                                      *)
+        (*  This module is derived from the RSA Data Security,  *)
+        (*  Inc. MD5 Message-Digest Algorithm.                  *)
+        (*                                                      *)
+        (********************************************************)
+
+FROM SYSTEM IMPORT CARD32, LOC;
+
+TYPE
+    MD5_CTX;    (* is private *)
+    DigestType = ARRAY [0..3] OF CARD32;
+
+
+PROCEDURE MD5Init(): MD5_CTX;
+
+    (* MD5 initialization. Begins an MD5 operation, creating a new context. *)
+
+PROCEDURE MD5Update (context: MD5_CTX;  data: ARRAY OF LOC;  length: CARDINAL);
+
+    (* MD5 block update operation. Continues an MD5 message-digest operation,   *)
+    (* adding more data to what has already been processed for this context.    *)
+
+PROCEDURE MD5Final (VAR (*INOUT*) context: MD5_CTX;  VAR (*OUT*) digest: DigestType);
+
+    (* MD5 finalization. Ends an MD5 message-digest operation, returning    *)
+    (* the message digest and discarding the context.                       *)
+
+PROCEDURE MD5DigestToString (VAR (*IN*) digest: DigestType;
+                             VAR (*OUT*) result: ARRAY OF CHAR);
+
+    (* Converts the digest to a 32-character string.  If there is not enough    *)
+    (* space for 32 characters, produces a leading substring of the full result.*)
+
+END MD5.
+

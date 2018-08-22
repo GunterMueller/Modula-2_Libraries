@@ -1,0 +1,27 @@
+DEFINITION MODULE Bounce;
+
+	(********************************************************)
+	(*							*)
+	(*		Bouncing ball demonstration.		*)
+	(*							*)
+	(*  This module is not intended to be of any practical	*)
+	(*  use, but it tests the time delay functions of the	*)
+	(*  kernel and acts as a demonstration that multiple	*)
+	(*  tasks really can coexist.				*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	15 August 1993			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM Windows IMPORT
+    (* type *)	RowRange, ColumnRange;
+
+PROCEDURE Bouncing (top, bottom: RowRange;  left, right: ColumnRange);
+
+    (* Creates a screen window, and runs a bouncing ball demonstration	*)
+    (* inside this window.						*)
+
+END Bounce.
+

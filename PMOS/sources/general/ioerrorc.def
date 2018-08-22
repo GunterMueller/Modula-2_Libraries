@@ -1,0 +1,92 @@
+DEFINITION MODULE IOErrorCodes;
+
+	(********************************************************)
+	(*							*)
+	(*		I/O subsystem error codes.		*)
+	(*							*)
+	(*  This module defines a set of error codes which may	*)
+	(*  be used uniformly throughout the file system.	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	11 May 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+
+TYPE
+    ErrorCode = (
+
+	OK,			(* Normal return, no error	*)
+	OperationAborted,	(* Operator forced abort	*)
+
+	(* Error codes from module Files.	*)
+
+	FileNotOpen,		(* Should have opened file first  *)
+
+	(* Error codes from module Devices.	*)
+
+	NoSuchDevice,		(* Illegal device *)
+	NoSuchUnit,		(* Illegal unit number *)
+
+	(* Error codes from module Directories.	*)
+
+	FeatureNotImplemented,	(* Cannot yet handle this case *)
+	InvalidFileNameString,	(* Could not parse filename string *)
+	DirectoryNotFound,	(* Subdirectory name not found *)
+	NotADirectory,		(* Supposed directory name is not a dir	*)
+	NameNotFound,		(* File name not found in directory *)
+	DuplicateFileName,	(* File name already exists *)
+	DeviceFull,		(* No room to create/extend file *)
+	DirectoryFull,		(* No room to create new directory entry *)
+
+	(* Error codes from the disk device drivers.	*)
+
+	BadDMAAddress,		(* Operation uses a memory buffer which	*)
+				(* the DMA hardware cannot handle	*)
+	IllegalBlockNumber,	(* The caller requested an operation on	*)
+				(*  a non-existent disk block.		*)
+	BadCommand,		(* We tried to do something illegal.	*)
+	ControllerNotListening,	(* Could not get the disk controller	*)
+				(*  to accept a command.		*)
+	ControllerOutOfSync,	(* Status information from the disk	*)
+				(*  controller does not make sense.	*)
+	TimeoutError,		(* Data request interrupt did not	*)
+				(*  arrive within a reasonable time.	*)
+	CalibrationFailure,	(* Did not succeed in driving the head	*)
+				(*  back to its home position.		*)
+	SeekFailure,		(* Failed to seek to the desired track.	*)
+	DriveNotReady,		(* Could be an equipment failure, but	*)
+				(*  more commonly means that the drive	*)
+				(*  door is open or there is no disk in	*)
+				(*  the drive.				*)
+	SectorNotFound,		(* Missing sector, cylinder mismatch,	*)
+				(*  and similar errors.  This could	*)
+				(*  mean a badly formatted disk, it	*)
+				(*  could be just one faulty block, or	*)
+				(*  it could mean that a recalibration	*)
+				(*  is needed.				*)
+	BadBlock,		(* The sector has its "bad block"	*)
+				(*  mark set - should not be used.	*)
+	BadData,		(* Something on the disk is corrupted.	*)
+				(*  Could be a transient error, e.g.	*)
+				(*  read error caused by a speck of	*)
+				(*  dust, but it could also be true	*)
+				(*  corruption of the medium.		*)
+	WriteFault,		(* Occurs only with hard disk, reflects	*)
+				(*  a hardware fault signal.		*)
+	WriteProtected,		(* Attempted write to a write-protected	*)
+				(*  disk.				*)
+	UndiagnosedFailure	(* Miscellaneous error.			*)
+
+	);		(* End of the list of error codes *)
+
+(************************************************************************)
+
+PROCEDURE TranslateErrorCode (code: ErrorCode;
+				VAR (*OUT*) string: ARRAY OF CHAR);
+
+    (* Converts code to its textual representation. *)
+
+END IOErrorCodes.
+

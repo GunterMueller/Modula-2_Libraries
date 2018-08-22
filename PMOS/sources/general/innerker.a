@@ -1,0 +1,865 @@
+module InnerKernel
+
+	(****************************************************************)
+	(*								*)
+	(*	This is the nonportable part of the PMOS kernel.	*)
+	(*	It contains procedures whose implementation depends	*)
+	(*	not only on the processor, but also on compiler		*)
+	(*	conventions (which registers are saved, etc.).		*)
+	(*								*)
+	(*	Programmer:	P. Moylan				*)
+	(*	Last edited:	21 March 1995				*)
+	(*								*)
+	(*	Status:		Working					*)
+	(*								*)
+	(****************************************************************)
+
+(************************************************************************)
+(*				MODULE DATA				*)
+(************************************************************************)
+
+(** Offset in stack segment of the control block for an interrupt task **)
+
+	IntBlock	= 6
+
+(********* Constants related to the 8259A interrupt controllers *********)
+
+	EOI		= 20H		(* code for "end of interrupt"	*)
+	Master8259	= 20H		(* port numbers for master and	*)
+	Slave8259	= 0A0H		(*  slave interrupt controllers	*)
+
+(*********************** The default data segment ***********************)
+
+segment _DATA (DATA, 28H)
+
+    (* BackgroundSelector is a selector for the interrupted task, in	*)
+    (* the case where an interrupt task is running.  Task switching to	*)
+    (* and from interrupt tasks is done directly by this module, not by	*)
+    (* the higher-level part of the kernel.  Interrupt tasks are always	*)
+    (* allowed to "run to completion" - that is, to their next call to	*)
+    (* IOTransfer - and nested interrupt handlers are not supported.	*)
+    (* (To support them, we would have to make BackgroundSelector a	*)
+    (* stack rather than a simple variable, and this would impair the	*)
+    (* efficiency of interrupt handlers).  To ensure this, interrupt	*)
+    (* tasks must never enable interrupts.				*)
+    (* Convention: if no interrupt task is running, we set the second	*)
+    (* word (the "segment" part) of BackgroundSelector to zero.		*)
+
+    BackgroundSelector:	dw 0, 0
+
+    (* The following variable saves the value of SS at program startup.	*)
+    (* We need it because of an awkward glitch in termination		*)
+    (* processing - the TopSpeed run-time system resets the stack	*)
+    (* pointer while shutting down the program, but unfortunately for	*)
+    (* most memory models it does this by modifying SP without at the	*)
+    (* same time modifying SS.  The solution we adopt here for doing	*)
+    (* the shutdown involves a deliberate stack corruption, and is not	*)
+    (* an especially clean solution, but for the moment I can't think	*)
+    (* of anything better.  (Apart from modifying the TopSpeed core	*)
+    (* library; but I'm reluctant to do that.)				*)
+
+    OriginalSS:	dw 0
+
+    (* For some memory models - specifically, those for which the	*)
+    (* compiler assumes that SS=DS at all times - we have to switch	*)
+    (* between two representations of the stack pointer.  We allocate	*)
+    (* one stack segment per task, and immediately after task creation	*)
+    (* the selector is in the form of an SS:SP pair using the "true" SS.*)
+    (* Once the task starts running we switch to a normalised form	*)
+    (* where DS=SS.  The "true" SS is still needed for two purposes:	*)
+    (*   1. For floating point save/restore - the selector used for	*)
+    (*      this must be the selector as originally returned when the	*)
+    (*      task was created.						*)
+    (*   2. For interrupt tasks, this module needs the original SS for	*)
+    (*      its own internal purposes.  The variable currentSS is used	*)
+    (*      for this.							*)
+    (* As an extra complication, we need a place to save the state of	*)
+    (* the floating point processor.  Normally we do this near the	*)
+    (* beginning of the stack segment, but in the SS=DS memory models	*)
+    (* there's no space set aside for this purpose in the main task's	*)
+    (* stack segment.  (The problem exists only for the main task,	*)
+    (* where the stack segment is pre-allocated by the compiler rather	*)
+    (* than created by this module.)  To get around this problem we	*)
+    (* fake the selector for the main task so that SS:000E will point	*)
+    (* to the SaveFloat area.  The space needed is 47 words, plus a	*)
+    (* rounding provision to ensure that the faked SS:0000 is		*)
+    (* paragraph-aligned.						*)
+
+    (*%F _fptr *)
+    currentSS:	dw 0
+    SaveFloat:	org	2*47 + 16
+    (*%E*)
+
+(****************** Pointer to the initialisation code ******************)
+
+(*%T _fdata*)
+segment _INIT_DATA_CONST (FAR_DATA, 28H)
+(*%E*)
+(*%F _fdata*)
+segment _CONST (DATA, 28H)
+(*%E*)
+
+    public InnerKernel$:
+		(*%T _fcall*)
+		dd InitCode
+		(*%E*)
+		(*%F _fcall*)
+		dw InitCode
+		(*%E*)
+		db 0FFH, 0FFH
+
+(**************** Start of code segment for this module *****************)
+
+(*%T _fcall*)
+segment InnerKernel_TEXT (CODE, 48H)
+(*%E*)
+(*%F _fcall*)
+segment _TEXT (CODE, 48H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE EnterKernel (): CARDINAL;					*)
+(*									*)
+(* Saves the processor flags word, including the current "interrupt	*)
+(* enable" status, and returns with interrupts disabled.		*)
+(* NOTE: this procedure and the following one should be used as a	*)
+(* matched pair.							*)
+(************************************************************************)
+
+public InnerKernel$EnterKernel:
+	pushf
+	pop   ax
+	cli
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE LeaveKernel (PSW: CARDINAL);				*)
+(*									*)
+(* Restores the processor flags word, including the "interrupt enable"	*)
+(* status.  NOTE: this procedure and the one above should be used as a	*)
+(* matched pair.							*)
+(************************************************************************)
+
+public InnerKernel$LeaveKernel:
+	push  ax
+	popf
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(*			FLOATING POINT SAVE/RESTORE			*)
+(************************************************************************)
+
+extrn __FloatSave
+extrn __FloatRestore
+
+(************************************************************************)
+(* PROCEDURE MakeFloatSaveSelector (selector: TaskSelector)		*)
+(*						: FloatSaveSelector;	*)
+(*									*)
+(* Creates the special form of selector which must subsequently be	*)
+(* used in calls to save and restore the floating point state.		*)
+(************************************************************************)
+
+public InnerKernel$MakeFloatSaveSelector:
+
+	(*%T _fcall*)
+	ret far 0		(* result is simply the segment	*)
+	(*%E*)			(*    part of the selector	*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE NPXsave (selector: FloatSaveSelector);			*)
+(*									*)
+(* Saves the state of the Numeric Processor Extension coprocessor.	*)
+(* (Has no effect, apart from a short time delay, if there is no	*)
+(* coprocessor present.)						*)
+(************************************************************************)
+
+public InnerKernel$NPXsave:
+
+	push es
+	mov es, ax
+	call far __FloatSave
+	pop es
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE NPXrestore (selector: FloatSaveSelector);			*)
+(*									*)
+(* The operation complementary to NPXsave.  Restores the previously	*)
+(* saved state of the floating point coprocessor.			*)
+(************************************************************************)
+
+public InnerKernel$NPXrestore:
+
+	push ds
+	mov ds, ax
+	call far __FloatRestore
+	pop ds
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(*			CREATING A NEW TASK				*)
+(************************************************************************)
+
+(************************************************************************)
+(* PROCEDURE TaskInit (StackBase: ADDRESS;  StackSize: CARDINAL;	*)
+(*			EnableInterrupts: BOOLEAN;			*)
+(*			TaskExit, StartAddress: PROC): TaskSelector;	*)
+(*									*)
+(* Initialises the stack for a new task.  Parameter StackBase		*)
+(* points to a block of memory which can be used to hold the stack	*)
+(* (note that this is a pointer to the start of the memory block,	*)
+(* not to the bottom of the stack); and StackSize is the size of	*)
+(* this block.  The next parameter specifies whether processor		*)
+(* interrupts should be enabled when the task is started.  StartAddress	*)
+(* and TaskExit are the start address of the task code and the start	*)
+(* address of the code to execute when the task terminates.  The	*)
+(* value returned is a selector for the new task.			*)
+(*									*)
+(* Note that the new task will commence execution as the result of a	*)
+(* call to procedure StackSwap by some other task; therefore we must	*)
+(* set up the stack to make it look as if the new task had just called	*)
+(* StackSwap in the middle of Transfer; and the return address		*)
+(* seen by Transfer must be the address at which we wish execution to	*)
+(* commence.  This means that the initial stack must contain 14..17	*)
+(* words, depending on the memory model:				*)
+(*									*)
+(*	SS:SP->	NormaliseSS (0 or 1 words)				*)
+(*		address TaskStart within procedure Transfer (1 word)	*)
+(*		initial DS (1 word)					*)
+(*		other dummy saved registers (9 words)			*)
+(*		processor flags (1 word)				*)
+(*		StartAddress (1 or 2 words)				*)
+(*		TaskExit (1 or 2 words)					*)
+(*									*)
+(* The point of putting the address of TaskExit at the bottom of the	*)
+(* stack is to act as a return address if the new task falls out the	*)
+(* bottom of its code.							*)
+(*									*)
+(* In earlier versions of this module, the stack was set up so that	*)
+(* the bottom byte in the stack was at address SS:FFFF, a choice which	*)
+(* would have simplified porting this code to a Protected Mode version	*)
+(* using "expand-down" stack segments.  Unfortunately this decision	*)
+(* turned out to be incompatible with the TopSpeed floating point	*)
+(* library; some of the routines in that library store information in	*)
+(* locations SS:0001 to SS:0004 inclusive, so we have to make sure	*)
+(* that those locations are in a task's stack space.  For this reason,	*)
+(* we set up the stack so that its lowest address is SS:0000, and we	*)
+(* initially clear the following locations:				*)
+(*									*)
+(*	SS:0000		unused (1 byte)					*)
+(*	SS:0001		reserved for floating point library (4 bytes)	*)
+(*	SS:0005		unused (1 byte)					*)
+(*									*)
+(* For interrupt tasks, some extra information must be stored, and	*)
+(* view of the above design decision the most convenient place to store	*)
+(* it is in a record starting at location SS:0006.  See procedure	*)
+(* StartInterruptTask for the details of this control block.		*)
+(*									*)
+(* For non-interrupt tasks, an area near the beginning of the stack	*)
+(* segment is used for saving the task's floating point state.		*)
+(* (Typical location is SS:000E.)					*)
+(*									*)
+(* Parameters:	StackBase is in AX or BX:AX, depending on memory model	*)
+(*		StackSize is in CX					*)
+(*		EnableInterrupts is in DL				*)
+(*		remaining two parameters are on the caller's stack	*)
+(*		result to be returned in ES:BX				*)
+(*									*)
+(************************************************************************)
+
+public InnerKernel$TaskInit:
+
+	push bp			(* set up a stack frame		*)
+	mov bp, sp
+        push di			(* save some registers		*)
+        push si
+        push ds
+	(*%F _fptr *)
+	mov bx, ds
+	(*%E*)
+
+	(* Round up the stack address so that we start at a segment	*)
+	(* boundary, and make sure that the last word in the stack has	*)
+	(* an even address.  This could lose us up to 16 bytes of	*)
+	(* memory, but that is a small price to pay if StackSize is not	*)
+	(* too small.							*)
+
+	mov si, 15		(* a useful constant		*)
+	add ax, si		(* add enough to the stack	*)
+	jnc Init10		(*  address to make it a	*)
+	add bx, 1000H		(*   multiple of 16		*)
+Init10:	sub cx, si		(* reduce the stack size by the	*)
+	and si, ax		(*  same amount			*)
+	add si, cx		(* SI now holds stack size	*)
+	mov cx, 4
+	shr ax, cx		(* divide offset by 16, and add	*)
+	add ax, bx		(*  that to the segment value	*)
+	mov bx, 0FFFEH
+	and bx, si		(* make stack size even		*)
+	(*%T _fcall *)
+	sub bx, 20H		(* allow for initial contents	*)
+	(*%E*)
+	(*%F _fcall *)
+	sub bx, 1CH
+	(*%E*)
+	(*%F _fptr *)
+	dec bx;  dec bx		(* space for the NormaliseSS call *)
+	(*%E*)
+	mov es, ax		(* new stack pointer is ES:BX	*)
+
+	(* Clear the three reserved words at the start of the stack	*)
+	(* segment, for use by the floating point library.		*)
+
+	pushf			(* save direction flag		*)
+	cld			(* set direction = forwards	*)
+	xor ax, ax
+	mov di, ax		(* start at location ES:0000	*)
+	mov cx, 3
+	rep; stosw		(* clear three words		*)
+
+	(* Now load the initial stack contents, using ES:DI temporarily	*)
+	(* as a stack pointer.  A copy of the stack pointer is in BX.	*)
+
+	mov di, bx		(* initial stack pointer	*)
+	(*%F _fptr *)
+	mov ax, NormaliseSS
+	stosw
+	(*%E*)
+	mov ax, TaskStart	(* task starting point		*)
+	stosw
+	mov ax, _DATA		(* initial DS for task		*)
+	stosw
+	sub ax, ax
+	mov cx, 9		(* nine dummy "saved registers"	*)
+	rep; stosw		(* (we arbitrarily make them 0)	*)
+	or al, dl		(* set the initial flags	*)
+	jz Init20		(*   to an all-zero word,	*)
+	mov ax, 200H		(*   except for "interrupt	*)
+Init20:	stosw			(*   enable" where specified	*)
+	mov ax, ss		(* make DS:SI point to other	*)
+	mov ds, ax		(*   parameters			*)
+	(*%T _fcall *)
+	lea si, [bp][6]
+	mov cx, 4
+	(*%E*)
+	(*%F _fcall *)
+	lea si, [bp][4]
+	mov cx, 2
+	(*%E*)
+	rep; movsw		(* push StartAddress, TaskExit	*)
+	popf			(* restore direction flag	*)
+		
+	(* All done.  The stack pointer for this newly created	*)
+	(* stack is now in ES:BX, and this is what we return to	*)
+	(* the caller as the selector value.			*)
+	
+	pop ds			(* restore saved registers	*)
+	pop si
+	pop di
+	pop bp
+	(*%T _fcall*)
+	ret far 8
+	(*%E*)
+	(*%F _fcall*)
+	ret near 4
+	(*%E*)
+	
+(************************************************************************)
+(* PROCEDURE InitMainTask (): TaskSelector;				*)
+(*									*)
+(* Like TaskInit, but for the special case of the original task which	*)
+(* is running at program startup.  The function of this procedure is	*)
+(* simply to ensure that the main stack layout is consistent with what	*)
+(* we do for all other tasks.  A selector is returned in ES:BX.		*)
+(************************************************************************)
+
+public InnerKernel$InitMainTask:
+
+	sub bx, bx
+	(*%T _fptr*)
+	push ss
+	pop es		(* return SS:0000 as the result selector *)
+	(*%E*)
+	(*%F _fptr*)
+	mov es, [currentSS]
+	(*%E*)
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(*			THE TASK SWITCH OPERATION			*)
+(************************************************************************)
+
+(*%F _fptr *)
+
+NormaliseSS:
+	(* This procedure is needed only for the small and medium	*)
+	(* memory models, where the compiler assumes SS=DS (even, it	*)
+	(* appears, when the ss_eq_ds pragma is turned off).  We adjust	*)
+	(* SS and SP so that SS:SP continues to point to the same	*)
+	(* physical location, but with the constraint SS=_DATA.		*)
+
+	mov ax, ss
+	mov bx, _DATA
+	mov cx, 4
+	sub ax, bx		(* SS - DS		*)
+	shl ax, cx		(* multiply this by 16	*)
+	mov ss, bx
+	add sp, ax		(* add 16*(SS-DS) to SP	*)
+	ret near 0
+(*%E*)
+
+(************************************************************************)
+
+StackSwap:		
+	(* Local procedure to switch to a new stack.  Because we return	*)
+	(* using a return address taken from the NEW stack, this	*)
+	(* procedure does not directly return to the caller.  However,	*)
+	(* some future call to this procedure will cause a switch back	*)
+	(* to the original caller, so from the caller's point of view	*)
+	(* this just looks like a procedure which takes an unusually	*)
+	(* long time to execute.  The intervening execution of other	*)
+	(* tasks does, however, mean that the caller must assume that	*)
+	(* all registers have been corrupted.				*)
+	
+	(* Enter with interrupts disabled, with BX:AX holding the	*)
+	(* desired new SS:SP, and with DS:SI pointing to the doubleword	*)
+	(* where we should save the caller's SS:SP.			*)
+
+	mov [si], sp		(* save the current SS:SP	*)
+	mov [si][2], ss
+	mov ss, bx		(* switch to new stack		*)
+	mov sp, ax
+	ret near 0		(* return to destination task	*)
+	
+(************************************************************************)
+(* PROCEDURE Transfer (VAR (*OUT*) source: TaskSelector;		*)
+(*					destination: TaskSelector);	*)
+(*									*)
+(* Performs a task switch to the destination task, at the same time	*)
+(* saving a selector for the outgoing task in variable "source".	*)
+(* This allows a subsequent call to Transfer to resume the		*)
+(* original task.  By the time this procedure has returned to the	*)
+(* caller, then, we are again executing the calling task.		*)
+(*									*)
+(* Special case: if this procedure is called by an interrupt task, the	*)
+(* call is interpreted as a requiring a task switch from the		*)
+(* interrupted task - i.e. the source parameter must specify the	*)
+(* interrupted task - to the destination task.  In this case the actual	*)
+(* switch to the destination task does not happen until the interrupt	*)
+(* task makes its next call to IOTransfer.  The reason for this		*)
+(* interpretation is that task switching to and from interrupt tasks is	*)
+(* managed internally by this module, because the occurrence of an	*)
+(* interrupt is not something that can be controlled by the caller.	*)
+(************************************************************************)
+
+public InnerKernel$Transfer:
+
+	pushf			(* save flags			*)
+	db 60H	(* pusha *)	(* save all registers		*)
+	push es
+	push ds
+	(*%T _fptr*)
+	(*%F _fdata*)
+	mov ds, cx
+	(*%E*)
+	(*%E*)
+	mov cx, _DATA
+	mov es, cx		(* point to BackgroundSelector	*)
+	mov di, BackgroundSelector+2
+	mov cx, es:[di]		(* a nonzero second word	*)
+	test cx, cx		(*   means that an interrupt	*)
+	jnz Tran20		(*   task is running		*)
+	call near StackSwap	(* do the task switch		*)
+	
+	(* By the time we get back here, there will have been	*)
+	(* two or more task switches, and the original task	*)
+	(* will again be running.				*)
+	(* This is also the point at which new tasks start.	*)
+	
+TaskStart:	
+	pop ds
+	pop es
+	db 61H	(* popa *)
+	popf
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+	(* If an interrupt task is running, we defer the task	*)
+	(* switch, but update BackgroundSelector so that the	*)
+	(* task switch will happen the next time IOTransfer is	*)
+	(* called.  Note that in this situation the source	*)
+	(* parameter in DS:SI points to the selector for the	*)
+	(* interrupted task, not the interrupt task.		*)
+
+Tran20:
+	mov [si][2], cx		(* let BackgroundSelector	*)
+	mov es:[di], bx		(*   select the target task,	*)
+	dec di; dec di		(*   and store the old value of	*)
+	mov cx, es:[di]		(*   BackgroundSelector as the	*)
+	mov [si], cx		(*   new source selector	*)
+	mov es:[di], ax
+	jmp TaskStart
+
+(************************************************************************)
+(* PROCEDURE IOTransfer;						*)
+(*									*)
+(* May be called only from an interrupt task.  Performs a task		*)
+(* switch from the current interrupt task to the task identified	*)
+(* by BackgroundSelector.  Unlike Transfer, no parameters are		*)
+(* required because (a) the selector for the destination task is	*)
+(* already in BackgroundSelector, having been put there at the time	*)
+(* the interrupt occurred; and (b) selectors for interrupt tasks are	*)
+(* maintained directly by this module rather than by TaskControl.	*)
+(************************************************************************)
+
+public InnerKernel$IOTransfer:
+
+	pushf			(* save flags			*)
+	db 60H	(* pusha *)	(* save all registers		*)
+	push es
+	push ds
+	(*%T _fdata *)
+	mov ax, _DATA		(* make DS:SI a pointer		*)
+	mov ds, ax		(*    to BackgroundSelector	*)
+	(*%E*)
+	mov si, BackgroundSelector
+	cld; lodsw		(* fetch the value of		*)
+	mov bx, [si]		(*    BackgroundSelector	*)
+	mov word [si], 0	(* clear BackgroundSelector	*)
+	(*%T _fptr *)
+	mov cx, ss		(* make DS select the caller's	*)
+	mov ds, cx		(*   stack segment		*)
+	(*%E*)
+	(*%F _fptr *)
+	mov ds, [currentSS]	(* make DS:SI a pointer to the	*)
+	(*%E*)			(*    selector location in our	*)
+	mov si, IntBlock+0AH	(*    stack segment		*)
+	push ds
+	call near StackSwap	(* do the task switch		*)
+
+	(* We reach here on the next interrupt.  For interrupt	*)
+	(* requests which are mapped through the 8259A		*)
+	(* controllers, we need to send a "nonspecific EOI"	*)
+	(* code to the master and/or slave controllers.		*)
+
+	pop ds
+	mov ah, EOI		(* this is the EOI code		*)
+	mov al, [IntBlock]	(* check the interrupt number	*)
+	cmp al, 8		(* for interrupt numbers in	*)
+	jb IOT20		(*   the range 8..15 inclusive,	*)
+	cmp al, 0FH		(*   we must send the EOI to	*)
+	jbe IOT10		(*   the master 8259A		*)
+	cmp al, 70H		(* for interrupt numbers in	*)
+	jb IOT20		(*   the range 70H..77H,	*)
+	cmp al, 77H		(*   we must kick first the	*)
+	ja IOT20		(*   slave and then the master	*)
+	mov al, ah
+	out Slave8259, al	(* EOI to slave controller	*)
+	mov al, 11
+	out Slave8259, al	(* read the in-service register	*)
+	in al, Slave8259	(*   of the slave controller	*)
+	test al, al		(* skip the EOI to master if	*)
+	jnz IOT20		(*   nonzero value in ISR	*)
+IOT10:	mov al, ah
+	out Master8259, al	(* EOI to master controller	*)
+
+	(* Return to the main body of the interrupt task code.	*)
+
+IOT20:	pop ds
+	pop es
+	db 61H	(* popa *)
+	popf
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(*		INSTALLING AND DE-INSTALLING INTERRUPT TASKS		*)
+(************************************************************************)
+
+(************************************************************************)
+(* PROCEDURE StartInterruptTask (TS: TaskSelector;			*)
+(*					InterruptNumber: CARDINAL);	*)
+(*									*)
+(* Starts an interrupt task by running its initialisation section	*)
+(* - i.e. everything up to the first IOTransfer - and arranging that	*)
+(* from then on it will be activated by the given interrupt.		*)
+(*									*)
+(* This module stores what it needs to know about an interrupt task	*)
+(* in a small control block which is kept near the beginning of that	*)
+(* task's stack segment.  The control block contents are as follows.	*)
+(*									*)
+(*	SS:IntBlock	interrupt number (1 byte)			*)
+(*	SS:IntBlock+1	a far CALL to procedure IntHandler (5 bytes)	*)
+(*	SS:IntBlock+6	saved interrupt vector (2 words)		*)
+(*	SS:IntBlock+0AH	selector: a saved SS:SP (2 words)		*)
+(*									*)
+(* The interrupt vector for an interrupt task is set to point to	*)
+(* the CALL at location SS:IntBlock+1.  This allows IntHandler to	*)
+(* determine which stack segment to switch to, and hence implicitly	*)
+(* which interrupt task to switch to on the occurrence of an interrupt.	*)
+(* The saved SS in this data block looks redundant, but it is needed	*)
+(* for consistency with the selector format used for ordinary tasks.	*)
+(*									*)
+(************************************************************************)
+
+public InnerKernel$StartInterruptTask:
+
+	pushf			(* save all registers and flags		*)
+	db 60H	(* pusha *)	(* (We need to save everything, since	*)
+	push es			(*  the task switch below potentially	*)
+	push ds			(*  corrupts all register contents)	*)
+
+	push cx			(* save interrupt number		*)
+	push bx			(* save a copy of task's stack segment	*)
+	(*%F _fptr *)
+	mov [currentSS], bx
+	(*%E*)
+	(*%T _fdata *)
+	mov dx, _DATA		(* make DS:SI a pointer			*)
+	mov ds, dx		(*   to BackgroundSelector		*)
+	(*%E*)
+	mov si, BackgroundSelector
+	call near StackSwap	(* run the interrupt task		*)
+
+	(* When we get back to here, the interrupt task has run to its	*)
+	(* first call to IOTransfer.  We now set up the control block	*)
+	(* in the interrupt task's stack segment.  Note: procedure	*)
+	(* IOTransfer has already saved a selector in that block.	*)
+
+	cli			(* disable interrupts		*)
+	cld			(* set direction = forwards	*)
+	pop es			(* select task's stack segment	*)
+	mov di, IntBlock
+	pop ax			(* restore interrupt number	*)
+	mov si, ax		(* save a copy of it in si	*)
+	mov ah, 9AH		(* this is a "far call" opcode	*)
+	stosw			(* store these in control block	*)
+	mov ax, IntHandler	(* address field for the	*)
+	stosw			(*    call instruction		*)
+	mov ax, cs		(*    (two words)		*)
+	stosw
+	shl si, 1		(* calculate 4 times interrupt	*)
+	shl si, 1		(*   number			*)
+	xor ax, ax		(* let DS:SI point to the	*)
+	mov ds, ax		(*   interrupt vector		*)
+	movsw			(* copy interrupt vector (2	*)
+	mov ax, [si]		(*   words) into save area in	*)
+	stosw			(*   interrupt task's stack	*)
+	mov [si], es		(* reload interrupt vector to	*)
+	dec si; dec si		(*   point to CALL instruction	*)
+	mov word [si],IntBlock+1  (*   in the control block	*)
+
+	pop ds			(* restore all saved registers	*)
+	pop es
+	db 61H	(* popa *)
+	popf
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+	
+(************************************************************************)
+(* PROCEDURE DisconnectFromInterrupt (TS: TaskSelector);		*)
+(*									*)
+(* Restores the interrupt vector to which TS was connected to its	*)
+(* state before TS was established as an interrupt task.  (N.B. The	*)
+(* result could be chaotic if there was no previous call to		*)
+(* ConnectToInterrupt.)							*)
+(************************************************************************)
+
+public InnerKernel$DisconnectFromInterrupt:
+
+	push ax
+	push es			(* save some registers			*)
+	push si
+	push di
+	(*%F _fdata*)
+	push ds
+	mov ds, bx
+	(*%E*)
+	mov al, [IntBlock]	(* get interrupt number			*)
+	sub ah, ah
+	mov si, IntBlock+6	(* DS:SI points to saved int vector	*)
+	shl ax, 1
+	shl ax, 1		(* calculate 4 times interrupt number	*)
+	mov di, ax		(* let ES:DI point to actual		*)
+	xor ax, ax		(*    interrupt vector			*)
+	mov es, ax
+	pushf			(* save processor flags			*)
+	cli			(* disable interrupts			*)
+	cld			(* direction = forwards			*)
+	movsw			(* restore original value of interrupt	*)
+	movsw			(*   vector from save area in interrupt	*)
+				(*   task's stack			*)
+	popf			(* restore processor flags		*)
+	(*%F _fdata*)
+	pop ds
+	(*%E*)
+	pop di
+	pop si			(* restore saved registers		*)
+	pop es
+	pop ax
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+	
+(************************************************************************)
+(*			THE GENERIC INTERRUPT HANDLER			*)
+(************************************************************************)
+
+IntHandler:
+	(* This is the interrupt routine for any interrupt task.  On an	*)
+	(* interrupt, the first instruction executed is a far CALL to	*)
+	(* this procedure from a location in the interrupt task's stack	*)
+	(* segment.  By looking at the return address, we can work out	*)
+	(* which stack segment to use, and therefore which task to	*)
+	(* switch to.  This sneaky trick does unfortunately mean that	*)
+	(* the code in this procedure is a little obscure.		*)
+
+	db 60H	(* pusha *)		(* save AX..DI			*)
+	mov bp, sp			(* we save DS, and later ES,	*)
+	mov [bp][10H], ds		(* UNDER the other registers	*)
+	mov dx, es			(* save old ES in stack by	*)
+	xchg dx, [bp][12H]		(*   swapping it with segment	*)
+					(*   part of the return address	*)
+	mov ds, dx			(* load the target stack	*)
+	mov ax, [IntBlock+0AH]		(*   pointer into BX:AX		*)
+	mov bx, [IntBlock+0CH]
+	mov cx, _DATA			(* make DS:SI a pointer		*)
+	mov ds, cx			(*   to BackgroundSelector	*)
+	(*%F _fptr *)
+	mov [currentSS], dx
+	(*%E*)
+	mov si, BackgroundSelector
+	call near StackSwap		(* switch to interrupt task	*)
+
+	(* On return from the above call, the interrupt task has	*)
+	(* completed its operation, and we are back in the interrupted	*)
+	(* task.  If there appears to be a mismatch between the way we	*)
+	(* now restore registers and the way we originally saved them,	*)
+	(* it is because we have discarded the return address which was	*)
+	(* saved by the CALL in the interrupt task's stack segment.	*)
+	
+	db 61H	(* popa *)
+	pop ds
+	pop es
+	iret
+
+(************************************************************************)
+(*			SPECIAL SHUTDOWN KLUDGE				*)
+(************************************************************************)
+
+(************************************************************************)
+(* PROCEDURE PrepareForShutdown;					*)
+(*									*)
+(* This procedure is needed just before executing the "exit from	*)
+(* program" operation, and is provided to get around a problem with	*)
+(* some memory models in TopSpeed version 3.  (With other compilers,	*)
+(* this can afford to be a dummy procedure.)  A (deliberate)		*)
+(* side-effect of calling this procedure is that the stack is		*)
+(* corrupted, so do NOT call it except as the final step of termination	*)
+(* processing.								*)
+(************************************************************************)
+
+public InnerKernel$PrepareForShutdown:
+
+	pop ax			(* put return address into AX	*)
+	(*%T _fcall*)		(* or BX:AX, depending on model	*)
+	pop bx
+	(*%E*)
+	(*%T _fdata *)
+	mov cx, _DATA		(* let DS select our data	*)
+	mov dx, ds		(*    segment			*)
+	mov ds, cx
+	(*%E*)
+	mov ss, [OriginalSS]	(* switch to another stack segment *)
+	(*%T _fdata *)
+	mov ds, dx		(* restore caller's DS	*)
+	(*%E*)
+	(*%T _fcall*)
+	push bx 		(* return to caller, but now	*)
+	push ax			(*   using a different stack	*)
+	ret far 0		(*     segment			*)
+	(*%E*)
+	(*%F _fcall*)
+	push ax
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(*			MODULE INITIALISATION				*)
+(************************************************************************)
+
+InitCode:
+	push ds
+	push ax
+	mov ax, _DATA		(* Set the second word of	*)
+	mov ds, ax		(*   BackgroundSelector to zero	*)
+	mov word [BackgroundSelector+2], 0
+	mov [OriginalSS], ss
+	(*%F _fptr *)
+	push bx			(* Special provision for the	*)
+	push cx			(*   case where SS=DS:		*)
+	mov bx, SaveFloat+1	(* AX:BX := ADR(SaveFloat)-0EH,	*)
+	mov cx, 4		(*   adjusted for paragraph	*)
+	shr bx, cx		(*   alignment and normalised	*)
+	add ax, bx
+	mov [currentSS], ax
+	pop cx
+	pop bx
+	(*%E*)
+	pop ax
+	pop ds
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+
+end
+

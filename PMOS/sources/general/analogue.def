@@ -1,0 +1,159 @@
+DEFINITION MODULE AnalogueIO;
+
+	(********************************************************)
+	(*							*)
+	(*		Analogue Input and Output.		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	13 February 1991		*)
+	(*  Status:		Working, more tests desirable.	*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(* This module supports the RTI-800/815 Multifunction Input/Output	*)
+(* Board.  (RTI is a trademark of Analog Devices).  The board has one	*)
+(* 8-bit digital output port, one 8-bit digital input port, and between	*)
+(* 8 and 32 channels (depending on hardware options) of analogue input.	*)
+(* The RTI-815 version has also two channels of analogue output.  The	*)
+(* A/D and D/A converters are 12-bit devices.				*)
+(*									*)
+(* Details such as whether the analogue signals are unipolar or bipolar	*)
+(* are controlled by hardware jumpers, and not by software, except for	*)
+(* a choice of a 1/10/100/500 gain on analogue input.  It is the user's	*)
+(* responsibility to know what this means in terms of actual voltages;	*)
+(* the software has no way of knowing which hardware options have been	*)
+(* selected.								*)
+(*									*)
+(* The board also contains an AM9513A Counter/Timer chip (a product of	*)
+(* Advanced Micro Devices Inc.) which supplies 5 16-bit counters along	*)
+(* with the support logic to use them in many different ways for	*)
+(* various counting and timing applications.  This module reserves the	*)
+(* use of counters 4 and 5 for its own internal purposes, as a timing	*)
+(* source to control the A/D sampling rate.  (The output of timer 5 is	*)
+(* connected, on the RTI-800/815 board, to the gate input of timer 4,	*)
+(* and the output of timer 4 triggers an A/D conversion).  The first	*)
+(* three timers are not used by this module, and are free to be used	*)
+(* for any other purpose which does not interfere with timers 4 and 5.	*)
+(* (NOTE: the first three timers are called timers 1-3 in the AM9513A	*)
+(* data sheets, but are called timers 0-2 in the RTI-800/815 manual).	*)
+(* Because of the great variety of operating options for the timers,	*)
+(* and the impossibility of predicting what the user will want to do	*)
+(* with them, this module does not attempt to provide any support	*)
+(* software for using timers 1-3.					*)
+(*									*)
+(************************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, WORD;
+
+TYPE
+    GainCode = [0..3];
+
+    (* The gain code for the A/D converter has the interpretation:	*)
+    (*		0	gain=1		range  -10 V to   +10 V		*)
+    (*		1	gain=10		range   -1 V  to   +1 V		*)
+    (*		2	gain=100	range -100 mV to +100 mV	*)
+    (*		3	gain=500	range  -20 mV to  +20 mV	*)
+    (* The ranges are those applicable when the board is jumpered for	*)
+    (* 10V bipolar operation.  The modifications for the unipolar and	*)
+    (* 5V bipolar cases should be obvious.				*)
+
+    OutputChannelNumber = [0..1];
+    InputChannelNumber = [0..31];
+
+(************************************************************************)
+(*				DIGITAL I/O				*)
+(************************************************************************)
+
+PROCEDURE DigitalOut (value: BYTE);
+
+    (* Sends the given value to the digital output port of the board.	*)
+
+PROCEDURE DigitalInput (): BYTE;
+
+    (* Reads the digital input port of the board.	*)
+
+(************************************************************************)
+(*		      ANALOGUE OUTPUT (RTI-815 ONLY)			*)
+(************************************************************************)
+
+PROCEDURE AnalogueOut (channel: OutputChannelNumber;  value: WORD);
+
+    (* Analogue output.  The channel number should be 0 or 1.  Only the	*)
+    (* least significant 12 bits of the value are used.  The value can	*)
+    (* be treated as either a signed or an unsigned 12-bit number,	*)
+    (* depending on hardware jumper selections.				*)
+
+(************************************************************************)
+(*		      ANALOGUE INPUT - SINGLE SAMPLE			*)
+(************************************************************************)
+
+PROCEDURE AnalogueInput (channel: InputChannelNumber; gain: GainCode): WORD;
+
+    (* Analogue input.  The value returned can be a signed or unsigned	*)
+    (* number, depending on jumper selections on the board.		*)
+    (* This procedure picks up a single sample when called.  It does	*)
+    (* not use interrupts or DMA.  It is recommended for use only in	*)
+    (* those cases (e.g. isolated sample, or aperiodic sampling) where	*)
+    (* the caller takes responsibility for timing.  More commonly, the	*)
+    (* procedures in the following section will be more appropriate.	*)
+    (* This procedure should NOT be called when periodic sampling has	*)
+    (* been activated; the results would be unpredictable.		*)
+
+(************************************************************************)
+(*		    ANALOGUE INPUT - PERIODIC SAMPLING			*)
+(************************************************************************)
+
+PROCEDURE StartPeriodicSampling (first, last: InputChannelNumber;
+					SamplingInterval: LONGCARD;
+					AmplifierGain: GainCode;
+					VAR (*OUT*) Buffer: ARRAY OF BYTE);
+
+    (* Initiates a mode of operation in which channels first..last,	*)
+    (* inclusive, will be sampled every SamplingInterval microseconds,	*)
+    (* with the results stored in array Buffer.  At each sampling time,	*)
+    (* the specified channels are read as nearly simultaneously as the	*)
+    (* hardware will allow.  Procedure WaitForNextSample, below, should	*)
+    (* be called to check when the data are available in array Buffer.	*)
+    (* If WaitForNextSample is not called often enough, there can be a	*)
+    (* data overrun in which data are overwritten.  We do not signal	*)
+    (* this as an error since the only thing which can be done about it	*)
+    (* is to use the new data and ignore whatever data have been lost.	*)
+
+    (* WARNING: Although the sampling interval is specified in		*)
+    (* microseconds, to allow fine tuning of the interval if desired,	*)
+    (* it is in general impractical to specify an interval shorter than	*)
+    (* about one or two milliseconds, because of software overheads.	*)
+    (* The precise limit depends on how much computation is done per	*)
+    (* sample, what other high-priority tasks are in the system, and so	*)
+    (* on.  It is advisable to test the system for evidence of data	*)
+    (* overrun, for example by looking at analogue inputs and outputs	*)
+    (* with a CRO, and to increase the sampling interval if there	*)
+    (* appear to be problems.						*)
+
+PROCEDURE WaitForNextSample;
+
+    (* Pauses until the buffer specified in the preceding procedure has	*)
+    (* been filled with valid data.  Notice that this is essentially a	*)
+    (* synchronization procedure; the caller does not have to do any	*)
+    (* timing operations since a return from this procedure implies	*)
+    (* that the next sample time has arrived.				*)
+    (* WARNINGS:							*)
+    (*  1. This procedure should not be called unless periodic sampling	*)
+    (*     is currently in effect.  Otherwise, it might never return.	*)
+    (*  2. Periodic sampling implies that the data buffer is re-filled	*)
+    (*	   regularly, regardless of whether the user code has finished	*)
+    (*	   with the previous data.  There are no interlocks, and no	*)
+    (*	   protection against data being updated just as one is reading	*)
+    (*	   it.  (Any such protection could interfere with the precision	*)
+    (*	   of the timing of sampling external data).  The caller is	*)
+    (*	   advised to move data out of the buffer promptly, especially	*)
+    (*	   when the sampling rate is high.				*)
+
+PROCEDURE StopPeriodicSampling;
+
+    (* Turns off the periodic sampling mode of A/D conversion.	*)
+
+END AnalogueIO.

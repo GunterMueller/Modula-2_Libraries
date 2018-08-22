@@ -1,0 +1,95 @@
+DEFINITION MODULE PlayBuff;
+
+	(********************************************************)
+	(*							*)
+	(*		Playing buffered sounds			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	25 February 1995		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	This module consists mainly of a timer		*)
+	(*	interrupt routine which continuously sends	*)
+	(*	data from a memory buffer to the speaker.	*)
+	(*	Higher-level modules can produce sound by	*)
+	(*	computing the desired waveform and stuffing	*)
+	(*	it into the buffer (using synchronisation	*)
+	(*	calls to ensure that they don't overwrite	*)
+	(*	data that haven't yet been sent to the		*)
+	(*	speaker).					*)
+	(*							*)
+	(*	Note that synchronisation will be lost,		*)
+	(*	resulting in a distorted sound, if the caller	*)
+	(*	is unable to supply data fast enough.		*)
+	(*	Programs using this module are not necessarily	*)
+	(*	portable to slower processors.			*)
+	(*							*)
+	(********************************************************)
+
+(*# module (init_code => off) *)
+
+FROM Types IMPORT
+    (* proc *)	FarPointer;
+
+(************************************************************************)
+(*			THE FORMAT OF THE USER DATA			*)
+(************************************************************************)
+(*									*)
+(* The waveform to be played is specified as an array of bytes, each of	*)
+(* which specifies a desired output level at one sample time.  We're	*)
+(* operating under some very tight time constraints, so to gain speed	*)
+(* the caller writes directly into the memory buffer from which the	*)
+(* timer interrupt routine in this module is taking the values.  It's	*)
+(* a single circular buffer internally, but the caller is expected to	*)
+(* treat it as two half-buffers, each of size OutputBufferSize.  As the	*)
+(* interrupt routine is working on one half, the caller is expected to	*)
+(* fill the other.  The interrupt routine never waits for the caller to	*)
+(* supply data, so it's up to the caller to supply new data as quickly	*)
+(* as possible, using procedures Synch0 and Synch1 to avoid overtaking	*)
+(* the interrupt routine.						*)
+(*									*)
+(************************************************************************)
+
+CONST OutputBufferSize = 128;
+
+    (* OutputBufferSize is the size of a half-buffer.  Do not alter	*)
+    (* this constant unless you are prepared to make consequential	*)
+    (* changes in the implementation module.				*)
+
+PROCEDURE BufferAddress (): FarPointer;
+
+    (* Returns the address of the first half-buffer. *)
+
+PROCEDURE SetCycleCount (count: BYTE);
+
+    (* Sets the cycle count which determines the sampling frequency.	*)
+    (* The default value is 64, giving an 18.643 kHz sampling rate.	*)
+
+PROCEDURE StartPlaying;
+
+    (* Call this just after the first half-buffer has been filled. *)
+
+(*# save, call(near_call=>off, seg_name=>PlayBuff) *)
+
+PROCEDURE Synch0;
+
+    (* Call this when you've just finished filling the second half of	*)
+    (* the buffer and want to move back to the first half.  On return	*)
+    (* from this procedure, the caller is permitted to start filling	*)
+    (* the first half.							*)
+
+PROCEDURE Synch1;
+
+    (* Call this when you've just finished filling the first half of	*)
+    (* the buffer and want to move on to the second half.  On return	*)
+    (* from this procedure, the caller is permitted to start filling	*)
+    (* the second half.							*)
+
+(*# restore *)
+
+PROCEDURE StopPlaying;
+
+    (* Stops the music and cleans up. *)
+
+END PlayBuff.
+

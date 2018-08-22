@@ -1,0 +1,49 @@
+DEFINITION MODULE DMA;
+
+	(********************************************************)
+	(*							*)
+	(*	Procedures to deal with Direct Memory Access	*)
+	(*		    input and output.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	19 August 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+PROCEDURE CheckDMAAddress (Address: ADDRESS;  count: CARDINAL): BOOLEAN;
+
+    (* Returns TRUE iff the given address and count values are		*)
+    (* suitable for a DMA transfer.  An unsuitable pair is one where	*)
+    (* the transfer would cross a 64K boundary in memory - a case which	*)
+    (* the DMA hardware cannot handle.					*)
+
+PROCEDURE AllocateDMABuffer (VAR (*OUT*) Address: ADDRESS;  size: CARDINAL);
+
+    (* Like the standard ALLOCATE procedure, but ensures that the	*)
+    (* allocated memory does not straddle a 64K boundary.  The memory	*)
+    (* can be deallocated with DEALLOCATE when you are finished with it.*)
+
+PROCEDURE LoadDMAparameters (channel, operation: CARDINAL;
+				Address: ADDRESS;  count: CARDINAL);
+
+    (* Loads the DMA controller with the address and count values	*)
+    (* as a preliminary to starting a DMA transfer.			*)
+    (* The code for "operation" is 0 for verify, 1 for read (transfer	*)
+    (* from external device to memory), and 2 for write (from memory to	*)
+    (* external device).  Other values are illegal.			*)
+
+    (* It is the caller's responsibility to know that the specified DMA	*)
+    (* channel is not already in use.  This is normally not a problem,	*)
+    (* since each channel is permanently dedicated to a single use.	*)
+
+    (* It is also the caller's responsibility to know that the given	*)
+    (* address and count do not cause the transfer to cross a 64 Kbyte	*)
+    (* boundary in main memory - a case which the DMA hardware cannot	*)
+    (* handle.  Use the above procedures to get around this problem.	*)
+
+END DMA.
+

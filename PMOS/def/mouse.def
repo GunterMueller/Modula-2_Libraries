@@ -1,0 +1,80 @@
+DEFINITION MODULE Mouse;
+
+        (********************************************************)
+        (*                                                      *)
+        (*                  Mouse driver                        *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Last edited:        14 October 1996                 *)
+        (*  Status:             OK                              *)
+        (*                                                      *)
+        (********************************************************)
+
+IMPORT Mouse0;
+
+TYPE
+    Buttons      = Mouse0.Buttons;
+    ButtonSet    = Mouse0.ButtonSet;
+    Events       = Mouse0.Events;
+    EventSet     = Mouse0.EventSet;
+    EventHandler = Mouse0.EventHandler;
+
+(************************************************************************)
+
+PROCEDURE MouseAvailable (): BOOLEAN;
+
+    (* Returns TRUE iff a mouse driver is loaded, a mouse exists, and   *)
+    (* mouse operation is permitted in module ConfigurationOptions.     *)
+
+PROCEDURE ResetMouse (VAR (*OUT*) MousePresent: BOOLEAN;
+                        VAR (*OUT*) NumberOfButtons: CARDINAL);
+
+    (* Initializes mouse, returning MousePresent as FALSE if no mouse   *)
+    (* available and as TRUE if it is, and NumberOfButtons as the       *)
+    (* number of buttons for the mouse if installed.                    *)
+
+PROCEDURE GetTextMousePosition (VAR (*OUT*) Xposition: CARDINAL;
+                                VAR (*OUT*) Yposition: CARDINAL);
+
+    (* Returns the current position of the mouse cursor. *)
+
+PROCEDURE GetTextMouseStatus (VAR (*OUT*) buttons: ButtonSet;
+                                VAR (*OUT*) Xposition: CARDINAL;
+                                VAR (*OUT*) Yposition: CARDINAL);
+
+    (* Returns the current mouse position and state of the buttons.     *)
+
+PROCEDURE SetTextMousePosition (Xposition: CARDINAL; Yposition: CARDINAL);
+
+    (* Initialises the mouse position. *)
+
+PROCEDURE SetTextMousePage (page: CARDINAL);
+
+    (* Sets the hardware screen page where the mouse is visible. *)
+
+PROCEDURE SetMouseCursorLimits (top, bottom: CARDINAL;
+                                        left, right: CARDINAL);
+
+    (* Specifies a rectangular region outside which the mouse cursor    *)
+    (* may not go.                                                      *)
+
+PROCEDURE ShowMouseCursor;
+
+    (* Makes the mouse cursor visible on the screen. *)
+
+PROCEDURE HideMouseCursor;
+
+    (* Makes the mouse cursor invisible. *)
+
+PROCEDURE InstallEventHandler (DetectedEvents: EventSet;
+                                        Handler: EventHandler);
+
+    (* Nominates the procedure to be called whenever an event in the    *)
+    (* set DetectedEvents occurs.  Note: the Handler is like an         *)
+    (* interrupt procedure, in that it is executing in the context of   *)
+    (* an unknown task; typically it should probably restrict its       *)
+    (* actions to fairly elementary things, like a Signal to wake up    *)
+    (* the task that really wants to know about the event.              *)
+
+END Mouse.
+

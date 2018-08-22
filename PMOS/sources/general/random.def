@@ -1,0 +1,25 @@
+DEFINITION MODULE Random;
+
+	(********************************************************)
+	(*							*)
+	(*		Random number generator			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	12 February 1993		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+PROCEDURE RANDOM(): REAL;
+
+    (* Returns a random number from a uniform (0.0, 1.0) distribution.	*)
+
+PROCEDURE Randomize (newseed: LONGCARD);
+
+    (* Resets the seed of the random number generator.  Optional, but	*)
+    (* useful for either (a) obtaining a different random number	*)
+    (* sequence on each run of a program, or (b) conversely, obtaining	*)
+    (* a repeatable experiment.						*)
+
+END Random.
+

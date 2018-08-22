@@ -1,0 +1,36 @@
+DEFINITION MODULE DumpFile;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*   Debugging aid: writes data out to a file DUMP.$$$          *)
+        (*                                                              *)
+        (*      Programmer:     P. Moylan                               *)
+        (*      Last edited:    16 October 1996                         *)
+        (*      Status:         OK                                      *)
+        (*                                                              *)
+        (****************************************************************)
+
+IMPORT SYSTEM;
+
+PROCEDURE Dump (data: ARRAY OF SYSTEM.LOC);
+
+    (* Writes the data to the dump file. *)
+
+PROCEDURE DumpString (message: ARRAY OF CHAR);
+
+    (* Writes a character string. *)
+
+PROCEDURE DumpCard (value: CARDINAL);
+
+    (* Converts the number to a text string and writes it to the dump file. *)
+
+PROCEDURE DumpHex (value: ARRAY OF SYSTEM.LOC);
+
+    (* Converts the value to a hexadecimal text string and writes it to the dump file. *)
+
+PROCEDURE DumpEOL;
+
+    (* Writes an "end of line" to the dump file. *)
+
+END DumpFile.
+

@@ -1,0 +1,127 @@
+DEFINITION MODULE Mouse33;
+
+	(****************************************************************)
+	(*								*)
+	(*		   Mouse driver using INT 33H			*)
+	(*		to call a resident mouse driver			*)
+	(*								*)
+	(*	Originally developed by Roger Carvalho and Pat Terry.	*)
+	(*	The present version is maintained by Peter Moylan.	*)
+	(*								*)
+	(*	Last edited:	17 August 1994				*)
+	(*								*)
+	(****************************************************************)
+
+FROM Mouse0 IMPORT
+    (* type *)	Buttons, ButtonSet, EventSet, EventHandler;
+
+PROCEDURE InitialiseMouseDriver(): BOOLEAN;
+
+    (* Does all initialisation needed for this module.  We make this a	*)
+    (* procedure rather than an initialisation section because module	*)
+    (* Mouse has to decide which mouse driver to use.  The function	*)
+    (* result indicates success; if it is FALSE, none of the following	*)
+    (* procedures will work.  Note: this is not an end-user procedure,	*)
+    (* it's intended to be called only by module Mouse.			*)
+
+PROCEDURE Reset (VAR (*OUT*) MousePresent: BOOLEAN;
+			VAR (*OUT*) NumberOfButtons: CARDINAL);
+
+    (* Initializes mouse, returning MousePresent as FALSE if no mouse	*)
+    (* available and as TRUE if it is, and NumberOfButtons as the	*)
+    (* number of buttons for the mouse if installed.			*)
+
+PROCEDURE ShowCursor;
+
+    (* Turns mouse cursor on. *)
+
+PROCEDURE HideCursor;
+
+    (* Turns mouse cursor off. *)
+
+PROCEDURE GetPosBut (VAR (*OUT*) Buttons: ButtonSet;
+				VAR (*OUT*) X, Y : CARDINAL);
+
+    (* Gets position and Button state. *)
+
+PROCEDURE SetCursorPos (X, Y : CARDINAL);
+
+    (* Sets the mouse cursor position. *)
+
+PROCEDURE GetButPress (Button: Buttons;  VAR (*OUT*) Status: ButtonSet;
+		VAR (*OUT*) Count: CARDINAL;  VAR (*OUT*) X, Y: CARDINAL);
+
+    (* Gets Button press information. *)
+
+PROCEDURE GetButRelease (Button: Buttons;  VAR (*OUT*) Status : ButtonSet;
+				VAR (*OUT*) Count: CARDINAL;
+				VAR (*OUT*) X, Y: CARDINAL);
+
+    (* Gets Button release information. *)
+
+PROCEDURE SetHorizontalLimits (MinX, MaxX : CARDINAL);
+PROCEDURE SetVerticalLimits (MinY, MaxY : CARDINAL);
+
+    (* Sets the cursor limits. *)
+
+TYPE
+    GraphicCursor = RECORD
+			ScreenMask,
+			CursorMask : ARRAY [0 .. 15] OF BITSET;
+			HotX, HotY : INTEGER [-16 .. 16];
+                    END (*RECORD*);
+
+PROCEDURE SetGraphicsCursor (Cursor : GraphicCursor);
+
+    (* Sets the graphics cursor shape.  The ScreenMask is first ANDed	*)
+    (* into the display, then the CursorMask is XORed into the display.	*)
+    (* The hot spot coordinates are relative to the upper-left corner	*)
+    (* of the cursor image, and define where the cursor actually	*)
+    (* 'points to'.							*)
+
+PROCEDURE SetTextCursor (HardWare: BOOLEAN;  Start, Stop: CARDINAL);
+
+    (* Sets the text cursor.  For the software text cursor, the second	*)
+    (* two parameters specify the screen and cursor masks.  The screen	*)
+    (* mask is first ANDed into the display, then the cursor mask is	*)
+    (* XORed into the display.  For the hardware text cursor, the	*)
+    (* second two parameters contain the line numbers of the first and	*)
+    (* last scan line in the cursor to be shown on the screen.		*)
+
+PROCEDURE ReadMotionCounters (VAR (*OUT*) X, Y: CARDINAL);
+
+    (* Read motion counters. *)
+
+PROCEDURE SetEventHandler (Mask: EventSet;  Handler: EventHandler);
+
+    (* Establish conditions and Handler for mouse events.  After this,	*)
+    (* when an event occurs that is in the Mask, the Handler is called	*)
+    (* with the event set that actually happened, the current Button	*)
+    (* status, and the cursor X and Y.					*)
+
+PROCEDURE LightPenOn;
+
+    (* Sets light pen on. *)
+
+PROCEDURE LightPenOff;
+
+    (* Sets light pen off. *)
+
+PROCEDURE SetMickeysPerPixel (HorMPP, VertMPP : CARDINAL);
+
+    (* Sets the Mickey / Pixel ratio. *)
+
+PROCEDURE ConditionalOff (Left, Top, Right, Bottom: CARDINAL);
+
+    (* Sets limits within which cursor is on. *)
+
+PROCEDURE SetSpeedThreshold (Threshold : CARDINAL);
+
+    (* Sets mimimum speed Threshold. *)
+
+PROCEDURE SetPage (page: CARDINAL);
+
+    (* Sets the hardware screen page where the mouse is visible. *)
+
+END Mouse33.
+

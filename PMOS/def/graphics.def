@@ -1,0 +1,172 @@
+DEFINITION MODULE Graphics;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*                   Screen graphics output                     *)
+        (*                                                              *)
+        (*  Programmer:         P. Moylan                               *)
+        (*  Last edited:        5 November 1996                         *)
+        (*  Status:             OK                                      *)
+        (*                                                              *)
+        (*      The procedures in this module assume that the caller    *)
+        (*      has control of the entire screen.                       *)
+        (*      For multi-window graphics, see module GWindows.         *)
+        (*                                                              *)
+        (****************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)  ADDRESS, CARD8;
+
+FROM ScreenGeometry IMPORT
+    (* type *)  Rectangle;
+
+(************************************************************************)
+(*                                                                      *)
+(*  The constant BLorigin defined below is to support two different     *)
+(*  origin conventions.  When a reference is made to (x,y) coordinates  *)
+(*  in this module, the x value is the horizontal coordinate, with 0    *)
+(*  at the left of the the screen, and the y value is the vertical      *)
+(*  coordinate.  If BLorigin is TRUE then y=0 is at the bottom of the   *)
+(*  screen and y values increase upwards.  If BLorigin is FALSE then    *)
+(*  y=0 is at the top of the screen and y values increase downwards.    *)
+(*  You can choose whichever convention suits you best; the effect on   *)
+(*  execution speed is negligible.  Some other PMOS modules assume      *)
+(*  that you have selected the TRUE option.                             *)
+(*                                                                      *)
+(*  You might think that the inclusion of this choice will increase     *)
+(*  software overheads, but in fact any reasonable compiler will do     *)
+(*  the constant testing at compile time rather than at execution time, *)
+(*  eliminating the unreachable code.                                   *)
+(*                                                                      *)
+(************************************************************************)
+
+CONST BLorigin = TRUE;
+
+(************************************************************************)
+
+TYPE ColourType = CARDINAL;
+
+PROCEDURE SetMode (newmode: CARDINAL;  ClearScreen: BOOLEAN);
+
+    (* Sets the video mode. *)
+
+    (* Warning: the option ClearScreen=FALSE sometimes produces some    *)
+    (* strange effects, apparently because of some aspect of the BIOS   *)
+    (* that I don't yet understand.                                     *)
+
+PROCEDURE SetDefaultMode;
+
+    (* Sets the video mode to (our opinion of) the "best" graphics mode *)
+    (* supported by the hardware.                                       *)
+
+PROCEDURE GraphicsOff (ClearScreen: BOOLEAN);
+
+    (* Sets the video mode to a default text mode. *)
+
+PROCEDURE GetScreenShape (VAR (*OUT*) xmax, ymax: CARDINAL;
+                                VAR (*OUT*) maxcolour: ColourType;
+                                VAR (*OUT*) CharHeight: CARDINAL);
+
+    (* Returns the maximum values permitted by the current mode for     *)
+    (* x, y, and colour; and the number of rows in a character.         *)
+
+PROCEDURE SetFont (height, width: CARDINAL;  TablePtr: ADDRESS);
+
+    (* Specifies the font that will be used from now on (until the      *)
+    (* next mode setting) for drawing characters.  The first two        *)
+    (* parameters are the character size, and TablePtr points to the    *)
+    (* bitmap that defines the font.  This procedure is normally        *)
+    (* optional, since SetMode sets up a default font.                  *)
+
+    (* Implementation restriction: in the present version the 'width'   *)
+    (* parameter is ignored, and all characters are assumed to be       *)
+    (* eight pixels wide.                                               *)
+
+PROCEDURE SetPaletteColour (Palette_Index, Red, Green, Blue: CARD8);
+
+    (* Sets the colour for one palette register.  Applicable only to    *)
+    (* VGA or better.  The three colour codes are 6-bit numbers.        *)
+
+PROCEDURE PlotDot (x, y: CARDINAL;  colour: ColourType);
+
+    (* Writes a dot at screen position (x, y).  *)
+
+PROCEDURE PlotMark (x, y: CARDINAL;
+                        colour: ColourType;  pointtype: CARDINAL);
+
+    (* Writes a mark at screen position (x, y).  Currently, the options *)
+    (* for pointtype are:                                               *)
+    (*          0       dot                                             *)
+    (*          1       X                                               *)
+    (*          2       box                                             *)
+
+PROCEDURE PlotLine (x0, y0, x1, y1: CARDINAL;  colour: ColourType);
+
+    (* Plots a straight line from (x0,y0) to (x1,y1).  It is the        *)
+    (* caller's responsibility to ensure that the coordinates are in    *)
+    (* range for the current video mode.                                *)
+
+PROCEDURE PlotRectangle (R: Rectangle;  colour: ColourType);
+
+    (* Plots a rectangle, with clipping if necessary to keep the        *)
+    (* points within the screen boundary.                               *)
+
+PROCEDURE ClippedLine (x0, y0, x1, y1: CARDINAL;  colour: ColourType;
+                        left, right, ymin, ymax: CARDINAL);
+
+    (* Like PlotLine, but plots only that part of the line which lies   *)
+    (* in the rectangle (left <= x <= right), (ymin <= y <= ymax).      *)
+    (* The caller is expected to ensure, by appropriate definition of   *)
+    (* the rectangle, that all plotted points are in range for the      *)
+    (* current video mode.                                              *)
+
+PROCEDURE Fill (x0, y0, x1, y1: CARDINAL;  colour: ColourType);
+
+    (* Fills a rectangle with the indicated colour.  The rectangle is   *)
+    (* specified by giving two opposite corners (x0,y0) and (x1,y1).    *)
+
+PROCEDURE ACopy (xs, ys, width, height: CARDINAL;  dx, dy: INTEGER);
+
+    (* Copies a rectangular region by an offset (dx, dy).  The pair     *)
+    (* (xs,ys) gives the coordinates of the top left of the source      *)
+    (* rectangle.  Restrictions: this procedure is restricted to the    *)
+    (* case where distance to move the data is an integral number of    *)
+    (* bytes (i.e. if you want it to work for all modes then dx should  *)
+    (* be a multiple of 8); and in the case where the source and        *)
+    (* destination rectangles overlap then the move has to be upwards   *)
+    (* on the screen.  Thus we do not have a completely general "block  *)
+    (* copy" operation, but we do have something sufficient to support  *)
+    (* "scroll up" and similar operations.                              *)
+
+PROCEDURE DrawChar (ch: CHAR;  x, y: CARDINAL;  colour: ColourType);
+
+    (* Draws the single character ch.  The coordinates (x,y) are the    *)
+    (* location of the bottom left of the character.                    *)
+
+PROCEDURE PlotString (VAR (*IN*) text: ARRAY OF CHAR;
+                        x, y, length: CARDINAL;  colour: ColourType);
+
+    (* Draws a string of "length" characters starting at location (x,y) *)
+    (* It is the caller's responsibility to ensure that the string will *)
+    (* not run off the screen edges.                                    *)
+
+PROCEDURE ClippedString (VAR (*IN*) text: ARRAY OF CHAR;
+                        x, y, length: CARDINAL;  colour: ColourType;
+                        left, right, ymin, ymax: CARDINAL);
+
+    (* Like PlotString, but excludes any points which fall outside the  *)
+    (* clip rectangle defined by (left,right,ymin,ymax).                *)
+
+PROCEDURE PlotStringUp (VAR (*IN*) text: ARRAY OF CHAR;
+                        x, y, length: CARDINAL;  colour: ColourType);
+
+    (* Like PlotString, but with text written in the +Y direction       *)
+
+PROCEDURE ClippedUpString (VAR (*IN*) text: ARRAY OF CHAR;
+                        x, y, length: CARDINAL;  colour: ColourType;
+                        left, right, ymin, ymax: CARDINAL);
+
+    (* Like ClippedString, but with text written in the +Y direction.   *)
+
+END Graphics.
+

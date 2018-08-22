@@ -1,0 +1,57 @@
+FAULTS IN ACCOUNTS V2.2
+=======================
+
+Menus: use the improved facilities of module Menus.  I think this is working
+  now, but needs more testing.
+
+Second right mouse click after bringing up a menu selects the default
+  menu item.  It would be better if it were ignored.
+
+Block move: I've made a change for large blocks, but on reflection I
+  think I did the wrong thing: the same number of records in total
+  have to move whether we move a block or move things around it, so
+  it may be more efficient to move the _bigger_ block to take advantage
+  of large chunks.  (Note: the move works in either case, this is just
+  an efficiency issue.)
+
+Printing:
+ - heading is a bit crude.
+ - print to PRN seems to crash system.
+
+Startup: can I improve speed?  It's a problem of opening all those
+  files - no obvious way to avoid this.
+
+Block move: Got a program hang (after the display was updated as expected!)
+  on a move of a block from near the bottom of the display to the top
+  line.  (Keyboard locked, i.e. got nothing but beeps from any key.)
+  Happened only once, cannot now reproduce problem.  This is probably
+  NOT fixed, because Marion has reported similar symptoms on some other
+  operations.  Conjecture: could be due to error in a file operation
+  - although an argument against this is that it looks as if the files
+  are updated correctly.
+
+
+DESIRABLE NEW FEATURES
+
+Configuration options for international use.  It looks easy to
+  allow for American dates, alternative money fields should be easy
+  too, so it's mainly a matter of adding some "configure" procedures.
+  Catch: we have to store the configuration options in a file
+  somewhere.  For money, this would involve adding something to the
+  header of each data file.  For dates too?  This seems like
+  overkill, since it would be silly to have different formats for
+  different files.
+
+Note minor inelegancy: while marking a block, there's a perceptible
+  time delay between scrolling and the colour reversal to mark the
+  new section.  The speed penalty as such is minor, but the visual
+  effect is disconcerting.  Possibly could be improved by doing the
+  colour change at the time of scrolling - but this might require a
+  significant change in the program logic.
+
+
+MODULE LIST
+
+      Accounts ViewModule FileWindows FileOperations Transactions
+      Dates MoneyModule Abbreviations Notes
+

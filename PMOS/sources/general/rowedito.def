@@ -1,0 +1,111 @@
+DEFINITION MODULE RowEditor;
+
+	(********************************************************)
+	(*							*)
+	(*	  Screen data capture, for a single row		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	6 October 1990			*)
+	(*  Status:						*)
+	(*	Basic features working.  Known faults are:	*)
+	(*	  1.	(fixed)					*)
+	(*	  2.	The criterion for deciding in which	*)
+	(*		field to start editing could be better.	*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+FROM FieldEditor IMPORT
+    (* type *)	FieldType;
+
+FROM ListEditor IMPORT
+    (* type *)	List, ListFormat;
+
+FROM Menus IMPORT
+    (* type *)	Menu;
+
+(************************************************************************)
+
+TYPE
+    StructureRow;		(* is private *)
+
+(************************************************************************)
+(*			      SCREEN OUTPUT				*)
+(************************************************************************)
+
+PROCEDURE WriteRow (w: Window;  R: StructureRow;  line: CARDINAL);
+
+    (* Writes R on row "line" of window w.	*)
+
+PROCEDURE StartColumn (R: StructureRow): CARDINAL;
+
+    (* Returns the screen column of the first field in R.	*)
+
+PROCEDURE DumpRow (w: Window;  R: StructureRow);
+
+    (* For debugging: writes a representation of R to the screen.	*)
+
+(************************************************************************)
+(*		CREATING MULTI-FIELD EDITING STRUCTURES			*)
+(************************************************************************)
+
+PROCEDURE NewRow (VariableAddress: ADDRESS;  ftype: FieldType;
+			screencolumn, width: CARDINAL): StructureRow;
+
+    (* Creates a new row containing a single field.	*)
+
+PROCEDURE NewMenu (VAR (*IN*) variable: CARDINAL;  M: Menu;
+			screencolumn, rows, columns: CARDINAL): StructureRow;
+
+    (* Creates a new row containing a menu field.  The screencolumn	*)
+    (* field specifies the leftmost column within the screen window,	*)
+    (* the rows and columns fields give the size on the screen.		*)
+
+PROCEDURE NewList (VAR (*IN*) variable: List;  f: ListFormat;
+				screencolumn: CARDINAL): StructureRow;
+
+    (* Creates a new row containing a list field.	*)
+
+PROCEDURE CombineRows (VAR (*INOUT*) A: StructureRow;  B: StructureRow);
+
+    (* Strips all of the fields from B and adds them to the existing	*)
+    (* fields of A.  Note that B is destroyed in the process.		*)
+
+(************************************************************************)
+(*	The next few procedures are to support array operations.	*)
+(************************************************************************)
+
+PROCEDURE CopyOfRow (R: StructureRow): StructureRow;
+
+    (* Returns a duplicate copy of R.  Note that the variables to be	*)
+    (* edited are not duplicated - only the editor structure which	*)
+    (* keeps track of what is being edited.				*)
+
+PROCEDURE AdjustRow (R: StructureRow;  addroffset, columnoffset: CARDINAL);
+
+    (* Modifies every entry in R by adding addroffset to the variable	*)
+    (* address and columnoffset to the screen column.			*)
+
+PROCEDURE DeleteRow (R: StructureRow);
+
+    (* Deallocates the storage which was used in setting up row R.	*)
+    (* Note that this has nothing to do with the space used by		*)
+    (* variables to which R gives access; we delete only the overhead	*)
+    (* space which was originally allocated by this module.		*)
+
+(************************************************************************)
+(*				EDITING					*)
+(************************************************************************)
+
+PROCEDURE EditRow (w: Window;  R: StructureRow;  screenrow: CARDINAL);
+
+    (* Displays structure R in window w, and allows the keyboard user	*)
+    (* to edit the components of R.  It is assumed that w is already	*)
+    (* open and that R has already been fully defined.			*)
+
+END RowEditor.

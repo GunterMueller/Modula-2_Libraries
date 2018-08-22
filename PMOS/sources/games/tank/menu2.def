@@ -1,0 +1,19 @@
+DEFINITION MODULE Menu2;
+(*****************************************************************************)
+(**  Menu routines to set up and start a game.                              **)
+(*****************************************************************************)
+
+TYPE playertype = (human,DumbComp,SmartComp);
+
+TYPE initvalu = RECORD
+              Wind: REAL;
+              Sound:BOOLEAN;
+              Trace:BOOLEAN;
+              Play:BOOLEAN;
+              ScreenRes:SHORTCARD;
+              Player2:playertype;
+              END (*RECORD*);
+
+PROCEDURE BlastMenu():initvalu;
+
+END Menu2.

@@ -1,0 +1,56 @@
+DEFINITION MODULE FinalExit;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*           Support for program termination procedures         *)
+        (*                                                              *)
+        (*  The facility provided is that the caller can specify any    *)
+        (*  number of parameterless procedures to be called when the    *)
+        (*  program terminates.  This allows each module which needs it *)
+        (*  to have a final cleanup procedure to do things like         *)
+        (*  releasing allocated memory, closing open files, etc.  The   *)
+        (*  termination procedures are called in a last-in first-out    *)
+        (*  order, which generally means that the higher-level modules  *)
+        (*  are dealt with before lower-level modules (which is usually *)
+        (*  what we want).                                              *)
+        (*                                                              *)
+        (*  Multipass termination processing is supported by allowing   *)
+        (*  any termination handler to itself install another handler.  *)
+        (*  In such a case the new handler is not executing until the   *)
+        (*  current list of waiting handlers is exhausted.  Multipass   *)
+        (*  processing is needed when, for example, part of a module    *)
+        (*  shutdown cannot be completed until it is guaranteed that    *)
+        (*  all multitasking has ceased.                                *)
+        (*                                                              *)
+        (*      Programmer:     P. Moylan                               *)
+        (*      Last edited:    23 October 1996                         *)
+        (*      Status:         OK                                      *)
+        (*                                                              *)
+        (****************************************************************)
+
+(*
+PROCEDURE SetTerminationProcedure (TP: PROC);
+
+    (* Adds TP to the list of procedures which will be called just      *)
+    (* before program termination.  The list is ordered such that the   *)
+    (* last procedure added will be the first one called.  Exception:   *)
+    (* if termination is already in progress when this procedure is     *)
+    (* called, then TP will not be called until all of the existing     *)
+    (* termination procedures have been called.  This rule permits      *)
+    (* multi-pass termination processing, where necessary, by letting   *)
+    (* termination procedures themselves install more termination       *)
+    (* procedures.                                                      *)
+
+PROCEDURE Crash (message: ARRAY OF CHAR);
+
+    (* Terminates the program with an error report.     *)
+
+PROCEDURE TerminationMessage (VAR (*OUT*) message: ARRAY OF CHAR): BOOLEAN;
+
+    (* Returns the message supplied by the caller of the Crash          *)
+    (* procedure.  The function result is TRUE if such a message        *)
+    (* exists, and FALSE if Crash was never called.                     *)
+*)
+
+END FinalExit.
+

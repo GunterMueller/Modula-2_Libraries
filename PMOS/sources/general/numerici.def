@@ -1,0 +1,96 @@
+DEFINITION MODULE NumericIO;
+
+	(****************************************************************)
+	(*								*)
+	(*		Numeric I/O using windows.			*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	18 February 1994			*)
+	(*  Status:		OK					*)
+	(*								*)
+	(****************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, ADDRESS;
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+PROCEDURE WriteHexByte (w: Window;  number: BYTE);
+
+    (* Writes the second argument as a two-digit hexadecimal number.	*)
+
+PROCEDURE WriteHexWord (w: Window;  number: CARDINAL);
+
+    (* Writes the second argument as a four-digit hexadecimal number.	*)
+
+PROCEDURE WriteHexLongword (w: Window;  number: LONGCARD);
+
+    (* Writes the second argument as an eight-digit hexadecimal number.	*)
+
+PROCEDURE EditHexByte (w: Window;  VAR (*INOUT*) value: BYTE);
+
+    (* Screen editing of a 2-digit hexadecimal value *)
+
+PROCEDURE EditHexWord (w: Window;  VAR (*INOUT*) value: CARDINAL);
+
+    (* Screen editing of a 4-digit hexadecimal value *)
+
+PROCEDURE EditHexLongword (w: Window;  VAR (*INOUT*) value: LONGCARD);
+
+    (* Screen editing of an 8-digit hexadecimal value *)
+
+PROCEDURE WriteAddress (w: Window;  addr: ADDRESS);
+
+    (* Writes a segmented address to the screen.	*)
+
+PROCEDURE WriteCard (w: Window;  number: CARDINAL);
+
+    (* Writes the second argument as a decimal number.	*)
+
+PROCEDURE WriteShortCard (w: Window;  number: SHORTCARD);
+
+    (* Writes the second argument as a decimal number.	*)
+
+PROCEDURE WriteLongCard (w: Window;  number: LONGCARD);
+
+    (* Writes the second argument as a decimal number.	*)
+
+PROCEDURE WriteInt (w: Window;  number: INTEGER);
+
+    (* Writes the second argument as a decimal number.	*)
+
+PROCEDURE WriteRJCard (w: Window;  number, fieldsize: CARDINAL);
+
+    (* Like WriteCard, but the result is right justified in a field	*)
+    (* of fieldsize characters.						*)
+
+PROCEDURE WriteRJShortCard (w: Window;  number: SHORTCARD;
+					fieldsize: CARDINAL);
+
+    (* Like WriteShortCard, but the result is right justified in a	*)
+    (* field of fieldsize characters.					*)
+
+PROCEDURE WriteRJLongCard (w: Window;  number: LONGCARD; fieldsize: CARDINAL);
+
+    (* Like WriteLongCard, but the result is right justified in a field	*)
+    (* of fieldsize characters.						*)
+
+PROCEDURE ReadCard (w: Window;  VAR (*OUT*) number: CARDINAL);
+
+    (* Reads a decimal number.	*)
+
+PROCEDURE ReadBufferedCardinal (w: Window;  fieldsize: CARDINAL): CARDINAL;
+
+    (* Reads a decimal number.  The difference between this and		*)
+    (* ReadCard is that the user is given a reverse-video field of a	*)
+    (* fixed width to work in, and is able to use the cursor control	*)
+    (* keys to edit within that field.					*)
+
+PROCEDURE EditCardinal (w: Window;  VAR (*INOUT*) value: CARDINAL;
+						fieldsize: CARDINAL);
+
+    (* Screen editing of a decimal number. *)
+
+END NumericIO.
+

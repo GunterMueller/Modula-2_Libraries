@@ -1,0 +1,168 @@
+                 README file for the Accounts program
+                 ====================================
+
+This program is shareware.  You are entitled to keep an unregistered
+copy of the program for evaluation purposes, and to give copies of the
+unregistered version to other people.  If you intend to keep using
+the program, you should register it.  Registration details and
+other conditions of use are explained later in this README document.
+
+The function of the program is to keep track of your personal financial
+accounts, for bank statement reconciliation, recording tax-deductible
+items, and similar purposes.  There is also provision for remembering
+when bills are due, and for making brief diary entries.
+
+
+DISCLAIMER
+
+Although the features provided by this program are sufficient for
+personal account-keeping, you should not rely on it in situations
+where loss or corruption of data would result in a financial loss.
+There are some situations - for example, where account balances
+become too large - where the program will fail.  You may use the
+program only if you agree to accept its limitations.
+
+The program is NOT intended for business use.  If you use it in the
+course of running a business, you are violating the conditions of use.
+
+
+INSTALLATION
+
+To run the accounts program, you need the executable ACCOUNTS.EXE
+and several data files.  It is suggested that you create directories
+\ACCOUNTS and \ACCOUNTS\DATA, and set up the files as follows:
+
+     \ACCOUNTS\ACCOUNTS.EXE
+               The executable program.
+
+     \ACCOUNTS\CONFIG.ACC
+               A text file containing the names of the data files on
+               which the program will operate.  A sample CONFIG.ACC is
+               distributed with this program, but you will need to
+               modify it to meet your own needs.
+
+     \ACCOUNTS\MAINMENU.ACC    (optional)
+               A text file which allows you to add items to the program's
+               main menu.  This file is optional, i.e. the program will
+               still work if it is missing.
+
+     \ACCOUNTS\DATA\DIARY and \ACCOUNTS\DATA\BILLS.LGR
+               A file of diary entries, and the "pending bills" file.
+               These files may be missing from the distributed
+               version; if so, the program creates them when it is
+               first run.
+
+You may choose different directory names if you wish; but the two
+.ACC files must reside in the directory from which you run the program,
+and this directory must have a subdirectory called DATA.
+
+When you first run the program, or after you edit CONFIG.ACC, you are
+likely to get startup messages saying that certain files are missing.
+This is normal.  Any time you want to create a new data file, just
+put its name into CONFIG.ACC (using a text editor) and let the program
+create that file on startup.
+
+If you subsequently decide not to use the program, you can de-install
+it by deleting the directories \ACCOUNTS and \ACCOUNTS\DATA.
+
+
+HOW TO USE THE PROGRAM
+
+There is as yet no manual for the program.  (I might be talked into
+producing a manual if enough people register.)  It should however be
+self-explanatory since everything is menu-driven.
+
+To select a menu item, you can use the cursor movement keys (Home, End,
+PageUp, PageDown, and the four arrow keys) to move to the desired item.
+Alternatively, you can type the first letter of the item name.  Once
+you have selected an item, either the Enter key or space bar will
+activate that item.
+
+If using a mouse, a left click will select an item, and a left
+click on an already-selected item will activate the item.  Because
+of portability problems, mouse support is missing from the
+unregistered version.
+
+To leave a menu without selecting anything, use the Esc key.  If you
+are partway through any operation (e.g. editing an entry), the Esc key
+aborts the operation.  Throughout the program, Esc has the universal
+meaning of "back out of the current operation".  The Esc key is also
+what you use to terminate the program.  An alternative to Esc is a
+left mouse click on the "close button" at the top right of a menu.
+
+When viewing a data file, Enter or the space bar or a right mouse 
+click will bring up a menu of operations which are legal at that 
+time.  You will notice that you get a slightly different menu 
+depending on where you are.
+
+Many of the legal operations can also be activated by shortcut keys
+without bringing up a menu.  In most cases the shortcut key is the
+first letter of the corresponding menu item.  Special case: when
+viewing a data file, the T key does a transfer _from_ the current
+file, and the X key does a transfer _to_ the current file.  The
+Insert and Delete keys work in what I hope is an intuitively obvious
+way; and the Ctrl/K combination gives you a block operation.
+
+You can add new transfer operations to the main menu by creating a
+file called MAINMENU.ACC.  Each line in this file consists of three
+items separated by commas: a text string, and two three-letter
+abbreviations.  (The three-letter abbreviations are optional, the
+commas are compulsory.)  The easiest way to see how this works is
+to try it.
+
+
+HOW TO REGISTER
+
+Cost: $30 (Australian currency) if you want updates sent by e-mail
+      or ftp.  Add $10 if you want a floppy disk sent to you
+      (specify whether it's a 3.5" or 5.25" disk).
+
+      [At the time of writing, $30 Australian is approximately
+      equal to $20 US]
+
+Where: see contact information below.
+
+How: A personal cheque is OK if you have an Australian bank account.
+     Otherwise use a bank cheque drawn on an Australian bank, an
+     international money order, or similar.
+
+Alternative method - from Europe only: send a Eurocheque, payable to
+     Marion Gevers, for the amount of 700 Belgian francs (plus
+     230 Belgian francs if you want a floppy disk).
+
+When registering, specify your processor model (80286, 80386, or 80486)
+and coprocessor (80287, 80387, or none).  This will let me put together
+a tailored version that might run faster than the unregistered version.
+If you want mouse support enabled, tell me what sort of mouse you have
+and whether you're running under OS/2.
+
+If you have special needs (processor model < 80286, messages in a
+language other than English, etc.), let me know.  If the demand is
+sufficient, I can create modified versions.
+
+The registered version of the program is identical to the unregistered
+version except for:
+  - removal of the startup message saying that it's unregistered;
+  - more data files allowed (100 rather than 10);
+  - mouse support;
+  - possibly faster, especially if you tell me you have a coprocessor.
+
+
+CONTACT INFORMATION
+
+The author of this program is
+
+            Peter Moylan
+            Department of Electrical and Computer Engineering
+            The University of Newcastle, NSW 2308
+            Australia.
+
+            Phone: +61 49 21 6023      (time zone GMT+10)
+            Fax:   +61 49 60 1712
+            e-mail:   peter@ee.newcastle.edu.au
+                      peter@tesla.newcastle.edu.au
+                      eepjm@cc.newcastle.edu.au
+
+The preferred method of contacting me is via e-mail; this will probably
+bring a faster response than with paper mail.
+

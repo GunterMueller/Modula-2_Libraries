@@ -1,0 +1,227 @@
+module LowLevel
+
+	(********************************************************)
+	(*							*)
+	(*	    Miscellaneous low-level procedures		*)
+	(*	This version is for use with TopSpeed v3	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	11 March 1995			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	Note that many of the procedures in this	*)
+	(*	module are implemented as inline procedures,	*)
+	(*	with their definitions given in the definition	*)
+	(*	module rather than here.			*)
+	(*							*)
+	(********************************************************)
+
+	insw = 06DH
+	outsw = 06FH
+
+(************************************************************************)
+(*			    POINTER OPERATIONS				*)
+(************************************************************************)
+
+(*%F _fcall *)
+segment _TEXT(CODE,00048H)
+(*%E*)
+(*%T _fcall *)
+segment LowLevel_TEXT(CODE,00048H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE Virtual (PA: LONGCARD): FarPointer;			*)
+(*									*)
+(* Converts a physical address to a virtual address, if possible.	*)
+(* There are no guarantees in the case where there is no such		*)
+(* virtual address.							*)
+(************************************************************************)
+
+public LowLevel$Virtual:
+
+	(* In general this operation would require looking up segment	*)
+	(* tables, but in the special case of 8086 Real Address Mode	*)
+	(* the result is just (PA DIV 16, PA MOD 16).			*)
+	(* (Note the use of call pragmas in the definition module to	*)
+	(* put the parameters in the right registers.)			*)
+		
+	push bx
+	mov bx, 16
+	div bx		(* divide physical address by 16	*)
+	pop bx
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+
+(*%F _fcall *)
+segment _TEXT(CODE,00048H)
+(*%E*)
+(*%T _fcall *)
+segment LowLevel_TEXT(CODE,00048H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE Physical (A: FarPointer): LONGCARD;			*)
+(*									*)
+(* Converts a virtual address to a physical address.  Use with care!	*)
+(************************************************************************)
+
+public LowLevel$Physical:
+
+	(* In general this operation would require looking up segment	*)
+	(* tables, but in the special case of 8086 Real Address Mode	*)
+	(* the result is just 16*SEGMENT(A)+OFFSET(A).			*)
+
+	push cx
+	mov cl, 4
+	(*%F _fptr *)
+	mov bx, ds
+	(*%E*)
+	rol bx, cl	(* multiply segment by 16			*)
+	mov cx, bx	(* separate out the most			*)
+	and bx, 0FH	(*  significant 4 bits, leave them in BX	*)
+	and cx, 0FFF0H	(* put the other 12 bits in CX			*)
+	add ax, cx	(* this is least significant 16 bits of result	*)
+	adc bx, 0	(* propagate carry				*)
+	pop cx
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+
+(************************************************************************)
+(*			      BLOCK MOVES				*)
+(************************************************************************)
+
+(*%F _fcall *)
+segment _TEXT(CODE,00048H)
+(*%E*)
+(*%T _fcall *)
+segment LowLevel_TEXT(CODE,00048H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE CopyUp (source, destination: FarPointer;			*)
+(*					bytecount: CARDINAL);		*)
+(*									*)
+(* A variant of Copy which does the move backwards, in order		*)
+(* to handle the case where the destination address is inside the	*)
+(* source array.  In this special case Copy cannot be used,		*)
+(* because it would overwrite data it was about to copy.		*)
+(************************************************************************)
+
+public LowLevel$CopyUp:
+
+	(*%F _fdata*)
+	push ds		(* In some memory models we	*)
+	mov ds, ax	(*   must save ds		*)
+	(*%E*)
+	dec cx
+	add si, cx	(* make the two pointers point	*)
+	add di, cx	(*  to the last array locations	*)
+	inc cx
+	pushf		(* save direction flag		*)
+	std		(* direction flag := backwards	*)
+	rep; movsb	(* perform the block move	*)
+	popf		(* restore old direction flag	*)
+	(*%F _fdata*)
+	pop ds
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+
+(************************************************************************)
+(*				STRING I/O				*)
+(************************************************************************)
+
+(*%F _fcall *)
+segment _TEXT(CODE,00048H)
+(*%E*)
+(*%T _fcall *)
+segment LowLevel_TEXT(CODE,00048H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE InStringWord (port: CARDINAL;  BufferAddress: ADDRESS;	*)
+(*					count: CARDINAL);		*)
+(*									*)
+(* Reads count words from an input port.				*)
+(************************************************************************)
+
+public LowLevel$InStringWord:
+
+	(*%F _fptr *)
+	push es
+	push ax		(* in some memory models we	*)
+	mov ax, ds	(* have to copy DS to ES	*)
+	mov es, ax
+	pop ax
+	(*%E*)
+	pushf		(* save processor status	*)
+	cli		(* disable interrupts		*)
+	cld		(* set direction := forwards	*)
+	rep; db insw	(* do the string input		*)
+	popf		(* restore processor status	*)
+	(*%F _fptr *)
+	pop es
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+
+(*%F _fcall *)
+segment _TEXT(CODE,00048H)
+(*%E*)
+(*%T _fcall *)
+segment LowLevel_TEXT(CODE,00048H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE OutStringWord (port: CARDINAL;  BufferAddress: ADDRESS;	*)
+(*						count: CARDINAL);	*)
+(*									*)
+(* Writes count words to an output port.				*)
+(************************************************************************)
+
+public LowLevel$OutStringWord:
+
+	(*%T _fptr*)
+	(*%F _fdata*)
+	push ds		(* In some memory models we	*)
+	mov ds, ax	(*   must save ds		*)
+	(*%E*)
+	(*%E*)
+	pushf		(* save processor status	*)
+	cli		(* disable interrupts		*)
+	cld		(* set direction := forwards	*)
+	rep; db outsw	(* do the string input		*)
+	popf		(* restore processor status	*)
+	(*%T _fptr*)
+	(*%F _fdata*)
+	pop ds
+	(*%E*)
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+
+(************************************************************************)
+
+end
+

@@ -1,0 +1,29 @@
+DEFINITION MODULE WildC2;
+
+        (********************************************************)
+        (*                                                      *)
+        (*            String matching with wildcards            *)
+        (*                                                      *)
+        (*     A version of module WildCard modified to be      *)
+        (*          compatible with the rules used by           *)
+        (*                 Alessandro Cantatore                 *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Started:            10 May 2003                     *)
+        (*  Last edited:        10 May 2003                     *)
+        (*  Status:             OK                              *)
+        (*                                                      *)
+        (********************************************************)
+
+
+PROCEDURE WildMatch (VAR (*IN*) input, template: ARRAY OF CHAR): BOOLEAN;
+
+    (* Returns TRUE if template and input are equal, with the extra     *)
+    (* rules:                                                           *)
+    (*   1. Character case is not significant.                          *)
+    (*   2. A '?' in template matches any single character except '.'.  *)
+    (*   3. A '*' in template matches any string of zero or more        *)
+    (*      characters.                                                 *)
+
+END WildC2.
+

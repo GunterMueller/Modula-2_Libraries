@@ -1,0 +1,61 @@
+DEFINITION MODULE MiniKernel;
+
+	(****************************************************************)
+	(*								*)
+	(*	This is a stripped-down operating system kernel,	*)
+	(*	for demonstration purposes only. It supports		*)
+	(*	multitasking and semaphores, but does not support	*)
+	(*	interrupt handlers or timer operations. Its intended	*)
+	(*	use is to let the user see, through trace messages	*)
+	(*	on the screen, the sequence of procedure calls		*)
+	(*	which occurs during a task switch.			*)
+	(*								*)
+	(*	Programmer:	P. Moylan				*)
+	(*	Last edited:	17 February 1990			*)
+	(*								*)
+	(*	Status:		Working.				*)
+	(*								*)
+	(****************************************************************)
+
+TYPE Semaphore;		(* is private *)
+
+(************************************************************************)
+(*			TASK CREATION AND REMOVAL			*)
+(************************************************************************)
+
+PROCEDURE CreateTask (StartAddress: PROC; taskpriority: CARDINAL);
+
+    (* Must be called to introduce a task to the system. The first	*)
+    (* parameter, which should be the name of a procedure containing	*)
+    (* the task code, gives the starting address.  The second parameter	*)
+    (* is the task priority.  If this task has a higher priority than	*)
+    (* its creator, it will run immediately.  Otherwise, it becomes	*)
+    (* ready.								*)
+
+PROCEDURE TaskExit;
+
+    (* Removes the currently running task from the system, and performs	*)
+    (* a task switch to the next ready task.				*)
+
+(************************************************************************)
+(*				SEMAPHORES				*)
+(************************************************************************)
+
+PROCEDURE CreateSemaphore (VAR (*OUT*) s: Semaphore; InitialValue: INTEGER);
+
+    (* Creates semaphore s, with the given initial value and an empty	*)
+    (* queue.								*)
+
+PROCEDURE Wait (VAR (*INOUT*) s: Semaphore);
+
+    (* Decrements the semaphore value.  If the value goes negative,	*)
+    (* the calling task is blocked and there is a task switch.		*)
+
+PROCEDURE Signal (VAR (*INOUT*) s: Semaphore);
+
+    (* Increments the semaphore value.  Unblocks one waiting task,	*)
+    (* if there was one.						*)
+
+(************************************************************************)
+
+END MiniKernel.

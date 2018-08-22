@@ -1,0 +1,56 @@
+DEFINITION MODULE MiniTrace;
+
+	(************************************************)
+	(*						*)
+	(*	    Trace routines for Modula-2		*)
+	(*		program development.		*)
+	(*						*)
+	(*	This is special-purpose version, for	*)
+	(*	use with the MiniKernel demonstration	*)
+	(*	kernel.					*)
+	(*						*)
+	(*  Programmer:		P. Moylan		*)
+	(*  Last edited:	16 August 1992		*)
+	(*  Status:		Working			*)
+	(*						*)
+	(************************************************)
+
+FROM MiniWindows IMPORT
+    (* type *)	RowRange, ColumnRange;
+
+PROCEDURE NYI (name: ARRAY OF CHAR);
+
+	(* Types a "not yet implemented" message.	*)
+
+PROCEDURE Pause;
+
+	(* "Press any key to continue."			*)
+
+PROCEDURE InTrace (name: ARRAY OF CHAR);
+
+	(* Types "Entering 'name'".	*)
+
+PROCEDURE OutTrace (name: ARRAY OF CHAR);
+
+	(* Types "Leaving 'name'".	*)
+
+PROCEDURE TraceOn (firstrow, lastrow: RowRange;
+			firstcol, lastcol: ColumnRange;
+			SlowDownFactor: CARDINAL);
+
+	(* Turns on tracing.  The first four parameters specify the	*)
+	(* size of a screen window to be used for trace messages.  The	*)
+	(* size of the final parameter governs how slowly the program	*)
+	(* will run - it is needed because in many cases the trace	*)
+	(* messages appear on the screen faster than you can read them.	*)
+
+PROCEDURE TraceOff;
+
+	(* Turns off tracing.		*)
+
+PROCEDURE TraceStatus(): BOOLEAN;
+
+	(* Says whether tracing is currently on.	*)
+
+END MiniTrace.
+

@@ -1,0 +1,92 @@
+DEFINITION MODULE Music3S;
+
+	(********************************************************)
+	(*							*)
+	(*		Translates 3-part music from		*)
+	(*		musical notation to the form		*)
+	(*		expected by module Play3S.		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	21 March 1995			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+TYPE
+    VoiceNumber = [1..3];
+    WaveformNumber = [0..7];
+
+(************************************************************************)
+(*									*)
+(*  In the "notes" argument to each of the next three procedures,	*)
+(*  the following options are accepted:					*)
+(*	C D E F G A B	the usual notation for a note.			*)
+(*	b #		flat or sharp, modifying the previously given	*)
+(*			 note.  There is no legality checking; for	*)
+(*			 example, B# is illegal but the software does	*)
+(*			 check for this.				*)
+(*	R		a rest.						*)
+(*	*n   (n=0..9)	multiply the duration of the following notes	*)
+(*			 by n.						*)
+(*	*		a shorthand notation for *2.			*)
+(*	/n   (n=0..9)	divide the duration of the following notes	*)
+(*			 by n.						*)
+(*	/		a shorthand notation for /2.			*)
+(*	3		a shorthand notation for /3.			*)
+(*			The *, /, and 3 options take effect for		*)
+(*			 all following notes, until the duration is	*)
+(*			 modified again by one of these options.	*)
+(*	u		go up one octave.				*)
+(*	d		go down one octave.  In many cases the u and d	*)
+(*			 options are not needed because this module	*)
+(*			 chooses the appropriate octave based on the	*)
+(*			 assumption that successive notes will be	*)
+(*			 close to each other; but u and d can override	*)
+(*			 this assumption.				*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE EnableVoice (V: VoiceNumber;  enable: BOOLEAN);
+
+    (* If enable is FALSE then the following data for voice V are	*)
+    (* ignored.  (This is for testing, when you want to suppress a	*)
+    (* voice in order to listen to the others more closely.)  The	*)
+    (* default condition is that all voices are enabled.		*)
+
+PROCEDURE SetWaveform (V: VoiceNumber;  N: WaveformNumber);
+
+    (* Changes the waveform for voice V. *)
+
+PROCEDURE SetEnvelope (V: VoiceNumber;  attack, decay, sustain: CARDINAL);
+
+    (* Does nothing - this procedure is present for compatibility with	*)
+    (* other versions, but the present version does not have the	*)
+    (* capability of controlling the waveform envelope.			*)
+
+PROCEDURE SetInstrument (N: WaveformNumber;
+				attack, decay, sustain: CARDINAL);
+
+    (* Changes the waveform for all voices.  The last four parameters	*)
+    (* are ignored.							*)
+
+PROCEDURE SetDuration (value: CARDINAL);
+
+    (* Sets the duration for the following notes (all voices).  The	*)
+    (* change takes place at the point immediately following all data	*)
+    (* entered so far - i.e. at the "current time" for the voice for	*)
+    (* which most data has been entered so far.				*)
+
+PROCEDURE Voice1 (notes: ARRAY OF CHAR);
+PROCEDURE Voice2 (notes: ARRAY OF CHAR);
+PROCEDURE Voice3 (notes: ARRAY OF CHAR);
+
+    (* Appends more notes to the music array kept internally by this	*)
+    (* module.  Initially the array is empty.  The three voices can be	*)
+    (* added in any order.						*)
+
+PROCEDURE PlayTheMusic;
+
+    (* Plays the music that has been stored so far. *)
+
+END Music3S.
+

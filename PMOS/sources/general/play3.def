@@ -1,0 +1,113 @@
+DEFINITION MODULE Play3;
+
+	(********************************************************)
+	(*							*)
+	(*		    3-part music			*)
+	(*							*)
+	(*  Programmer:		P. Moylan, T. Channon		*)
+	(*  Last edited:	21 March 1995			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	This is a version that does waveform shaping.	*)
+	(*	Note that the caller's data format is different	*)
+	(*	from that used by module Play3S.		*)
+	(*							*)
+	(*	Requires a fast processor, because the timing	*)
+	(*	constraints are fairly tight.			*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*			THE FORMAT OF THE USER DATA			*)
+(************************************************************************)
+(*									*)
+(* The music to be played is specified in the form of three arrays,	*)
+(* one for each voice.  Each of the words specifies a time scale for	*)
+(* stepping through a waveform (higher values give higher frequencies).	*)
+(* A value of 0 indicates a rest.					*)
+(*									*)
+(* The largest possible data values are reserved as special codes:	*)
+(*									*)
+(*	CODE	    MEANING		    EXTRA WORDS			*)
+(*									*)
+(*	65531	Set envelope		new envelope number (one word)	*)
+(*	65532	Set waveform		new wave number (one word)	*)
+(*	65533	obsolete, do not use	(none)				*)
+(*	65534	Set note duration	new duration (one word)		*)
+(*	65535	End of data		(none)				*)
+(*									*)
+(************************************************************************)
+
+FROM SYSTEM IMPORT BYTE;
+
+CONST
+    (* CycleCount defines the sampling rate.  It has to be low enough	*)
+    (* to avoid problems with frequency aliasing, but not so low that	*)
+    (* the processor has trouble keeping up.				*)
+
+    (* Note that a change to CycleCount would require the caller to	*)
+    (* re-scale the frequency specifications in the input data.  This	*)
+    (* module adjusts note durations to compensate for changes in	*)
+    (* CycleCount, but it does not adjust the frequencies.		*)
+
+    CycleCount = 64;
+
+TYPE
+    VoiceNumber = [1..3];
+
+    (* In the attack/decay envelope shaping is defined by an array of	*)
+    (* gains (see below).  The next declaration defines the possible	*)
+    (* gain values.							*)
+
+    GainType = [0..31];
+
+    (* We allow the caller to define up to eight different waveforms.	*)
+
+    WaveNumber = [0..7];
+
+    (* A wave table is a set of values for one complete cycle.  To	*)
+    (* avoid overflow, values in a wave table should not normally	*)
+    (* exceed (CycleCount DIV 6) in magnitude, although it's possible	*)
+    (* to go higher by trading off the amplitude of the different	*)
+    (* voices.								*)
+    (*									*)
+    (* Recent change: the above needs to be scaled up, because I'm	*)
+    (* now using INTEGER rather than SHORTINT values in the tables.	*)
+    (*									*)
+    (* To speed up execution, we require the user to supply a complete	*)
+    (* set of wave tables, one for each gain level, for each waveform.	*)
+    (* This means that the scaling is done ahead of time rather than	*)
+    (* having to be done while the music is playing.			*)
+
+    WaveTablePointer = POINTER TO ARRAY BYTE OF INTEGER;
+    WaveGroup = ARRAY GainType OF WaveTablePointer;
+
+    (* We allow the caller to define several different attack/decay	*)
+    (* envelopes.							*)
+
+    EnvelopeNumber = [0..7];
+
+    (* The main body of an envelope is defined by a time sequence	*)
+    (* of gains.							*)
+
+    EnvelopeArrayIndex = [0..63];
+    EnvelopePtr = POINTER TO ARRAY EnvelopeArrayIndex OF GainType;
+
+PROCEDURE DefineWaveform (N: WaveNumber;  VAR (*IN*) data: WaveGroup);
+
+    (* Defines a new waveform for wave number N. *)
+
+PROCEDURE DefineEnvelope (E: EnvelopeNumber;  shapeptr: EnvelopePtr);
+
+    (* Defines one of the attack/decay envelopes. *)
+
+PROCEDURE Play (VAR (*IN*) A1, A2, A3: ARRAY OF CARDINAL);
+
+    (* Plays the music encoded in arrays A1, A2, A3.  The encoding is	*)
+    (* explained in the comments above.  Assumption: DefineWaveform and	*)
+    (* DefineEnvelope have already been called for any waveform and	*)
+    (* envelope that will be used.  In the absence of any specification	*)
+    (* in the data, waveform 0 and envelope 0 are used.			*)
+
+END Play3.
+

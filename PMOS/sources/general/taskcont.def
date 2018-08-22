@@ -1,0 +1,258 @@
+DEFINITION MODULE TaskControl;
+
+	(****************************************************************)
+	(*								*)
+	(*   Data structures internal to the kernel of the operating	*)
+	(*     system; the dispatcher of the operating system; and	*)
+	(*		    related procedures.				*)
+	(*								*)
+	(*	This version supports priority inheritance.		*)
+	(*								*)
+	(*	Programmer:	P. Moylan				*)
+	(*	Last edited:	16 March 1995				*)
+	(*	Status:		OK					*)
+	(*								*)
+	(****************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+(************************************************************************)
+(*									*)
+(*			   END-USER PROCEDURES				*)
+(*									*)
+(************************************************************************)
+
+CONST MaxPriority = 15;
+
+TYPE
+    PriorityLevel = [0..MaxPriority];
+    NameString = ARRAY [0..15] OF CHAR;
+
+PROCEDURE CreateTask (StartAddress: PROC;  taskpriority: PriorityLevel;
+						taskname: NameString);
+
+    (* Must be called to introduce a task to the system. The first	*)
+    (* parameter, which should be the name of a procedure containing	*)
+    (* the task code, gives the starting address.  The second parameter	*)
+    (* is the task's base priority.  If this task has a higher priority	*)
+    (* than its creator, it will run immediately.  Otherwise, it	*)
+    (* becomes ready.							*)
+
+    (* The effective priority of a task can be higher than its base	*)
+    (* priority, as the result of priority inheritance.  This happens	*)
+    (* when the task holds a lock on which a higher-priority task is	*)
+    (* blocked.								*)
+
+    (* NOTE: If time-slicing is enabled, tasks of equal priority share	*)
+    (* processor time on a round-robin basis.  To disable this feature,	*)
+    (* set the constant TimeSlicingEnabled (in the ConfigurationOptions	*)
+    (* module) to FALSE.						*)
+
+    (* Tasks of different priorities never share time.  When a		*)
+    (* high-priority task becomes able to run, there is an immediate	*)
+    (* task switch.							*)
+
+    (* A task terminates itself either by an explicit call to TaskExit,	*)
+    (* or simply by falling out of the bottom of its code.		*)
+    (* There is no provision for tasks to kill other tasks.  Suicide	*)
+    (* is legal, but murder is not.					*)
+
+PROCEDURE UsingFloatingPoint;
+
+    (* Tells the kernel that this task is one which performs floating	*)
+    (* point operations.  The consequence is that the state of the	*)
+    (* (physical or emulated, as applicable) floating point processor	*)
+    (* is saved on a task switch.  This call is usually unnecessary;	*)
+    (* the default assumption is that interrupt tasks do not perform	*)
+    (* floating point arithmetic but that all other tasks may.		*)
+    (* NOTE: It is never acceptable for an interrupt task to call this	*)
+    (* procedure.							*)
+
+PROCEDURE NotUsingFloatingPoint;
+
+    (* Tells the kernel that this task does not perform any floating	*)
+    (* point operations.  Calling this (optional) procedure speeds up	*)
+    (* task switching slightly, but it does put the onus on the caller	*)
+    (* to be certain that it does no floating point operations.  If you	*)
+    (* call this procedure and then perform floating point arithmetic	*)
+    (* anyway, you can get severe and erratic floating point errors.	*)
+
+PROCEDURE TaskExit;
+
+    (* Removes the currently running task from the system, and performs	*)
+    (* a task switch to the next ready task.				*)
+
+    (* There is normally no need for a task to call this procedure,	*)
+    (* because it is automatically called when the task code "falls out	*)
+    (* the bottom" by executing its final procedure return.  The stack	*)
+    (* is set up, at the time a task is created, in such a way that	*)
+    (* TaskExit will be entered at that time.				*)
+
+(************************************************************************)
+(*									*)
+(*		  LOCKS FOR CRITICAL SECTION PROTECTION			*)
+(*									*)
+(*  Note that we distinguish between a Lock and a Semaphore.		*)
+(*  A Semaphore is a general semaphore - whose operations are defined	*)
+(*  in module Semaphores - which can be used for general inter-task	*)
+(*  interlocking.  A Lock is similar to a binary semaphore (with a	*)
+(*  more efficient implementation than a Semaphore), but may be used	*)
+(*  only in a strictly nested fashion and is therefore useful only	*)
+(*  for critical section protection.  No task should perform a		*)
+(*  semaphore Wait while it holds a Lock.  Priority inheritance is	*)
+(*  used for Locks - that is, a task holding a Lock will have its	*)
+(*  priority temporarily increased as long as it is blocking another	*)
+(*  task of higher priority - but not for Semaphores.			*)
+(*									*)
+(************************************************************************)
+
+TYPE Lock;	(* is private *)
+
+PROCEDURE CreateLock (VAR (*OUT*) L: Lock);
+
+    (* Creates a new lock. *)
+
+PROCEDURE DestroyLock (VAR (*INOUT*) L: Lock);
+
+    (* Disposes of a lock. *)
+
+PROCEDURE Obtain (L: Lock);
+
+    (* Obtains lock L, waiting if necessary. *)
+
+PROCEDURE Release (L: Lock);
+
+    (* Releases lock L - which might unblock some other task. *)
+
+PROCEDURE ReleaseAllLocks;
+
+    (* Releases all locks held by the current task.  Application-level	*)
+    (* tasks normally won't need to call this procedure; it is		*)
+    (* provided to support the system shutdown function and for things	*)
+    (* like "emergency abort" operations.				*)
+
+(************************************************************************)
+(*									*)
+(*		    SUPPORT FOR INTERRUPT HANDLERS			*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE CreateInterruptTask (InterruptNumber: CARDINAL;
+				StartAddress: PROC;  taskname: NameString);
+
+    (* Introduces an interrupt task to the system.  The first parameter	*)
+    (* is the hardware-defined interrupt number, and the second is the	*)
+    (* address of the procedure whose code is the interrupt handler.	*)
+    (* An interrupt task differs from an ordinary task in that, when it	*)
+    (* is not running, it is idle rather than ready, and the dispatcher	*)
+    (* does not consider it to be among the tasks eligible to run.	*)
+    (* Rather, it is run by a task switch which is made directly by the	*)
+    (* assembly language routine which fields the interrupt.  When the	*)
+    (* interrupt task has responded to the interrupt, it must call	*)
+    (* procedure WaitForInterrupt to put itself back in the idle state.	*)
+    (* On the next interrupt, it will continue from just after the call	*)
+    (* to WaitForInterrupt.  Normally, therefore, the interrupt task	*)
+    (* will be written as an infinite loop.  If for any reason the	*)
+    (* interrupt task exits by falling out of the bottom of its code,	*)
+    (* it will be destroyed in the same way as a normal task which	*)
+    (* terminates.  That could be fatal, unless steps have been taken	*)
+    (* to reset the interrupt vector.					*)
+
+PROCEDURE KillInterruptTask (InterruptNumber: CARDINAL);
+
+    (* Removes an interrupt task from the system.  This should not be	*)
+    (* called from inside an interrupt task.				*)
+
+(************************************************************************)
+(*									*)
+(*			DEVICE DRIVER SUPPORT				*)
+(*									*)
+(*  The following procedure may be called only by an interrupt task.	*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE WaitForInterrupt;
+
+    (* Called by an interrupt task, to make itself dormant until the	*)
+    (* next interrupt comes along.  It is not necessary to specify	*)
+    (* the interrupt number, since this was fixed at the time the	*)
+    (* interrupt task was created.					*)
+
+    (* Warning: this procedure should never be called by a task which	*)
+    (* is not an interrupt task.					*)
+
+(************************************************************************)
+(*									*)
+(*		    PROCEDURES PRIVATE TO THE KERNEL			*)
+(*									*)
+(*  The remaining declarations in this module are needed because the	*)
+(*  kernel is made up of several modules.  (Unfortunately, there is no	*)
+(*  way in Modula-2 to export something to a separately compiled module	*)
+(*  without making it visible to everyone; so please close your eyes	*)
+(*  at this point.)  The procedures declared here should be called only	*)
+(*  from the innermost parts of the operating system.			*)
+(*									*)
+(************************************************************************)
+
+TYPE TaskQueue;	(* is private *)
+
+PROCEDURE CreateQueue (VAR (*OUT*) KQ: TaskQueue);
+
+    (* Creates an initially empty queue.				*)
+
+PROCEDURE MarkAsReady (VAR (*INOUT*) FromQ: TaskQueue);
+
+    (* Takes the first task from queue FromQ and puts it on the ready	*)
+    (* list, or runs it immediately if it has higher priority than the	*)
+    (* task which called MarkAsReady.					*)
+
+PROCEDURE QueueAndSwitchTasks (VAR (*INOUT*) KQ: TaskQueue);
+
+    (* Puts the current task onto list KQ, and switches to the		*)
+    (* highest-priority ready task.					*)
+
+(************************************************************************)
+(*									*)
+(*			     TIMER OPERATIONS				*)
+(*									*)
+(*   These procedures are called by the Timer and Semaphores modules	*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE Delay (sleeptime: INTEGER);
+
+    (* Puts the calling task to sleep for the specified number of clock	*)
+    (* ticks.								*)
+
+PROCEDURE QueueWithTimeout (VAR (*INOUT*) KQ: TaskQueue;
+					TimeLimit: INTEGER): BOOLEAN;
+
+    (* Like procedure QueueAndSwitchTasks, this procedure puts the	*)
+    (* current task on the tail of list KQ, and gives control to the	*)
+    (* highest-priority ready task.  The difference is that we allow	*)
+    (* this task to remain on KQ for at most TimeLimit timer ticks.	*)
+    (* If the task is removed from KQ before the time limit expires,	*)
+    (* we return a result of FALSE.  If the time limit expires first,	*)
+    (* we remove the queued task from KQ anyway, and make it runnable,	*)
+    (* and return a result of TRUE when it does run.			*)
+    (* Note: this procedure may be called only from inside the kernel.	*)
+
+PROCEDURE CheckSleepers;
+
+    (* Called from the timer interrupt routine, to deal with sleeping	*)
+    (* tasks.  Warning: there must be no kernel call between a call to	*)
+    (* this procedure and the next call to WaitForInterrupt.		*)
+
+PROCEDURE TimeSliceCheck;
+
+    (* Called from the timer interrupt routine, to check whether the	*)
+    (* current task has used up its time slice, and to perform a task	*)
+    (* switch if so.							*)
+
+    (* This procedure does nothing if time-slicing is disabled.		*)
+    (* Time-slicing is controlled by a constant TimeSlicingEnabled	*)
+    (* in module ConfigurationOptions.					*)
+
+END TaskControl.
+

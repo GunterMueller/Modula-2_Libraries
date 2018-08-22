@@ -1,0 +1,31 @@
+The program PP.EXE in this directory will customise some source files
+to suit your compiler and other preferences.  Before running it, you
+need to edit two files:
+
+1. PP.FIL:  This contains a list of files to be processed.  You can
+    leave this unchanged if your top-level directory is called PMOS.
+    Otherwise you have to change directory paths for all files in the list.
+
+2. PP.CFG:  This contains specifications of which compiler and which
+    mouse you are using.  It is important to get the compiler
+    specification correct - otherwise you'll find yourself with code
+    that your compiler can't handle.  The mouse specification is less
+    critical, except of course that modules that use a mouse could
+    malfunction if there's a mismatch between your hardware and what
+    the software assumes.  Note that MouseKind := NoMouse is a valid
+    option.
+
+Warning: although the FST compiler is mentioned in these directories,
+support for FST is not yet properly in place.  You will probably
+find that some (many?) modules in PMOS require alteration to
+compile properly with FST.
+
+If you have a compiler other than the ones mentioned, then you're on
+your own.  The best approach is to specify a compiler which is
+"closest" - in terms of the source language accepted - to the one
+you have.  After that you'll have to use the compilation errors as a
+guide to what needs to be changed to port PMOS to your compiler.
+I do what I can to avoid non-portable code, but unfortunately every
+Modula-2 compiler writer seems to have a slightly different notion
+of what is standard.
+

@@ -1,0 +1,44 @@
+DEFINITION MODULE Timer;
+
+	(********************************************************)
+	(*							*)
+	(*	Clock handler for operating system.		*)
+	(*							*)
+	(*	Author:		P. Moylan			*)
+	(*	Last edited:	27 May 1989			*)
+	(*	Description:					*)
+	(*		This module contains the clock		*)
+	(*		interrupt routine.  It checks whether	*)
+	(*		the current task has used its time	*)
+	(*		quota, also keeps track of sleeping	*)
+	(*		tasks.					*)
+	(*							*)
+	(*	Status:	Seems to be working.			*)
+	(*							*)
+	(********************************************************)
+
+FROM Semaphores IMPORT
+    (* type *)	Semaphore;
+
+PROCEDURE Sleep (milliseconds: CARDINAL);
+
+    (* Puts the caller to sleep for approximately the given number of	*)
+    (* milliseconds.  The time is not guaranteed to be precise, because	*)
+    (* (a) after the specified time has expired, the caller is made	*)
+    (* ready, but will not run immediately unless it has a higher	*)
+    (* priority than the task which is running at that time, and (b) we	*)
+    (* do not necessarily run the hardware timer with millisecond	*)
+    (* resolution anyway.  High resolution just adds to the system	*)
+    (* overhead created by the timer interrupts.  For an application	*)
+    (* which genuinely needs high-precision delays, it makes more sense	*)
+    (* to have a separate hardware timer dedicated just to that job.	*)
+
+PROCEDURE TimedWait (VAR (*INOUT*) s: Semaphore;  TimeLimit: INTEGER;
+					VAR (*OUT*) TimedOut: BOOLEAN);
+
+    (* Like a semaphore Wait, except that it returns with TimedOut TRUE	*)
+    (* if the corresponding Signal does not occur within TimeLimit	*)
+    (* milliseconds.							*)
+
+END Timer.
+

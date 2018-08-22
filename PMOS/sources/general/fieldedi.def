@@ -1,0 +1,130 @@
+DEFINITION MODULE FieldEditor;
+
+	(********************************************************)
+	(*							*)
+	(*		Screen editing utilities		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	15 May 1991			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+(************************************************************************)
+(*									*)
+(*  The editor in this module is "generic" in a limited sense.  It	*)
+(*  performs screen editing of variables of arbitrary types, provided	*)
+(*  that those types have been declared by calls to DefineFieldType.	*)
+(*									*)
+(*  The caller is required, when calling DefineFieldType, to supply	*)
+(*  procedures which write and edit variables of that type.  Each of	*)
+(*  the user-supplied procedures has three parameters: a window, a	*)
+(*  pointer to the variable to be written or edited, and the number of	*)
+(*  character positions to use.  For field types where the number of	*)
+(*  character positions cannot be determined in advance, the caller is	*)
+(*  expected to supply 0 as the value of the third parameter, and the	*)
+(*  user-supplied procedures are expected to be able to work out the	*)
+(*  actual width required.  The user-supplied procedures are expected,	*)
+(*  in all cases, to leave the screen cursor at the character position	*)
+(*  just beyond the written form of the field.  They must be prepared	*)
+(*  to deal with NIL addresses.  The user-supplied editor must handle	*)
+(*  all keystrokes which belong to it, but leave intact (via		*)
+(*  Keyboard.Putback, for example) the keystroke which causes it to	*)
+(*  return.  Note that it will be very common for the editor to receive	*)
+(*  a cursor movement key implying that the user does not want to	*)
+(*  modify this field but is simply skipping over it.  In such cases	*)
+(*  the editor still has the responsibility for showing the user where	*)
+(*  the cursor is, by using blinking, reverse video, etc.		*)
+(*									*)
+(*  Given all of these rules, and the fact that all the hard work is to	*)
+(*  be done by user-supplied procedures, you might by now be wondering	*)
+(*  whether there is any point in having this module.  The main point	*)
+(*  is that the rules impose some uniform standards which make it	*)
+(*  easier to develop readable software for applications which need a	*)
+(*  lot of screen editing.  They also help, in some applications, to	*)
+(*  avoid duplication of effort.  These properties are used to		*)
+(*  advantage in modules ListEditor and ScreenEditor.			*)
+(*									*)
+(*  As an added bonus, this module exports some pre-defined field types	*)
+(*  for commonly encountered cases.  For those cases, the user does not	*)
+(*  need to call DefineFieldType, and therefore does not need to supply	*)
+(*  the procedures for writing and editing variables of those types.	*)
+(*									*)
+(************************************************************************)
+
+TYPE
+    FieldType;		(* is private *)
+    WriteProc = PROCEDURE (Window, ADDRESS, CARDINAL);
+    EditProc = PROCEDURE (Window, VAR (*INOUT*) ADDRESS, CARDINAL);
+
+(************************************************************************)
+(*			THE PREDEFINED TYPES				*)
+(************************************************************************)
+
+VAR Byte, Cardinal, Real: FieldType;
+
+(************************************************************************)
+(*			DEFINING A NEW TYPE				*)
+(************************************************************************)
+
+PROCEDURE DefineFieldType (Writer: WriteProc;  Editor: EditProc): FieldType;
+
+    (* Introduces a new field type into the system.  Writer is a	*)
+    (* user-supplied procedure to write a variable of the new type.	*)
+    (* Editor is the user-supplied procedure for editing a variable of	*)
+    (* that type.							*)
+
+PROCEDURE DiscardFieldType (type: FieldType);
+
+    (* A notification from the user that this type will not be used	*)
+    (* again (unless it is redefined by another call to procedure	*)
+    (* DefineFieldType).  Use of this procedure is optional, but is	*)
+    (* recommended for the sake of "clean" memory management.		*)
+
+(************************************************************************)
+(*			   COMPARING TYPES				*)
+(************************************************************************)
+
+PROCEDURE SameType (t1, t2: FieldType): BOOLEAN;
+
+    (* Returns TRUE iff t1 = t2.	*)
+
+(************************************************************************)
+(*			    SCREEN OUTPUT				*)
+(************************************************************************)
+
+PROCEDURE WriteField (w: Window;  address: ADDRESS;  type: FieldType;
+							width: CARDINAL);
+
+    (* Writes address^ on the screen at the current cursor position in	*)
+    (* window w.  The width parameter specifies how many character	*)
+    (* positions to use.  Use width=0 for variable-width fields for	*)
+    (* which the write procedure for that type must work out the width.	*)
+
+(************************************************************************)
+(*			     THE EDITOR					*)
+(************************************************************************)
+
+PROCEDURE EditField (w: Window;  VAR (*INOUT*) address: ADDRESS;
+				type: FieldType;  width: CARDINAL);
+
+    (* Edits the variable at the given address, and of the given type,	*)
+    (* at the current cursor position in window w.  The width parameter	*)
+    (* specifies how many character positions are to be used on the	*)
+    (* screen.  Set width=0 for variable-width fields where the editor	*)
+    (* must determine the width.  We leave this procedure on seeing a	*)
+    (* keyboard character which does not belong to us.  The cursor is	*)
+    (* left just beyond the last character of the field as it is	*)
+    (* displayed.  The terminating keystroke is returned to the		*)
+    (* keyboard driver so that it can still be read by the caller.	*)
+    (* Note that the address is an inout parameter because there are	*)
+    (* cases where we allow the user to create and delete fields, i.e.	*)
+    (* address could be NIL on entry but not on exit, or vice versa.	*)
+
+END FieldEditor.

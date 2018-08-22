@@ -1,0 +1,28 @@
+module demo
+
+(****************** Pointer to the initialisation code ******************)
+
+(*%T _fdata*)
+segment _INIT_DATA_CONST (FAR_DATA, 28H)
+(*%E*)
+(*%F _fdata*)
+segment _CONST (DATA, 28H)
+(*%E*)
+
+    public demo$:
+		db 0FFH, 0FFH
+
+(**************** Start of code segment for this module *****************)
+
+(*%T _fcall*)
+segment demo_TEXT (CODE, 48H)
+(*%E*)
+(*%F _fcall*)
+segment _TEXT (CODE, 48H)
+(*%E*)
+
+public demo$func:
+     ret far 0
+
+end
+

@@ -1,0 +1,49 @@
+DEFINITION MODULE KBdriver;
+
+	(********************************************************)
+	(*							*)
+	(*	Device driver for the keyboard.			*)
+	(*							*)
+	(*	Author:		P. Moylan			*)
+	(*	Last edited:	19 August 1991			*)
+	(*							*)
+	(*	Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE;
+
+CONST
+
+    (* Codes to specify the keyboard indicator lights.	*)
+
+    ScrollLockLED = 1;
+    NumLockLED = 2;
+    CapsLockLED = 4;
+
+PROCEDURE GetScanCode () : BYTE;
+
+    (* Gets one scan code from the keyboard. *)
+
+PROCEDURE CheckScanCode () : BYTE;
+
+    (* Like GetScanCode, but returns 0 immediately if no scan code is	*)
+    (* available - i.e. does not wait for a keyboard press.		*)
+
+PROCEDURE PutLEDs (LEDcode: BYTE);
+
+    (* Sets the keyboard lock indicator lights, as specified by		*)
+    (* LEDcode.  Unlike the following two procedures, which can affect	*)
+    (* one LED without disturbing the others, this procedure alters all	*)
+    (* three LEDs as a group.						*)
+
+PROCEDURE ClearLED (LEDcode: BYTE);
+
+    (* Clears one or more of the keyboard lock indicator lights.	*)
+
+PROCEDURE ToggleLED (LEDcode: BYTE);
+
+    (* Toggles one or more of the keyboard lock indicator lights.	*)
+
+END KBdriver.

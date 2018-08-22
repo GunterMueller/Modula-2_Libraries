@@ -1,0 +1,28 @@
+DEFINITION MODULE MiscLib;
+
+	(********************************************************)
+	(*							*)
+	(*	   Miscellaneous library procedures		*)
+	(*	for which the implementation has to be in	*)
+	(*		assembly language			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	22 August 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	This version is for TopSpeed version 1.17	*)
+	(*							*)
+	(********************************************************)
+
+PROCEDURE InStringWord (port: CARDINAL;  BufferAddress: ADDRESS;
+						count: CARDINAL);
+
+    (* Reads count words from an input port.	*)
+
+PROCEDURE OutStringWord (port: CARDINAL;  BufferAddress: ADDRESS;
+						count: CARDINAL);
+
+    (* Writes count words to an output port.	*)
+
+END MiscLib.
+

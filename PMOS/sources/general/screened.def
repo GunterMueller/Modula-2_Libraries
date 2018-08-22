@@ -1,0 +1,132 @@
+DEFINITION MODULE ScreenEditor;
+
+	(********************************************************)
+	(*							*)
+	(*		Screen data capture			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	28 April 1993			*)
+	(*  Status:						*)
+	(*	Basic features working, but see faults in	*)
+	(*	module RowEditor.				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, ADDRESS;
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+FROM ListEditor IMPORT
+    (* type *)	List, ListFormat;
+
+FROM Menus IMPORT
+    (* type *)	Menu;
+
+FROM FieldEditor IMPORT
+    (* type *)	FieldType;
+
+(************************************************************************)
+
+TYPE
+    Structure;		(* is private *)
+
+(************************************************************************)
+(*		   INTRODUCING A NEW FIELD TO THE SYSTEM		*)
+(************************************************************************)
+
+PROCEDURE ByteField (VAR (*IN*) variable: BYTE;
+			screenrow, screencolumn, width: CARDINAL): Structure;
+
+    (* Creates a one-field structure for editing a BYTE variable.	*)
+
+PROCEDURE CardinalField (VAR (*IN*) variable: CARDINAL;
+			screenrow, screencolumn, width: CARDINAL): Structure;
+
+    (* Creates a one-field structure for editing the given CARDINAL	*)
+    (* variable.							*)
+
+PROCEDURE RealField (VAR (*IN*) variable: REAL;
+			screenrow, screencolumn, width: CARDINAL): Structure;
+
+    (* Creates a one-field structure for editing a REAL variable.	*)
+
+(************************************************************************)
+(*			   FOR ADVANCED USERS				*)
+(************************************************************************)
+
+PROCEDURE MenuField (VAR (*IN*) variable: CARDINAL;
+		screenrow, screencolumn, lines, width: CARDINAL;
+		M: Menu): Structure;
+
+    (* Creates a one-field structure for editing a cardinal variable	*)
+    (* via menu selection.  The caller must ensure that M has already	*)
+    (* been defined by a call to Menus.					*)
+
+PROCEDURE ListField (VAR (*IN*) variable: List;
+				screenrow, screencolumn: CARDINAL;
+					f: ListFormat): Structure;
+
+    (* Creates a structure for editing a linear list.  The caller must	*)
+    (* ensure that f has been defined by a call to module ListEditor.	*)
+    (* This procedure does not add any features beyond what ListEditor	*)
+    (* provides, but by returning a result of type Structure it allows	*)
+    (* lists and scalars to be mixed in the same editing window.	*)
+
+PROCEDURE CreateField (VariableAddress: ADDRESS;  ftype: FieldType;
+			screenrow, screencolumn, width: CARDINAL): Structure;
+
+    (* Creates a new structure consisting of a single field.  Before	*)
+    (* calling this procedure, the caller should make sure, by calling	*)
+    (* FieldEditor.DefineFieldType if necessary, that ftype is a type	*)
+    (* already known to module FieldEditor.				*)
+
+(************************************************************************)
+(*		CREATING MULTI-FIELD EDITING STRUCTURES			*)
+(************************************************************************)
+
+PROCEDURE Combine (VAR (*INOUT*) A: Structure;  B: Structure);
+
+    (* Strips all of the fields from B and adds them to the existing	*)
+    (* fields of A.  Note that B is destroyed in the process.		*)
+
+PROCEDURE MakeArray (VAR (*INOUT*) S: Structure;  count: CARDINAL;
+		addroffset, rowoffset, coloffset: CARDINAL);
+
+    (* Creates a structure for an array of count elements, where on	*)
+    (* entry S is a structure already created for the first array	*)
+    (* element.  Parameter addroffset is the difference between		*)
+    (* adjacent array elements.  The remaining two parameters give the	*)
+    (* offset on the screen between the starting positions of adjacent	*)
+    (* array elements.							*)
+
+(************************************************************************)
+(*				EDITING					*)
+(************************************************************************)
+
+PROCEDURE ScreenEdit (w: Window;  S: Structure;  VAR (*OUT*) abort: BOOLEAN);
+
+    (* Displays structure S in window w, and allows the keyboard user	*)
+    (* to edit the components of S.  It is assumed that w is already	*)
+    (* open and that S has already been fully defined.  Returns		*)
+    (* abort=TRUE if user aborted the editing with the Esc key.		*)
+
+(************************************************************************)
+(*			  CLOSING A STRUCTURE				*)
+(************************************************************************)
+
+PROCEDURE DeleteStructure (VAR (*INOUT*) S: Structure);
+
+    (* Deletes structure S.  Calling this procedure is optional, but is	*)
+    (* recommended in order to reclaim memory space when S is no longer	*)
+    (* needed (and it makes it clearer in the program listing that S	*)
+    (* will no longer be used).  Note that this procedure does NOT	*)
+    (* delete the variables to which S gives access; if, for example,	*)
+    (* you were working with lists and menus then those lists and menus	*)
+    (* continue to exist.  DeleteStructure simply deletes the overhead	*)
+    (* data which was originally allocated by this module for its own	*)
+    (* purposes.							*)
+
+END ScreenEditor.
+

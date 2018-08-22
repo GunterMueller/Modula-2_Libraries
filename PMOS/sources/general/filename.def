@@ -1,0 +1,77 @@
+DEFINITION MODULE FileNames;
+
+	(********************************************************)
+	(*							*)
+	(*		File name parsing			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	19 January 1993			*)
+	(*  Status:		Just started			*)
+	(*							*)
+	(*	This module, which is part of the file system	*)
+	(*	and is not intended for end-user use, looks	*)
+	(*	after translating file name strings into a	*)
+	(*	more convenient internal form.			*)
+	(*							*)
+	(********************************************************)
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+FROM Devices IMPORT
+    (* type *)	Device;
+
+(************************************************************************)
+
+TYPE
+
+    (* File names (and directory names) are at most eight characters	*)
+    (* long.  This archaic restriction is regretted, but we have no	*)
+    (* choice if we want to remain compatible with the MS-DOS directory	*)
+    (* formats.  Actually, longer names are accepted (see procedure	*)
+    (* Scan), but all but the first eight characters are skipped.	*)
+    (* FileNameExtension refers to the three characters which may	*)
+    (* appear after a period in the complete file name.			*)
+
+    EightChar = ARRAY [0..7] OF CHAR;		(* not exported *)
+    FileNameString = EightChar;
+    FileNameExtension = ARRAY [0..2] OF CHAR;
+    FileName =	RECORD
+		    fname: FileNameString;
+		    fext: FileNameExtension;
+		END (*RECORD*);
+
+    (* The NameList form of a file name is a linked list where the	*)
+    (* first entry gives the device name, following entries give the	*)
+    (* directory names in order, and the last entry is the name of the	*)
+    (* file within its own directory.					*)
+
+    NameList = POINTER TO NameListRecord;
+    NameListRecord= RECORD
+			string: FileName;
+			child: NameList;
+		    END (*RECORD*);
+
+(************************************************************************)
+
+PROCEDURE WriteFileName (w: Window;  name: FileName);
+
+    (* For testing: writes name in window w.	*)
+    (* Probably won't need to export this in final version.	*)
+
+PROCEDURE Parse (name: ARRAY OF CHAR;  VAR (*OUT*) device: Device;
+		VAR (*OUT*) unit: CARDINAL;  VAR (*OUT*) result: NameList;
+		VAR (*OUT*) StartAtRoot: BOOLEAN);
+
+    (* Translates a text string "name" into NameList form.  If the	*)
+    (* string includes a device specification this is returned as	*)
+    (* (device, unit); otherwise we return with device = NullDevice.	*)
+    (* Output parameter StartAtRoot is TRUE iff the filename string	*)
+    (* started with a '\'.						*)
+
+PROCEDURE DiscardNameList (VAR (*INOUT*) path: NameList);
+
+    (* Disposes of the storage occupied by a NameList.  Returns NIL.	*)
+
+END FileNames.
+

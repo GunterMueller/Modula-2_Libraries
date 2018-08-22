@@ -1,0 +1,64 @@
+DEFINITION MODULE Music;
+
+	(********************************************************)
+	(*							*)
+	(*		Module to play music.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	28 May 1989			*)
+	(*  Status:						*)
+	(*	Initial version working well.  Still testing.	*)
+	(*							*)
+	(********************************************************)
+
+PROCEDURE SetNoteDuration (D: CARDINAL);
+
+    (* Sets the duration of each of the following notes, until further	*)
+    (* notice, to D milliseconds.  The precision of this setting is	*)
+    (* limited by the clock interrupt frequency used in module Timer;	*)
+    (* the resolution can be as poor as 1/9 second.  The duration can	*)
+    (* subsequently be modified by the * and / options (see below), or	*)
+    (* by another call to SetNoteDuration.				*)
+
+PROCEDURE PlayMusic (notes: ARRAY OF CHAR);
+
+    (* Plays the tune specified in array "notes".  The playing is done	*)
+    (* asynchronously; that is, this procedure returns before the music	*)
+    (* is over.  However, a return from this procedure does imply that	*)
+    (* array "notes" can be re-used or destroyed; the notes might not	*)
+    (* yet have been played, but the data necessary to play them have	*)
+    (* been processed and the necessary information stored.		*)
+
+PROCEDURE WaitForMusicFinished;
+
+    (* Blocks the calling task until there is no more music playing.	*)
+    (* This is a guard against things like premature task termination.	*)
+
+(************************************************************************)
+(*									*)
+(*  In the "notes" argument to PlayMusic, the following options are	*)
+(*  accepted:								*)
+(*	C D E F G A B	the usual notation for a note.			*)
+(*	b #		flat or sharp, modifying the previously given	*)
+(*			 note.  There is no legality checking; for	*)
+(*			 example, B# is illegal but the software does	*)
+(*			 check for this.				*)
+(*	R		a rest.						*)
+(*	*		double the duration of the following notes.	*)
+(*	/		halve the duration of the following notes.	*)
+(*	3		divide the duration of the following notes	*)
+(*			 by 3.  The *, /, and 3 options take effect for	*)
+(*			 all following notes, until the duration is	*)
+(*			 modified again by one of these options or by	*)
+(*			 an explicit call to SetNoteDuration.		*)
+(*	u		go up one octave.				*)
+(*	d		go down one octave.  In many cases the u and d	*)
+(*			 options are not needed because PlayMusic	*)
+(*			 chooses the appropriate octave based on the	*)
+(*			 assumption that successive notes will be	*)
+(*			 close to each other; but u and d can override	*)
+(*			 this assumption.				*)
+(*									*)
+(************************************************************************)
+
+END Music.

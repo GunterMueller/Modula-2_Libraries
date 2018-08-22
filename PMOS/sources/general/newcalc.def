@@ -1,0 +1,22 @@
+DEFINITION MODULE NewCalc;
+
+	(****************************************************************)
+	(*								*)
+	(*			Simple calculator			*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	1 September 1993			*)
+	(*  Status:							*)
+	(*	Now trying to add prefix unary functions.		*)
+	(*								*)
+	(****************************************************************)
+
+PROCEDURE RunCalculator;
+
+    (* Displays a calculator window on the screen; this can be operated	*)
+    (* from the numeric keypad.  On exit, the calculator window is	*)
+    (* closed.  However, calculation results are saved between		*)
+    (* invocations of this procedure.					*)
+
+END NewCalc.
+

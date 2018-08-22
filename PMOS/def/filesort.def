@@ -1,0 +1,35 @@
+DEFINITION MODULE FileSort;
+
+        (********************************************************)
+        (*                                                      *)
+        (*      In-place file sort using the QuickSort method   *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Last edited:        9 November 2001                 *)
+        (*  Status:             Replacing Files by FileOps      *)
+        (*                                                      *)
+        (********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)  ADDRESS;
+
+FROM QuickSortModule IMPORT
+    (* type *)  CompareProc;
+
+FROM FileOps IMPORT
+    (* type *)  ChanId;
+
+TYPE
+    RecordNumber = CARDINAL;
+
+PROCEDURE InplaceSort (f: ChanId;  from, to: RecordNumber;
+                        EltSize, offset: CARDINAL;  GE: CompareProc);
+
+    (* In-place sort of part of a file.  We sort record numbers         *)
+    (* from..to inclusive.  EltSize is the element size; offset is the  *)
+    (* number of bytes (zero, in most cases) before record number 0 in  *)
+    (* the file; and GE is a user-supplied function to compare elements *)
+    (* at two specified addresses.                                      *)
+
+END FileSort.
+

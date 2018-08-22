@@ -1,0 +1,70 @@
+DEFINITION MODULE PPExpr;
+
+	(********************************************************)
+	(*							*)
+	(*	   Expression handler for preprocessor		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	2 August 1994			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(* This module evaluates expressions consisting of alphanumeric symbols	*)
+(* connected by the operators:						*)
+(*	|   logical OR		&   logical AND		~   logical NOT	*)
+(*	=   string equality	<>  string inequality	()  parentheses	*)
+(* An expression consisting of one operand and no operators is		*)
+(* string-valued.  Any other expression has a Boolean result.  When a	*)
+(* string operand is used with any of the logical operators (including	*)
+(* parentheses) the string "T" is evaluated as TRUE, and anything else	*)
+(* is evaluated as FALSE.  When a Boolean is stored as a string, TRUE	*)
+(* is stored as "T" and FALSE is stored as "F".				*)
+(*									*)
+(* A string operand can consist of up to 32 characters, each of which	*)
+(* is a letter or digit.  Leading digits are legal.  The case of a	*)
+(* letter is significant.  When a value is assigned to a string operand	*)
+(* via procedure DefineSymbol, that operand becomes a variable, and	*)
+(* subsequent references to it will return the assigned value.  Any	*)
+(* other alphanumeric string will be considered to be a string literal.	*)
+(*									*)
+(* An expression may not contain embedded spaces.  (This restriction	*)
+(* is imposed because this module is used in an application where the	*)
+(* space character is needed as an expression terminator.)		*)
+(************************************************************************)
+
+PROCEDURE DefineSymbol (VAR (*IN*) symbol: ARRAY OF CHAR;
+					value: ARRAY OF CHAR);
+
+    (* Stores "value" as the value of variable "symbol".  The variable	*)
+    (* might or might not already exist in the symbol table.		*)
+
+PROCEDURE DumpSymbolTable;
+
+    (* Writes the current contents of the symbol table to the screen. *)
+
+(************************************************************************)
+(* In each of the following procedures, Place is updated on exit so	*)
+(* that Line[Place] is the first non-alphanumeric character found.	*)
+(************************************************************************)
+
+PROCEDURE Id (VAR (*IN*) Buffer: ARRAY OF CHAR;
+		VAR (*INOUT*) Place: CARDINAL;
+		VAR (*OUT*) result: ARRAY OF CHAR);
+
+    (* Picks up an alphanumeric string starting at Buffer[Place]. *)
+
+PROCEDURE Expr (VAR (*IN*) Buffer: ARRAY OF CHAR;
+		VAR (*INOUT*) Place: CARDINAL): BOOLEAN;
+
+    (* Evaluates a Boolean expression starting at Buffer[Place]. *)
+
+PROCEDURE StringExpr (VAR (*IN*) Buffer: ARRAY OF CHAR;
+		VAR (*INOUT*) Place: CARDINAL;
+		VAR (*OUT*) result: ARRAY OF CHAR);
+
+    (* Evaluates a string-valued expression starting at Buffer[Place]. *)
+
+END PPExpr.
+

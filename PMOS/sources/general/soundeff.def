@@ -1,0 +1,56 @@
+DEFINITION MODULE SoundEffects;
+
+	(****************************************************************)
+	(*								*)
+	(*	     Procedures to produce audible output.		*)
+	(*								*)
+	(*  Note that this is a low-level output module, in that the	*)
+	(*  method of specifying note frequencies is defined in terms	*)
+	(*  of what is convenient for the hardware rather than what is	*)
+	(*  convenient for the user.  The higher-level features are	*)
+	(*  provided in module Music.					*)
+	(*								*)
+	(*	Programmer:	P. Moylan				*)
+	(*	Last edited:	28 May 1989				*)
+	(*								*)
+	(*    Status:							*)
+	(*	Seems to be working.					*)
+	(*								*)
+	(****************************************************************)
+
+FROM Semaphores IMPORT
+    (* type *)	Semaphore;
+
+TYPE Note = RECORD
+		period, duration: CARDINAL;
+	    END (*RECORD*);
+
+    (* The "period" field of a note record specifies the note frequency	*)
+    (* indirectly, by specifying a divisor for the 1.193 MHz main clock	*)
+    (* frequency.  The "duration" is measured in milliseconds.		*)
+
+PROCEDURE Play (VAR (*IN*) playdata: ARRAY OF Note;
+			VAR (*INOUT*) done: Semaphore);
+
+    (* Adds the array to the list of music queued up waiting to be	*)
+    (* played.  The actual playing occurs automatically, after the end	*)
+    (* of anything earlier in the queue.  The output is asynchronous,	*)
+    (* in the sense that we return from this procedure before the	*)
+    (* playing is over, and perhaps even before it has started.  The	*)
+    (* array playdata must remain undisturbed until the caller receives	*)
+    (* a Signal on semaphore "done".  That is, the caller must perform	*)
+    (* a Wait(done) before re-using or destroying the playdata.  Note	*)
+    (* that a procedure return will destroy playdata if it happens to	*)
+    (* be a local variable of that procedure.				*)
+
+    (* A duration code of 0 indicates the end of the data, in cases	*)
+    (* where the data do not fill the entire array.			*)
+
+    (* A period code of 1, with a nonzero duration, produces silence	*)
+    (* for the requested duration.					*)
+
+PROCEDURE Beep;
+
+    (* Produces a short "beep" noise.	*)
+
+END SoundEffects.

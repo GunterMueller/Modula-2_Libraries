@@ -1,0 +1,194 @@
+      ษออออออออออออออออออออออออออออออออออออออออออออออออป
+      บ      STATUS OF PMOS TESTING & DEVELOPMENT      บ
+      ศออออออออออออออออออออออออออออออออออออออออออออออออผ
+
+NOW WORKING ON:
+
+SerialMouse: trying a trick to force Logitech mouse into MS compatibility
+  mode.  Not yet working, and I've had to give up on this until I can
+  obtain further information on how to do it.
+
+Graphics: miscellaneous improvements.  Now up to scrolling in Tiles.
+  That seems to be working.
+  Problem with ATI mode 85: wrong vertical resolution on one machine,
+  OK on another.  I think I have to conclude that this is yet another
+  unfixable BIOS bug.
+
+EditTest: menu normal mode is working, still have to fix special mode.
+  Most of this is now done, just a few fine details to sort out.
+  (I have a feeling that this job is now complete, but I should check.)
+
+
+THINGS TO THINK ABOUT FOR FUTURE VERSIONS
+
+PP: could do with improved handling of blank lines (not urgent).
+
+Integration of text and graphics windows, so that Windows is the
+  module to call in either case (at least for text operations), but
+  it brings in either a text or a graphics implementation
+  (depending on project settings, or path setting, or something
+  similar) as a compile-time or link-time choice.  The exact
+  mechanism is still to be decided, and this could be a big project,
+  but it needs to be done.  The aim is to allow higher-level
+  modules (e.g. Menus, NumericIO) to continue to function in the
+  graphics case without having to do a complete re-write of those modules.
+
+InnerKernel: would it be better to put the floating point save/restore
+  into the task switching code here, rather than have module
+  TaskControl control it?  This would mean expanding the size of
+  InnerKernel slightly, which is a nuisance for porting to other
+  machines/compilers.  On the other hand it could be argued that
+  the present arrangement leaves a machine dependency in module
+  TaskControl.
+
+
+THINGS WHICH NEED CHECKING
+
+(Nothing at present)
+
+
+KNOWN FAULTS & SHORTCOMINGS
+
+BarDemo: a spurious character sometimes appears when window refreshed.
+  I suspect an incorrectly initialised data structure somewhere in
+  WGraph or Tiles or somewhere similar.
+
+Bounce demo misbehaved on a 286 machine, looked like trouble with
+  floating point.  Behaved OK under VID.  Still a problem?  I
+  haven't seen any evidence of this problem for a long time.
+
+ControlDemo: not sure that logging is closed down cleanly.  The
+  present method works, but is it a good one?
+
+ControlDemo: exits with blank screen sometimes, i.e. termination code
+  is not doing the right thing.  I can't reproduce this problem in
+  other programs!  This problem might have been fixed by now.
+
+ControlDemo: possible faults in the algorithms used in the Transfer
+  module, related to denominator normalisation.  Re-check the
+  mathematics of this.
+
+Directories: Better approach to setting default directories would
+  be desirable.  Note: user must import device drivers before
+  importing module Files, to force the correct order of executing
+  initialisation code.
+
+Floppy: overly dependent on some "busy wait" time delays, where a
+  change in processor or a change in optimisation options, etc., could
+  affect the duration of the delay.  As a result, this module works
+  on some machines but not on others.
+
+File system: I still don't know how to force MS-DOS to recognise a
+  newly created file on the hard disk, apart from the drastic solutions
+  of running Windows or re-booting immediately after the PMOS program has
+  created the file(s).  The problem is one of telling MS-DOS that its
+  cached copies of FAT and/or directories are no longer valid.  Since
+  MS-Windows has a way of doing this, I conjecture that there is an
+  undocumented DOS call that would do the job.  Maybe it's necessary
+  to do some sort of warm boot.  (Note that this problem doesn't
+  occur when running under OS/2.)  Added later: the DOS call "disk reset"
+  should do the trick, but I haven't yet tried this.
+
+GWindows: main task continues to run while shutting down.  Not a major
+  bug, but disconcerting sometimes.
+
+HardDisk: won't work with a SCSI disk.  This could take a long time
+  to solve, because I don't have any documentation on how to program
+  SCSI devices.
+
+KBDriver/Keyboard: The provision for beeping on buffer overflow is not
+  fully satisfactory, and perhaps needs re-thinking.
+
+Mouse33: There's a minor problem of "mouse droppings" being left on
+  the screen from time to time, because of mouse movement when the
+  cursor is being turned on or off.  These problems can't be solved
+  except by replacing module Mouse33 (which simply calls vendor-supplied
+  mouse drivers) and using module SerialMouse instead.  (This can be
+  done via specifications in PP.CFG.)  In any case the problems are
+  merely cosmetic.
+
+Mouse33: I get numerous miscellaneous bugs, whose precise cause is difficult
+  to pin down, when a Microsoft mouse driver is used.  The solution is to
+  specify MouseKind:=MS rather than MouseKind:=INT33 in PP.CFG.  The problems
+  do not seem to occur with anyone else's mouse driver.
+
+Screen: getting a crash if SetVideoMode is called with ClearScreen=FALSE.
+  This looks like a BIOS limitation, so perhaps I should remove the
+  ClearScreen=FALSE option.
+
+SerialMouse: I'm not sure, in the absence of adequate documentation,
+  that the Logitech case is being dealt with properly, although
+  it does seem to work.  Added later: I have some more documentation now,
+  but haven't had the time to examine it carefully.  On a superficial
+  look it looks as if my present approach is correct, except that the
+  mouse has several modes and I'm supporting only one of them.
+
+UITest: crash (illegal instruction) when moving a window and when
+  InnerKernel.MOD is being used.  I can't reproduce this error when
+  the assembly language version of InnerKernel is being used.  This
+  was on my OS/2 machine.  Tried the next day and couldn't reproduce
+  the problem under any conditions, so maybe it was a glitch that
+  had nothing to do with my code.
+
+UITest: a "deadlock detected" condition can be forced if we
+  turn Turbo mode off and move a window rapidly for a long time.
+  This behaviour does not depend on which version of InnerKernel
+  is used; the crucial thing seems to be to put a heavy load on
+  the processor, presumably so that we increase the probability of
+  a rare coincidence occurring.  It's not clear that this is the same
+  bug as with OS/2, but maybe the underlying cause is the same.
+  This problem apparently does not occur when Mouse33 is replaced by
+  SerialMouse, so it's possible that the mouse driver supplied by
+  Logitech is at fault.
+
+WGraph: could be improved.
+
+
+LIMITATIONS WHEN RUNNING UNDER OS/2
+
+This list is for information only.  Some of these problems are
+fundamentally unfixable, and I don't know how to fix the rest.
+
+Note: This for the case of running in a DOS shell under OS/2.
+   You can't yet use PMOS with the OS/2 version of the compiler,
+   because the present kernel assumes Real Mode.
+
+1. Ctrl/Alt/Del is intercepted by OS/2 before the PMOS keyboard driver
+   sees it, and consequently this crashes the entire system.  As a
+   workaround, Ctrl/Alt/Ins is supported as an alternative "stop
+   program" command.
+
+2. Mouse operations are unreliable.  Sometimes all clicks are lost,
+   and the only remedy is to stop the program and start a new DOS
+   session.  Users of module MultiScreen are limited by the fact that
+   the mouse cursor does not correctly switch display pages in
+   full-screen mode (though it does work in a windowed DOS session).
+   Module SerialMouse cannot be used, you must set MouseKind = INT33.
+
+3. In an earlier version of PMOS, the floating point save/restore
+   in module InnerKernel caused problems when OS/2 was running with
+   no floating point hardware.  I have made changes that might have
+   fixed this problem, but don't have access to a suitable machine on
+   which to check it.
+
+4. The hard disk driver cannot get access to the disk under OS/2.
+   To work around this, use module FileSys instead of module Files.
+
+5. We don't have access to the CMOS time-of-day clock interrupts,
+   although we can read and write the CMOS registers.  This means
+   that program SetTime does not work (it can be used to set the
+   time, but the clock doesn't tick), and that files created on
+   floppy disk don't have a valid date recorded in the directory.
+
+6. Module SerialIO doesn't work, since the system doesn't let us
+   have access to the serial ports.
+
+
+ENHANCEMENTS WORTH PUTTING IN WHEN TIME ALLOWS
+
+Better serial I/O module.
+Ethernet interface, with layers above for higher-level protocols.
+Protected Mode support.
+Screen saver.
+SCSI disk driver.
+

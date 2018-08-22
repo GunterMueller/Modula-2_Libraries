@@ -1,0 +1,110 @@
+DEFINITION MODULE MiscPMOS;
+
+	(************************************************)
+	(*						*)
+	(*	Miscellaneous PMOS procedures		*)
+	(*						*)
+	(*  Programmer:		P. Moylan		*)
+	(*  Last edited:	24 August 1994		*)
+	(*  Status:		OK			*)
+	(*						*)
+	(************************************************)
+
+IMPORT SYSTEM;
+
+TYPE RegisterPacket =
+		(*<TopSpeed*) SYSTEM.Registers; (*>*)
+		(*<FST
+		(* We don't bother covering everything here, just	*)
+		(* the registers we have a need for.			*)
+		RECORD
+		    CASE :BOOLEAN OF
+		     | FALSE:	AL, AH, BL, BH, CL, CH, DL, DH: SYSTEM.BYTE;
+		     | TRUE:	AX, BX, CX, DX, BP, SI, DI, DS, ES: CARDINAL;
+		    END (*CASE*);
+		END (*RECORD*);
+		>*)
+     CMOSaddress = [0..63];
+
+(************************************************************************)
+(*				STRING COPY				*)
+(************************************************************************)
+
+PROCEDURE CopyString (source: ARRAY OF CHAR;  VAR (*OUT*) dest: ARRAY OF CHAR);
+
+    (* Copies a string, with truncation or null termination as needed.	*)
+    (* This function is provided in order to help software portability,	*)
+    (* i.e. to avoid having to rewrite code for no reason other than	*)
+    (* a change of compilers.						*)
+
+(************************************************************************)
+(*			PROCEDURES TO ACCESS CMOS			*)
+(************************************************************************)
+(*									*)
+(*  The first 14 bytes of CMOS are used for the real-time clock - see	*)
+(*  module TimeOfDay for details.					*)
+(*									*)
+(*  The contents of the remaining bytes would take too long to describe	*)
+(*  here, so only the ones of current interest are mentioned:		*)
+(*									*)
+(*	10H	Diskette drive type.  The high order 4 bits describe	*)
+(*		drive A, the lower order 4 bits describe drive B.	*)
+(*		The encoding is:					*)
+(*			0	no drive present			*)
+(*			1	double sided drive, 48 TPI		*)
+(*			2	high capacity drive, 96 TPI		*)
+(*			4	3.5" 1.44MB drive			*)
+(*		    (other values are reserved).			*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE ReadCMOS (location: CMOSaddress): SYSTEM.BYTE;
+
+    (* Returns the value at the given CMOS location.	*)
+
+PROCEDURE WriteCMOS (location: CMOSaddress;  value: SYSTEM.BYTE);
+
+    (* Stores a value at the given CMOS location.	*)
+
+(************************************************************************)
+(*			   BIOS/MS-DOS CALLS				*)
+(************************************************************************)
+
+PROCEDURE BIOS (InterruptNumber: CARDINAL;
+			VAR (*INOUT*) Registers: RegisterPacket);
+
+    (* Performs a software interrupt, with the given interrupt number,	*)
+    (* after loading the components of variable "Registers" into the	*)
+    (* machine registers.  After the handler returns, the updated	*)
+    (* register values are put back into variable "Registers".		*)
+
+(************************************************************************)
+(*		     MISCELLANEOUS LOW-LEVEL OPERATIONS			*)
+(************************************************************************)
+
+PROCEDURE EnterCriticalSection(): CARDINAL;
+
+    (* Saves the processor flags word, including the current "interrupt	*)
+    (* enable" status, on the caller's stack, and returns with		*)
+    (* interrupts disabled.   NOTE: this procedure and the following	*)
+    (* one should be used as a matched pair.				*)
+
+PROCEDURE LeaveCriticalSection (savedPSW: CARDINAL);
+
+    (* Restores the processor flags word, including the "interrupt	*)
+    (* enable" status, from the stack.  NOTE: this procedure and the	*)
+    (* one above should be used as a matched pair.			*)
+
+PROCEDURE ProcessorStatus(): CARDINAL;
+
+    (* Returns the current value of the processor flags word.	*)
+
+PROCEDURE ShortDelay (amount: CARDINAL);
+
+    (* Provides a time delay for those cases where the required delay	*)
+    (* is not long enough to justify a Sleep() operation.		*)
+    (* The present version is not entirely satisfactory - needs to be	*)
+    (* re-tuned for different compiler options, different processor	*)
+    (* models, etc.  This should be seen as an interim solution only. 	*)
+
+END MiscPMOS.

@@ -1,0 +1,10 @@
+#system auto exe
+#model small jpi
+#pragma check(index=>on,range=>on,stack=>on,nil_ptr=>on,overflow=>on,guard=>on)
+#pragma debug(vid=>full)
+
+#compile %main
+#compile wildcc.c
+#link %prjname
+
+

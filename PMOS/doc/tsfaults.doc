@@ -1,0 +1,8 @@
+FAULTS DETECTED IN TOPSPEED MODULA-2
+------------------------------------
+
+Something fishy about INLINE: it looks as if a specific pragma
+call(inline => off) is needed after declaring an inline procedure,
+otherwise the compiler thinks that all following procedures are
+inline as well.
+

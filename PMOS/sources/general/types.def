@@ -1,0 +1,32 @@
+DEFINITION MODULE Types;
+
+	(********************************************************)
+	(*							*)
+	(*	Definitions of non-quite-portable types		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	15 March 1995			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT BYTE, WORD, ADDRESS (*<TopSpeed3*) , FarADDRESS (*>*);
+
+(*<TopSpeed3*) (*# save, data(near_ptr => off) *) (*>*)
+
+TYPE
+    (* Pointer types which must be "far" regardless of the memory model	*)
+
+    FarPointer = (*<~TopSpeed3 ADDRESS; >*)
+		 (*<TopSpeed3*) FarADDRESS; (*>*)
+    FarBytePointer = POINTER TO BYTE;
+    FarWordPointer = POINTER TO WORD;
+    FarCharPointer = POINTER TO CHAR;
+    FarCardPointer = POINTER TO CARDINAL;
+    FarPointerPointer = (*<~TopSpeed3 POINTER TO ADDRESS; >*)
+			 (*<TopSpeed3*) POINTER TO FarADDRESS; (*>*)
+    FarProcPointer = POINTER TO PROCEDURE();
+
+(*<TopSpeed3*) (*# restore *) (*>*)
+
+END Types.

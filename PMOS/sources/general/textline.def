@@ -1,0 +1,33 @@
+DEFINITION MODULE TextLines;
+
+	(********************************************************)
+	(*							*)
+	(*  Drawing horizontal and vertical lines in text mode	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	22 June 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+TYPE LineType = (none, single, double);
+
+PROCEDURE HLine (w: Window;  row, col1, col2: CARDINAL;  type: LineType);
+
+    (* Draws a horizontal line from (row,col1) to (row,col2).	*)
+
+PROCEDURE VLine (w: Window;  col, row1, row2: CARDINAL;  type: LineType);
+
+    (* Draws a vertical line from (row1,col) to (row2,col).	*)
+
+PROCEDURE Box (w: Window;  top, left, width, height: CARDINAL;
+							type: LineType);
+
+    (* Draws a rectangular box whose top left corner is at (top,left)	*)
+    (* and with the given width and height.				*)
+
+END TextLines.
+

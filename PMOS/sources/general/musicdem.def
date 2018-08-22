@@ -1,0 +1,22 @@
+DEFINITION MODULE MusicDemonstration;
+
+	(********************************************************)
+	(*							*)
+	(*		Test of module Music.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	24 June 1989			*)
+	(*  Status:						*)
+	(*	Working.  Musically, it could be polished up a	*)
+	(*	little, but from the software development	*)
+	(*	viewpoint it is complete - module Music does	*)
+	(*	indeed work as desired.				*)
+	(*							*)
+	(********************************************************)
+
+PROCEDURE WaitForEndOfMusic;
+
+    (* Synchronization procedure: does not return until the music	*)
+    (* demonstration is over.						*)
+
+END MusicDemonstration.

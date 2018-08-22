@@ -1,0 +1,8 @@
+#system auto exe
+#model small 
+#pragma optimize(cpu=>486,copro=>387)
+
+#compile %main
+#pragma link(pmoss.lib)
+#link %prjname
+

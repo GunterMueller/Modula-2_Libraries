@@ -1,0 +1,77 @@
+DEFINITION MODULE TextVideo;
+
+	(********************************************************)
+	(*							*)
+	(*		Low-level screen functions		*)
+	(*							*)
+	(*	The function of this module is to look after	*)
+	(*	the low-level screen initialisation needed	*)
+	(*	by the text-mode modules GlassTTY and Windows.	*)
+	(*	This reduces the likelihood of conflicts	*)
+	(*	arising in programs which import both of those	*)
+	(*	modules.					*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	25 October 1993			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(*		WARNING		WARNING		WARNING			*)
+(*									*)
+(*  The operations performed by this module are among the rare examples	*)
+(*  where a programming error can cause physical damage to the		*)
+(*  hardware.  Do NOT attempt to modify anything in this module unless	*)
+(*  you have a detailed understanding of how the video adaptors work.	*)
+(*  In particular, beware of putting inappropriate values into the	*)
+(*  registers of the 6845 video controller.				*)
+(*									*)
+(*  It is normal for the screen picture to "bloom" or "bounce" after	*)
+(*  a mode change (e.g. changing from a text mode to a graphics mode).	*)
+(*  Some monitors are worse than others for this, but all should	*)
+(*  regain synchronism after a second or so.  A bright dot at the	*)
+(*  centre of the screen or a "tearing" effect are NOT normal; if the	*)
+(*  screen display goes crazy you should turn off the monitor and/or	*)
+(*  reset the computer immediately, since it probably means that the	*)
+(*  software is not compatible with your hardware.			*)
+(*									*)
+(*  The procedures in this module are for the use of other library	*)
+(*  modules such as GlassTTY and Windows.  They should not normally	*)
+(*  be called directly from applications programs.			*)
+(*									*)
+(*  DISCLAIMER: This software is supplied "as is" with no warranty as	*)
+(*  to its compatibility with your hardware.  It has been tested on a	*)
+(*  small sample of computers, but because of the wide variety of	*)
+(*  video adaptors on the market it is impossible to be certain that	*)
+(*  it will work correctly on all hardware configurations.		*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE VideoKind (VAR (*OUT*) ScreenSegment: CARDINAL;
+				VAR (*OUT*) BlackAndWhite: BOOLEAN);
+
+    (* Returns the segment of the screen memory, and a flag saying	*)
+    (* whether we are using a monochrome adaptor.			*)
+
+PROCEDURE SetVideoMode (newmode: CARDINAL);
+
+    (* Sets the video mode, as defined in the BIOS. At present only	*)
+    (* modes 3 (25*80 colour) and 7 (25*80 monochrome) are supported.	*)
+
+PROCEDURE RestoreOriginalMode;
+
+    (* Sets the video mode back to what it was before this program ran.	*)
+
+PROCEDURE SetTextPage (page: SHORTCARD);
+
+    (* Changes the active display page.	*)
+
+PROCEDURE PositionCursor (visible: BOOLEAN;  position: CARDINAL;
+					blockcursor: BOOLEAN);
+
+    (* Displays a blinking screen cursor at the specified position.	*)
+
+END TextVideo.
+

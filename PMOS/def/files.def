@@ -1,0 +1,82 @@
+DEFINITION MODULE Files;
+
+        (****************************************************************)
+        (*                                                              *)
+        (*                      File operations                         *)
+        (*                                                              *)
+        (*      Note that the error code returned on an I/O             *)
+        (*      error is a rough guess, because of the lack of          *)
+        (*      correspondence between the library error codes and      *)
+        (*      the standard PMOS error codes.                          *)
+        (*                                                              *)
+        (*      Programmer:     P. Moylan                               *)
+        (*      Last edited:    8 May 1997                              *)
+        (*      Status:         Just starting ISO port                  *)
+        (*                                                              *)
+        (****************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)  BYTE, ADDRESS, CARD8;
+
+FROM IOErrorCodes IMPORT
+    (* type *)  ErrorCode;
+
+IMPORT RndFile;
+
+TYPE File = RndFile.ChanId;
+
+PROCEDURE OpenFile (VAR (*OUT*) f: File;  name: ARRAY OF CHAR;
+                                        newfile: BOOLEAN): ErrorCode;
+
+    (* Opens the file named by the given character string, and returns  *)
+    (* f as the identification to be used when specifying this file in  *)
+    (* future.  The caller must specify newfile = TRUE to create a new  *)
+    (* file, or newfile = FALSE if the intention is to open an existing *)
+    (* file.  It is illegal to open a new file with the same name as an *)
+    (* existing file; this is to protect against accidental deletions.  *)
+    (* The value returned is an error code (OK if no error).            *)
+
+PROCEDURE CloseFile (VAR (*INOUT*) f: File);
+
+    (* Closes file f.   *)
+
+PROCEDURE EOF (f: File): BOOLEAN;
+
+    (* Returns TRUE iff we are currently at the end of file f.  *)
+
+PROCEDURE ReadByte (f: File): CARD8;
+
+    (* Returns the next byte from the file.     *)
+
+PROCEDURE ReadRecord (f: File;  buffaddr: ADDRESS;  desired: CARDINAL;
+                                VAR (*OUT*) actual: CARDINAL): ErrorCode;
+
+    (* Reads up to "desired" bytes from file f to memory location       *)
+    (* "buffaddr".  On return, "actual" gives the number of bytes read. *)
+
+PROCEDURE WriteByte (f: File;  value: BYTE): ErrorCode;
+
+    (* Writes one byte to the file.     *)
+
+PROCEDURE WriteRecord (f: File;  buffaddr: ADDRESS;
+                                        count: CARDINAL): ErrorCode;
+
+    (* Writes count bytes from memory location buffaddr.        *)
+
+PROCEDURE SetPosition (f: File;  position: CARDINAL): ErrorCode;
+
+    (* Ensures that the next read or write on this file will be at      *)
+    (* byte number position in the file.  (The first byte in the file   *)
+    (* is byte number 0.)  If a position greater than the file size     *)
+    (* is specified, the length of the file will increase.              *)
+
+PROCEDURE SavePosition (f: File): CARDINAL;
+
+    (* Returns the current byte number in file f.       *)
+
+PROCEDURE FileSize (f: File): CARDINAL;
+
+    (* Returns the length of the file in bytes. *)
+
+END Files.
+

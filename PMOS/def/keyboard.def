@@ -1,0 +1,92 @@
+DEFINITION MODULE Keyboard;
+
+        (************************************************)
+        (*                                              *)
+        (*      Module to deal with keyboard input.     *)
+        (*                                              *)
+        (*  Programmer:         P. Moylan               *)
+        (*  Last edited:        9 August 1999           *)
+        (*  Status:             OK                      *)
+        (*                                              *)
+        (************************************************)
+
+FROM Semaphores IMPORT
+    (* type *)  Semaphore;
+
+CONST
+    ScrollLock = 16;
+    NumLock = 32;
+    CapsLock = 64;
+
+PROCEDURE KeyPressed(): BOOLEAN;
+
+    (* Returns TRUE iff a character is available. *)
+
+PROCEDURE InKey (): CHAR;
+
+    (* Reads a single character code from the keyboard. *)
+
+PROCEDURE PutBack (ch: CHAR);
+
+    (* This is an "un-read" operation, i.e. the character ch will       *)
+    (* re-appear on the next call to InKey.  This facility is provided  *)
+    (* for the use of software which can overshoot by one character     *)
+    (* when reading its input - a situation which can often occur.      *)
+    (* Some versions of this module will allow several calls to PutBack *)
+    (* before the next call to InKey, but no guarantee is made in that  *)
+    (* case of uniform treatment from version to version.               *)
+
+PROCEDURE StuffKeyboardBuffer (ch: CHAR);
+
+    (* Stores ch as if it had come from the keyboard, so that a         *)
+    (* subsequent InKey() will pick it up.                              *)
+
+    (* NOTE: Procedures PutBack and StuffKeyboardBuffer do almost the   *)
+    (* same thing, but not quite.  The differences are:                 *)
+    (*  1. StuffKeyboardBuffer stores characters in a first-in-first-out*)
+    (*     order, whereas PutBack uses last-in-first-out.               *)
+    (*  2. StuffKeyboardBuffer is intended for the case of a task       *)
+    (*     sending data to another task (where that other task is       *)
+    (*     expecting keyboard input), and PutBack is designed for the   *)
+    (*     case of a task talking to itself (i.e. the PutBack(ch) and   *)
+    (*     the InKey() are in the same task).  If you get this the      *)
+    (*     wrong way around then you could have timing-related          *)
+    (*     problems, up to and including deadlock.                      *)
+
+PROCEDURE StuffKeyboardBuffer2 (ch: CHAR);
+
+    (* Like StuffKeyboardBuffer, but stores a two-byte sequence: Nul    *)
+    (* followed by ch.                                                  *)
+
+PROCEDURE SetLocks (code: CARDINAL);
+
+    (* Set/clear the caps lock, num lock, and scroll lock conditions.   *)
+    (* The codes are defined at the beginning of this module.           *)
+
+PROCEDURE LockStatus (): CARDINAL;
+
+    (* Returns the current state of the caps lock, num lock, and scroll *)
+    (* lock conditions.                                                 *)
+    (* The codes are defined at the beginning of this module.           *)
+
+PROCEDURE HotKey (FunctionKey: BOOLEAN;  code: CHAR;  S: Semaphore);
+
+    (* After this procedure is called, typing the key combination for   *)
+    (* 'code' will cause a Signal(S).  Set FunctionKey=TRUE to trap one *)
+    (* of the two-character special function keys, and FALSE otherwise. *)
+    (* The character is consumed; if it should be passed on, then the   *)
+    (* user's hot key handler can do a PutBack().  Note: there is no    *)
+    (* provision for having multiple hot key handlers for the same key; *)
+    (* any existing hot key mapping will be overridden.                 *)
+
+PROCEDURE IsFullScreen(): BOOLEAN;
+
+    (* Returns TRUE if this is a full-screen OS/2 session. *)
+
+PROCEDURE NotDetached(): BOOLEAN;
+
+    (* Returns TRUE unless called by a process running detached.        *)
+    (* (A detached process may not do keyboard, screen, or mouse I/O.)  *)
+
+END Keyboard.
+

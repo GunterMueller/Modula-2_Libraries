@@ -1,0 +1,42 @@
+DEFINITION MODULE TransferFunctions;
+
+	(********************************************************)
+	(*							*)
+	(*	     Second order transfer functions		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	24 February 1991		*)
+	(*  Status:		Mostly working, still testing	*)
+	(*							*)
+	(********************************************************)
+
+TYPE TransferFunction;	(* is private *)
+
+(************************************************************************)
+
+PROCEDURE CreateTransferFunction (VAR (*OUT*) G: TransferFunction;
+					SamplingInterval: REAL);
+
+    (* Creates a new transfer function, with value initially set to unity. *)
+
+PROCEDURE DestroyTransferFunction (VAR (*INOUT*) G: TransferFunction);
+
+    (* Discards a transfer function. *)
+
+PROCEDURE UpdateSamplingInterval (VAR (*INOUT*) G: TransferFunction;
+					SamplingInterval: REAL);
+
+    (* Recomputes the internal details of the transfer function to	*)
+    (* allow for a change in sampling interval.				*)
+
+PROCEDURE Filter (VAR (*INOUT*) G: TransferFunction;  input: REAL): REAL;
+
+    (* Computes the output from G with the given input.  Remark: G is	*)
+    (* an inout parameter because its internal state is affected.	*)
+
+PROCEDURE EditTransferFunction (VAR (*INOUT*) G: TransferFunction;
+						caption: ARRAY OF CHAR);
+
+    (* Allows the keyboard user to alter a transfer function.	*)
+
+END TransferFunctions.

@@ -1,0 +1,136 @@
+DEFINITION MODULE InnerKernel;
+
+
+	(****************************************************************)
+	(*								*)
+	(*	THIS IS A SPECIAL VERSION OF INNERKER.DEF, WHICH	*)
+	(*	FORCES PARAMETERS TO BE PASSED ON THE STACK.		*)
+	(*								*)
+	(****************************************************************)
+
+(*# module(implementation=>off,init_code=>off) *)
+(*# call(reg_param=>()) *)
+
+	(****************************************************************)
+	(*								*)
+	(*	This is the nonportable part of the PMOS kernel.	*)
+	(*	It contains procedures whose implementation depends	*)
+	(*	not only on the processor, but also on compiler		*)
+	(*	conventions (which registers are saved, etc.).		*)
+	(*								*)
+	(*	This file is the definition module for the "portable"	*)
+	(*	version based on Wirth-style coroutine operations.	*)
+	(*	The only real difference between this file and the	*)
+	(*	standard PMOS version of InnerKer.DEF is that the	*)
+	(*	compiler pragmas are stripped out of this version.	*)
+	(*								*)
+	(*	Programmer:	P. Moylan				*)
+	(*	Last edited:	16 March 1995				*)
+	(*	Status:		Working					*)
+	(*								*)
+	(****************************************************************)
+
+FROM Types IMPORT
+    (* type *)	FarPointer;
+
+TYPE
+    TaskSelector = FarPointer;
+    FloatSaveSelector = CARDINAL;
+
+(************************************************************************)
+
+PROCEDURE EnterKernel (): CARDINAL;
+
+    (* Saves the processor flags word, including the current "interrupt	*)
+    (* enable" status, and returns with interrupts disabled.		*)
+    (* NOTE: this procedure and the following one should be used as a	*)
+    (* matched pair.							*)
+
+PROCEDURE LeaveKernel (PSW: CARDINAL);
+
+    (* Restores the processor flags word, including the "interrupt	*)
+    (* enable" status.  NOTE: this procedure and the one above should	*)
+    (* be used as a matched pair.					*)
+
+PROCEDURE TaskInit (StackBase: ADDRESS;  StackSize: CARDINAL;
+			EnableInterrupts: BOOLEAN;
+			TaskExit, StartAddress: PROC): TaskSelector;
+
+    (* Initialises the stack for a new task.  Parameter StackBase	*)
+    (* points to a block of memory which can be used to hold the stack	*)
+    (* (note that this is a pointer to the start of the memory block,	*)
+    (* not to the bottom of the stack); and StackSize is the size of	*)
+    (* this block.  The next parameter specifies whether processor	*)
+    (* interrupts should be enabled when the task is started.		*)
+    (* StartAddress and TaskExit are the start address of the task code	*)
+    (* and the start address of the code to execute when the task	*)
+    (* terminates.  The value returned is a selector for the new task.	*)
+
+PROCEDURE InitMainTask (): TaskSelector;
+
+    (* Like TaskInit, but for the special case of the original task	*)
+    (* which is running at program startup.  The function of this	*)
+    (* procedure is simply to ensure that the main stack layout is	*)
+    (* consistent with what we do for all other tasks.			*)
+
+PROCEDURE Transfer (VAR (*OUT*) source: TaskSelector;
+					destination: TaskSelector);
+
+    (* Performs a task switch to the destination task, at the same time	*)
+    (* saving a selector for the outgoing task in variable "source".	*)
+    (* This allows a subsequent call to Transfer to resume the		*)
+    (* original task.  By the time this procedure has returned to the	*)
+    (* caller, then, we are again executing the calling task.		*)
+
+    (* Special case: if this procedure is called by an interrupt task,	*)
+    (* the call is interpreted as a requiring a task switch from the	*)
+    (* interrupted task - i.e. the source parameter must specify the	*)
+    (* interrupted task - to the destination task.  In this case the	*)
+    (* actual switch to the destination task does not happen until the	*)
+    (* interrupt task makes its next call to IOTransfer.  The reason	*)
+    (* for this interpretation is that task switching to and from	*)
+    (* interrupt tasks is managed internally by this module; the	*)
+    (* occurrence of an interrupt is not something that can be		*)
+    (* controlled by the caller.					*)
+
+PROCEDURE IOTransfer;
+
+    (* May be called only from an interrupt task.  Performs a task	*)
+    (* switch from the current interrupt task to the task which it	*)
+    (* interrupted.  Unlike Transfer, no parameters are required	*)
+    (* because (a) the selector for the destination task is already	*)
+    (* known to this module, having been saved at the time of the	*)
+    (* interrupt; and (b) selectors for interrupt tasks are maintained	*)
+    (* directly by this module rather than by the caller.		*)
+
+PROCEDURE StartInterruptTask (TS: TaskSelector; InterruptNumber: CARDINAL);
+
+    (* Starts an interrupt task by running its initialisation section	*)
+    (* - i.e. everything up to the first IOTransfer - and arranging	*)
+    (* that from then on it will be activated by the given interrupt.	*)
+
+PROCEDURE DisconnectFromInterrupt (TS: TaskSelector);
+
+    (* Restores the interrupt vector to which TS was connected to its	*)
+    (* state before TS was established as an interrupt task.  (N.B. The	*)
+    (* result could be chaotic if there was no previous call to		*)
+    (* StartInterruptTask.)						*)
+
+PROCEDURE MakeFloatSaveSelector (selector: TaskSelector): FloatSaveSelector;
+
+    (* Creates the special form of selector which must subsequently be	*)
+    (* used in calls to save and restore the floating point state.	*)
+    (* The parameter supplied must be the value of the task selector	*)
+    (* as created by TaskInit.						*)
+
+PROCEDURE NPXsave (selector: FloatSaveSelector);
+
+    (* Saves the state of the Numeric Processor Extension coprocessor.	*)
+
+PROCEDURE NPXrestore (selector: FloatSaveSelector);
+
+    (* The operation complementary to NewNPXsave.  Restores the		*)
+    (* previously saved state of the floating point coprocessor.	*)
+
+END InnerKernel.
+

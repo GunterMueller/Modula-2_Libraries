@@ -1,0 +1,203 @@
+DEFINITION MODULE FastWindows;
+
+	(****************************************************************)
+	(*								*)
+	(*	A very crude implementation of screen windows.		*)
+	(*								*)
+	(*	This module has practically all the features of		*)
+	(*	module Windows, but there is a major restriction:	*)
+	(*	we do not bother to look after the problems		*)
+	(*	associated with windows which overlap on the screen.	*)
+	(*	That is, this version is for applications where the	*)
+	(*	the screen is divided up into disjoint regions,		*)
+	(*	such that no open window overlaps another.  (Nothing	*)
+	(*	disastrous happens if they do happen to overlap,	*)
+	(*	except that the screen is not as pretty as it ought	*)
+	(*	to be).  For the majority of applications, this		*)
+	(*	module is inferior to module Windows.  However, it	*)
+	(*	has a speed and memory size advantage over Windows,	*)
+	(*	which might make it suitable for critical applications.	*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	13 February 1991			*)
+	(*  Status:		OK.  Not fully tested.			*)
+	(*								*)
+	(****************************************************************)
+
+CONST
+    MaxRowNumber = 24;
+    MaxColumnNumber = 79;
+
+TYPE
+    Window;	(* is private *)
+    Colour = (black, blue, green, cyan, red, magenta, brown, white,
+		darkgrey, lightblue, lightgreen, lightcyan, lightred,
+		lightmagenta, yellow, intensewhite);
+    RowRange = [0..MaxRowNumber];
+    ColumnRange = [0..MaxColumnNumber];
+    FrameType = (noframe, simpleframe, doubleframe);
+    DividerType = (nodivider, simpledivider, doubledivider);
+
+PROCEDURE OpenWindow (VAR (*OUT*) w: Window;
+			ForegroundColour, BackgroundColour: Colour;
+			firstline, lastline: RowRange;
+			firstcol, lastcol: ColumnRange;
+			FrameDesired: FrameType;
+			DividerDesired: DividerType);
+
+    (* Create a new window.  Note that row and column numbers start	*)
+    (* from 0.  NOTE: If the window has a box drawn around it (the case	*)
+    (* FrameDesired <> noframe), this subtracts from the space		*)
+    (* available for text.						*)
+
+PROCEDURE OpenSimpleWindow (VAR (*OUT*) w: Window;
+			firstline, lastline: RowRange;
+			firstcol, lastcol: ColumnRange);
+
+    (* Identical to OpenWindow, except that you don't get any choice	*)
+    (* about the colours or frame.  The window is white-on-black with	*)
+    (* a simple frame and no dividers for the scrolling region.  This	*)
+    (* version of OpenWindow is useful for those with monochrome	*)
+    (* displays who don't want to be bothered with importing the types	*)
+    (* Colour, FrameType, and DividerType.				*)
+
+PROCEDURE ChangeScrollingRegion (w: Window; firstline, lastline: RowRange);
+
+    (* Changes the scrolling region of window w to the new line		*)
+    (* boundaries given, and sets the cursor of this window to the	*)
+    (* start of the scrolling region.  Row numbers are window-relative;	*)
+    (* that is, line 0 is the top line of the window (which is where	*)
+    (* the border is, unless you have no border).			*)
+
+PROCEDURE PutOnTop (w: Window);
+
+    (* This is a dummy procedure, present only for compatibility with	*)
+    (* applications which were originally written to use Windows.	*)
+
+PROCEDURE CloseWindow (w: Window);
+
+    (* Destroys the window. *)
+
+PROCEDURE SetCursor (w: Window; row: RowRange; column: ColumnRange);
+
+    (* Sets the cursor for window w to the given row and column.  The	*)
+    (* coordinates are window-relative; that is, they start at (0,0) at	*)
+    (* the top left of the window.					*)
+
+PROCEDURE SaveCursor (w: Window; VAR (*OUT*) row: RowRange;
+				 VAR (*OUT*) column: ColumnRange);
+
+    (* Returns the current cursor position.  The coordinates are	*)
+    (* window-relative; that is, they start at (0,0) at the top left of	*)
+    (* the window.							*)
+
+PROCEDURE CursorLeft (w: Window);
+
+    (* Moves the window cursor one position left.  If it falls off the	*)
+    (* left edge of the window, it moves to the right edge in the same	*)
+    (* row.								*)
+
+PROCEDURE CursorRight (w: Window);
+
+    (* Moves the window cursor one position right.  If it falls off the	*)
+    (* right edge of the window, it moves to the left edge in the same	*)
+    (* row.								*)
+
+PROCEDURE CursorUp (w: Window);
+
+    (* Moves the window cursor one position up.  If it falls off the	*)
+    (* top edge of the window, it moves to the bottom edge in the same	*)
+    (* column.								*)
+
+PROCEDURE CursorDown (w: Window);
+
+    (* Moves the window cursor one position down.  If it falls off the	*)
+    (* bottom edge of the window, it moves to the top edge in the same	*)
+    (* column.								*)
+
+PROCEDURE ScrollUp (w: Window);
+
+    (* Scrolls the scrolling region of window w up by one row, filling	*)
+    (* the vacated row with spaces.					*)
+
+PROCEDURE ScrollDown (w: Window);
+
+    (* Scrolls the scrolling region of window w down by one row,	*)
+    (* filling the vacated row with spaces.				*)
+
+PROCEDURE WriteLn (w: Window);
+
+    (* Go to next line in window, scrolling if necessary.  N.B. The	*)
+    (* window does not scroll if you are not in the scrolling region	*)
+    (* at the time of the WriteLn.					*)
+
+PROCEDURE WriteChar (w: Window; ch: CHAR);
+
+    (* Write one character.  Control characters are not given special	*)
+    (* treatment; they produce something visible just like any other	*)
+    (* character.  This procedure never causes a wrap to the next line.	*)
+
+PROCEDURE Write (w: Window; ch: CHAR);
+
+    (* Like WriteChar, but codes in the range 0..31 are treated as	*)
+    (* control characters.  This procedure is not recommended for	*)
+    (* general use, as it leads to obscure programs.  (Instead, do the	*)
+    (* control operations by direct calls to the cursor control		*)
+    (* procedures which are also supplied in this module).  It is	*)
+    (* supplied mainly to help those who are used to the conventions of	*)
+    (* the "standard" Modula 2 I/O modules such as InOut.		*)
+
+PROCEDURE WriteString (w: Window; text: ARRAY OF CHAR);
+
+    (* Write a string of characters, stopping at the first NUL		*)
+    (* character or the end of the array, whichever comes first.	*)
+
+PROCEDURE ReadChar (w: Window;  VAR (*OUT*) ch: CHAR);
+
+    (* Read one character, and echo it.	*)
+
+PROCEDURE UnreadChar (w: Window;  ch: CHAR);
+
+    (* Returns ch back to the keyboard queue, and deletes it from the	*)
+    (* the screen.  It is assumed that the last operation on window w	*)
+    (* was a ReadChar, and that ch was the character returned.  If this	*)
+    (* assumption is violated, there is no guarantee that the behaviour	*)
+    (* of this procedure will be consistent from version to version.	*)
+
+PROCEDURE ReadCharWithoutEcho (w: Window;  VAR (*OUT*) ch: CHAR);
+
+    (* Read one character, but don't echo it.  However, a blinking	*)
+    (* cursor is still displayed to prompt for the character.  (If you	*)
+    (* don't want the blinking cursor, use procedure Keyboard.InKey).	*)
+
+PROCEDURE ReadString (w: Window;  VAR (*OUT*) result: ARRAY OF CHAR);
+
+    (* Reads a character string, terminated by carriage return.		*)
+
+PROCEDURE EditString (w: Window;  VAR (*INOUT*) result: ARRAY OF CHAR);
+
+    (* Reads a character string, where a default result is supplied by	*)
+    (* the caller.  The final result is the state of the string at the	*)
+    (* time where the keyboard user types a carriage return.		*)
+
+PROCEDURE ColourSwap (w: Window; row: RowRange; col: ColumnRange;
+							nchar: CARDINAL);
+
+    (* Switches the foreground and background colours for nchar		*)
+    (* characters, starting at location (row,col).  The row and column	*)
+    (* numbers are window-relative, not absolute screen coordinates.	*)
+    (* This is our colour equivalent of the "reverse video" operation.	*)
+    (* NOTE: This procedure will not wrap around to a new row.		*)
+
+PROCEDURE EraseLine (w: Window; option: CARDINAL);
+
+    (* Erases some or all of the current line (but never the border).	*)
+    (* The erased characters are replaced by space characters.  The	*)
+    (* window cursor is not moved.  If w is not the currently active	*)
+    (* window, the result will not be visible until w is on top again.	*)
+    (* The options are:							*)
+    (*		0	the whole of the line, except for the border	*)
+    (*		1	from the current cursor position onwards	*)
+    (*		2	from the start to just before the cursor	*)
+
+END FastWindows.

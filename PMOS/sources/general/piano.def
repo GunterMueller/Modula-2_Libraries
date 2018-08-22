@@ -1,0 +1,21 @@
+DEFINITION MODULE Piano;
+
+	(********************************************************)
+	(*							*)
+	(*		Play notes from the keyboard		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	5 October 1992			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+
+PROCEDURE PlayPiano;
+
+    (* Turns the home row of the keyboard into a music keyboard, with	*)
+    (* the row above being the black keys.  Type Esc to exit.		*)
+
+END Piano.
+

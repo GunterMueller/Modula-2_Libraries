@@ -1,0 +1,58 @@
+DEFINITION MODULE Play3S;
+
+	(********************************************************)
+	(*							*)
+	(*		    3-part music			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	10 June 1994			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	See the notes in the implementation module	*)
+	(*	for details of how to adjust the note		*)
+	(*	frequencies and durations to compensate		*)
+	(*	for different processor speeds.			*)
+	(*							*)
+	(********************************************************)
+
+IMPORT Keyboard;	(* forces keyboard handler to be linked *)
+
+(************************************************************************)
+(*			THE FORMAT OF THE USER DATA			*)
+(************************************************************************)
+(*									*)
+(* The music to be played is specified as an array of entries, each of	*)
+(* which is three bytes long.  Each of the bytes specifies a note, so	*)
+(* the triplet of bytes specifies three notes to be played		*)
+(* simultaneously.  A value of 0 indicates a rest.			*)
+(*									*)
+(* Note values are in the range 1..63, and a standard 12 notes/octave	*)
+(* scale is used.  (The main limit on the allowable range arises from	*)
+(* aliasing effects due to the way we do the sampling.)  Note that the	*)
+(* absolute note frequencies depend on the processor speed, although	*)
+(* relative frequencies are processor-independent.			*)
+(*									*)
+(* Values greater than 63 in the first byte are interpreted as follows.	*)
+(*									*)
+(*	BYTE 1	    MEANING		    BYTES 2 AND 3		*)
+(*									*)
+(*	64..251	Currently not used	no meaning assigned		*)
+(*	 252	No meaning assigned	ignored; this option is present	*)
+(*					only for compatibility with	*)
+(*					other versions of this module.	*)
+(*	 253	Change note duration	the current duration is		*)
+(*					multiplied by the value in	*)
+(*					byte 2 and then divided by the	*)
+(*					value in byte 3			*)
+(*	 254	Set note duration	new duration (16 bits)		*)
+(*	 255	End of data		not needed			*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE Play (VAR (*IN*) A: ARRAY OF BYTE);
+
+    (* Plays the music encoded in array A.  The encoding is explained	*)
+    (* in the comments above.						*)
+
+END Play3S.
+

@@ -1,0 +1,24 @@
+DEFINITION MODULE HardDisk;
+
+	(********************************************************)
+	(*							*)
+	(*		Device driver for hard disk		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	27 July 1992			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	Note that there are no explicit entry		*)
+	(*	points to this module.  To use it, put an	*)
+	(*	"IMPORT HardDisk" declaration somewhere in	*)
+	(*	your program, and do all I/O through module	*)
+	(*	Files (for file-structured I/O), or module	*)
+	(*	Devices (for low-level operations).		*)
+	(*							*)
+	(*	Do not use this module under OS/2; use module	*)
+	(*	FileSys instead.				*)
+	(*							*)
+	(********************************************************)
+
+END HardDisk.
+

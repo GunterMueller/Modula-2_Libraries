@@ -1,0 +1,47 @@
+DEFINITION MODULE SerialIO;
+
+	(********************************************************)
+	(*							*)
+	(*	     Serial I/O through the COM ports		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	10 March 1995			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+TYPE
+    SerialChannelNumber = [1..4];
+    WordLength = SHORTCARD [5..8];
+    Parity = (NoParity, OddParity, EvenParity, Always0, Always1);
+    StopBits = SHORTCARD [1..2];
+
+(************************************************************************)
+
+PROCEDURE InitSerialChannel (chan: SerialChannelNumber;  baud: CARDINAL;
+				wordlength: WordLength;
+				parity: Parity; stopbits: StopBits);
+
+    (* Performs initialisation on channel "chan".			*)
+
+PROCEDURE ModemControl (chan: SerialChannelNumber;  code: BYTE);
+
+    (* Sends the specified code to the Modem Control Register.  The	*)
+    (* code bits are: bit0=DTR, bit1=RTS, bit2=Out1, bit3=Out2,		*)
+    (* bit4=Loopback.  (The other 3 bits should be zero.)		*)
+    (* You don't normally need to call this procedure.			*)
+
+PROCEDURE MouseReset (chan: SerialChannelNumber);
+
+    (* Special break sequence needed for resetting a serial mouse.	*)
+
+PROCEDURE ReadSerial (chan: SerialChannelNumber;  VAR (*OUT*) value: BYTE);
+
+    (* Reads one byte from a serial channel.	*)
+
+PROCEDURE WriteSerial (chan: SerialChannelNumber;  value: BYTE);
+
+    (* Sends one byte to an output channel.	*)
+
+END SerialIO.
+

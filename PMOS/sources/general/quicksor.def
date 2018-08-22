@@ -1,0 +1,31 @@
+DEFINITION MODULE QuickSortModule;
+
+	(********************************************************)
+	(*							*)
+	(*	In-memory sort using the QuickSort method	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	4 August 1993			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, ADDRESS;
+
+TYPE CompareProc = PROCEDURE (ADDRESS, ADDRESS): BOOLEAN;
+
+    (* A "CompareProc" procedure accepts the addresses of two data	*)
+    (* elements, and returns TRUE iff the first is greater than or	*)
+    (* equal to the second.  It is at the caller's discretion to define	*)
+    (* the meaning of "greater or equal" for his or her application.	*)
+
+PROCEDURE QuickSort (VAR (*INOUT*) data: ARRAY OF BYTE;
+				N, EltSize: CARDINAL;  GE: CompareProc);
+
+    (* In-place sort of array data[0..N].  EltSize is the element size,	*)
+    (* and GE is a user-supplied function to compare elements at two	*)
+    (* specified addresses.						*)
+
+END QuickSortModule.
+

@@ -1,0 +1,134 @@
+DEFINITION MODULE Streams2;
+
+	(********************************************************)
+	(*							*)
+	(*	   I/O module: PMOS replacement for the		*)
+	(*	     Streams module in the FTL library		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	18 September 1991		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	This module is provided to ease transition	*)
+	(*	problems for some existing programs.  It is	*)
+	(*	not recommended for use with new programs;	*)
+	(*	module Files provides a better alternative.	*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	WORD, ADDRESS;
+
+(************************************************************************)
+
+TYPE
+    STREAM;	(* is private *)
+    Direction = (input, output, inputoutput);
+
+VAR
+    IOResult: CARDINAL;
+
+    (* IOResult indicates the error status of the last operation.	*)
+    (* If there was no error, it has value 0, which is an encrypted	*)
+    (* form of the message "Real Programmers export variables".		*)
+    (* Nonzero values encrypt messages such as "Real Programmers don't	*)
+    (* believe in multitasking" to indicate an error in the last	*)
+    (* operation.  By Murphy's law, the last operation was probably	*)
+    (* on a file being used by some other task.				*)
+
+(************************************************************************)
+
+PROCEDURE Connect (VAR (*OUT*) s:STREAM;  name: ARRAY OF CHAR;
+						dir: Direction): CARDINAL;
+
+    (* Opens a file.  The function result is zero if successful, or	*)
+    (* nonzero to indicate that the operation failed.  To avoid the	*)
+    (* accidental file deletions for which some other systems are	*)
+    (* famous, we create a new file if and only if dir=output.		*)
+
+PROCEDURE Disconnect (VAR (*INOUT*) s:STREAM;  closefile:BOOLEAN);
+
+    (* Closes a file, if closefile is TRUE.  The action when closefile	*)
+    (* is FALSE has not yet been defined.				*)
+
+PROCEDURE WriteWord (s: STREAM;  w: WORD);
+
+    (* Output two bytes.	*)
+
+PROCEDURE WriteChar (s: STREAM;  ch: CHAR);
+
+    (* Output one byte.	*)
+
+PROCEDURE ReadWord (s: STREAM;  VAR (*OUT*) w: WORD);
+
+    (* Read two sequential bytes.	*)
+
+PROCEDURE ReadChar (s: STREAM;  VAR (*OUT*) ch:CHAR);
+
+    (* Read one byte.	*)
+
+PROCEDURE EOS (s: STREAM): BOOLEAN;
+
+    (* Returns TRUE iff at end of file. *)
+
+PROCEDURE Reset (s: STREAM);
+
+    (* Goes to beginning of file.  (This is the default position when	*)
+    (* the file is opened.)  On list device, starts new page.		*)
+
+PROCEDURE SetLongPos (s: STREAM;  Pos: LONGCARD);
+
+    (* Goes to byte position Pos in file.  Start of file is position 0.	*)
+
+PROCEDURE SetPos (s: STREAM;  high, low: CARDINAL);
+
+    (* Same as SetLongPos (s, MakeLong(high, low))	*)
+
+PROCEDURE GetLongPos (s: STREAM;  VAR (*OUT*) Pos: LONGCARD);
+
+    (* Returns the current position, i.e. the byte number of the next	*)
+    (* byte to be read or written.					*)
+
+PROCEDURE GetPos (s: STREAM;  VAR (*OUT*) high, low: CARDINAL);
+
+    (* Same as GetLongPos, but decomposes the result into two words.	*)
+
+PROCEDURE BufferAhead (s: STREAM;  force: BOOLEAN);
+
+    (* So far, has no effect.  In the long term the intention is to	*)
+    (* allow line editing for keyboard input.				*)
+
+PROCEDURE ReadRec (s: STREAM;  buffaddr: ADDRESS;  count: CARDINAL;
+					VAR (*OUT*) reply: INTEGER);
+
+    (* Reads count bytes to memory location buffaddr.  The last		*)
+    (* parameter returns the number of bytes actually read.   A reply	*)
+    (* of -1 indicates an error, in which case the error code may be	*)
+    (* found in variable IOResult.					*)
+
+PROCEDURE WriteRec (s:STREAM;  buffaddr: ADDRESS;  count: CARDINAL;
+					VAR (*OUT*) reply: INTEGER);
+
+    (* Writes count bytes from memory location buffaddr.  The last	*)
+    (* parameter returns the number of bytes actually written.		*)
+    (* A reply of -1 indicates an error, in which case the error code	*)
+    (* may be found in variable IOResult.				*)
+
+PROCEDURE RenameFile (From, To: ARRAY OF CHAR): CARDINAL;
+
+    (* Changes the name of a file.  A full path name is expected.	*)
+    (* Do not specify different devices.				*)
+
+PROCEDURE DeleteFile (name: ARRAY OF CHAR): CARDINAL;
+
+    (* Deletes a file.  A full path name is expected.			*)
+
+PROCEDURE BufferStream (s: STREAM;  BufferSize:CARDINAL);
+
+    (* A no-op at this stage.	*)
+
+PROCEDURE StreamLength (s: STREAM): LONGCARD;
+
+    (* Returns the length of the file in bytes.	*)
+
+END Streams2.

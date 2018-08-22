@@ -1,0 +1,201 @@
+module RandCard;
+
+	(********************************************************)
+	(*							*)
+	(*		Random number generator			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	25 February 1995		*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(* The algorithm used is Schrage's method, as described in		*)
+(*	Stephen K. Park and Keith W. Miller, "Random Number Generators:	*)
+(*	Good ones are hard to find", CACM 31(10), Oct 1988, 1192-1201.	*)
+(* A basic property of this particular implementation is that all	*)
+(* intermediate results fit into 32 bits (including sign).		*)
+(*									*)
+(************************************************************************)
+
+(*%T _fdata *)
+segment RandCard_DATA (DATA, 48H)
+(*%E*)
+(*%F _fdata *)
+segment _DATA (DATA, 28H)
+(*%E*)
+
+	modulusH = 7FFFH	(* high order 16 bits of modulus	*)
+	modulusL = 0FFFFH	(* low order 16 bits of modulus		*)
+	divisorL = 062237	(* low order 16 bits of divisor		*)
+				(* divisor = 2^16 + divisorL = 127773	*)
+
+public RandCard@seed:	dd 0
+
+(****************************************************************)
+(*		    MODULE INITIALISATION STUFF			*)
+(*	Needed because of the way the TopSpeed system does	*)
+(*			module initialisation			*)
+(****************************************************************)
+
+(*%T _fdata*)
+segment _INIT_DATA_CONST (FAR_DATA, 28H)
+(*%E*)
+(*%F _fdata*)
+segment _CONST (DATA, 28H)
+(*%E*)
+
+public RandCard$:
+	(*%T _fcall*)
+	dd $0
+	(*%E*)
+	(*%F _fcall*)
+	dw $0
+	(*%E*)
+	db 0FFH,0FFH
+
+(************************************************************************)
+
+(*%T _fcall*)
+segment RandCard_TEXT (CODE, 48H)
+(*%E*)
+(*%F _fcall*)
+segment _TEXT (CODE, 48H)
+(*%E*)
+
+(************************************************************************)
+(*									*)
+(* PROCEDURE RandCardinal (): LONGCARD;					*)
+(*									*)
+(************************************************************************)
+
+(* Let a = 7^5 = 16807, q = modulus DIV a = 127773, and			*)
+(* r = modulus MOD a = 2836.						*)
+(* We perform the sequence of calculations:				*)
+(*		high := SHORT(seed DIV q);  low := seed MOD q;		*)
+(* 		test := a*low - r*LONG(high);				*)
+(*		IF test > 0 THEN seed := test				*)
+(*		ELSE seed := test + modulus;				*)
+(*		ENDIF;							*)
+(*		RETURN seed;						*)
+(* The division in the first step is itself a rather long calculation,	*)
+(* because our processor does not provide a 32-bit division operation.	*)
+
+public RandCard$RandCardinal:
+
+	push ds
+	push bx
+	push cx
+	push si
+	push di
+	mov ax, seg RandCard@seed (* set up the data segment pointer	*)
+	mov ds, ax		(*   for this module			*)
+
+(* The hardest part of this calculation is the division.  For this we	*)
+(* use the following register allocations:				*)
+(*		ax, dx		temporary results			*)
+(*		bx		quotient				*)
+(*		cx		step					*)
+(*		si		remainder, high word			*)
+(*		di		remainder, low word			*)
+
+	mov bx, RandCard@seed
+	mov di, [bx]		(* remainder := seed			*)
+	mov si, [bx][2]
+	xor bx, bx		(* quotient := 0			*)
+divloop:
+	cmp si, 1		(* WHILE remainder >= divisor DO	*)
+	jb enddiv
+	ja div101
+	cmp di, divisorL
+	jb enddiv
+div101:	mov cx, si		(* step := HighWord(remainder) DIV 2	*)
+	shr cx, 1
+	jnz div102
+	inc cx			(* IF step = 0 THEN step := 1 ENDIF	*)
+div102:	add bx, cx		(* INC (quotient, step)			*)
+
+(* At this stage we have to subtract divisor*step from the remainder.	*)
+(* Noting that divisor = 2^16 + divisorL, we first subtract step	*)
+(* from the high part of the remainder, to bring us back to a		*)
+(* 16-bit multiplication.  (The product still has 32 bits).		*)
+
+	sub si, cx		(* DEC (remainder, 2^16*step)		*)
+	mov ax, divisorL	(*	now the 16-bit multiplication	*)
+	mul cx			(*	result is in (DX,AX)		*)
+	sub di, ax		(* DEC (remainder, divisorL*step)	*)
+	sbb si, dx
+	jmp divloop		(* ENDWHILE				*)
+
+(* That completes the division.  Now for a couple of multiplications	*)
+(* and a subtraction.  Here, we take advantage of the fact that the	*)
+(* remainder is known to have at most 17 significant bits, i.e. at	*)
+(* this stage SI can only hold 0 or 1.					*)
+
+enddiv:	push bx			(* save quotient for later use		*)
+	xor bx, bx		(* we will hold the answer in (BX,CX)	*)
+	mov cx, bx
+	mov ax, 16807
+	cmp si, bx		(* test for remainder >= 2^16		*)
+	jz xpr101
+	mov bx, ax		(* if so, update the answer		*)
+xpr101:	mul di			(* compute 16807*LowWord(remainder)	*)
+	add cx, ax		(* add that into the result		*)
+	adc bx, dx
+	mov ax, 2836
+	pop di			(* retrieve the quotient		*)
+	mul di			(* compute 2836*quotient		*)
+	sub cx, ax		(* subtract that from the result	*)
+	sbb bx, dx
+
+	(* If the result is now negative, add modulus to the result.	*)
+
+	jge xpr202
+	add cx, modulusL
+	adc bx, modulusH
+
+xpr202:	mov si, RandCard@seed
+	mov [si], cx		(* store the result in			*)
+	mov [si][2], bx		(*   variable "seed"			*)
+	mov ax, cx		(* also return the result		*)
+	mov dx, bx		(*   to the caller			*)
+	pop di
+	pop si
+	pop cx
+	pop bx
+	pop ds			(* restore saved registers		*)
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(******************************************************************)
+(****			MODULE INITIALISATION			***)
+(******************************************************************)
+
+$0:	push ds
+	push ax
+	push bx
+	mov ax, seg RandCard@seed
+	mov ds, ax		(* point to variable "seed"		*)
+	mov bx, RandCard@seed
+	mov word [bx], 1	(* initialise seed to (long) 1		*)
+	mov word [bx][2], 0
+	pop bx
+	pop ax
+	pop ds			(* restore ds				*)
+	(*%T _fcall*)
+	ret far 0
+	(*%E*)
+	(*%F _fcall*)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+
+end
+

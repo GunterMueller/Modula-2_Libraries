@@ -1,0 +1,37 @@
+DEFINITION MODULE MaintenancePages;
+
+        (********************************************************)
+        (*                                                      *)
+        (*      Support for "maintenance page" screen output    *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Last edited:        12 March 1993                   *)
+        (*  Status:             OK                              *)
+        (*                                                      *)
+        (********************************************************)
+
+FROM Windows IMPORT
+    (* type *)  Window;
+
+TYPE MaintenancePage;   (* is private *)
+
+PROCEDURE CreateMaintenancePage (VAR (*OUT*) page: MaintenancePage);
+
+    (* Creates a new maintenance page.  *)
+
+PROCEDURE Associate (w: Window;  page: MaintenancePage);
+
+    (* Before calling this procedure, both w and page must have been    *)
+    (* created.  This procedure ensures that window w is visible on     *)
+    (* the screen only when the given maintenance page is active.       *)
+    (* The association lasts until the window is closed or the page     *)
+    (* is removed.                                                      *)
+
+PROCEDURE RemoveMaintenancePage (VAR (*INOUT*) page: MaintenancePage);
+
+    (* Destroys all associations between the given page and its screen  *)
+    (* windows (but does not close the windows), and permanently        *)
+    (* removes this page from the collection of maintenance pages.      *)
+
+END MaintenancePages.
+

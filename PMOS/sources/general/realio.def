@@ -1,0 +1,47 @@
+DEFINITION MODULE RealIO;
+
+	(********************************************************)
+	(*							*)
+	(*		Real I/O using windows.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	10 October 1992			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	NOTE: several procedures which used to be	*)
+	(*	in this module have now been moved to		*)
+	(*	module Conversions.				*)
+	(*							*)
+	(********************************************************)
+
+FROM Windows IMPORT
+    (* type *)	Window;
+
+PROCEDURE WriteReal (w: Window;  number: REAL;  places: CARDINAL);
+PROCEDURE WriteLongReal (w: Window;  number: LONGREAL;  places: CARDINAL);
+
+    (* Writes the second argument as a decimal number, right-justified	*)
+    (* in a field of "places" places.					*)
+
+PROCEDURE ReadReal (w: Window): REAL;
+PROCEDURE ReadLongReal (w: Window): LONGREAL;
+
+    (* Reads and converts a numeric string from the keyboard.	*)
+
+PROCEDURE ReadBufferedReal (w: Window;  fieldsize: CARDINAL): REAL;
+PROCEDURE ReadBufferedLongReal (w: Window;  fieldsize: CARDINAL): LONGREAL;
+
+    (* Like ReadReal, but allows the user to edit within a field of	*)
+    (* the specified size.						*)
+
+PROCEDURE EditReal (w: Window;  VAR (*INOUT*) variable: REAL;
+							width: CARDINAL);
+PROCEDURE EditLongReal (w: Window;  VAR (*INOUT*) variable: LONGREAL;
+							width: CARDINAL);
+
+    (* Displays the current value of "variable" at the current cursor	*)
+    (* position in window w, using a field width of "width" characters,	*)
+    (* and gives the user the option of altering the value.		*)
+
+END RealIO.
+

@@ -1,0 +1,7 @@
+#system auto exe
+#model large 
+#pragma debug(vid=>full)
+
+#compile %main
+#link %prjname
+

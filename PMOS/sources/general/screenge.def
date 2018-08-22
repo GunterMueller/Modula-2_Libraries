@@ -1,0 +1,42 @@
+DEFINITION MODULE ScreenGeometry;
+
+	(********************************************************)
+	(*							*)
+	(*	    Support module for screen graphics		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	6 October 1993			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+TYPE
+    Point = RECORD
+		x, y: INTEGER;
+	    END (*RECORD*);
+
+    Rectangle =	RECORD
+		    top, bottom, left, right: INTEGER;
+		END (*RECORD*);
+
+(************************************************************************)
+
+PROCEDURE Inside (x, y: INTEGER;  R: Rectangle): BOOLEAN;
+
+    (* Returns TRUE iff point (x,y) is in (or on the border of) R.	*)
+
+PROCEDURE Adjacent (R1, R2: Rectangle;
+				VAR (*OUT*) union: Rectangle): BOOLEAN;
+
+    (* If the union of R1 and R2 is itself a rectangle, returns TRUE	*)
+    (* and sets "union" to be the combined rectangle.  Otherwise	*)
+    (* returns FALSE, and the "union" result is meaningless.		*)
+
+PROCEDURE TrimLine (VAR (*INOUT*) end1, end2: Point;  R: Rectangle): BOOLEAN;
+
+    (* Modifies end1 and end2, if necessary, to cut off the ends of	*)
+    (* the line from end1 to end2 which do not fit in R.		*)
+    (* Returns FALSE if none of the line passes through the rectangle.	*)
+
+END ScreenGeometry.
+

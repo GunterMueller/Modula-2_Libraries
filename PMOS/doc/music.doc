@@ -1,0 +1,119 @@
+README file for the music package
+---------------------------------
+(Ignore this if you have PMOS.  This package is a subset of PMOS.)
+
+This package is freeware.  You may use it in any way you wish, and
+distribute it freely, subject only to the condition that you retain
+the authors' names in the distributed files and give due acknowledgement
+in any derived product.
+
+The function of these files is to play 3-part music through the
+PC speaker.  There's also an option to play VOC files.  The reason why
+there are so many files is that several alternative approaches are used.
+Some versions will work only on fast processors - see below - and some
+others will work (with reduced quality) with any processor speed.
+
+There are several ways in which you can use this package:
+
+ - If you are a PMOS user then you can use the sources precisely
+   as they are written.  (To get a copy of PMOS, use anonymous ftp
+   to ee.newcastle.edu.au and look in the directory pub/PMOS.)
+
+ - If you don't have PMOS but you do have a Modula-2 compiler
+   then you can use the sources with very minor modifications.
+   The necessary modifications (to library imports, and changes
+   to account for discrepancies between what different compilers
+   support) should be obvious once you try to compile the sources.
+
+ - If you don't have Modula-2, the comments in the sources should
+   be sufficient to let you translate the modules into your own
+   favourite programming language.
+
+ - If you don't have Modula-2 and are not prepared to do the
+   translation, you can still run the .EXE files and hear a
+   demonstration of what is possible.  Note that these demonstrations
+   will probably require a 486 processor (33 MHz or better).  I
+   haven't yet tested the software on a 386.
+
+
+CONTACT INFORMATION
+
+The author of this software is Peter Moylan, peter@ee.newcastle.edu.au.
+A couple of other people have contributed to the program development;
+in particular, quite a bit of the work is due to Tim Channon.
+
+
+DESCRIPTION OF THE INCLUDED FILES
+
+Starting from the low-level modules and working up:
+
+    LOWLEVEL.DEF, LOWLEVEL.A:  Support module for some very low-level
+        operations.  PMOS users can use this to update their existing
+        copy of the LowLevel module.  Everyone else can treat it as
+        documentation.
+
+    RATIONAL.DEF, RATIONAL.MOD:  Support module for doing arithmetic
+        on rational numbers.  (Some of the higher-level modules use
+        rational arithmetic in order to avoid rounding errors in the
+        calculation of note durations.)
+
+    PLAYBUFF.DEF, PLAYBUFF.A:  This assembly language module plays
+        a waveform from a circular buffer (and some higher-level
+        module must keep re-filling that buffer at a high enough
+        speed).  This module is needed for Play3B and PlayList to work.
+
+    PLAY3S.DEF, PLAY3S.MOD:  this is the simplest version of the "play"
+        operation.  It ought to be able to run on any speed processor,
+        but it does need to be "tuned" for the processor speed by
+        adjusting a couple of constants in the source.  Use this
+        version if you have a slow processor.
+
+    PLAY3S.A:  An alternative implementation, in assembly language, of
+        PLAY3S.MOD.  Not needed unless your compiler is particularly
+        bad at code generation, or you have some other reason for needing
+        to stay with assembly language.
+
+    PLAY3.DEF, PLAY3.MOD:  A rather more sophisticated approach,
+        allowing the simulation of several different instruments.  (Note
+        that this module is not interchangeable with Play3S,
+        because it expects a different encoding of the user data.)  This
+        is far better than the above when it works, but it will work only
+        on fast processors.  I've run it successfully on a 33 MHz 486,
+        but it fails badly on a 16 MHz machine.
+
+    PLAYLIST.DEF, PLAYLIST.MOD:  A module which takes a linked list
+        of raw waveform data and sends it to PlayBuff.  Not used by
+        the music modules, but it is used by PlayVoc (see below).
+
+    MUSIC3S.DEF, MUSIC3S.MOD:  A module that translates from high-level
+        music notation to the data format expected by Play3S.
+
+    MUSIC3.DEF, MUSIC3.MOD:  Like Music3S, but it translates to the
+        format expected by Play3.  Use this, in preference to Music3,
+        if your processor is fast enough to handle it.
+
+    PLAYVOC.MOD:  A program to play VOC files.  (A program called SOX,
+        available at a number of archive sites, can convert a variety of
+        other sound files to the VOC format.)
+
+    PLAYMAKE.MOD:  A utility program to generate the tables of constants
+        which appear in PLAY3S.A.  Use this program if you need to alter
+        the timing or tuning of PLAY3S.A.
+
+    PLAYTEST.MOD:  A simple test program which simply runs through all
+        notes from highest to lowest.  This can be used to check the
+        "tuning" of modules like Play3S.
+
+    PLINK.MOD:  A test program which lets you fiddle with the tone/envelope
+        parameters of a note.  Useful only if you can use Music3B.
+
+    M3D*.MOD:  Sources for some music demonstrations.  Depending on your
+        preferences and processor, you can edit them so that they
+        use either Music3 or Music3S.
+
+    M3D*.EXE:  Compiled versions of the above.  They've been compiled with
+        the "Music3" option, so they won't run on all processors.
+
+If anyone writes any more demonstrations based around this software,
+I'd appreciate receiving a copy.
+

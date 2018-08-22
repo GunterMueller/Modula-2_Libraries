@@ -1,0 +1,43 @@
+DEFINITION MODULE PlayList;
+
+	(********************************************************)
+	(*							*)
+	(*	Playing sounds from a list of buffers		*)
+	(*							*)
+	(*  Programmer:		P. Moylan, T. Channon		*)
+	(*  Last edited:	26 February 1995		*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	Requires a fast processor, because the timing	*)
+	(*	constraints are fairly tight.			*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT BYTE;
+
+FROM PlayBuff IMPORT
+    (* const*)	OutputBufferSize;
+
+TYPE
+    BufferList;		(* is private *)
+    OutputBufferSubscript = [0..OutputBufferSize-1];
+    OutputBufferPointer = POINTER TO ARRAY OutputBufferSubscript OF BYTE;
+
+PROCEDURE CreateList (VAR (*OUT*) L: BufferList);
+
+    (* Creates an empty list. *)
+
+PROCEDURE AddToList (VAR (*INOUT*) L: BufferList;  p: OutputBufferPointer);
+
+    (* Appends p^ to L. *)
+
+PROCEDURE PlayFromList (L: BufferList);
+
+    (* Real sound play. *)
+
+PROCEDURE DiscardList (VAR (*INOUT*) L: BufferList);
+
+    (* Returns the whole of L to free storage. *)
+
+END PlayList.
+

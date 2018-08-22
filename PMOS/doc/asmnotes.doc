@@ -1,0 +1,55 @@
+      ษออออออออออออออออออออออออออออออออออออออออออออออออป
+      บ      NOTES ON THE ASSEMBLY LANGUAGE MODULES    บ
+      ศออออออออออออออออออออออออออออออออออออออออออออออออผ
+
+THE *.A FILES
+
+These are in the SOURCES\GENERAL directory, and are for use with
+TopSpeed version 3 by people who have the TopSpeed assembler.
+They have been tested fairly thoroughly.  They won't, however,
+work with any compiler other than TopSpeed version 3.
+
+THE *.ASM FILES
+
+These are in the ASM directory, and can be assembled with Microsoft
+or Turbo assemblers.  These modules are for use with TopSpeed
+version 1.  (They could in principle also be used with TopSpeed version
+3, if the "stack" calling convention is specified in the project file.
+This however is not recommended, since better options exist with
+this version of TopSpeed.)  It is conceivable that these modules
+will also work for FST users, but I haven't yet got around to checking
+for FST compatibility.
+
+The present test status of these files is as follows:
+    INNERKER.ASM:  Working with TopSpeed 1 and TopSpeed 3, not yet
+        tested with FST.
+    INNERK1.ASM, INNERK2.ASM, PARTEST.ASM:  Do not use these.
+        The only purpose of these files is to act as a starting
+        point for people who want to port PMOS to a new compiler.
+    PLAYBUFF.ASM:  Working with TopSpeed 1 and TopSpeed 3, not yet
+        tested with FST.
+    MISCLIB.ASM:  not recently tested, so it could be out of date.
+
+THE *.OBJ FILES
+
+The OBJECT directory has separate subdirectories to hold the
+assembled modules.  (I do it this way to reduce the likelihood of
+people accidentally deleting files they're not in a position to
+re-create.)
+     OBJECT\TS1  Object files to use with TopSpeed version 1.
+     OBJECT\TS3  Object files to use with TopSpeed version 3, for
+         people who don't have the TopSpeed assembler.  This
+         directory has several subdirectories, one for each
+         supported memory model.
+
+For people with TopSpeed version 3 including assembler, the recommended
+approach is to run the MAKELIB batch file in the LIB directory
+(N.B. First check the project files to ensure that they match your
+preferences in terms of processor model, etc.); and from then on use
+the *.LIB files and delete all the surplus object files in the
+OBJECT directory.
+
+For everyone else: take a look at the batch files and project files
+in the LIB and OBJECT directories, and use these as a guide in deciding
+how to set up your directories/projects.
+

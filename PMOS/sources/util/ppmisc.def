@@ -1,0 +1,115 @@
+DEFINITION MODULE PPMisc;
+
+	(********************************************************)
+	(*							*)
+	(*	Miscellaneous procedures for preprocessor.	*)
+	(*							*)
+	(*	The purpose of this module is to collect	*)
+	(*	together the compiler-dependent of the		*)
+	(*	preprocessor.  The module consists mostly	*)
+	(*	of file and string operations.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	4 August 1994			*)
+	(*  Status:		Working with FST, TopSpeed 1.17	*)
+	(*			   and TopSpeed 3.10		*)
+	(*							*)
+	(*  Rowley version is untested and probably wrong.	*)
+	(*							*)
+	(********************************************************)
+
+(*<FST|Rowley
+IMPORT FileSystem;
+>*)
+
+(*<TopSpeed*)
+IMPORT FIO;
+(*>*)
+
+TYPE File = (*<TopSpeed*) FIO.File; (*>*)
+	    (*<FST|Rowley FileSystem.File; >*)
+
+(************************************************************************)
+(*			   STRING OPERATIONS				*)
+(************************************************************************)
+
+PROCEDURE Length (s: ARRAY OF CHAR): CARDINAL;
+
+    (* Returns the length of string s. *)
+
+PROCEDURE StringMatch (s1, s2: ARRAY OF CHAR): BOOLEAN;
+
+    (* Returns TRUE iff the two strings are equal. *)
+
+PROCEDURE CopyString (src: ARRAY OF CHAR;  VAR (*OUT*) dst: ARRAY OF CHAR);
+
+    (* Copies src to dst. *)
+
+PROCEDURE Pos (pattern, string: ARRAY OF CHAR): CARDINAL;
+
+    (* If pattern is a substring of string, returns the index in	*)
+    (* string of the start of the first occurrence of pattern.  If	*)
+    (* no match then the value returned is beyond the end of string.	*)
+
+(************************************************************************)
+(*				TERMINAL I/O				*)
+(************************************************************************)
+
+PROCEDURE Message (mess: ARRAY OF CHAR);
+
+    (* Writes a string to the screen. *)
+
+PROCEDURE EndOfMessage;
+
+    (* Goes to the next line on the screen. *)
+
+PROCEDURE CommandLine (argNr: CARDINAL;  VAR (*OUT*) strg : ARRAY OF CHAR;
+					VAR (*OUT*) arglen : CARDINAL);
+
+    (* Picks up argument number argNr from the command line. *)
+
+(************************************************************************)
+(*			     FILE OPERATIONS				*)
+(************************************************************************)
+
+PROCEDURE OpenFile (VAR (*OUT*) f: File;  filename: ARRAY OF CHAR;
+						create: BOOLEAN): BOOLEAN;
+
+    (* Opens the file specified as "filename".  We open it for input if	*)
+    (* create=FALSE, or create a new file for output if create=TRUE.	*)
+    (* The function result indicates success.				*)
+
+    (* Warning: the code used for TopSpeed allocates file buffers on	*)
+    (* the assumption that we never have more than one input file and	*)
+    (* one output file open at any one time.				*)
+
+PROCEDURE CloseFile (VAR (*INOUT*) f: File);
+
+    (* Closes file f. *)
+
+PROCEDURE EndOfFile (VAR (*INOUT*) f: File): BOOLEAN;
+
+    (* Returns TRUE iff the end of file f has been reached. *)
+
+PROCEDURE WriteToFile (VAR (*INOUT*) f: File;
+				VAR (*IN*) str: ARRAY OF CHAR);
+
+    (* Writes a text string to file f. *)
+
+PROCEDURE TerminateLine (VAR (*INOUT*) f: File);
+
+    (* Writes an end-of-line to file f. *)
+
+PROCEDURE ReadLine (VAR (*INOUT*) f: File;  VAR (*OUT*) strg: ARRAY OF CHAR);
+
+    (* Reads a line of text from file f. *)
+
+PROCEDURE DeleteFile (name: ARRAY OF CHAR);
+
+    (* Deletes a file, if it exists.  The file must not be open. *)
+
+PROCEDURE RenameFile (originalname, newname: ARRAY OF CHAR);
+
+    (* Renames an existing file.  The file should not be open. *)
+
+END PPMisc.

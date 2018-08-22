@@ -1,0 +1,406 @@
+module PlayBuff
+
+	(****************************************************************)
+	(*								*)
+	(*	This is a very low-level module, which takes data	*)
+	(*	from a buffer and uses it directly as timer "count"	*)
+	(*	values to control the speaker.  The caller has the	*)
+	(*	responsibility to do all pre-processing necessary	*)
+	(*	to compute the counts.					*)
+	(*								*)
+	(*	This version uses two timers: timer 0 to control the	*)
+	(*	sampling rate, and timer 2 to produce the PWM output	*)
+	(*	to the speaker.						*)
+	(*								*)
+	(*	Programmer:	P. Moylan, T. Channon			*)
+	(*			(see below for further credits)		*)
+	(*	Last edited:	25 February 1995			*)
+	(*	Status:		Working					*)
+	(*								*)
+	(*	HISTORY AND CREDITS:					*)
+	(*								*)
+	(*	The first version of my 3-part music software was	*)
+	(*	written many years ago on a homebrew 8080A system.	*)
+	(*	(It had a crude D/A converter wired across the front	*)
+	(*	panel lights, and that more than compensated for the	*)
+	(*	slowness of the processor.)  The original idea		*)
+	(*	probably came from something like a Dr. Dobbs		*)
+	(*	article, but at this distance in time I no longer	*)
+	(*	remember the details.					*)
+	(*								*)
+	(*	I wrote the PC version at about the beginning of May	*)
+	(*	1994, using direct control of the "speaker enable" bit	*)
+	(*	to implement a PWM technique.  It ran well enough, but	*)
+	(*	had the shortcoming that it had to be re-tuned when	*)
+	(*	ported to a processor with a different clock speed.	*)
+	(*								*)
+	(*	The suggestion for using a timer to make the code	*)
+	(*	independent of processor speed came from Tim Channon	*)
+	(*	(tchannon@black.demon.co.uk).  More importantly, Tim	*)
+	(*	came up with some major improvements to the coding,	*)
+	(*	and managed to turn a buzzy sound into something you	*)
+	(*	could listen to.  His modifications to cut down the	*)
+	(*	size of the interrupt routine turned out to be crucial.	*)
+	(*								*)
+	(*	The idea of using mode 0 for timer 2 came from a hint	*)
+	(*	by Mark Feldman (myndale@cairo.anu.edu.au), the author	*)
+	(*	of the Games Programmers' Encyclopaedia.  That led to	*)
+	(*	a further speed-up of the software, to the point where	*)
+	(*	there was some time left over for higher-level modules	*)
+	(*	to do some real-time waveform processing.		*)
+	(*								*)
+	(****************************************************************)
+
+(************************************************************************)
+(*			SOME TECHNICAL DETAILS				*)
+(*									*)
+(* The speaker is controlled by the two low-order bits of port 97.	*)
+(* Bit 0 is the GATE input to timer 2 - this controls whether timer 2	*)
+(* is running - and bit 1 turns the speaker on.  The actual signal to	*)
+(* the speaker is a logical AND of bit 1 and the output of timer 2.	*)
+(* This module leaves both of these bits turned on all the time, so	*)
+(* that the speaker is driven directly by timer 2.			*)
+(*									*)
+(* We're using a pulse width modulation technique, where the waveform	*)
+(* sent to the speaker has a fixed frequency and the desired signal	*)
+(* is obtained by modulating the duty cycle.  Timer 0 is used to set	*)
+(* the basic sampling frequency, and the interrupt routine for timer 0	*)
+(* is used to update the "count" values sent to timer 2.		*)
+(*									*)
+(* The data buffer from which the interrupt routine is taking its	*)
+(* "count" values must be filled by a higher-level module.  The		*)
+(* procedures Synch0 and Synch1 are supplied to let that higher-level	*)
+(* module avoid overwriting parts of the buffer which the interrupt	*)
+(* routine has not yet reached.						*)
+(*									*)
+(************************************************************************)
+
+(************************************************************************)
+(*			SOME IMPORTANT CONSTANTS			*)
+(************************************************************************)
+
+    (* OutputBufferSize is the size of a half-buffer.  (The overall	*)
+    (* size of the circular buffer is twice this.)  Warning: make sure	*)
+    (* that this declaration is consistent with the one in the		*)
+    (* definition module, since I haven't yet found a way to make	*)
+    (* this assembler import a constant from the definition module.	*)
+
+    OutputBufferSize = 128
+
+    (* Definitions of port numbers. *)
+
+    Timer0 = 0
+    Timer2 = 2
+    CountPort0 = 40H + Timer0
+    CountPort2 = 40H + Timer2
+    TimerControlPort = 43H
+    SpeakerPort = 61H
+
+    (* The codes we have to write to the timer control ports to set	*)
+    (* the modes.  Note in particular that we're using timer 2 in its	*)
+    (* "interrupt on terminal count" mode.  This doesn't actually cause	*)
+    (* an interrupt - the original PC designers apparently didn't	*)
+    (* envisage that any programmers would have liked to have the timer	*)
+    (* output connected to the interrupt controller - but that mode	*)
+    (* does have the useful property that its output changes (rather	*)
+    (* than just pulsing) on the expiration of the count.		*)
+
+    LoadOption = 1		(* to use one-byte counts	*)
+    Timer0Mode = 2
+    Timer2Mode = 0
+    OurMode0 = 64*Timer0 + 16*LoadOption + 2*Timer0Mode
+    OurMode2 = 64*Timer2 + 16*LoadOption + 2*Timer2Mode
+
+    NormalMode = 36H		(* DOS uses mode 3 = square wave *)
+
+    (* The number we have to write to the speaker port to enable the	*)
+    (* speaker and turn on the timer 2 gate.  Bits 2 and 3 have to be	*)
+    (* set for reasons unrelated to the speaker, bit 1 has to be set to	*)
+    (* enable the speaker, and bit 0 has to be set to allow timer 2	*)
+    (* to run.								*)
+
+    EnableSpeaker = 0FH
+
+(************************************************************************)
+(*				MODULE DATA				*)
+(************************************************************************)
+
+(*%T _fdata *)
+segment PlayBuff_DATA (DATA, 28H)
+(*%E*)
+(*%F _fdata *)
+segment _DATA (DATA, 28H)
+(*%E*)
+
+    (* CycleCount controls the sampling frequency.  Giving it too low	*)
+    (* a value will put an impossible load on the processor, and the	*)
+    (* software will be unable to keep up.  Giving it too high a value	*)
+    (* will cause a whistle because of aliasing effects.  A compromise	*)
+    (* has to be found between these extremes.				*)
+
+    (* Note that a change to CycleCount requires a re-working of	*)
+    (* the way the caller calculates frequencies.			*)
+
+    CycleCount:	 db	64
+
+    (* Saved copy of the original INT 8 interrupt vector.	*)
+
+    SavedVector: dw	0, 0
+
+(************************************************************************)
+(*****    Start of code segment containing the interrupt handler   ******)
+(************************************************************************)
+
+	(********************************************************)
+	(*							*)
+	(*	 WARNING: IN ORDER TO KEEP THE INTERRUPT	*)
+	(*	 ROUTINE SHORT, WE KEEP SOME OF OUR DATA	*)
+	(*	  IN THIS CODE SEGMENT.  THIS IS NOT A		*)
+	(*	VERY CLEAN PROGRAMMING STYLE, BUT IT DOES	*)
+	(*	SAVE US HAVING TO LOAD A SEGMENT REGISTER.	*)
+	(*							*)
+	(********************************************************)
+
+segment PlayBuff_TEXT (CODE, 48H)
+
+    (* A circular buffer to hold a queue of data for the interrupt	*)
+    (* routine.  Each queue entry is a count to be loaded into timer 2.	*)
+    (* IMPORTANT: This must come at the beginning of the segment -	*)
+    (* which implies that these data and several of the procedures	*)
+    (* must live in a special segment even in those memory models	*)
+    (* for which all code normally goes into a single segment.		*)
+
+    CircBuffer:	org	2*OutputBufferSize
+
+    (* The circular buffer pointer used by the interrupt routine.	*)
+
+    OutPtr:	dw	CircBuffer
+
+(************************************************************************)
+(* PROCEDURE InterruptHandler;						*)
+(*									*)
+(* This is the INT 8 interrupt handler.  It is triggered by timer 0,	*)
+(* which is running at a constant rate.  It has been totally reworked	*)
+(* by TC to speed it up.						*)
+(************************************************************************)
+
+InterruptHandler:
+
+	push bx
+	push ax
+	mov bx, cs:[OutPtr]	(* load DS and buffer pointer	*)
+	mov al, cs:[bx]		(* fetch the next count		*)
+	out CountPort2, al	(* send new count to timer #2	*)
+	inc bl			(* store back updated		*)
+	mov cs:[OutPtr], bl	(*   buffer pointer		*)
+	mov al, 20H
+	out 20H, al		(* send the EOI			*)
+	pop ax
+	pop bx
+	iret
+
+(************************************************************************)
+(* PROCEDURE Synch0;							*)
+(*									*)
+(* Call this when you've just finished the second half of the buffer	*)
+(* and want to move back to the first half.  On return from this	*)
+(* procedure, the caller is permitted to start filling the first half.	*)
+(************************************************************************)
+
+public PlayBuff$Synch0:
+
+	(* This code is for the case OutputBufferSize = 128. *)
+	
+loop0:	test byte cs:[OutPtr], 80H
+	jz loop0
+	ret far 0
+
+	(* Alternative: the following code is for the case where	*)
+	(* OutputBufferSize = 256.					*)
+(*
+loop0:	cmp byte cs:[OutPtr], 0H
+	jnz loop0
+	mov byte cs:[OutPtr+1], 1
+	ret far 0
+*)
+(************************************************************************)
+(* PROCEDURE Synch1;							*)
+(*									*)
+(* Call this when you've just finished the first half of the buffer	*)
+(* and want to move on to the second half.  On return from this		*)
+(* procedure, the caller is permitted to start filling the second half.	*)
+(************************************************************************)
+
+public PlayBuff$Synch1:
+
+	(* This code is for the case OutputBufferSize = 128. *)
+
+loop1:	test byte cs:[OutPtr], 80H
+	jnz loop1
+	ret far 0
+
+	(* Alternative: the following code is for the case where	*)
+	(* OutputBufferSize = 256.					*)
+(*
+loop1:	cmp byte cs:[OutPtr], 0H
+	jnz loop1
+	mov byte cs:[OutPtr+1], 0
+	ret far 0
+*)
+(************************************************************************)
+(*    Start of "normal" code segment.  Depending on the memory model,	*)
+(*     this might or might not be the same segment as the one above.	*)
+(************************************************************************)
+
+(*%T _fcall*)
+segment PlayBuff_TEXT (CODE, 48H)
+(*%E*)
+(*%F _fcall*)
+segment _TEXT (CODE, 48H)
+(*%E*)
+
+(************************************************************************)
+(* PROCEDURE StartPlaying;						*)
+(*									*)
+(* Call this just after the first half-buffer has been filled.  It	*)
+(* initialises OutPtr, sets up InterruptHandler as an interrupt routine	*)
+(* for INT 8, and puts timers 0 and 2 into the modes we want to use.	*)
+(************************************************************************)
+
+public PlayBuff$StartPlaying:
+
+	push ds			(* save registers		*)
+	push es
+	push ax
+	push si
+	push di
+	pushf
+	mov ax, seg OutPtr
+	mov es, ax
+	mov ax, 0
+	mov byte es:[OutPtr], al (* initialise buffer pointer	*)
+	mov ds, ax		(* make DS:SI point to		*)
+	mov si, 32		(*   INT 8 vector		*)
+	mov ax, seg SavedVector	(* make ES:DI point to the	*)
+	mov es, ax		(*   place to save the vector	*)
+	mov di, SavedVector
+	cli			(* disable interrupts		*)
+	cld			(* direction := forwards	*)
+	lodsw
+	stosw			(* save the original contents	*)
+	mov ax, [si]		(*   of the interrupt vector	*)
+	stosw
+	mov word [si], seg InterruptHandler
+	dec si;  dec si		(* load new interrupt vector	*)
+	mov word [si], InterruptHandler
+	mov al, OurMode2	(* set mode for timer 2		*)
+	out TimerControlPort, al
+	mov al, EnableSpeaker	(* enable speaker and turn on	*)
+	out SpeakerPort, al	(*   timer 2 gate		*)
+	mov al, OurMode0	(* set mode for timer 0		*)
+	out TimerControlPort, al
+	mov al, es:[CycleCount]	(* specify sampling rate in	*)
+	out CountPort0, al	(*   timer 0			*)
+	popf
+	pop di
+	pop si
+	pop ax
+	pop es
+	pop ds
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE StopPlaying;						*)
+(*									*)
+(* Stops the music and cleans up.  This procedure restores the original	*)
+(* INT 8 interrupt handler, and puts the timer 0 mode back to what DOS	*)
+(* expects.								*)
+(************************************************************************)
+
+public PlayBuff$StopPlaying:
+
+	push ds
+	push es
+	push ax
+	push si
+	push di
+	pushf
+	mov ax, seg SavedVector	(* select our data segment	*)
+	mov ds, ax
+	mov ax, 0
+	mov es, ax		(* make ES:DI point to		*)
+	mov di, 32		(*   INT 8 vector		*)
+	mov si, SavedVector
+	cli			(* disable interrupts		*)
+	cld
+	lodsw
+	stosw			(* copy the contents of		*)
+	lodsw			(*   SavedVector (2 words) to	*)
+	stosw			(*     the INT 8 vector		*)
+	mov al, NormalMode	(* reset the timer mode		*)
+	out TimerControlPort, al
+	sub al, al
+	out CountPort0, al	(* load an all-zero timer count	*)
+	out CountPort0, al	(*  (which is what DOS expects)	*)
+	popf
+	pop di
+	pop si
+	pop ax
+	pop es
+	pop ds
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE BufferAddress (): ADDRESS;					*)
+(*									*)
+(* Returns the address of the first buffer.				*)
+(************************************************************************)
+
+public PlayBuff$BufferAddress:
+
+	mov ax, CircBuffer
+	mov dx, seg CircBuffer
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+(* PROCEDURE SetCycleCount (count: BYTE);				*)
+(*									*)
+(* Sets the cycle count which determines the sampling frequency.	*)
+(* The default value is 64.						*)
+(************************************************************************)
+
+public PlayBuff$SetCycleCount:
+
+	push ds
+	push ax
+	mov ax, seg CycleCount	(* select our data segment *)
+	mov ds, ax
+	pop ax
+	mov [CycleCount],al	(* store the new value *)
+	pop ds
+	(*%T _fcall *)
+	ret far 0
+	(*%E*)
+	(*%F _fcall *)
+	ret near 0
+	(*%E*)
+
+(************************************************************************)
+
+end
+

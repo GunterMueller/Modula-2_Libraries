@@ -1,0 +1,40 @@
+DEFINITION MODULE TimeOfDay;
+
+	(****************************************************************)
+	(*								*)
+	(*			Time-of-day Module			*)
+	(*								*)
+	(*  This module keeps a time-of-day record, to the nearest 16th	*)
+	(*  of a second, by using the CMOS clock hardware.		*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	3 July 1993				*)
+	(*  Status:		OK					*)
+	(*								*)
+	(****************************************************************)
+
+TYPE TimeRecord=RECORD
+		    ticks,
+		    seconds, minutes, hours,
+		    dayofweek, dayofmonth,
+		    month, year, century	: SHORTCARD
+		END (*RECORD*);
+
+(************************************************************************)
+
+PROCEDURE ReadClock (VAR (*OUT*) result: TimeRecord);
+
+    (* Returns the current time and date.	*)
+
+PROCEDURE SetClock (VAR (*IN*) newtime: TimeRecord);
+
+    (* Modifies the current time and date.	*)
+
+PROCEDURE SetBinaryMode (NewMode: BOOLEAN);
+
+    (* Makes the clock run in BCD if NewMode is FALSE, or in binary if	*)
+    (* NewMode is TRUE.  If this requires a mode change, adjusts the	*)
+    (* current date/time values held by the hardware.			*)
+
+END TimeOfDay.
+

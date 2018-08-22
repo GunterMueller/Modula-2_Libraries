@@ -1,0 +1,81 @@
+DEFINITION MODULE Queues;
+
+	(********************************************************)
+	(*							*)
+	(*		Generic queue module.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	12 November 1991		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(*  A non-obvious decision to be made in the design of a module like	*)
+(*  this is whether to work directly with the caller's data, or with	*)
+(*  pointers to the data.  In the present case, this means deciding	*)
+(*  whether to implement queues of user data or queues of pointers.	*)
+(*  The former choice is superior in terms of clarity and ease of use,	*)
+(*  but requires the physical copying of data between the queue and	*)
+(*  the caller's data structure.  The latter choice is more efficient,	*)
+(*  but requires the caller to be concerned with allocation and		*)
+(*  deallocation of data space.  With some languages we would not be	*)
+(*  faced with this delicate choice, but Modula-2 has relatively poor	*)
+(*  support for generic data structures.				*)
+(*									*)
+(*  For this module, the decision has been to support the more		*)
+(*  efficient but less elegant arrangement: to add something to the	*)
+(*  queue, the caller supplies a pointer to the data, which might	*)
+(*  require that the caller allocate some space for that data.  When	*)
+(*  an item is removed from the queue, what is returned is again a	*)
+(*  pointer to the data.  That is, the actual data live in a data	*)
+(*  space which is under the control of the user.  This implies that	*)
+(*  the caller can - but should not - modify queued data.  This		*)
+(*  solution is not as clean as it might have been, but is justified	*)
+(*  by the need of some callers of this module for a low-overhead	*)
+(*  solution.								*)
+(*									*)
+(*  Note, however, that the caller is not required to supply space for	*)
+(*  the "bookkeeping" information such as the pointers which link the	*)
+(*  queue elements together.  That level of detail is hidden inside	*)
+(*  this module, as it should be.					*)
+(*									*)
+(*  Critical section protection is also provided; that is, a queue	*)
+(*  may safely be used by multiple tasks.				*)
+(*									*)
+(************************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	ADDRESS;
+
+TYPE Queue;	(* is private *)
+
+PROCEDURE CreateQueue (VAR (*OUT*) Q: Queue);
+
+    (* Creates a new queue, initially empty.	*)
+
+PROCEDURE DestroyQueue (Q: Queue);
+
+    (* Destroys queue Q, thus freeing up the space it occupied.  Any	*)
+    (* data still on the queue are lost.  After this call, no further	*)
+    (* operations should be performed on the queue.			*)
+
+PROCEDURE AddToQueue (Q: Queue;  DataPointer: ADDRESS);
+
+    (* Places a new element at the tail of queue Q.  The caller has an	*)
+    (* obligation to ensure that DataPointer^ remains in existence	*)
+    (* for as long as it remains on the queue.				*)
+
+PROCEDURE TakeFromQueue (Q: Queue): ADDRESS;
+
+    (* Removes and returns a pointer to the datum at the head of the	*)
+    (* queue.  If the queue is empty, waits until data available.	*)
+
+PROCEDURE Empty (Q: Queue): BOOLEAN;
+
+    (* Returns TRUE iff Q is empty.  Warning: if more than one task is	*)
+    (* using this queue, there is no guarantee as to how long the queue	*)
+    (* will remain empty.						*)
+
+END Queues.

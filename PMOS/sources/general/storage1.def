@@ -1,0 +1,43 @@
+DEFINITION MODULE Storage1;
+
+	(********************************************************)
+	(*							*)
+	(*  Storage allocation with critical section protection	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	26 February 1995		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*  This module supports the Modula-2 NEW and DISPOSE operations.	*)
+(*									*)
+(*  Why should you use this module, when the standard module Storage	*)
+(*  already provides the necessary facilities?  The answer is that	*)
+(*  most "normal" implementations of Storage don't provide critical	*)
+(*  section protection.  Some very nasty things can happen if there's	*)
+(*  a task switch in the middle of heap manipulation; and the fault	*)
+(*  is typically non-repeatable and hard to track down.			*)
+(*									*)
+(*  In the case of TopSpeed Modula-2 the MThread memory model takes	*)
+(*  care of this; but you might not want that solution, for two reasons:*)
+(*	1. It removes the possibility of using PMOS under the more	*)
+(*	   economical memory models.					*)
+(*	2. The TopSpeed solution is to disable interrupts, which could	*)
+(*	   be unacceptable in real-time applications.  The solution	*)
+(*	   adopted in the present model is better in terms of		*)
+(*	   interrupt latency.						*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE ALLOCATE (VAR (*OUT*) p: ADDRESS;  size: CARDINAL);
+
+    (* Allocates a block of size bytes. *)
+
+PROCEDURE DEALLOCATE (VAR (*INOUT*) p: ADDRESS;  size: CARDINAL);
+
+    (* Deallocates memory that was allocated by ALLOCATE. *)
+
+END Storage1.
+

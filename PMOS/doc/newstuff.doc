@@ -1,0 +1,41 @@
+NEW FEATURES IN PMOS 2.2
+========================
+
+Will now work with TopSpeed version 1.17.
+
+For TopSpeed version 3, all memory models from Small..XLarge are now
+supported.  You no longer need the MThread memory model.
+
+Improved menus.
+
+Improved graphics.
+
+Software for playing multi-part music.
+
+Miscellaneous minor modifications and enhancements.
+
+
+NEW FEATURES IN PMOS 2.1
+========================
+
+A new data type Lock, as an alternative to binary semaphores.
+The kernel supports priority inheritance when Locks are used.
+
+Some changes for the sake of greater portability.  This includes
+support for people who don't have access to an assembler.
+
+A new module ConfigurationOptions, where you specify things like
+whether to enable time-slicing.
+
+Special for OS/2 users: the keyboard combination Ctrl/Alt/Ins is
+accepted as an alternative to Ctrl/Alt/Del.
+
+Mouse support, including things like moving windows around on the
+screen.  Several modules, including in particular Menus, have been
+updated to take advantage of the mouse support.
+
+Better graphics support, including VESA graphics modes with up to
+64K colours.  (Note: 24-bit colour is not supported.)
+
+Numerous minor improvements to many modules.
+

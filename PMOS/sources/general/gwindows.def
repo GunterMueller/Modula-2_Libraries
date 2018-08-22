@@ -1,0 +1,154 @@
+DEFINITION MODULE GWindows;
+
+	(********************************************************)
+	(*							*)
+	(*	    Windows module for screen graphics		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	18 April 1994			*)
+	(*  Status:						*)
+	(*	Mostly working, still adding features.		*)
+	(*							*)
+	(********************************************************)
+
+FROM ScreenGeometry IMPORT
+    (* type *)	Point, Rectangle;
+
+FROM Graphics IMPORT
+    (* type *)	ColourType;
+
+(************************************************************************)
+
+TYPE
+    Window;	(* is private *)
+
+    BorderType = (single, double);
+
+(************************************************************************)
+
+PROCEDURE InitGraphics (mode: CARDINAL);
+
+    (* Sets up the Graphics mode.  Optional, since the module starts up	*)
+    (* with a best estimate of the "best" mode possible on the		*)
+    (* available hardware.						*)
+
+PROCEDURE OpenWindow (VAR (*OUT*) w: Window;
+				left, bottom, right, top: CARDINAL;
+				Foregrnd, Backgrnd: ColourType;
+				b: BorderType);
+
+    (* Creates a new window.	*)
+
+PROCEDURE OpenWindowR (VAR (*OUT*) w: Window;  location: Rectangle;
+					Foregrnd, Backgrnd: ColourType;
+					b: BorderType);
+
+    (* Same as OpenWindow, except for method of specifying location.	*)
+
+PROCEDURE WindowMemory (w: Window;  memory: BOOLEAN);
+
+    (* Specifying a FALSE value for the memory parameter means that	*)
+    (* subsequent data sent to this window will be written to the	*)
+    (* screen but not remembered.  This saves time and memory, the only	*)
+    (* penalty being that data covered by an overlapping window will	*)
+    (* be lost.  Specifying TRUE restores the default condition, where	*)
+    (* all window data are retained for refreshing the screen when	*)
+    (* necessary.							*)
+
+PROCEDURE CloseWindow (VAR (*INOUT*) w: Window);
+
+    (* Destroys the window.	*)
+
+PROCEDURE SetColour (w: Window;  colour: ColourType);
+
+    (* Specifies the foreground colour to be used until further notice.	*)
+
+PROCEDURE PutPixel (w: Window;  p: Point);
+
+    (* Plots a dot at the point (x,y) in window w.  The coordinates are	*)
+    (* relative to the bottom left of the window.  If the dot lies	*)
+    (* outside the window it will be ignored.				*)
+
+PROCEDURE PutPixel2 (w: Window;  x, y: INTEGER);
+
+    (* Same as PutPixel, with a different way of specifying the point.	*)
+
+PROCEDURE PutPixel2C (w: Window;  x, y: INTEGER;  colour: ColourType);
+
+    (* Same as PutPixel2, with the colour explicitly specified.	*)
+
+PROCEDURE Line (w: Window;  start, end: Point);
+
+    (* Draws a straight line.  The points are relative to the bottom	*)
+    (* left corner of w.  Parts of the line lying outside the window	*)
+    (* are clipped.							*)
+
+PROCEDURE Line2 (w: Window;  xstart, ystart, xend, yend: INTEGER);
+
+    (* The same operation as Line, with a different way of specifying	*)
+    (* the parameters.							*)
+
+PROCEDURE Line2C (w: Window;  xstart, ystart, xend, yend: INTEGER;
+							colour: ColourType);
+
+    (* The same operation as Line2, but with the colour explicitly	*)
+    (* specified.							*)
+
+PROCEDURE GString (w: Window;  x, y: CARDINAL;  text: ARRAY OF CHAR);
+
+    (* Writes a horizontal character string at graphics position (x,y)	*)
+    (* relative to window w.  Characters which do not fit are not	*)
+    (* displayed.  This is not considered to be a text operation since	*)
+    (* the text cursor is not affected and there is no line wrap.	*)
+
+PROCEDURE GStringUp (w: Window;  x, y: CARDINAL;  text: ARRAY OF CHAR);
+
+    (* Like GString, but the string is rotated counterclockwise by	*)
+    (* 90 degrees, i.e. it is written in the +Y direction.		*)
+
+PROCEDURE ClearWindow (w: Window);
+
+    (* Erases all data from w, but keeps it open.	*)
+
+(************************************************************************)
+(*			    TEXT OPERATIONS				*)
+(************************************************************************)
+(*									*)
+(*  Every open window has a "text cursor" which is used only for text	*)
+(*  operations and is independent of any operations on dots and lines.	*)
+(*  The text cursor is updated after any text operation in such a way	*)
+(*  that the characters follow one another in the way one would expect	*)
+(*  for non-graphics windows.						*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE SetCursor (w: Window;  row, column: CARDINAL);
+
+    (* Sets the text cursor to the specified row and column.  The row	*)
+    (* and column are measured in units of characters (not pixels),	*)
+    (* with (0,0) representing the first character position at the	*)
+    (* upper left of the window.					*)
+
+PROCEDURE SaveCursor (w: Window;  VAR (*OUT*) row, column: CARDINAL);
+
+    (* Returns the current row and column of the text cursor. *)
+
+PROCEDURE WriteChar (w: Window;  ch: CHAR);
+
+    (* Writes a horizontal character at the current text cursor		*)
+    (* position for window w.  The text cursor is updated.		*)
+
+PROCEDURE WriteString (w: Window;  text: ARRAY OF CHAR);
+
+    (* Writes a horizontal character string at the current text cursor	*)
+    (* position for window w.  Characters which do not fit on the	*)
+    (* current line are wrapped around to a new row.			*)
+
+PROCEDURE WriteLn (w: Window);
+
+    (* Sets the text cursor to the start of the next text line down.	*)
+    (* If the cursor reaches the bottom of the window, the text in the	*)
+    (* window is scrolled.						*)
+
+END GWindows.
+

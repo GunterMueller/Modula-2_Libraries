@@ -1,0 +1,47 @@
+DEFINITION MODULE KTrace;
+
+	(****************************************************************)
+	(*								*)
+	(*	Trace routines for Modula 2 program development.	*)
+	(*								*)
+	(*  This is the version which does NOT use windows.  It is	*)
+	(*  intended for low-level tracing of the kernel, where a	*)
+	(*  window-based tracing facility would be unsuitable because	*)
+	(*  of critical section problems.  However, it is quite		*)
+	(*  adequate for any application where we don't care too much	*)
+	(*  about a pretty screen layout.				*)
+	(*								*)
+	(*  Note, however, that this module is missing the "Press any	*)
+	(*  key to continue" option which my other trace modules have.	*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	21 January 1989				*)
+	(*  Status:		OK					*)
+	(*								*)
+	(****************************************************************)
+
+PROCEDURE NYI (name: ARRAY OF CHAR);
+
+	(* Types a "not yet implemented" message.	*)
+
+PROCEDURE InTrace (name: ARRAY OF CHAR);
+
+	(* Types "Entering 'name'".	*)
+
+PROCEDURE OutTrace (name: ARRAY OF CHAR);
+
+	(* Types "Leaving 'name'".	*)
+
+PROCEDURE TraceOn;
+
+	(* Turns on tracing.	*)
+
+PROCEDURE TraceOff;
+
+	(* Turns off tracing.		*)
+
+PROCEDURE TraceStatus(): BOOLEAN;
+
+	(* Says whether tracing is currently on.	*)
+
+END KTrace.

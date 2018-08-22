@@ -1,0 +1,6 @@
+DEFINITION MODULE demo;
+
+PROCEDURE func;
+
+END demo.
+

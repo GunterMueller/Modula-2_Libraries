@@ -1,0 +1,7 @@
+#file redirect %M%.red
+#compile InnerKer.A
+#compile LowLevel.A
+#compile PlayBuff.A
+#compile Play3S.A
+#compile RandCard.A
+

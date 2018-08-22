@@ -1,0 +1,824 @@
+DEFINITION MODULE LowLevel;
+
+	(********************************************************)
+	(*							*)
+	(*	   Miscellaneous low-level procedures		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	11 March 1995			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	Note that the implementation of this module	*)
+	(*	is heavily compiler-dependent.  This version	*)
+	(*	is for use with the TopSpeed compiler,		*)
+	(*	version 1 or version 3.				*)
+	(*							*)
+	(*	Now making changes so that I can use it with	*)
+	(*	more compilers.					*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, WORD, ADDRESS;
+
+FROM Types IMPORT
+    (* type *)	FarPointer;
+
+(*<TopSpeed3*)
+(*# module (init_code => off) *)
+
+CONST
+    (*%T _fcall *)
+	Ret = 0CBH;
+    (*%E *)
+    (*%F _fcall *)
+	Ret = 0C3H;
+    (*%E *)
+
+TYPE
+    Code1=ARRAY [0..0] OF BYTE;
+    Code2=ARRAY [0..1] OF BYTE;
+    Code3=ARRAY [0..2] OF BYTE;
+    Code5=ARRAY [0..4] OF BYTE;
+    Code7=ARRAY [0..6] OF BYTE;
+    Code9=ARRAY [0..8] OF BYTE;
+(*>*)
+
+(************************************************************************)
+(*			    BITWISE LOGIC				*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# save, call(inline => on, reg_param => (ax, bx), reg_return => (ax)) *)
+(*# call(reg_saved => (bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE IAND (first, second: WORD): WORD
+
+    (* Bit-by-bit logical AND.	*)
+
+    (*<TopSpeed3*)  = Code3 (21H, 0D8H, Ret)	(* and ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IANDB (first, second: BYTE): BYTE
+
+    (* Bit-by-bit logical AND for bytes. *)
+
+    (*<TopSpeed3*)  = Code3 (21H, 0D8H, Ret)	(* and ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IOR (first, second: WORD): WORD
+
+    (* Bit-by-bit inclusive OR.	*)
+
+    (*<TopSpeed3*) = Code3 (09H, 0D8H, Ret)	(* or ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IORB (first, second: BYTE): BYTE
+
+    (* Bit-by-bit inclusive OR.	*)
+
+    (*<TopSpeed3*) = Code3 (09H, 0D8H, Ret)	(* or ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IXOR (first, second: WORD): WORD
+
+    (* Bit-by-bit exclusive OR.	*)
+
+    (*<TopSpeed3*) = Code3 (31H, 0D8H, Ret)	(* xor ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IXORB (first, second: BYTE): BYTE
+
+    (* Bit-by-bit exclusive OR.	*)
+
+    (*<TopSpeed3*) = Code3 (31H, 0D8H, Ret)	(* xor ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE INOT (value: WORD): WORD
+
+    (* Bit-by-bit Boolean complement.	*)
+
+    (*<TopSpeed3*) = Code3 (0F7H, 0D0H, Ret)	(* not ax *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE INOTB (value: BYTE): BYTE
+
+    (* Bit-by-bit Boolean complement.	*)
+
+    (*<TopSpeed3*) = Code3 (0F7H, 0D0H, Ret)	(* not ax *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax, cx), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE ROL (value: WORD;  count: CARDINAL): WORD
+
+    (* Left rotation of "value" by "count" bit positions.	*)
+
+    (*<TopSpeed3*) = Code3 (0D3H, 0C0H, Ret)	(* rol ax, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE ROLB (value: BYTE;  count: CARDINAL): BYTE
+
+    (* Left rotation of "value" by "count" bit positions.	*)
+
+    (*<TopSpeed3*) = Code3 (0D2H, 0C0H, Ret)	(* rol al, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE LS (value: WORD;  count: CARDINAL): WORD
+
+    (* Left shift of "value" by "count" bit positions, with zero fill.	*)
+
+    (*<TopSpeed3*) = Code3 (0D3H, 0E0H, Ret)	(* shl ax, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE LSB (value: BYTE;  count: CARDINAL): BYTE
+
+    (* Left shift of "value" by "count" bit positions, with zero fill.	*)
+
+    (*<TopSpeed3*) = Code3 (0D2H, 0E0H, Ret)	(* shl al, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE ROR (value: WORD;  count: CARDINAL): WORD
+
+    (* Right rotation of "value" by "count" bit positions.	*)
+
+    (*<TopSpeed3*) = Code3 (0D3H, 0C8H, Ret)	(* ror ax, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE RORB (value: BYTE;  count: CARDINAL): BYTE
+
+    (* Right rotation of "value" by "count" bit positions.	*)
+
+    (*<TopSpeed3*) = Code3 (0D2H, 0C8H, Ret)	(* ror al, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE RS (value: WORD;  count: CARDINAL): WORD
+
+    (* Right shift of "value" by "count" bit positions, with zero fill.	*)
+
+    (*<TopSpeed3*) = Code3 (0D3H, 0E8H, Ret)	(* shr ax, cl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE RSB (value: BYTE;  count: CARDINAL): BYTE
+
+    (* Right shift of "value" by "count" bit positions, with zero fill.	*)
+
+    (*<TopSpeed3*)
+     = Code3 (0D2H, 0E8H, Ret)	(* shr al, cl *)
+    (*>*);
+
+(************************************************************************)
+(*			    POINTER OPERATIONS				*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (ax,dx), reg_return => (ax,dx)) *)
+(*# call(reg_saved => (bx,cx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE Far (A: ADDRESS): FarPointer
+
+    (* Converts a pointer to a far pointer. *)
+
+    (*<TopSpeed3*)
+    (*%T _fptr *)
+     = Code1 (Ret)
+    (*%E*)
+    (*%F _fptr *)
+     = Code3 (8CH,0DAH,Ret)	(* mov dx, ds *)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (dx, ax), reg_return => (ax,dx)) *)
+
+INLINE (*>*)
+PROCEDURE MakePointer (segment, offset: WORD): FarPointer
+
+    (* Creates a pointer, given the segment and offset within segment.	*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (ax,bx), reg_return => (bx)) *)
+(*# call(reg_saved => (cx,dx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE SEGMENT (A: ADDRESS): WORD
+
+    (* Returns the segment part of an address.	*)
+
+    (*<TopSpeed3*)
+    (*%T _fptr *)
+     = Code1 (Ret)
+    (*%E*)
+    (*%F _fptr *)
+     = Code3 (8CH, 0DBH, Ret)	(* mov bx, ds *)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_saved => (ax,bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE FarSEGMENT (A: FarPointer): WORD
+
+    (* Returns the segment part of an address.	*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax,bx), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE OFFSET (A: ADDRESS): WORD
+
+    (* Returns the offset part of an address.	*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_saved => (bx,cx,dx,si,di,ds,es,st1,st2)) *)
+(*# call(reg_return => (ax,dx)) *)
+(*%T _fptr *)
+    (*# call(reg_param => (ax,dx,bx)) *)
+(*%E*)
+(*%F _fptr *)
+    (*# call(reg_param => (ax,bx)) *)
+(*%E*)
+
+INLINE (*>*)
+PROCEDURE AddOffset (A: ADDRESS;  increment: CARDINAL): ADDRESS
+
+    (* Returns a pointer to the memory location whose physical address	*)
+    (* is Physical(A)+increment.  In the present version, it is assumed	*)
+    (* that the caller will never try to run off the end of a segment.	*)
+
+    (*<TopSpeed3*) = Code3 (01H, 0D8H, Ret)	(* add ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE SubtractOffset (A: ADDRESS;  decrement: CARDINAL): ADDRESS
+
+    (* Like AddOffset, except that we go backwards in memory.  Running	*)
+    (* off the beginning of the segment is an undetected error.		*)
+
+    (*<TopSpeed3*) = Code3 (29H, 0D8H, Ret)	(* sub ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) (*# call(reg_param => (ax,dx,bx)) *)
+
+INLINE (*>*)
+PROCEDURE FarAddOffset (A: FarPointer;  increment: CARDINAL): FarPointer
+
+    (* Like AddOffset, except for the parameter types. *)
+
+    (*<TopSpeed3*) = Code3 (01H, 0D8H, Ret)	(* add ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE FarSubtractOffset (A: FarPointer; decrement: CARDINAL): FarPointer
+
+    (* Like SubtractOffset, except for the parameter types. *)
+
+    (*<TopSpeed3*) = Code3 (29H, 0D8H, Ret)	(* sub ax, bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => off) *)
+(*# call(reg_param => (ax, dx), reg_return => (dx, ax)) *)
+(*# call(reg_saved => (bx,cx,si,di,ds,es,st1,st2)) *)
+(*>*)
+
+PROCEDURE Virtual (PA: LONGCARD): FarPointer;
+
+    (* Converts a physical address to a virtual address, if possible.	*)
+    (* There are no guarantees in the case where there is no such	*)
+    (* virtual address.							*)
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (ax,bx), reg_return => (ax, bx)) *)
+(*# call(reg_saved => (cx,dx,si,di,ds,es,st1,st2)) *)
+(*>*)
+
+PROCEDURE Physical (A: ADDRESS): LONGCARD;
+
+    (* Converts a virtual address to a physical address.  Use with care!*)
+
+(************************************************************************)
+(*			BYTE/WORD/LONGCARD CONVERSIONS			*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax), reg_return => (ax)) *)
+(*# call(reg_saved => (bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE LowByte (w: WORD): BYTE
+
+    (* Returns the low-order byte of its argument.	*)
+
+    (*<TopSpeed3*) = Code1 (Ret) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE HighByte (w: WORD): BYTE
+
+    (* Returns the high-order byte of its argument.	*)
+
+    (*<TopSpeed3*) = Code3 (88H, 0E0H, Ret)	(* mov al, ah *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (bx, ax), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE MakeWord (high, low: BYTE): WORD
+
+    (* Combines two bytes into a word.  The first argument becomes the	*)
+    (* most significant byte of the result.				*)
+
+    (*<TopSpeed3*)
+     = Code3 (8AH, 0E3H, Ret)	(* mov ah, bl *)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(reg_param => (ax), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE SignExtend (val: BYTE): INTEGER
+
+    (* Converts a signed 8-bit number to signed integer. *)
+
+    (*<TopSpeed3*)
+     = Code2 (98H, Ret)		(* cbw *)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax,bx), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE LowWord (w: LONGCARD): WORD
+
+    (* Returns the low-order word of its argument.	*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (bx, ax), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE HighWord (w: LONGCARD): WORD
+
+    (* Returns the high-order word of its argument.	*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (dx,ax), reg_return => (ax,dx)) *)
+
+INLINE (*>*)
+PROCEDURE MakeLongword (high, low: WORD): LONGCARD
+
+    (* Combines two words into a longword.  The first argument becomes	*)
+    (* the most significant word of the result.				*)
+
+    (*<TopSpeed3*)
+     = Code1 (Ret)
+    (*>*);
+
+(************************************************************************)
+(*			MISCELLANEOUS ARITHMETIC			*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_return => (ax)) *)
+(*%T _fptr *)
+    (*%T _fdata*)
+	(*# call(reg_param => (si,ds,ax)) *)
+    (*%E*)
+    (*%F _fdata*)
+	(*# call(reg_param => (si,bx,ax)) *)
+    (*%E*)
+(*%E*)
+(*%F _fptr *)
+    (*# call(reg_param => (si,ax)) *)
+(*%E*)
+
+INLINE (*>*)
+PROCEDURE INCV (VAR (*INOUT*) dest: CARDINAL;  src: CARDINAL): BOOLEAN
+
+    (* Computes dest := dest + src, and returns TRUE iff the addition	*)
+    (* produced a carry.						*)
+
+    (*<TopSpeed3*)
+    (*%F _fptr *)
+       = Code5 (01H, 04H, 1BH, 0C0H, Ret)  (* add [si], ax; sbb ax, ax	*)
+    (*%E*)
+    (*%T _fptr *)
+    (*%T _fdata*)
+       = Code5 (01H, 04H, 1BH, 0C0H, Ret)  (* add [si], ax; sbb ax, ax	*)
+    (*%E*)
+    (*%F _fdata*)
+       = Code9 (01EH, 08EH, 0DBH,	(* push ds; mov ds, bx;		*)
+		01H, 04H, 1BH, 0C0H,	(* add [si], ax; sbb ax, ax;	*)
+		01FH, Ret)		(* pop ds			*)
+    (*%E*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE INCVB (VAR (*INOUT*) dest: BYTE;  src: BYTE): BOOLEAN
+
+    (* Computes dest := dest + src, and returns TRUE iff the addition	*)
+    (* produced a carry.						*)
+
+    (*<TopSpeed3*)
+    (*%F _fptr *)
+       = Code5 (00H, 04H, 1BH, 0C0H, Ret)  (* add [si], al; sbb ax, ax	*)
+    (*%E*)
+    (*%T _fptr *)
+    (*%T _fdata*)
+       = Code5 (00H, 04H, 1BH, 0C0H, Ret)  (* add [si], al; sbb ax, ax	*)
+    (*%E*)
+    (*%F _fdata*)
+       = Code9 (01EH, 08EH, 0DBH,	(* push ds; mov ds, bx;		*)
+		00H, 04H, 1BH, 0C0H,	(* add [si], al; sbb ax, ax;	*)
+		01FH, Ret)		(* pop ds			*)
+    (*%E*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE DECV (VAR (*INOUT*) dest: CARDINAL;  src: CARDINAL): BOOLEAN
+
+    (* Computes dest := dest - src, and returns TRUE iff the		*)
+    (* subtraction produced a borrow.					*)
+
+    (*<TopSpeed3*)
+    (*%F _fptr *)
+       = Code5 (29H, 04H, 1BH, 0C0H, Ret)  (* sub [si], ax; sbb ax, ax	*)
+    (*%E*)
+    (*%T _fptr *)
+    (*%T _fdata*)
+       = Code5 (29H, 04H, 1BH, 0C0H, Ret)  (* sub [si], ax; sbb ax, ax	*)
+    (*%E*)
+    (*%F _fdata*)
+       = Code9 (01EH, 08EH, 0DBH,	(* push ds; mov ds, bx;		*)
+		29H, 04H, 1BH, 0C0H,	(* sub [si], ax; sbb ax, ax;	*)
+		01FH, Ret)		(* pop ds			*)
+    (*%E*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE DECVB (VAR (*INOUT*) dest: BYTE;  src: BYTE): BOOLEAN
+
+    (* Computes dest := dest - src, and returns TRUE iff the		*)
+    (* subtraction produced a borrow.					*)
+
+    (*<TopSpeed3*)
+    (*%F _fptr *)
+       = Code5 (28H, 04H, 1BH, 0C0H, Ret)  (* sub [si], al; sbb ax, ax	*)
+    (*%E*)
+    (*%T _fptr *)
+    (*%T _fdata*)
+       = Code5 (28H, 04H, 1BH, 0C0H, Ret)  (* sub [si], al; sbb ax, ax	*)
+    (*%E*)
+    (*%F _fdata*)
+       = Code9 (01EH, 08EH, 0DBH,	(* push ds; mov ds, bx;		*)
+		28H, 04H, 1BH, 0C0H,	(* sub [si], al; sbb ax, ax;	*)
+		01FH, Ret)		(* pop ds			*)
+    (*%E*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax, bx), reg_return => (ax,dx)) *)
+(*# call(reg_saved => (bx,cx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE Mul (A, B: CARDINAL): LONGCARD
+
+    (* Same as A*B, except for the type of the result.  We provide this	*)
+    (* as a general-purpose function since this combination of operands	*)
+    (* is often precisely what is wanted.				*)
+
+    (*<TopSpeed3*) = Code3 (0F7H, 0E3H, Ret)	(* mul bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE MulB (A, B: BYTE): CARDINAL
+
+    (* Same as A*B, except for the type of the result.  We provide this	*)
+    (* as a general-purpose function since this combination of operands	*)
+    (* is often precisely what is wanted.				*)
+
+    (*<TopSpeed3*) = Code3 (0F6H, 0E3H, Ret)	(* mul bl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IMul (A, B: INTEGER): LONGINT
+
+    (* Like Mul, but signed. *)
+
+    (*<TopSpeed3*) = Code3 (0F7H, 0EBH, Ret)	(* imul bx *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE IMulB (A, B: BYTE): INTEGER
+
+    (* Like MulB, but signed. *)
+
+    (*<TopSpeed3*) = Code3 (0F6H, 0EBH, Ret)	(* imul bl *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE DivB (A: CARDINAL;  B: BYTE): BYTE
+
+    (* Same as A DIV B, except for the type of A.  We provide this as	*)
+    (* a general-purpose function since this combination of operands	*)
+    (* is often precisely what is wanted.				*)
+
+    (*<TopSpeed3*)
+     = Code3 (0F6H, 0F3H, Ret)	(* div bl *)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (ax,dx,bx), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE Div (A: LONGCARD;  B: CARDINAL): CARDINAL
+
+    (* Same as A DIV B, except for the type of A.  We provide this as	*)
+    (* a general-purpose function since this combination of operands	*)
+    (* is often precisely what is wanted.				*)
+
+    (*<TopSpeed3*)
+     = Code3 (0F7H, 0F3H, Ret)	(* div bx *)
+    (*>*);
+
+(************************************************************************)
+(*			     BLOCK MOVES				*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on) *)
+(*# call(reg_saved => (ax,bx,dx,ds,st1,st2)) *)
+(*%T _fptr*)
+    (*%T _fdata*)
+	(*# call(reg_param => (si, ds, di, es, cx)) *)
+    (*%E*)
+    (*%F _fdata*)
+	(*# call(reg_param => (si, ax, di, es, cx)) *)
+    (*%E*)
+(*%E*)
+(*%F _fptr*)
+    (*# call(reg_param => (si, di, cx)) *)
+(*%E*)
+
+INLINE (*>*)
+PROCEDURE Copy (source, destination: ADDRESS;  bytecount: CARDINAL)
+
+    (* Copies an array of bytes from the source address to the		*)
+    (* destination address.  In the case where the two arrays overlap,	*)
+    (* the destination address should be lower in physical memory than	*)
+    (* the source address.						*)
+
+    (*<TopSpeed3*)
+    (*%T _fptr*)
+	(*%T _fdata*)
+	    = Code3 (0F3H, 0A4H, Ret)	(* rep movsb *)
+	(*%E*)
+	(*%F _fdata*)
+	    = Code7 (01EH, 08EH, 0D8H,	(* push ds; mov ds, ax;	*)
+		0F3H, 0A4H, 01FH, Ret)	(* rep movsb;  pop ds	*)
+	(*%E*)
+    (*%E*)
+    (*%F _fptr*)
+        = Code5 (01EH,07H,0F3H,0A4H,Ret)  (* push ds; pop es; rep movsb	*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on) *)
+(*# call(reg_saved => (ax,bx,dx,ds,es,st1,st2)) *)
+(*%T _fdata*)
+    (*# call(reg_param => (si, ds, di, es, cx)) *)
+(*%E*)
+(*%F _fdata*)
+    (*# call(reg_param => (si, ax, di, es, cx)) *)
+(*%E*)
+
+INLINE (*>*)
+PROCEDURE FarCopy (source, destination: FarPointer;  bytecount: CARDINAL)
+
+    (* Copies an array of bytes from the source address to the		*)
+    (* destination address.  In the case where the two arrays overlap,	*)
+    (* the destination address should be lower in physical memory than	*)
+    (* the source address.						*)
+
+    (*<TopSpeed3*)
+    (*%T _fdata*)
+        = Code3 (0F3H, 0A4H, Ret)	(* rep movsb *)
+    (*%E*)
+    (*%F _fdata*)
+        = Code7 (01EH, 08EH, 0D8H,	(* push ds; mov ds, ax;	*)
+		0F3H, 0A4H, 01FH, Ret)	(* rep movsb;  pop ds	*)
+    (*%E*)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)(*# call(inline => off) *) (*>*)
+
+PROCEDURE CopyUp (source, destination: FarPointer;  bytecount: CARDINAL);
+
+    (* A variant of Copy which does the move backwards, in order	*)
+    (* to handle the case where the destination address is inside the	*)
+    (* source array.  In this special case Copy cannot be used,		*)
+    (* because it would overwrite data it was about to copy.		*)
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (di, es, cx, ax)) *)
+(*# call(reg_saved => (ax,bx,dx,si,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE BlockFill (destination: FarPointer;
+				bytecount: CARDINAL;  value: BYTE)
+
+    (* Fills the destination array with the given value.	*)
+
+    (*<TopSpeed3*) = Code3 (0F3H, 0AAH, Ret)	(* rep stosb *) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*) INLINE (*>*)
+PROCEDURE BlockFillWord (destination: FarPointer;  wordcount: CARDINAL;
+							value: WORD)
+
+    (* Fills the destination array with the given value.	*)
+
+    (*<TopSpeed3*)
+     = Code3 (0F3H, 0ABH, Ret)	(* rep stosw *)
+    (*>*);
+
+(************************************************************************)
+(*			    INPUT AND OUTPUT				*)
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (dx, ax)) *)
+(*# call(reg_saved => (bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+INLINE (*>*)
+PROCEDURE OutByte (port: CARDINAL; value: BYTE)
+
+    (* Puts the value out to an output port.	*)
+
+    (*<TopSpeed3*) = Code2 (0EEH, Ret) (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => on, reg_param => (dx), reg_return => (ax)) *)
+
+INLINE (*>*)
+PROCEDURE InByte (port: CARDINAL): BYTE
+
+    (* Reads a byte from an input port.	*)
+
+    (*<TopSpeed3*)
+     = Code2 (0ECH, Ret)
+    (*>*);
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*# call(inline => off) *)
+(*# call(reg_saved => (ax,bx,dx,si,di,ds,es,st1,st2)) *)
+(*%T _fptr *)
+    (*# call(reg_param => (dx, di, es, cx)) *)
+(*%E*)
+(*%F _fptr *)
+    (*# call(reg_param => (dx, di, cx)) *)
+(*%E*)
+(*>*)
+
+PROCEDURE InStringWord (port: CARDINAL;  BufferAddress: ADDRESS;
+						count: CARDINAL);
+
+    (* Reads count words from an input port.	*)
+
+(************************************************************************)
+
+(*<TopSpeed3*)
+(*%T _fptr*)
+    (*%T _fdata*)
+	(*# call(reg_param => (dx, si, ds, cx)) *)
+    (*%E*)
+    (*%F _fdata*)
+	(*# call(reg_param => (dx, si, ax, cx)) *)
+    (*%E*)
+(*%E*)
+(*%F _fptr*)
+    (*# call(reg_param => (dx, si, cx)) *)
+(*%E*)
+(*>*)
+
+PROCEDURE OutStringWord (port: CARDINAL;  BufferAddress: ADDRESS;
+						count: CARDINAL);
+
+    (* Writes count words to an output port.	*)
+
+(************************************************************************)
+
+(*<TopSpeed3*) (*# restore *) (*>*)
+
+END LowLevel.

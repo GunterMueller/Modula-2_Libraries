@@ -1,0 +1,87 @@
+DEFINITION MODULE RealArithmetic;
+
+	(********************************************************)
+	(*							*)
+	(*	Procedures to perform addition, subtraction,	*)
+	(*		etc., on real numbers.			*)
+	(*							*)
+	(*	This module was originally introduced to	*)
+	(*	get around a bug in FTL real arithmetic:	*)
+	(*	the lack of re-entrancy.  The module is now	*)
+	(*	obsolescent, and should not be used in new	*)
+	(*	programs.					*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	20 March 1993			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*									*)
+(*  In principle, all of the features provided by this module are	*)
+(*  unnecessary, because they duplicate built-in features of Modula-2.	*)
+(*  The reason for providing this module is (a) to compensate for the	*)
+(*  fault in TRUNC in TopSpeed Modula-2; (b) to provide the missing	*)
+(*  LongTrunc operation; (c) to ease code portability: the original	*)
+(*  motivation for writing this module was because of a major bug in	*)
+(*  the real arithmetic of FTL Modula-2.				*)
+(*									*)
+(************************************************************************)
+
+PROCEDURE Add (VAR (*INOUT*) x: LONGREAL;  y: LONGREAL);
+
+    (* Computes  x := x+y	*)
+
+PROCEDURE Subtract (VAR (*INOUT*) x: LONGREAL;  y: LONGREAL);
+
+    (* Computes  x := x-y	*)
+
+PROCEDURE Multiply (VAR (*INOUT*) x: LONGREAL;  y: LONGREAL);
+
+    (* Computes  x := x*y	*)
+
+PROCEDURE Divide (VAR (*INOUT*) x: LONGREAL;  y: LONGREAL);
+
+    (* Computes  x := x/y	*)
+
+PROCEDURE Float (j: LONGCARD): LONGREAL;
+
+    (* Converts cardinal to real.	*)
+
+PROCEDURE Negate (VAR (*INOUT*) x: LONGREAL);
+
+    (* Computes  x := -x	*)
+
+PROCEDURE Square (a: LONGREAL): LONGREAL;
+
+    (* Returns  a*a	*)
+
+PROCEDURE Equal (x, y: LONGREAL): BOOLEAN;
+
+    (* Tests the condition  x = y	*)
+
+PROCEDURE Greater (x, y: LONGREAL): BOOLEAN;
+
+    (* Tests the condition  x > y	*)
+
+PROCEDURE GreaterOrEqual (x, y: LONGREAL): BOOLEAN;
+
+    (* Tests the condition  x >= y	*)
+
+PROCEDURE LessThan (x, y: LONGREAL): BOOLEAN;
+
+    (* Tests the condition  x < y	*)
+
+(************************************************************************)
+(* The above procedures place protection on individual operations.  If	*)
+(* instead you want to place critical section protection around a whole	*)
+(* group of real operations, use the following two procedures.		*)
+(************************************************************************)
+
+PROCEDURE ProtectReal;
+
+PROCEDURE UnProtectReal;
+
+END RealArithmetic.
+

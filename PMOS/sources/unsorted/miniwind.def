@@ -1,0 +1,296 @@
+DEFINITION MODULE MiniWindows;
+
+	(****************************************************************)
+	(*								*)
+	(*	A simple implementation of screen windows.		*)
+	(*								*)
+	(*	This is a special version, using the MiniKernel		*)
+	(*	demonstration kernel.  It is designed solely for	*)
+	(*	demonstrations such as the SemaTest demo.		*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	16 August 1992				*)
+	(*  Status:		SPECIAL VERSION                         *)
+	(*                      This is a version designed for the      *)
+	(*                      SemaTest demo under TopSpeed.		*)
+	(*								*)
+	(****************************************************************)
+
+(************************************************************************)
+(*									*)
+(* REMARK: There are two versions of the basic 'write' procedure.	*)
+(* Procedure WriteChar treats every character as a printable character,	*)
+(* so it can write any character in the standard character set.  This	*)
+(* is the output procedure recommended for general use.  Control	*)
+(* operations are supplied by separate procedures such as WriteLn,	*)
+(* SetCursor, etc., so there is no need to resort to the BASIC		*)
+(* programmers' trick of writing long strings of obscure control codes.	*)
+(* But for people who can't break this bad habit, procedure Write is	*)
+(* supplied; this treats character codes 0..31 as control codes.	*)
+(*									*)
+(* Warning: I have not bothered to look after all the control codes,	*)
+(* just the ones I found a use for.  Most of them print as a		*)
+(* two-character sequence ^<letter>.					*)
+(*									*)
+(************************************************************************)
+
+(************************************************************************)
+(*									*)
+(* NOTE ON CRITICAL SECTIONS: When using this module in a multitasking	*)
+(* environment, there are numerous critical sections because several	*)
+(* tasks may be using the same physical screen.  These sections are	*)
+(* protected by semaphores.  (For the case where we are not using the	*)
+(* multitasking kernel, there is a version of module Semaphores which	*)
+(* contains dummy procedures).  The general philosophy is to assume	*)
+(* that critical section protection is needed for inter-window		*)
+(* conflicts, but that no protection is needed for operations on a	*)
+(* single window because the most common situation is that each window	*)
+(* is used by only one task.  If there happen to be windows which are	*)
+(* shared by two or more tasks, the associated synchronization problems	*)
+(* must be resolved by the caller; they are not resolved in module	*)
+(* Windows, on the grounds that the extra overhead is not justified	*)
+(* just to support a case which rarely happens in practice.		*)
+(*									*)
+(************************************************************************)
+
+CONST
+    MaxRowNumber = 24;
+    MaxColumnNumber = 79;
+
+TYPE
+    Window;	(* is private *)
+    Colour = (black, blue, green, cyan, red, magenta, brown, white,
+		darkgrey, lightblue, lightgreen, lightcyan, lightred,
+		lightmagenta, yellow, intensewhite);
+
+    (* Note: Any of these colours may be used as a foreground colour,	*)
+    (* but in most applications only [black..white] are suitable as	*)
+    (* background colours.  The others may be used, but they can give	*)
+    (* strange effects such as a blinking display.  Use with care!	*)
+
+    RowRange = [0..MaxRowNumber];
+    ColumnRange = [0..MaxColumnNumber];
+    FrameType = (noframe, simpleframe, doubleframe);
+    DividerType = (nodivider, simpledivider, doubledivider);
+
+PROCEDURE OpenWindow (VAR (*OUT*) w: Window;
+			ForegroundColour, BackgroundColour: Colour;
+			firstline, lastline: RowRange;
+			firstcol, lastcol: ColumnRange;
+			FrameDesired: FrameType;
+			DividerDesired: DividerType);
+
+    (* Create a new window.  Note that row and column numbers start	*)
+    (* from 0.  NOTE: If the window has a box drawn around it (the case	*)
+    (* FrameDesired <> noframe), this subtracts from the space		*)
+    (* available for text.						*)
+
+PROCEDURE OpenSimpleWindow (VAR (*OUT*) w: Window;
+			firstline, lastline: RowRange;
+			firstcol, lastcol: ColumnRange);
+
+    (* Identical to OpenWindow, except that you don't get any choice	*)
+    (* about the colours or frame.  The window is white-on-black with	*)
+    (* a simple frame and no dividers for the scrolling region.  This	*)
+    (* version of OpenWindow is useful for those with monochrome	*)
+    (* displays who don't want to be bothered with importing the types	*)
+    (* Colour, FrameType, and DividerType.				*)
+
+PROCEDURE ChangeScrollingRegion (w: Window; firstline, lastline: RowRange);
+
+    (* Changes the scrolling region of window w to the new line		*)
+    (* boundaries given, and sets the cursor of this window to the	*)
+    (* start of the scrolling region.  Row numbers are window-relative;	*)
+    (* that is, line 0 is the top line of the window (which is where	*)
+    (* the border is, unless you have no border).			*)
+
+PROCEDURE NewScrollingRegion (w: Window;  firstline, lastline: RowRange;
+				firstcolumn, lastcolumn: ColumnRange);
+
+    (* Changes the scrolling region of w to be the specified rectangle,	*)
+    (* but unlike ChangeScrollingRegion this procedure does not redraw	*)
+    (* the dividers.  Furthermore the old scrolling region set by	*)
+    (* ChangeScrollingRegion is remembered and may be restored by a	*)
+    (* call to ResetScrollingRegion.					*)
+
+PROCEDURE ResetScrollingRegion (w: Window);
+
+    (* Changes the scrolling region of w back to what it was the last	*)
+    (* time ChangeScrollingRegion was called.  If ChangeScrollingRegion	*)
+    (* was never called, the scrolling region goes back to being the	*)
+    (* entire window minus the frame (if any).				*)
+
+PROCEDURE ShiftWindow (w: Window;  rowchange, columnchange: INTEGER);
+
+    (* Moves w on the screen.  The second and third arguments may be	*)
+    (* negative.  The amount of move may be reduced to prevent a move	*)
+    (* off the edge of the screen.					*)
+
+PROCEDURE CloseWindow (VAR (*INOUT*) w: Window);
+
+    (* Destroys the window. *)
+
+PROCEDURE PutOnTop (w: Window);
+
+    (* Makes sure that window w is fully visible on the screen.  Rarely	*)
+    (* needed, since many window operations automatically put the	*)
+    (* window being used on top.					*)
+
+PROCEDURE RefreshDisplay;
+
+    (* Rewrites every open window.  Should not normally be needed, but	*)
+    (* available for use in cases the display is corrupted by, for	*)
+    (* example, software which bypasses this module and writes directly	*)
+    (* to the screen.							*)
+
+PROCEDURE SetCursor (w: Window; row: RowRange; column: ColumnRange);
+
+    (* Sets the cursor for window w to the given row and column.  The	*)
+    (* coordinates are window-relative; that is, they start at (0,0) at	*)
+    (* the top left of the window.					*)
+
+PROCEDURE SaveCursor (w: Window; VAR (*OUT*) row, column: CARDINAL);
+
+    (* Returns the current cursor position.  The coordinates are	*)
+    (* window-relative; that is, they start at (0,0) at the top left of	*)
+    (* the window.							*)
+
+PROCEDURE CursorLeft (w: Window);
+
+    (* Moves the window cursor one position left.  If it falls off the	*)
+    (* left edge of the window, it moves to the right edge in the same	*)
+    (* row.								*)
+
+PROCEDURE CursorRight (w: Window);
+
+    (* Moves the window cursor one position right.  If it falls off the	*)
+    (* right edge of the window, it moves to the left edge in the same	*)
+    (* row.								*)
+
+PROCEDURE CursorUp (w: Window);
+
+    (* Moves the window cursor one position up.  If it falls off the	*)
+    (* top edge of the window, it moves to the bottom edge in the same	*)
+    (* column.								*)
+
+PROCEDURE CursorDown (w: Window);
+
+    (* Moves the window cursor one position down.  If it falls off the	*)
+    (* bottom edge of the window, it moves to the top edge in the same	*)
+    (* column.								*)
+
+PROCEDURE ScrollUp (w: Window);
+
+    (* Scrolls the scrolling region of window w up by one row, filling	*)
+    (* the vacated row with spaces.					*)
+
+PROCEDURE ScrollDown (w: Window);
+
+    (* Scrolls the scrolling region of window w down by one row,	*)
+    (* filling the vacated row with spaces.				*)
+
+PROCEDURE WriteLn (w: Window);
+
+    (* Go to next line in window, scrolling if necessary.  N.B. The	*)
+    (* window does not scroll if you are not in the scrolling region	*)
+    (* at the time of the WriteLn.					*)
+
+PROCEDURE WriteChar (w: Window; ch: CHAR);
+
+    (* Write one character.  Control characters are not given special	*)
+    (* treatment; they produce something visible just like any other	*)
+    (* character.  Wraps to the next line before writing if the write	*)
+    (* would put us on or beyond the right border of w.			*)
+
+PROCEDURE Write (w: Window; ch: CHAR);
+
+    (* Like WriteChar, but codes in the range 0..31 are treated as	*)
+    (* control characters.  This procedure is not recommended for	*)
+    (* general use, as it leads to obscure programs.  (Instead, do the	*)
+    (* control operations by direct calls to the cursor control		*)
+    (* procedures which are also supplied in this module).  It is	*)
+    (* supplied mainly to help those who are used to the conventions of	*)
+    (* the "standard" Modula-2 I/O modules such as InOut.		*)
+
+PROCEDURE WriteString (w: Window; text: ARRAY OF CHAR);
+
+    (* Write a string of characters, stopping at the first NUL		*)
+    (* character or the end of the array, whichever comes first.	*)
+
+PROCEDURE ReadBack (w: Window;  r: RowRange;  c: ColumnRange): CHAR;
+
+    (* Returns the character which currently occupies relative location	*)
+    (* (r,c) on the display of window w.				*)
+
+PROCEDURE ReadChar (w: Window;  VAR (*OUT*) ch: CHAR);
+
+    (* Read one character, and echo it.	*)
+
+PROCEDURE LookaheadChar (w: Window): CHAR;
+
+    (* Reads a character without consuming it.  That is, the character	*)
+    (* remains available to be read by ReadChar.  This allows the	*)
+    (* caller to check whether the character is really wanted.		*)
+
+PROCEDURE ReadCharWithoutEcho (w: Window;  VAR (*OUT*) ch: CHAR);
+
+    (* Read one character, but don't echo it.  However, a blinking	*)
+    (* cursor is still displayed to prompt for the character.  (If you	*)
+    (* don't want the blinking cursor, use procedure Keyboard.InKey).	*)
+
+PROCEDURE PressAnyKey (w: Window);
+
+    (* Types a "Press any key to continue" message.	*)
+
+PROCEDURE ReadString (w: Window;  VAR (*OUT*) result: ARRAY OF CHAR);
+
+    (* Reads a character string, terminated by carriage return.		*)
+
+PROCEDURE EditString (w: Window;  VAR (*INOUT*) result: ARRAY OF CHAR;
+						fieldsize: CARDINAL);
+
+    (* Reads a character string, where a default result is supplied by	*)
+    (* the caller.  The final result is the state of the string at the	*)
+    (* time where the keyboard user types a carriage return or uses a	*)
+    (* cursor movement key to move out of the displayed field.  If the	*)
+    (* user types Esc at any time, then we return with result[0] = Esc.	*)
+    (* A carriage return or Esc as terminator is not returned to the	*)
+    (* caller, but if the terminator is a cursor control key then it	*)
+    (* it remains available, via Keyboard.Inkey, to the caller.		*)
+    (* At most fieldsize characters of the string can be edited, and	*)
+    (* perhaps fewer if the result array is smaller or if there is	*)
+    (* insufficient space in the window.				*)
+
+PROCEDURE ColourSwap (w: Window; row: RowRange; col: ColumnRange;
+							nchar: CARDINAL);
+
+    (* Sets a field of nchar characters, starting at (row,col), to	*)
+    (* "reverse video" by swapping the foreground and background	*)
+    (* colours.  Notice that the process is reversible: you get back to	*)
+    (* "normal video" by calling this procedure again.  The location is	*)
+    (* given in window-relative coordinates, not absolute screen	*)
+    (* positions.  NOTE: Do not assume that this procedure can wrap	*)
+    (* around to a new line.  It normally cannot.			*)
+
+PROCEDURE Blink (w: Window; r: RowRange; c: ColumnRange; nchar: CARDINAL);
+
+    (* Toggles the blinking status - that is, turns blinking on if it	*)
+    (* was off, and vice versa - for nchar characters, starting at	*)
+    (* relative location (r,c) in window w.				*)
+    (* NOTE: This procedure will not wrap around to a new row.		*)
+
+PROCEDURE EraseLine (w: Window; option: CARDINAL);
+
+    (* Erases some or all of the current line (but never the border).	*)
+    (* The erased characters are replaced by space characters.  The	*)
+    (* window cursor is moved to the location of the first erased	*)
+    (* character.  If w is not the currently active window, the changes	*)
+    (* will not be visible until w is on top again.  The options are:	*)
+    (*		0	the whole of the line, except for the border	*)
+    (*		1	from the current cursor position onwards	*)
+    (*		2	from the start to just before the cursor	*)
+    (* If we are inside a scrolling region, then only that part of the	*)
+    (* line inside the scrolling region is affected.			*)
+
+END MiniWindows.
+

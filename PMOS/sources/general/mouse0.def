@@ -1,0 +1,35 @@
+DEFINITION MODULE Mouse0;
+
+	(********************************************************)
+	(*							*)
+	(*	Common definitions for the mouse drivers	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	24 February 1995		*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+TYPE
+    Buttons = (LeftButton, RightButton, MiddleButton);
+
+    ButtonSet = SET OF Buttons;
+
+    Events =  (Motion, LeftDown, LeftUp, RightDown, RightUp, MiddleDown,
+              MiddleUp);
+
+    EventSet = SET OF Events;
+
+    (*<TopSpeed3*)
+    (*# save, call(c_conv => off, same_ds => off, near_call => off) *)
+    (*# call(reg_param => (ax,bx,cx,dx,st0,st6,st5,st4,st3)) *)
+    (*>*)
+
+    EventHandler = PROCEDURE (EventSet,		(* condition mask *)
+				ButtonSet,	(* Button state *)
+				CARDINAL,	(* horizontal cursor position *)
+				CARDINAL);	(* vertical cursor position *)
+
+    (*<TopSpeed3*) (*# restore *) (*>*)
+
+END Mouse0.

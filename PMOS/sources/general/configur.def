@@ -1,0 +1,59 @@
+DEFINITION MODULE ConfigurationOptions;
+
+	(********************************************************)
+	(*							*)
+	(*	The function of this file is to collect		*)
+	(*	together some key configuration settings	*)
+	(*	which govern things like which PMOS		*)
+	(*	features are to be disabled.			*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	17 August 1994			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(*	Remark: I'm gradually moving things out of	*)
+	(*	this module, and I might well decide to		*)
+	(*	eliminate this module entirely in a future	*)
+	(*	version of PMOS.				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+(*			KERNEL SETTINGS					*)
+(************************************************************************)
+
+CONST
+    (* The following Boolean constant defines whether the PMOS kernel	*)
+    (* will permit round-robin time-slicing among tasks of equal	*)
+    (* priority.  For hard real-time applications this should typically	*)
+    (* be set to FALSE, since time-slicing interferes with the		*)
+    (* predictability of execution times.  Disabling time-slicing also	*)
+    (* reduces kernel overheads because of the following special	*)
+    (* property: with time-slicing disallowed, the only tasks which	*)
+    (* participate in task switches and in priority inheritance		*)
+    (* calculations are those at the head of each ready queue.  (The	*)
+    (* key theoretical result is that there is at most one "active"	*)
+    (* task per priority level.)  With time-slicing enabled, any ready	*)
+    (* task could be an active task.					*)
+    (* For applications where keyboard/screen interaction is the	*)
+    (* dominant factor, setting TimeSlicingEnabled TRUE sometimes gives	*)
+    (* a better illusion that multiple tasks are running in parallel.	*)
+
+    TimeSlicingEnabled = FALSE;
+
+    (* The next two constants define the maximum number of concurrent	*)
+    (* tasks which are permitted, and the stack size for each task.	*)
+
+    MaxTaskNumber = 31;
+    StackSize = 2048;
+
+(************************************************************************)
+(*				MOUSE					*)
+(************************************************************************)
+
+    (* The mouse options are no longer specified in this module.	*)
+    (* Instead, they are specified in the PP.CFG file which is used	*)
+    (* in the PMOS installation operation.				*)
+
+END ConfigurationOptions.
+

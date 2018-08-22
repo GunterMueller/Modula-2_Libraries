@@ -1,0 +1,20 @@
+DEFINITION MODULE SpuriousInterrupts;
+
+	(****************************************************************)
+	(*								*)
+	(*	Spurious interrupt handler for operating system.	*)
+	(*								*)
+	(*	Author:		P. Moylan				*)
+	(*	Last edited:	13 February 1991			*)
+	(*	Description:						*)
+	(*		This module contains interrupt handlers for	*)
+	(*		interrupts 0-7 and 11-13, which are not		*)
+	(*		supposed to occur in the present version of my	*)
+	(*		software.  The aim is to detect unexpected	*)
+	(*		interrupts.					*)
+	(*								*)
+	(*	Status:		Working.				*)
+	(*								*)
+	(****************************************************************)
+
+END SpuriousInterrupts.

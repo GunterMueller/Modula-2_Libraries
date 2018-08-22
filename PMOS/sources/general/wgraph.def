@@ -1,0 +1,109 @@
+DEFINITION MODULE WGraph;
+
+	(********************************************************)
+	(*							*)
+	(*		Graph module For GWindows.		*)
+	(*							*)
+	(*  Programmer:		S.P.Lontis, P. Moylan.		*)
+	(*  Last edited:	15 February 1993		*)
+	(*  Status:						*)
+	(*	Basically working, but still fiddling with	*)
+	(*	the details.					*)
+	(*							*)
+	(*	It's not clear whether OpenGraph needs so many	*)
+	(*	parameters.  Also not clear how bar graphs	*)
+	(*	fit into the overall picture.			*)
+	(*							*)
+	(********************************************************)
+
+FROM GWindows IMPORT 
+     (* type *)   Window;
+
+(************************************************************************)
+
+TYPE
+    Graph;		(* is private *)
+    
+    (* Types of graphs that can be drawn.	*)
+
+    GraphType = (linear, loglinear, loglog, bar);
+
+    (* Line Types that can be used.	*)
+
+    LineType  = (dots, joined, vertical, normal);
+
+    (* Marker Types for individual points plotted.	*)
+
+    MarkType  = (none, square, cross, plus, diamond);
+
+    BarType = (One, Two, Three, Four, Five);
+
+(************************************************************************)
+
+PROCEDURE OpenGraph (VAR (*OUT*) G: Graph;  w: Window;  GrphType: GraphType;
+		    LnType: LineType; xst, yst, xen, yen: CARDINAL;
+		    xmin, ymin, xmax, ymax: LONGREAL;  Mark: MarkType);
+
+    (* Creates graph G in window w.  The Graph will occupy a rectangle	*)
+    (* with a bottom left corner of (xs,ys) and top right corner of	*)
+    (* (xe,ye) relative to the window. The range of values which can be	*)
+    (* plotted is from (xmin,ymin) to (xmax,ymax).  NOTE: for a bar	*)
+    (* graph, xmin gives the width of the bars and xmax gives the	*)
+    (* distance between different bars.					*)
+
+PROCEDURE DrawXAxis (G: Graph;  xinc: LONGREAL;
+			yoffset, DecPlaces: CARDINAL;  numbering: BOOLEAN);
+
+    (* Draws the x-axis for a graph; xinc is the distance between tick	*)
+    (* marks, and yoffset gives the distance that the axis will lie	*)
+    (* below the line y=ys (ys is defined in OpenGraph).  The option	*)
+    (* yoffset <> 0 allows for the case where more than one graph	*)
+    (* occupies the same window, since the graphs may have different	*)
+    (* scales.  DecPlaces gives the number of decimal places that will	*)
+    (* be used.  If numbering is FALSE, the axis is drawn but not	*)
+    (* labelled.							*)
+
+PROCEDURE DrawYAxis (G: Graph;  yinc: LONGREAL;
+			xoffset, DecPlaces: CARDINAL;  numbering: BOOLEAN);
+
+    (* Draws the y-axis for a graph; yinc is the space between tick	*)
+    (* marks, and xoffset gives the distance that the axis will lie to	*)
+    (* the left of the line x=xs (xs is defined in OpenGraph).		*)
+    (* DecPlaces gives the number of decimal places that will be used.	*)
+    (* If numbering is FALSE, the axis is drawn but not labelled.	*)
+
+PROCEDURE DrawAxes (G: Graph;
+	xinc: LONGREAL;  yoffset, xdecplaces: CARDINAL;  numberx: BOOLEAN;
+	yinc: LONGREAL;  xoffset, ydecplaces: CARDINAL;  numbery: BOOLEAN);
+
+    (* Draws both the X and Y axes.  See the definitions of		*)
+    (* DrawXAxis and DrawYAxis above.					*)
+
+PROCEDURE AddPoint (G: Graph;  x, y: LONGREAL);
+
+    (* For lines of type						*)
+    (*		'dots'	: only the marker will be displayed.		*)
+    (*		'joined': draws a line from the last point and marker.	*)
+    (*		'vertical' : draws a vertical line and a marker.	*)
+    (* NOTE: lines of type 'normal' are used for discontinuous graphs	*)
+    (* and are not drawn using this procedure.				*)
+    (* Points outside the region (xmin <= x <= xmax, ymin <= y <= ymax	*)
+    (* will be clipped.							*)
+
+PROCEDURE DrawLines (G: Graph;  x, y: ARRAY OF LONGREAL);
+
+    (* Allows vectors of x and y points to be drawn.  Refer to		*)
+    (* procedure AddPoint for specifications of the line types.		*)
+
+PROCEDURE DrawLine (G: Graph;  x0, y0, x1, y1: LONGREAL);
+
+    (* Used for drawing discontinuous lines.  The line is drawn between	*)
+    (* (x0,y0) and (x1,y1) relative to graph G.				*)
+
+PROCEDURE BarGraph (G: Graph;  y: ARRAY OF LONGREAL;  del: CARDINAL;  bt: BarType);
+
+    (* Displays a BarGraph of the vector y.  Parameter del gives the	*)
+    (* number of stripes per bar, in the case of striped fill patterns.	*)
+
+END WGraph.
+

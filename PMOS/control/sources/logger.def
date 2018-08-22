@@ -1,0 +1,27 @@
+DEFINITION MODULE Logger;
+
+	(********************************************************)
+	(*							*)
+	(*		Data logger for control system		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	6 March 1991			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+(************************************************************************)
+
+PROCEDURE StartLogging(): BOOLEAN;
+
+    (* Opens the log file.  Returns FALSE if open failed.		*)
+
+PROCEDURE Log (VAR (*IN*) data: ARRAY OF INTEGER);
+
+    (* Sends the data to the log file (assumed to be already open).	*)
+
+PROCEDURE StopLogging;
+
+    (* Closes the log file, after writing out any pending data.		*)
+
+END Logger.

@@ -1,0 +1,69 @@
+DEFINITION MODULE MultiScreen;
+
+	(********************************************************)
+	(*							*)
+	(*	This module allows the creation of multiple	*)
+	(*	virtual screens - complete screens, not just	*)
+	(*	windows - with two keyboard "hot keys" used	*)
+	(*		to navigate around the screens.		*)
+	(*							*)
+	(*	We support a two-level hierarchy: a virtual	*)
+	(*	screen is a collection of windows, and each	*)
+	(*	virtual screen is a member of a group.  (In	*)
+	(*	addition, there is a pseudo-group made up of	*)
+	(*	all windows which are not associated with	*)
+	(*	any virtual screen, to handle the "normal	*)
+	(*	output" which bypasses this module.)  One	*)
+	(*	hot key cycles through the groups, and the	*)
+	(*	second cycles through the virtual screens of	*)
+	(*	the currently active group.			*)
+	(*							*)
+	(*	In the present version, Ctrl/P is the hot	*)
+	(*	key used to select another group, and F6	*)
+	(*	cycles within a group.				*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	12 March 1993			*)
+	(*  Status:		OK				*)
+	(*							*)
+	(********************************************************)
+
+FROM Windows IMPORT
+    (* type *)	Window, DisplayPage;
+
+TYPE ScreenGroup;	(* is private *)
+     VirtualScreen;	(* is private *)
+
+PROCEDURE CreateScreenGroup (hardwarepage: DisplayPage): ScreenGroup;
+
+    (* Creates a new screen group, and maps it to the specified display	*)
+    (* page in the screen hardware.  It is permissible to map more than	*)
+    (* one group to the same hardware page.  Note that any group on	*)
+    (* hardware page 0 shares the screen with "normal output" which	*)
+    (* does not belong to any virtual page.  This is permitted, but	*)
+    (* on aesthetic grounds is usually not a good idea.			*)
+
+PROCEDURE CreateVirtualScreen (group: ScreenGroup): VirtualScreen;
+
+    (* Adds a new virtual screen to the specified group.	*)
+
+PROCEDURE MapToVirtualScreen (w: Window;  screen: VirtualScreen);
+
+    (* Before calling this procedure, both w and screen must have been	*)
+    (* created.  This procedure ensures that window w is visible on	*)
+    (* the screen only when the given virtual screen page is active.	*)
+    (* The association lasts until the window is closed or the virtual	*)
+    (* screen is removed.						*)
+
+PROCEDURE RemoveVirtualScreen (VAR (*INOUT*) screen: VirtualScreen);
+
+    (* Destroys all associations between the given virtual screen and	*)
+    (* its windows (but does not close the windows), and permanently	*)
+    (* removes this screen from the collection of virtual screens.	*)
+
+PROCEDURE RemoveScreenGroup (VAR (*INOUT*) group: ScreenGroup);
+
+    (* As above, but removes an entire group.	*)
+
+END MultiScreen.
+

@@ -1,0 +1,39 @@
+DEFINITION MODULE PPTextIO;
+
+	(********************************************************)
+	(*							*)
+	(*	Extra file operations for preprocessor.		*)
+	(*	This module is needed only when using the	*)
+	(*	FST compiler - it adds some procedures which	*)
+	(*	are missing from the FST library.		*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	16 August 1994			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(*	N.B.  This is not in any sense a general-	*)
+	(*	purpose library module.  It merely implements	*)
+	(*	a small set of procedures for use by PP.	*)
+	(*							*)
+	(********************************************************)
+
+IMPORT FileSystem;
+
+TYPE File = FileSystem.File;
+
+PROCEDURE WriteString (VAR (*INOUT*) f: File;  str: ARRAY OF CHAR);
+
+    (* Sends the string to file f. *)
+
+PROCEDURE WriteLn (VAR (*INOUT*) f: File);
+
+    (* Writes an end-of-line marker to file f. *)
+
+PROCEDURE ReadString (VAR (*INOUT*) f: File;
+				VAR (*OUT*) str: ARRAY OF CHAR);
+
+    (* Reads from file f until end-of-line.  The line-terminating	*)
+    (* characters are not stored, we simply skip over them.		*)
+
+END PPTextIO.
+

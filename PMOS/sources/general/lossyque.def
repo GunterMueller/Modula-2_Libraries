@@ -1,0 +1,44 @@
+DEFINITION MODULE LossyQueues;
+
+	(****************************************************************)
+	(*								*)
+	(*	A lossy queue is a bounded-length queue with the	*)
+	(*	property that the PutQueue operation never blocks;	*)
+	(*	if space is unavailable, the data to be put are lost.	*)
+	(*	This is appropriate for real-time applications where	*)
+	(*	losing data is more acceptable than losing time.	*)
+	(*	Of course, it is desirable to make the queue size big	*)
+	(*	enough to ensure that data loss will be rare.		*)
+	(*								*)
+	(*	Author:		P. Moylan				*)
+	(*	Last edited:	17 August 1993				*)
+	(*								*)
+	(*	Status:		OK.					*)
+	(*								*)
+	(****************************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE;
+
+TYPE LossyQueue;	(* is private *)
+
+PROCEDURE CreateQueue (VAR (*OUT*) B: LossyQueue;
+					capacity, elementsize: CARDINAL);
+
+    (* Allocates space for a lossy queue, and initializes it.  The	*)
+    (* caller specifies how many elements (assumed to be of equal size)	*)
+    (* the queue will hold, and the size in bytes of each element.	*)
+
+PROCEDURE PutQueue (B: LossyQueue;  item: ARRAY OF BYTE): BOOLEAN;
+
+    (* If space is available, puts item at the tail of the queue and	*)
+    (* returns TRUE.  Returns FALSE if the new item would not fit.	*)
+    (* Note: it is assumed that SIZE(item) matches the element size	*)
+    (* declared when the queue was created.				*)
+
+PROCEDURE GetQueue (B: LossyQueue;  VAR (*OUT*) item: ARRAY OF BYTE);
+
+    (* Takes one item from the head of the queue, waiting if necessary. *)
+
+END LossyQueues.
+

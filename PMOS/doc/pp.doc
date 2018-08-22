@@ -1,0 +1,270 @@
+                PP - Preprocessor for Modula-2 programs
+                =======================================
+
+This software is freeware.  You may use it without paying a fee, and
+you may distribute it freely, subject only to the condition that this
+documentation file be included with the redistribution.  You may not
+sell it.
+
+                       DISCLAIMER OF WARRANTY
+
+    LIKE ALL FREE SOFTWARE, THIS PACKAGE IS PROVIDED "AS IS",  AND
+    WITHOUT WARRANTIES AS TO PERFORMANCE OR FITNESS FOR A
+    PARTICULAR PURPOSE.  YOU MAY USE THIS SOFTWARE ONLY IF YOU
+    ACCEPT THE RISK OF USING IT.
+
+The function of this software is to convert files from one format
+to another.  To cover the possibility that the conversion fails, you
+are strongly advised to keep backup copies of the files to be
+processed.
+
+If you modify the program to extend its functionality, it would be
+appreciated if you could send a copy of the modified version to the
+author (see contact information at the end of this document).
+
+
+WHAT THE PROGRAM DOES
+
+This program is intended for use in situations where you have to
+maintain multiple versions of Modula-2 source code, for example
+because you want to support a variety of hardware configurations,
+or because you use language features that are not consistent from
+one compiler to another.  When using PP you maintain just one master
+copy of each module, containing code for all versions; and you run
+PP each time you want to process the master copy to produce a
+specific version of that module.
+
+Three files are needed to run PP:
+       PP.EXE  The executable form of the preprocessor
+       PP.CFG  A "configuration file" which specifies which versions
+               are to be made active.  The rules for writing a PP.CFG
+               file are given later in this document.
+       PP.FIL  A file containing a list of file names.  This is the
+               specification of which files are to be converted.
+
+Sample copies of PP.CFG and PP.FIL are included in this distribution.
+
+
+VERSION CONTROL DELIMITERS
+
+You write the master copy of a module as a normal Modula-2 module.
+The version control delimiters are embedded in the source file as
+Modula-2 comments:
+
+     (*<expr     marks the start of a section which is to be made
+                 active iff "expr" evaluates to TRUE.  The rules for
+                 forming an "expr" are given in a later section.
+     >*)         marks the end of a section.
+
+Version control sections may be nested.  Note that, by the normal rules
+for forming Modula-2 comments, a section delimited as above is
+"commented out" as far as the Modula-2 compiler is concerned.  This
+is for an inactive section.  If, however, the starting marker is
+(*<expr*) and the end marker is (*>*), the version control delimiters
+themselves are commented out, so that the enclosed section is seen by
+the compiler.  All that PP is doing is adding and removing comment
+delimiters in the file being processed, so that some sections are
+commented out and others are made visible.
+
+Example: suppose that a section of the source file looks as follows.
+
+       (*<FST IMPORT Strings; >*)
+       (*<TopSpeed*) IMPORT Str; (*>*)
+       (*<MouseKind=Serial
+        IMPORT SerialMouse;
+       >*)
+       (*<MouseKind=INT33
+        IMPORT Mouse33;
+       >*)
+
+As it stands, the only "active" part of this file is the part that
+says "IMPORT Str"; everything else is commented out.  If now we set
+up a PP.CFG file that specifies
+
+       -- Example PP.CFG
+       FST
+       MouseKind := Serial
+
+and then process the module with PP, the result will be
+
+       (*<FST*) IMPORT Strings; (*>*)
+       (*<TopSpeed IMPORT Str; >*)
+       (*<MouseKind=Serial*)
+        IMPORT SerialMouse;
+       (*>*)
+       (*<MouseKind=INT33
+        IMPORT Mouse33;
+       >*)
+
+Because the comment markers have changed, the compiler now sees a
+different version of the source.
+
+If PP is run with the command
+       PP S
+(where the "S" stands for "strip"), inactive versions are physically
+deleted rather than being commented out.  In that case the final
+result, for the above example, would be
+
+        IMPORT Strings;
+        IMPORT SerialMouse;
+
+Although this is easier to read, there is a disadvantage: the resulting
+file can no longer be used as a master version.  Because of this the
+"S" option is less appropriate in most applications.
+
+This example has illustrated the use of PP for controlling IMPORT
+declarations.  Of course, that is not its only application.  You can
+use version control sections anywhere in the file being processed.
+The only requirement is that you avoid the use of mismatched comment
+delimiters.
+
+
+EXPRESSION SYNTAX
+
+Note that you have to include an expression after the delimiter (*<.
+The expression is formed according to the following syntax.
+
+          expr  ->   term { | term }
+          term  ->   factor { & factor }
+          factor ->  id
+          factor ->  id = id
+          factor ->  id <> id
+          factor ->  ( expr )
+          factor ->  ~ factor
+
+Here the notation { ... } means zero or more repetitions of what
+is inside the { }.
+
+An "id" can be up to 32 characters long, where each character may be
+a letter or a digit.  (Leading digits are legal.)  Case is significant.
+The value of an "id" is obtained as follows:
+
+  1. If the "id" has been assigned a value in PP.CFG, then that value
+     (as a string constant) is used.
+  2. Otherwise, the "id" is taken to be a string literal constant.
+  3. Where a string is placed in parentheses, or is used as an operand
+     of a Boolean expression, or is to be evaluated as the final result
+     of a Boolean expression, then the special string "TRUE" is interpreted
+     as Boolean TRUE, and everything else is interpreted as FALSE.
+
+        NOTE: For compatibility with an earlier version of PP, the
+        symbols "T" and "F" are predefined to have values "TRUE" and
+        "FALSE" respectively.  This redundancy might not be carried
+        forward into future versions of PP.
+
+The Boolean operators are
+        |  (Boolean OR)          &  (Boolean AND)       ~  (Boolean NOT)
+The comparison operators are
+        =  (string equality)           <>  (string inequality)
+
+An expression may not contain space characters.
+
+
+FORMAT OF THE PP.CFG FILE
+
+Each non-blank, non-comment line in PP.CFG should consist of a single
+assignment, which can have one of two forms
+
+          id := expr
+          id
+
+The second form, where an identifier is written on its own, is
+a shorthand notation for the assignment
+
+          id := TRUE
+
+Spaces are not permitted inside an "expr", but they are legal
+everywhere else.  Blank lines are legal.  Comments start with --
+and finish at the end of the line.  A comment may stand on a line of
+its own or may come after an assignment.
+
+Expressions are evaluated as explained in the previous section.
+An "id" that has been given a value in an assignment statement is
+treated as a variable, and one that has not been used on the left side
+of an assignment is treated as a string literal.  Note that one-pass
+processing is used, so that for example in the sequence
+
+         alpha := beta
+         beta := TRUE
+
+the variable beta ends up with the value "TRUE", but alpha has the
+string value "beta".  Try to avoid examples like this, because they
+can cause confusion.
+
+
+RECOMPILING THE SUPPLIED SOURCES
+
+The complete source for PP is supplied in this distribution.  There
+are four modules: PP, PPExpr, PPMisc, and PPTextIO.  The module PPTextIO
+is for use with the FST compiler, and might not be needed if you use
+some other compiler.  The modules PP and PPExpr are, in principle,
+portable across all compilers.  (If you find an exception, please let
+me know.)  PPMisc holds the compiler-dependent stuff.
+
+The code has been tested with TopSpeed version 1.17, TopSpeed version
+3.10, and FST.  There are also some hooks in there for the Rowley
+compiler, but since I don't have that compiler the Rowley code is
+guesswork and probably wrong.
+
+Since PP.EXE is included in this distribution, you don't really need
+the source code ... but I imagine that you'll want to convert it
+for your compiler anyway.  To do this:
+
+   (a) save a copy of all supplied files in another directory, just in
+       case the following steps fail.
+   (b) edit the supplied PP.CFG to change the defined symbol to one
+       of FST, Rowley, or TopSpeed, as appropriate.  (If your compiler
+       is not one of these, see below.)
+   (c) Run PP.  This will modify PPMISC.DEF and PPMISC.MOD.  You now
+       have a copy suitable for use with your compiler; and you can
+       re-compile and re-make PP.EXE if desired.
+
+What if you have a compiler other than the ones mentioned above?
+In this case you should manually edit PPMISC.DEF and PPMISC.MOD, to
+insert new sections using the existing code as a guide.  (This will
+be easy - this module consists mainly of library calls.)  Then
+proceed as above.
+
+
+KNOWN BUGS
+
+The one known fault in PP is that its logic for deciding when to
+copy a blank line is imperfect.  With the command-line "S"
+option, you can get extra blank lines internally in cases where a
+complete line has had to be deleted.  Since this is a benign fault,
+I haven't given a high priority to fixing it.
+
+
+CREDITS
+
+The version control syntax of PP is similar to, although not identical
+with, the syntax used by the "version" utility that came with Rowley
+Modula-2.  I don't know whether the idea is older with that.  (I don't
+have any of the Rowley software, only a few pages of manual.)  PP
+extends the syntax by allowing more complex combinations of conditions.
+
+The immediate predecessor of PP was a program developed at Monash
+University and supplied to me by Deane Blackman.  I've re-coded this
+almost completely to add new features, but this project would not even
+have been started if Deane had not pointed me in the right direction.
+
+
+CONTACT INFORMATION
+
+The author of PP is
+
+            Peter Moylan
+            Department of Electrical and Computer Engineering
+            The University of Newcastle, NSW 2308
+            Australia.
+
+            Phone: +61 49 21 6023      (time zone GMT+10)
+            Fax:   +61 49 60 1712
+            e-mail:   peter@ee.newcastle.edu.au
+                      peter@tesla.newcastle.edu.au
+                      eepjm@cc.newcastle.edu.au
+
+The preferred method of contacting me is via e-mail; this will probably
+bring a faster response than with paper mail.  I would very much like
+to hear of ports of PP to other compilers.
+

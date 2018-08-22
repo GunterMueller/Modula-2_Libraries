@@ -1,0 +1,7 @@
+DEFINITION MODULE Tank;
+(*****************************************************************************)
+(**  Contains an array and procedure to plot a tank.                        **)
+(*****************************************************************************)
+FROM GWindows IMPORT Window;
+PROCEDURE MainTank(w:Window;x1,y1:INTEGER;colr:SHORTCARD);
+END Tank.

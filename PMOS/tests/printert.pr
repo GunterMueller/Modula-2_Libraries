@@ -1,0 +1,11 @@
+#system auto exe
+#model small jpi
+#pragma check(index=>on,range=>on,stack=>on,nil_ptr=>on,overflow=>on,guard=>on)
+#pragma optimize(cpu=>486,copro=>387)
+#pragma debug(vid=>full)
+
+#compile %main
+#pragma link(pmos%M%.lib)
+#link %prjname
+
+

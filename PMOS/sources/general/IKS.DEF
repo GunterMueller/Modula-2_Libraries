@@ -1,0 +1,130 @@
+DEFINITION MODULE IKS;
+
+(*# save, call(c_conv => off) *)
+
+        (****************************************************************)
+        (*                                                              *)
+        (*      This is a stripped-down version of the module           *)
+        (*      called InnerKernel, with support for interrupt          *)
+        (*      tasks removed.                                          *)
+        (*                                                              *)
+        (*      By removing the interrupt support, we achieve a         *)
+        (*      large reduction in code complexity.  Note that          *)
+        (*      interrupt handlers can still be written and used,       *)
+        (*      but since the kernel does not know about them           *)
+        (*      they have to be implemented as procedures rather        *)
+        (*      than as tasks.                                          *)
+        (*                                                              *)
+        (*      For the sake of additional readibility, we assume       *)
+        (*      that we are using the TopSpeed Extra Large memory       *)
+        (*      model: multiple code segments, multiple data            *)
+        (*      segments, and separate stack segments.  (That is,       *)
+        (*      all intermodule pointers are long.)  This allows us     *)
+        (*      to delete some of the conditional compilation.          *)
+        (*                                                              *)
+        (*      Note the extensive use of compiler pragmas to specify   *)
+        (*      which registers parameters are passed in.               *)
+        (*                                                              *)
+        (*      Programmer:     P. Moylan                               *)
+        (*      Last edited:    1 April 2004                            *)
+        (*      Status:         OK                                      *)
+        (*                                                              *)
+        (****************************************************************)
+
+FROM Types IMPORT
+    (* type *)  FarPointer;
+
+TYPE
+    (*<TopSpeed3*) Code3 = ARRAY [0..2] OF SHORTCARD; (*>*)
+    TaskSelector = FarPointer;
+    FloatSaveSelector = CARDINAL;
+
+(************************************************************************)
+
+(*# call(reg_saved => (bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+PROCEDURE EnterKernel (): CARDINAL;
+
+    (* Saves the processor flags word, including the current "interrupt *)
+    (* enable" status, and returns with interrupts disabled.            *)
+    (* NOTE: this procedure and the following one should be used as a   *)
+    (* matched pair.                                                    *)
+
+(*# call(reg_param => (ax), reg_saved => (ax,bx,cx,dx,si,di,ds,es,st1,st2)) *)
+
+PROCEDURE LeaveKernel (PSW: CARDINAL);
+
+    (* Restores the processor flags word, including the "interrupt      *)
+    (* enable" status.  NOTE: this procedure and the one above should   *)
+    (* be used as a matched pair.                                       *)
+
+(*# call(reg_return => (bx,es), reg_saved => (dx,si,di,ds,st1,st2)) *)
+(*# call(reg_param => (ax,bx,cx,dx)) *)
+
+PROCEDURE TaskInit (StackBase: ADDRESS;  StackSize: CARDINAL;
+                        EnableInterrupts: BOOLEAN;
+                        TaskExit, StartAddress: PROC): TaskSelector;
+
+    (* Initialises the stack for a new task.  Parameter StackBase       *)
+    (* points to a block of memory which can be used to hold the stack  *)
+    (* (note that this is a pointer to the start of the memory block,   *)
+    (* not to the bottom of the stack); and StackSize is the size of    *)
+    (* this block.  The next parameter specifies whether processor      *)
+    (* interrupts should be enabled when the task is started.           *)
+    (* StartAddress and TaskExit are the start address of the task code *)
+    (* and the start address of the code to execute when the task       *)
+    (* terminates.  The value returned is a selector for the new task.  *)
+
+(*# call(reg_saved => (ax,cx,dx,si,di,ds,st1,st2)) *)
+
+PROCEDURE InitMainTask (): TaskSelector;
+
+    (* Like TaskInit, but for the special case of the original task     *)
+    (* which is running at program startup.  The function of this       *)
+    (* procedure is simply to ensure that the main stack layout is      *)
+    (* consistent with what we do for all other tasks.                  *)
+
+(*# call(reg_saved => (ax,bx,cx,dx,si,di,ds,es,st1,st2)) *)
+(*# call(reg_param => (si, ds, ax, bx)) *)
+
+PROCEDURE Transfer (VAR (*OUT*) source: TaskSelector;
+                                        destination: TaskSelector);
+
+    (* Performs a task switch to the destination task, at the same time *)
+    (* saving a selector for the outgoing task in variable "source".    *)
+    (* This allows a subsequent call to Transfer to resume the          *)
+    (* original task.  By the time this procedure has returned to the   *)
+    (* caller, then, we are again executing the calling task.           *)
+
+(*# call(reg_param => (ax,bx), reg_return => (bx)) *)
+
+PROCEDURE MakeFloatSaveSelector (selector: TaskSelector): FloatSaveSelector;
+
+    (* Creates the special form of selector which must subsequently be  *)
+    (* used in calls to save and restore the floating point state.      *)
+    (* The parameter supplied must be the value of the task selector    *)
+    (* as created by TaskInit.                                          *)
+
+PROCEDURE NPXsave (selector: FloatSaveSelector);
+
+    (* Saves the state of the Numeric Processor Extension coprocessor.  *)
+
+PROCEDURE NPXrestore (selector: FloatSaveSelector);
+
+    (* The operation complementary to NewNPXsave.  Restores the         *)
+    (* previously saved state of the floating point coprocessor.        *)
+
+(*# restore *)
+
+PROCEDURE PrepareForShutdown;
+
+    (* This procedure is needed just before executing the "exit from    *)
+    (* program" operation, and is provided to get around a problem      *)
+    (* with some memory models in TopSpeed version 3.  (With other      *)
+    (* compilers, this can afford to be a dummy procedure.)             *)
+    (* A (deliberate) side-effect of calling this procedure is that     *)
+    (* the stack is corrupted, so do NOT call it except as the final    *)
+    (* step of termination processing.                                  *)
+
+END IKS.
+

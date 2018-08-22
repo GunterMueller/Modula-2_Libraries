@@ -1,0 +1,184 @@
+DEFINITION MODULE Devices;
+
+	(********************************************************)
+	(*							*)
+	(*		Support for device drivers.		*)
+	(*							*)
+	(*  The aim of this module is to a measure of device	*)
+	(*  independence in I/O operations.  It provides a	*)
+	(*  uniform I/O interface to all device drivers which	*)
+	(*  choose to make themselves known to module Devices.	*)
+	(*							*)
+	(*  Programmer:		P. Moylan			*)
+	(*  Last edited:	16 June 1992			*)
+	(*  Status:		Working				*)
+	(*							*)
+	(********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)	BYTE, ADDRESS;
+
+FROM IOErrorCodes IMPORT
+    (* type *)	ErrorCode;
+
+FROM Semaphores IMPORT
+    (* type *)	Semaphore;
+
+(************************************************************************)
+
+TYPE
+    BlockNumberType = LONGCARD;
+
+    (* Any I/O device supported by this module is specified by a pair	*)
+    (* of type (device, unit), where the first component has private	*)
+    (* type Device, and the second is a unit number (normally zero, but	*)
+    (* some device drivers support multi-unit devices).			*)
+
+    Device;	(* is private *)
+
+    (* The I/O operations dealt with by this module.  Note that "read"	*)
+    (* and "physicalread" have the same meaning for most devices - and	*)
+    (* similarly for "write" and "physicalwrite" - but the distinction	*)
+    (* is important for hard disks, which can be partitioned into	*)
+    (* one or more logical disks.					*)
+
+    OperationType = (verify, read, write, physicalread, physicalwrite,
+			shutdown);
+
+    (********************************************************************)
+    (*									*)
+    (*  An I/O operation is specified by the details in a request block	*)
+    (*  whose fields have the meaning:					*)
+    (*									*)
+    (*		Status		to show the result of the operation	*)
+    (*				  (Status = OK if there was no error)	*)
+    (*		operation	the desired I/O operation		*)
+    (*		device,unit	the device to be used			*)
+    (*		BlockNumber	the block number on the medium, used	*)
+    (*				only for block-oriented devices		*)
+    (*		ByteCount	the number of bytes to transfer		*)
+    (*		BufferAddress	the address of an array which holds the	*)
+    (*				data to be written, or which will	*)
+    (*				receive the input data			*)
+    (*		DoneSemaphorePointer  the address of a semaphore on	*)
+    (*				which the device will perform a Signal	*)
+    (*				to let the user know that the operation	*)
+    (*				is complete				*)
+    (*									*)
+    (*  The caller must not modify the contents of the request block	*)
+    (*  until completion of the I/O operation.  Device drivers must	*)
+    (*  not modify any field except the Status field.			*)
+    (*									*)
+    (********************************************************************)
+
+TYPE
+    RequestBlock = RECORD
+			Status: ErrorCode;
+			operation: OperationType;
+			device: Device;
+			unit: CARDINAL;
+			BlockNumber: BlockNumberType;
+			ByteCount: CARDINAL;
+			BufferAddress: ADDRESS;
+			DoneSemaphorePointer: POINTER TO Semaphore;
+		   END (*RECORD*);
+
+    RequestBlockPointer = POINTER TO RequestBlock;
+
+(************************************************************************)
+(*		  PROCEDURES CALLED BY THE USER TASKS			*)
+(************************************************************************)
+
+PROCEDURE SameDevice (d1, d2: Device): BOOLEAN;
+
+    (* Tests the condition d1 = d2.	*)
+
+PROCEDURE NullDevice (): Device;
+
+    (* Returns the device code which this module uses internally to	*)
+    (* mean "nonexistent device" or "unknown device".  I/O operations	*)
+    (* on this device are of course impossible (if attempted, they will	*)
+    (* result in the NoSuchDevice error code), but the device code can	*)
+    (* be used by client modules as a marker to indicate that no	*)
+    (* genuine device has yet been specified.				*)
+
+PROCEDURE IdentifyDevice (name: ARRAY OF CHAR;  VAR (*OUT*) device: Device;
+				VAR (*OUT*) unitnumber: CARDINAL);
+
+    (* Given the character string form of a device name, returns the	*)
+    (* device code and unit number.					*)
+
+PROCEDURE GetDefaultDirectory (device: Device;  unit: CARDINAL;
+				VAR (*OUT*) DirectoryString: ARRAY OF CHAR);
+
+    (* Produces a string representing the default directory.  The	*)
+    (* string includes the character form of the device name.		*)
+
+PROCEDURE VolumeSize (device: Device;  unitnumber: CARDINAL): BlockNumberType;
+
+    (* Returns the number of sectors on (device, unitnumber).  Note	*)
+    (* that the result is meaningful only for device drivers which	*)
+    (* supply this information (see DeviceName below).			*)
+
+PROCEDURE IOrequest (VAR (*INOUT*) details: RequestBlock);
+
+    (* Adds the requested I/O operation to the queue of pending		*)
+    (* operations on details.device.  The operation might not be done	*)
+    (* immediately since the device driver might still be working on an	*)
+    (* earlier request.  On I/O completion, the device driver performs	*)
+    (* a Signal(details.DoneSemaphorePointer^).				*)
+
+PROCEDURE BlockRead (d: Device;  unitnumber: CARDINAL;
+			BlockNumber: BlockNumberType;
+			MemoryAddress: ADDRESS;  amount: CARDINAL): ErrorCode;
+
+    (* Reads "amount" bytes into memory, starting at the		*)
+    (* beginning of block number "BlockNumber" on the specified device.	*)
+
+PROCEDURE BlockWrite (d: Device;  unitnumber: CARDINAL;
+			BlockNumber: BlockNumberType;
+			MemoryAddress: ADDRESS;  amount: CARDINAL): ErrorCode;
+
+    (* Writes "amount" bytes from memory, starting at the beginning of	*)
+    (* block number "BlockNumber" on the specified device.		*)
+
+PROCEDURE ReadPhysicalBlock (d: Device;  unitnumber: CARDINAL;
+		BlockNo: BlockNumberType;  MemoryAddress: ADDRESS): ErrorCode;
+
+    (* Reads one sector into memory, starting at the beginning of	*)
+    (* physical block number "BlockNo" on the specified device.		*)
+
+(************************************************************************)
+(*		PROCEDURES CALLED BY THE DEVICE DRIVERS			*)
+(************************************************************************)
+
+PROCEDURE InstallDeviceDriver (MaxUnitNumber: CARDINAL): Device;
+
+    (* Called by the device driver as part of its initialization code,	*)
+    (* to make the driver known to this module.  MaxUnitNumber is the	*)
+    (* maximum unit number which this device driver will support (0 for	*)
+    (* a single-unit device driver).  The value returned is the means	*)
+    (* by which the device driver will henceforth identify itself to	*)
+    (* this module.							*)
+
+PROCEDURE DeviceName (device: Device;  unit: CARDINAL;
+			name: ARRAY OF CHAR;  size: BlockNumberType;
+			DefaultDirString: ARRAY OF CHAR);
+
+    (* Specifies an external name for a given device and unit number.	*)
+    (* Duplicate names are permitted.  The size parameter gives the	*)
+    (* number of sectors in the partition if this "device" is actually	*)
+    (* a partition on a hard disk; but it is not necessarily meaningful	*)
+    (* for other device types.  (This parameter is supplied only for	*)
+    (* the benefit of the file system when it has to deal with the	*)
+    (* special case of a large partition.)  Device drivers which are	*)
+    (* not prepared to specify a meaningful size should supply a value	*)
+    (* of 0 for the size.						*)
+    (* DefaultDirString specifies the initial default directory.	*)
+
+PROCEDURE AcceptRequest (device: Device): RequestBlockPointer;
+
+    (* Returns a pointer to the next request enqueued for this device.	*)
+    (* If there is no next request, we wait until one appears.		*)
+
+END Devices.

@@ -1,0 +1,71 @@
+DEFINITION MODULE GlassTTY;
+
+        (********************************************************)
+        (*                                                      *)
+        (*           Simple screen output routines.             *)
+        (*                                                      *)
+        (*  This module handles screen output at a very low     *)
+        (*  level, without supplying the advanced features      *)
+        (*  which may be found in, for example, module Windows. *)
+        (*  It is intended for things like error message        *)
+        (*  output, and is designed for compactness rather      *)
+        (*  than comprehensiveness.                             *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Last edited:        23 September 1996               *)
+        (*  Status:             OK                              *)
+        (*                                                      *)
+        (********************************************************)
+
+FROM SYSTEM IMPORT
+    (* type *)  CARD8, BYTE, ADDRESS;
+
+PROCEDURE WriteChar (ch: CHAR);
+
+    (* Writes one character. *)
+
+PROCEDURE WriteString (text: ARRAY OF CHAR);
+
+    (* Writes a string of characters.   *)
+
+PROCEDURE WriteLn;
+
+    (* Moves the screen cursor to the beginning of the next line,       *)
+    (* scrolling if necessary.                                          *)
+
+PROCEDURE SetCursor (row, column: CARDINAL);
+
+    (* Moves the screen cursor to the specified row and column.         *)
+
+PROCEDURE SaveCursor;
+
+    (* Remembers the current cursor position, for use by a subsequent   *)
+    (* call to RestoreCursor.  Note that nesting is not supported, i.e. *)
+    (* a call to SaveCursor destroys the information saved by any       *)
+    (* earlier call to SaveCursor.                                      *)
+
+PROCEDURE RestoreCursor;
+
+    (* Sets the cursor back to where it was at the time of the last     *)
+    (* call to SaveCursor.                                              *)
+
+PROCEDURE WriteHexByte (number: CARD8);
+
+    (* Writes its argument as a two-digit hexadecimal number.           *)
+
+PROCEDURE WriteHexWord (number: CARDINAL);
+
+    (* Writes its argument as a four-digit hexadecimal number.          *)
+
+PROCEDURE WriteInt (number: INTEGER);
+PROCEDURE WriteCard (number: CARDINAL);
+(*PROCEDURE WriteLongCard (number: LONGCARD);*)
+
+    (* Writes a number to the screen.   *)
+
+PROCEDURE WriteAddress (addr: ADDRESS);
+
+    (* Writes a segmented address to the screen.        *)
+
+END GlassTTY.
+

@@ -1,0 +1,281 @@
+DEFINITION MODULE Graphics;
+
+	(****************************************************************)
+	(*								*)
+	(*		     Screen graphics output			*)
+	(*								*)
+	(*  Programmer:		P. Moylan				*)
+	(*  Last edited:	10 February 1995			*)
+	(*  Status:		OK					*)
+	(*								*)
+	(*	The procedures in this module assume that the caller	*)
+	(*	has control of the entire screen.			*)
+	(*	For multi-window graphics, see module GWindows.		*)
+	(*								*)
+	(* The support status for the various graphics modes is listed	*)
+	(* below.  Text modes are listed for information only; this	*)
+	(* module allows you to select a text mode, but does not supply	*)
+	(* any support beyond that point.				*)
+	(*								*)
+	(*	-	720x348x1 (Hercules only)	working		*)
+	(*	0	40x25 BW text			text		*)
+	(*	1	40x25 colour text		text		*)
+	(*	2	80x25 BW text			text		*)
+	(*	3	80x25 colour text		text		*)
+	(*	4	320x200x4 (CGA)			working		*)
+	(*	5	320x200 BW (CGA)		working		*)
+	(*	6	640x200	BW (CGA)		working		*)
+	(*	7	80x25 mono text (MDA/Hercules)	text		*)
+	(*	8-12	unsure, but not graphics	not supported	*)
+	(*	13	320x200x16 (EGA)		working		*)
+	(*	14	640x200x16 (EGA)		working		*)
+	(*	15	640x350x1  (EGA)		working		*)
+	(*	16	640x350x16 (EGA)		working		*)
+	(*	17	640x480x1  (VGA)		working		*)
+	(*	18	640x480x16 (VGA)		working		*)
+	(*	19	320x200x256 (VGA)		working		*)
+	(*								*)
+	(*  ATI SVGA modes:						*)
+	(*	83	800x600x16			working		*)
+	(*	84	800x600x16			working		*)
+	(*	85	1024x768x16			working		*)
+	(*	97	640x400x256			working		*)
+	(*	98	640x480x256			working		*)
+	(*	99	800x600x256			working*	*)
+	(*	100	1024x768x256			untested	*)
+	(*	101	1024x768x16 packed		BIOS problem?	*)
+	(*								*)
+	(*  S3 modes:							*)
+	(*	The S3 supports only VESA SVGA modes.  Of these,	*)
+	(*	mode 257 works (after a correction in SCREEN.MOD for a	*)
+	(*	bug in the BIOS), but for some reason I can't succeed	*)
+	(*	in setting any other VESA mode.				*)
+	(*								*)
+	(*  Trident SVGA modes:						*)
+	(*	17 extra modes defined, all untested so far.		*)
+	(*								*)
+	(*  VESA modes:							*)
+	(*	106	800x600x16			working		*)
+	(*	256	640x400x256			working		*)
+	(*	257	640x480x256			working		*)
+	(*	258	800x600x16			working*	*)
+	(*	259	800x600x256			working*	*)
+	(*	260	1024x768x16			working*	*)
+	(*	261	1024x768x256			untested	*)
+	(*	262	1280x1024x16			untested	*)
+	(*	263	1280x1024x256			untested	*)
+	(*	264	80x60 text			text		*)
+	(*	265	132x25 text			text		*)
+	(*	266	132x43 text			text		*)
+	(*	267	132x50 text			text		*)
+	(*	268	132x60 text			text		*)
+	(*	269	300x200x32K			untested	*)
+	(*	270	320x200x64K			untested	*)
+	(*	271	320x200x16.8M			not supported	*)
+	(*	272	640x480x32K			working		*)
+	(*	273	640x480x64K			working		*)
+	(*	274	640x480x16.8M			not supported	*)
+	(*	275	800x600x32K			working		*)
+	(*	276	800x600x64K			working		*)
+	(*	277	800x600x16.8M			not supported	*)
+	(*	278	1024x768x32K			untested	*)
+	(*	279	1024x768x64K			untested	*)
+	(*	280	1024x768x16.8M			not supported	*)
+	(*	281	1280x1024x32K			untested	*)
+	(*	282	1280x1024x64K			untested	*)
+	(*	283	1280x1024x16.8M			not supported	*)
+	(* Modes 271,274,277,280, and 283, which use 24-bit colours,	*)
+	(* are not supported by the current version of module Graphics.	*)
+	(*								*)
+	(* The notation "working*" means that the modes are working on	*)
+	(* some hardware but failing on others.  Since this is due to	*)
+	(* BIOS errors the only remedy is to disable or avoid the modes	*)
+	(* that don't work on your hardware (or upgrade your BIOS).	*)
+	(*								*)
+	(* I now have partial support on the Trident for the		*)
+	(* following "VESA" modes:					*)
+	(*	368	512x480x32K			working?	*)
+	(*	369	512x480x64K			working?	*)
+	(* These have poor horizontal position on my monitor, but this	*)
+	(* is possibly just a monitor limitation; otherwise they	*)
+	(* work well.							*)
+	(*								*)
+	(* Comments on modes which are "almost" working:		*)
+	(*	106,258,260						*)
+	(*		Sync problem on Trident				*)
+	(*	99,259	Fails on some but not all ATI adaptors.		*)
+	(*	261..263,269..283					*)
+	(*		The hardware I'm using so far doesn't support	*)
+	(*		these modes, so I can't yet test them.		*)
+	(*	348..351, 354, 362, 372..375 (plus some text modes)	*)
+	(*		these are in some sense "supported" on the	*)
+	(*		Trident; most of them turn out to be duplicates,*)
+	(*		so I've eliminated them from the list of	*)
+	(*		supported modes.  The only genuine extras are	*)
+	(*		272,273,275,276 (which are not listed as	*)
+	(*		supported, but are available anyway); and	*)
+	(*		368,369 (which are listed as supported,		*)
+	(*		although I'm not sure that the Vesa standard	*)
+	(*		includes them).					*)
+	(*								*)
+	(* Note that on the Trident:					*)
+	(*   - all the 16-colour modes using bank switching show the	*)
+	(*     same symptom: a triple image apparently caused by a	*)
+	(*     clock synch problem;					*)
+	(*   - the 32K and 64K colour modes are working to some		*)
+	(*     extent, but the colours are not what one would expect.	*)
+	(*								*)
+	(****************************************************************)
+
+FROM ScreenGeometry IMPORT
+    (* type *)	Rectangle;
+
+FROM Screen IMPORT
+    (* const*)	HercGraphics;	(* 720x348 monochrome Hercules graphics *)
+
+(************************************************************************)
+(*									*)
+(*  The constant BLorigin defined below is to support two different	*)
+(*  origin conventions.  When a reference is made to (x,y) coordinates	*)
+(*  in this module, the x value is the horizontal coordinate, with 0	*)
+(*  at the left of the the screen, and the y value is the vertical	*)
+(*  coordinate.  If BLorigin is TRUE then y=0 is at the bottom of the	*)
+(*  screen and y values increase upwards.  If BLorigin is FALSE then	*)
+(*  y=0 is at the top of the screen and y values increase downwards.	*)
+(*  You can choose whichever convention suits you best; the effect on	*)
+(*  execution speed is negligible.  Some other PMOS modules assume	*)
+(*  that you have selected the TRUE option.				*)
+(*									*)
+(*  NOTE: The case BLorigin=FALSE has not yet been fully tested.	*)
+(*									*)
+(*  You might think that the inclusion of this choice will increase	*)
+(*  software overheads, but in fact any reasonable compiler will do	*)
+(*  the constant testing at compile time rather than at execution time,	*)
+(*  eliminating the unreachable code.					*)
+(*									*)
+(************************************************************************)
+
+CONST BLorigin = TRUE;
+
+(************************************************************************)
+
+TYPE ColourType = CARDINAL;
+
+PROCEDURE SetMode (newmode: CARDINAL;  ClearScreen: BOOLEAN);
+
+    (* Sets the video mode. *)
+
+    (* Warning: the option ClearScreen=FALSE sometimes produces some	*)
+    (* strange effects, apparently because of some aspect of the BIOS	*)
+    (* that I don't yet understand.					*)
+
+PROCEDURE SetDefaultMode;
+
+    (* Sets the video mode to (our opinion of) the "best" graphics mode	*)
+    (* supported by the hardware.					*)
+
+PROCEDURE GraphicsOff (ClearScreen: BOOLEAN);
+
+    (* Sets the video mode to a default text mode. *)
+
+PROCEDURE GetScreenShape (VAR (*OUT*) xmax, ymax: CARDINAL;
+				VAR (*OUT*) maxcolour: ColourType;
+				VAR (*OUT*) CharHeight: CARDINAL);
+
+    (* Returns the maximum values permitted by the current mode for	*)
+    (* x, y, and colour; and the number of rows in a character.		*)
+
+PROCEDURE SetPaletteColour (Palette_Index, Red, Green, Blue: SHORTCARD);
+
+    (* Sets the colour for one palette register.  Applicable only to	*)
+    (* VGA or better.  The three colour codes are 6-bit numbers.	*)
+
+PROCEDURE PlotDot (x, y: CARDINAL;  colour: ColourType);
+
+    (* Writes a dot at screen position (x, y).	*)
+
+PROCEDURE PlotMark (x, y: CARDINAL;
+			colour: ColourType;  pointtype: SHORTCARD);
+
+    (* Writes a mark at screen position (x, y).  Currently, the options	*)
+    (* for pointtype are:						*)
+    (*		0	dot						*)
+    (*		1	X						*)
+    (*		2	box						*)
+
+PROCEDURE PlotLine (x0, y0, x1, y1: CARDINAL;  colour: ColourType);
+
+    (* Plots a straight line from (x0,y0) to (x1,y1).  It is the	*)
+    (* caller's responsibility to ensure that the coordinates are in	*)
+    (* range for the current video mode.				*)
+
+PROCEDURE PlotRectangle (R: Rectangle;  colour: ColourType);
+
+    (* Plots a rectangle, with clipping if necessary to keep the	*)
+    (* points within the screen boundary.				*)
+
+PROCEDURE ClippedLine (x0, y0, x1, y1: CARDINAL;  colour: ColourType;
+			left, right, ymin, ymax: CARDINAL);
+
+    (* Like PlotLine, but plots only that part of the line which lies	*)
+    (* in the rectangle (left <= x <= right), (ymin <= y <= ymax).	*)
+    (* The caller is expected to ensure, by appropriate definition of	*)
+    (* the rectangle, that all plotted points are in range for the	*)
+    (* current video mode.						*)
+
+PROCEDURE Fill (x0, y0, x1, y1: CARDINAL;  colour: ColourType);
+
+    (* Fills a rectangle with the indicated colour.  The rectangle is	*)
+    (* specified by giving two opposite corners (x0,y0) and (x1,y1).	*)
+
+PROCEDURE ACopy (xs, ys, width, height: CARDINAL;  dx, dy: INTEGER);
+
+    (* Copies a rectangular region by an offset (dx, dy).  The pair	*)
+    (* (xs,ys) gives the coordinates of the top left of the source	*)
+    (* rectangle.  Restrictions: this procedure is restricted to the	*)
+    (* case where distance to move the data is an integral number of	*)
+    (* bytes (i.e. if you want it to work for all modes then dx should	*)
+    (* be a multiple of 8); and in the case where the source and	*)
+    (* destination rectangles overlap then the move has to be upwards	*)
+    (* on the screen.  Thus we do not have a completely general "block	*)
+    (* copy" operation, but we do have something sufficient to support	*)
+    (* "scroll up" and similar operations.				*)
+
+    (* Further restriction: for multibank modes, will work only on	*)
+    (* hardware that permits separate "read" and "write" banks.  A fix	*)
+    (* for this would be sufficiently troublesome that I don't plan	*)
+    (* to fix the problem unless/until I discover that someone needs	*)
+    (* the software for that kind of hardware.				*)
+
+PROCEDURE DrawChar (ch: CHAR;  x, y: CARDINAL;  colour: ColourType);
+
+    (* Draws the single character ch.  The coordinates (x,y) are the	*)
+    (* location of the bottom left of the character.			*)
+
+PROCEDURE PlotString (VAR (*IN*) text: ARRAY OF CHAR;
+			x, y, length: CARDINAL;  colour: ColourType);
+
+    (* Draws a string of "length" characters starting at location (x,y)	*)
+    (* It is the caller's responsibility to ensure that the string will	*)
+    (* not run off the screen edges.					*)
+
+PROCEDURE ClippedString (VAR (*IN*) text: ARRAY OF CHAR;
+			x, y, length: CARDINAL;  colour: ColourType;
+			left, right, ymin, ymax: CARDINAL);
+
+    (* Like PlotString, but excludes any points which fall outside the	*)
+    (* clip rectangle defined by (left,right,ymin,ymax).		*)
+
+PROCEDURE PlotStringUp (VAR (*IN*) text: ARRAY OF CHAR;
+			x, y, length: CARDINAL;  colour: ColourType);
+
+    (* Like PlotString, but with text written in the +Y direction	*)
+
+PROCEDURE ClippedUpString (VAR (*IN*) text: ARRAY OF CHAR;
+			x, y, length: CARDINAL;  colour: ColourType;
+			left, right, ymin, ymax: CARDINAL);
+
+    (* Like ClippedString, but with text written in the +Y direction.	*)
+
+END Graphics.
+

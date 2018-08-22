@@ -1,0 +1,153 @@
+DEFINITION MODULE ListBoxes;
+
+        (********************************************************)
+        (*                                                      *)
+        (*               Scrollable listboxes                   *)
+        (*                                                      *)
+        (*  Programmer:         P. Moylan                       *)
+        (*  Started:            2 December 1997                 *)
+        (*  Last edited:        9 January 2003                  *)
+        (*  Status:             OK                              *)
+        (*                                                      *)
+        (********************************************************)
+
+
+FROM Windows IMPORT
+    (* type *)  Window, Colour;
+
+(************************************************************************)
+
+TYPE ListBox;              (* is private *)
+
+PROCEDURE CreateListBox (w: Window;  firstrow, leftcol,
+                                       rows, columns: CARDINAL): ListBox;
+
+    (* Creates a new ListBox.  Window w must already exist, and "rows"  *)
+    (* and "columns" should match the number of rows and columns that   *)
+    (* will be visible in the window.  The parameters firstrow and      *)
+    (* leftcol specify an offset from the window origin.                *)
+
+PROCEDURE DestroyListBox (LB: ListBox);
+
+    (* Deletes LB. *)
+
+PROCEDURE WindowOf (LB: ListBox): Window;
+
+    (* Identifies the window in which this ListBox lives. *)
+
+PROCEDURE ClearListBox (LB: ListBox);
+
+    (* Removes all stored data rows. *)
+
+PROCEDURE HighlightOn (LB: ListBox);
+
+    (* Enables reverse video for the current item. *)
+
+PROCEDURE HighlightOff (LB: ListBox);
+
+    (* Disables reverse video for the current item. *)
+
+PROCEDURE PaintCurrentItem (LB: ListBox;  fore, back: Colour);
+
+    (* Sets the foreground and background colours of the current item. *)
+
+PROCEDURE Repaint (LB: ListBox);
+
+    (* Rewrites the screen.  This also cancels the effect of a previous *)
+    (* DisableScreenOutput call.                                        *)
+
+PROCEDURE DisableScreenOutput (LB: ListBox);
+
+    (* Disables all screen updating until the next Repaint call. *)
+
+PROCEDURE LBAppend (LB: ListBox;  newitem: ARRAY OF CHAR);
+
+    (* Adds a new item after the last item. *)
+
+PROCEDURE LBInsertBefore (LB: ListBox;  newitem: ARRAY OF CHAR);
+
+    (* Adds a new item before the current item, and makes the newly     *)
+    (* inserted item the current item.                                  *)
+
+PROCEDURE LBInsertAt (LB: ListBox;  newitem: ARRAY OF CHAR;
+                                    position: CARDINAL);
+
+    (* Adds a new item at sequence number 'position'.  The current item *)
+    (* selection is left unchanged.  Does not redisplay the box.        *)
+    (* Because calls to this procedure insert items out of sequence,    *)
+    (* they can leave gaps and inconsistencies in the item numbers.     *)
+    (* To fix this, call LBUpdateItemNumbers after finishing all the    *)
+    (* insertions.                                                      *)
+
+PROCEDURE LBUpdateItemNumbers (LB: ListBox);
+
+    (* Makes a pass through the entire list making sure that the item   *)
+    (* numbers are consistent, and then redisplays the listbox.         *)
+
+PROCEDURE LBInsertAfter (LB: ListBox;  newitem: ARRAY OF CHAR);
+
+    (* Adds a new item after the current item, and makes the newly      *)
+    (* inserted item the current item.                                  *)
+
+PROCEDURE LBSort (LB: ListBox);
+
+    (* Sorts the contents of LB, then redisplays it. *)
+
+PROCEDURE ItemNumberOf (LB: ListBox;  entry: ARRAY OF CHAR): CARDINAL;
+
+    (* Returns the ordinal number of the item that matches 'entry'.     *)
+    (* The result is zero iff the list is empty.  If the list is        *)
+    (* nonempty, the first item number is 1.                            *)
+
+PROCEDURE LBCurrentItemNumber (LB: ListBox): CARDINAL;
+
+    (* Returns the ordinal number of the current item.  The result is   *)
+    (* zero if the list is empty.                                       *)
+
+PROCEDURE LBCurrentRowNumber (LB: ListBox): CARDINAL;
+
+    (* Returns the row number, within the window, of the current item.  *)
+    (* Note: a result of 0 could mean either that the top item is the   *)
+    (* current item, or that there are no items.                        *)
+
+PROCEDURE LBCurrent (LB: ListBox;  VAR (*OUT*) item: ARRAY OF CHAR);
+
+    (* Returns the (string) value of the current item. *)
+
+PROCEDURE ReplaceCurrent (LB: ListBox;  VAR (*IN*) item: ARRAY OF CHAR);
+
+    (* Updates the string value of the current item. *)
+
+PROCEDURE LBDeleteCurrent (LB: ListBox);
+
+    (* Removes the current entry. *)
+
+PROCEDURE LBDeleteNext (LB: ListBox);
+
+    (* Removes the entry after the current entry, if any.  The screen   *)
+    (* cursor is not moved.                                             *)
+
+PROCEDURE LBGoto (LB: ListBox;  N: CARDINAL);
+
+    (* Moves the cursor forward or backward to entry number N. *)
+
+PROCEDURE CursorBackward (LB: ListBox): BOOLEAN;
+
+    (* Moves the cursor one row backward.  Returns TRUE if we did       *)
+    (* move backward, FALSE if we ran off the top.                      *)
+
+PROCEDURE CursorForward (LB: ListBox): BOOLEAN;
+
+    (* Moves the cursor one row forward.  Returns TRUE if we did  *)
+    (* move forward, FALSE if we ran off the bottom.              *)
+
+PROCEDURE CursorMovements (LB: ListBox): BOOLEAN;
+
+    (* Moves the cursor position in response to keyboard characters     *)
+    (* (cursor up/down, Home, End, PgUp, PgDn).  On return, the         *)
+    (* first keyboard key that we didn't use remains available to be    *)
+    (* read by the caller.  The function result is TRUE iff the user    *)
+    (* moved the cursor off the top of the ListBox.                     *)
+
+END ListBoxes.
+

@@ -1,0 +1,7 @@
+DEFINITION MODULE TankHelp;
+(*****************************************************************************)
+(**   Procedure to print out help information.                              **)
+(*****************************************************************************)
+PROCEDURE Help;
+
+END TankHelp.
