@@ -3,7 +3,7 @@ Modula-2  Libraries:
  Olsen & Associates Portable Modula-2 Library. Description from README: "The library's foremost feature is its portability. Applications which use the library should be portable (usually w/o modification) and the library definition and current implementation should easily port to other systems. The library was originally centered around I/O, but has been expanded to include those facilities which we found were required for Modula-2 application programming in general." I have to add: portability in this case means portability between the Sun Modula-2 compiler and the Logitech compiler for DOS systems.
 - C.-Lins Modula-2 Software Component Library 
   The Software Component Library by Charles Lins which was quite known in the Modula-2 community a long time ago. The source code provided was published with three books teaching Modula-2. A short description: "Charles Lins collection of reusable standard software components, could be the basis for every programmers software project in Modula-2. Components that are implementations of commonly used data structures are presented, along with an adequate description of their functionality and efficiency."
-  Forked from "
+  Forked from  "http://www.uranus.ru/download.html"
 - Andrea M Modula-2 Library
  John Andrea's libraries and example code: quite a lot of reusable code, some really interesting things (for example a module for handling .bmp graphics).
  Forked from "http://www.johnandrea.ca/m2/"
